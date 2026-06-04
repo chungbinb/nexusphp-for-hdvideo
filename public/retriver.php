@@ -2,10 +2,15 @@
 require_once("../include/bittorrent.php");
 dbconn();
 loggedinorreturn();
-user_can('updateextinfo', true);
 $id = intval($_GET["id"] ?? 0);
 $type = intval($_GET["type"] ?? 0);
 $siteid = $_GET["siteid"] ?? 0; // 1 for IMDb
+
+// type=1: allow logged-in users to trigger initial fetch from details page.
+// type=2: keep privileged manual update behavior.
+if ($type === 2) {
+	user_can('updateextinfo', true);
+}
 
 if (!isset($id) || !$id || !is_numeric($id) || !isset($type) || !$type || !is_numeric($type) || !isset($siteid) || !$siteid)
 die();
@@ -41,7 +46,7 @@ switch ($siteid)
 //			}
             $torrentRep = new \App\Repositories\TorrentRepository();
             $torrentRep->fetchImdb($id);
-            nexus_redirect(getSchemeAndHttpHost() . "/details.php?id=$id");
+			nexus_redirect(getSchemeAndHttpHost() . "/details.php?id=$id#imdb-info");
 		}
 		break;
 	}

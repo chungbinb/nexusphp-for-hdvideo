@@ -1,0 +1,217 @@
+:root {
+    --bg-top: #eaf4ff;
+    --bg-mid: #f5fbff;
+    --bg-bottom: #ffffff;
+    --brand-a: #0d5f99;
+    --brand-b: #1482b8;
+    --brand-c: #1bbadf;
+    --text-main: #1f2d3d;
+    --text-muted: #637084;
+    --field-border: #cdd9ea;
+    --field-focus: #1b9bc8;
+    --error-bg: #fdecef;
+    --error-border: #f4c4cb;
+}
+
+.login-page-wrap {
+    background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-mid) 48%, var(--bg-bottom) 100%);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 16px;
+}
+
+.login-shell {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    min-height: 520px;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 16px 46px rgba(13, 95, 153, 0.15);
+    background: #fff;
+    font-family: "Segoe UI", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+.login-hero {
+    padding: 40px 34px;
+    color: #fff;
+    background: linear-gradient(150deg, var(--brand-a), var(--brand-b) 55%, var(--brand-c));
+    position: relative;
+}
+
+.login-hero:after {
+    content: "";
+    position: absolute;
+    inset: auto -80px -100px auto;
+    width: 260px;
+    height: 260px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.18);
+    filter: blur(2px);
+}
+
+.hero-title {
+    margin: 0;
+    font-size: 34px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+
+.hero-text {
+    margin-top: 14px;
+    margin-bottom: 0;
+    max-width: 420px;
+    line-height: 1.7;
+    font-size: 15px;
+    color: rgba(255, 255, 255, 0.92);
+}
+
+.hero-chip {
+    margin-top: 20px;
+    display: inline-block;
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 13px;
+    background: rgba(255, 255, 255, 0.24);
+}
+
+.login-panel {
+    padding: 30px;
+    color: var(--text-main);
+    background: #fff;
+}
+
+.login-panel h1 {
+    margin: 0;
+    font-size: 30px;
+}
+
+.login-subtitle {
+    margin: 10px 0 20px;
+    color: var(--text-muted);
+}
+
+.lang-form-wrap {
+    margin-bottom: 14px;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.lang-form-wrap select {
+    border: 1px solid var(--field-border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    background: #fff;
+    color: var(--text-main);
+}
+
+#login-form p {
+    margin: 0 0 10px;
+    color: var(--text-muted);
+    line-height: 1.6;
+}
+
+#login-form table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#login-form .rowhead,
+#login-form .rowfollow,
+#login-form .toolbox {
+    background: transparent;
+    border: none;
+    padding: 9px 2px;
+}
+
+#login-form .rowhead {
+    width: 140px;
+    color: var(--text-main);
+    font-weight: 600;
+}
+
+#login-form input[type="text"],
+#login-form input[type="password"],
+#login-form input[type="email"] {
+    width: min(100%, 360px) !important;
+    border: 1px solid var(--field-border) !important;
+    border-radius: 10px;
+    padding: 10px 12px;
+    box-sizing: border-box;
+    transition: border-color .2s ease, box-shadow .2s ease;
+}
+
+#login-form input:focus,
+#login-form select:focus {
+    outline: none;
+    border-color: var(--field-focus) !important;
+    box-shadow: 0 0 0 3px rgba(27, 155, 200, 0.16);
+}
+
+#submit-btn,
+#login-form input[type="reset"],
+#hbsubmit,
+#helpbox input[type="reset"] {
+    border: none;
+    border-radius: 10px;
+    padding: 10px 16px;
+    cursor: pointer;
+    transition: transform .15s ease, box-shadow .2s ease, opacity .2s ease;
+}
+
+#submit-btn,
+#hbsubmit {
+    color: #fff;
+    background: linear-gradient(135deg, var(--brand-a), var(--brand-c));
+    box-shadow: 0 8px 22px rgba(13, 95, 153, .22);
+}
+
+#login-form input[type="reset"],
+#helpbox input[type="reset"] {
+    color: var(--text-main);
+    background: #edf4fb;
+}
+
+#submit-btn:hover,
+#hbsubmit:hover,
+#login-form input[type="reset"]:hover,
+#helpbox input[type="reset"]:hover {
+    transform: translateY(-1px);
+}
+
+.login-return-tip {
+    margin-bottom: 12px;
+    border: 1px solid var(--error-border);
+    background: var(--error-bg);
+    border-radius: 10px;
+    padding: 12px;
+    color: #922d39;
+}
+
+.login-extra-links p {
+    margin: 10px 0;
+}
+
+@media (max-width: 960px) {
+    .login-shell {
+        grid-template-columns: 1fr;
+    }
+
+    .login-hero {
+        padding: 28px 22px;
+    }
+
+    .login-panel {
+        padding: 22px;
+    }
+
+    #login-form .rowhead,
+    #login-form .rowfollow,
+    #login-form .toolbox {
+        display: block;
+        width: 100%;
+    }
+}

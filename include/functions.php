@@ -1242,10 +1242,11 @@ function get_external_tr($imdb_url = "")
 	if ($showextinfo['imdb'] != 'yes') {
 	    return '';
     }
-	$ptGen = new Nexus\PTGen\PTGen();
 	$imdbNumber = parse_imdb_id($imdb_url);
-    $y = $ptGen->buildInput("url", $imdbNumber ? "https://www.imdb.com/title/tt".parse_imdb_id($imdb_url) : "", $lang_functions['text_imdb_url_note'], nexus_trans('ptgen.btn_get_desc'));
-    return tr($lang_functions['row_imdb_url'], $y, 1);
+	$imdbValue = $imdbNumber ? "https://www.imdb.com/title/tt".parse_imdb_id($imdb_url) : "";
+	$imdbInput = "<input type=\"text\" style=\"width: 99%;\" name=\"url\" value=\"" . htmlspecialchars($imdbValue) . "\" /><br /><font class=\"medium\">" . $lang_functions['text_imdb_url_note'] . "</font>";
+	$doubanInput = "<input type=\"text\" style=\"width: 99%;\" name=\"douban_url\" value=\"\" /><br /><font class=\"medium\">豆瓣条目链接，如 https://movie.douban.com/subject/1292052/</font>";
+    return tr($lang_functions['row_imdb_url'], $imdbInput, 1) . tr("Douban URL", $doubanInput, 1);
 
 //	($showextinfo['imdb'] == 'yes' ? tr($lang_functions['row_imdb_url'],  "<input type=\"text\" style=\"width: 99%;\" name=\"url\" value=\"".($imdbNumber ? "https://www.imdb.com/title/tt".parse_imdb_id($imdb_url) : "")."\" /><br /><font class=\"medium\">".$lang_functions['text_imdb_url_note']."</font>", 1) : "");
 }

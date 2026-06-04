@@ -85,6 +85,7 @@ stdhead($lang_upload['head_upload']);
 
 				print("<tr><td class=\"rowhead\" style='padding: 3px' valign=\"top\">".$lang_upload['row_description']."<font color=\"red\">*</font></td><td class=\"rowfollow\">");
 				textbbcode("upload","descr", "", false, 130, true);
+				print('<div style="margin-top: 6px;"><input type="button" class="btn btn-parse-desc" value="解析简介" /></div>');
 				print("</td></tr>\n");
 
                 if ($settingMain['enable_technical_info'] == 'yes') {
@@ -253,6 +254,91 @@ jQuery("#compose").on("change", "select[name=type]", function () {
     }
 })
 jQuery("tr[relation]").hide();
+
+// Parse button handler independent from PT-Gen.
+function __nexusFillDescription(form, response, replaceDescription) {
+	if (!response || response.ret != 0 || !response.data) {
+		alert((response && response.msg) ? response.msg : '解析失败')
+		return
+	}
+	let desc = response.data.descr || ''
+	if (!desc) {
+		alert('未获取到简介内容')
+		return
+	}
+	if (replaceDescription && typeof clearContent === 'function') {
+		clearContent()
+	}
+	doInsert(desc, '', false)
+	if (response.data.aka && response.data.site === 'douban') {
+		let aka = response.data.aka
+		if (response.data.chinese_title) {
+			aka.unshift(response.data.chinese_title)
+		}
+		form.find("input[name=small_descr]").val(aka.join("/"))
+	}
+	if (response.data.small_descr) {
+		form.find("input[name=small_descr]").val(response.data.small_descr)
+	}
+}
+
+function __nexusRequestDescription(doubanUrl, imdbUrl, onDone) {
+	let imdbId = ''
+	let match = (imdbUrl || '').match(/(tt\d{5,})/i)
+	if (match && match[1]) {
+		imdbId = match[1].toLowerCase()
+	}
+
+	let sendRequest = function (browserData) {
+		let params = {
+			action: 'parseExternalDescription',
+			params: {
+				douban_url: doubanUrl,
+				imdb_url: imdbUrl,
+				imdb_browser_data: browserData || {}
+			}
+		}
+		jQuery.post('ajax.php', params, function (response) {
+			onDone(response)
+		}, 'json').fail(function () {
+			onDone({ret: 1, msg: '请求失败'})
+		})
+	}
+
+	if (!imdbId) {
+		sendRequest({})
+		return
+	}
+
+	fetch('https://api.imdbapi.dev/titles/' + imdbId)
+		.then(function (resp) {
+			if (!resp.ok) {
+				throw new Error('imdb browser fetch failed: ' + resp.status)
+			}
+			return resp.json()
+		})
+		.then(function (json) {
+			sendRequest(json)
+		})
+		.catch(function () {
+			sendRequest({})
+		})
+}
+
+jQuery("#compose").off("click", ".btn-parse-desc").on("click.nexusParseDesc", ".btn-parse-desc", function () {
+	let form = jQuery(this).closest('form')
+	let imdbUrl = (form.find("input[name=url]").val() || '').trim()
+	let doubanUrl = (form.find("input[name=douban_url]").val() || '').trim()
+	if (imdbUrl == '' && doubanUrl == '') {
+		alert('请先填写豆瓣链接或IMDb链接')
+		return
+	}
+	jQuery('body').loading({stoppable: false})
+	__nexusRequestDescription(doubanUrl, imdbUrl, function (response) {
+		jQuery('body').loading('stop')
+		__nexusFillDescription(form, response, true)
+	})
+});
 JS;
 \Nexus\Nexus::js($customFieldJs, 'footer', false);
 stdfoot();
