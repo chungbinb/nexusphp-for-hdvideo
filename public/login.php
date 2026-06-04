@@ -20,6 +20,10 @@ require_once(get_langfile_path("", false, $CURLANGDIR));
 
 failedloginscheck ();
 cur_user_check () ;
+$loginTheme = $_GET['theme'] ?? 'modern';
+if ($loginTheme === 'modern') {
+	\Nexus\Nexus::css('css/login-modern.css', 'header', true);
+}
 stdhead($lang_login['head_login']);
 
 $s = "<select name=\"sitelanguage\" onchange='submit()'>\n";
@@ -31,21 +35,14 @@ foreach ($langs as $row)
 	$s .= "<option value=\"". $row["id"] ."\" ". $se. ">" . htmlspecialchars($row["lang_name"]) . "</option>\n";
 }
 $s .= "\n</select>";
-?>
-<form method="get" action="<?php echo $_SERVER['REQUEST_URI'] ?>">
-    <input type="hidden" name="secret" value="<?php echo $secret ?>">
-<?php
-print("<div align=\"right\">".$lang_login['text_select_lang']. $s . "</div>");
-?>
-</form>
-<?php
-
+ 
 unset($returnto);
+$returnNotice = '';
 if (!empty($_GET["returnto"])) {
 	$returnto = $_GET["returnto"];
 	if (empty($_GET["nowarn"])) {
-		print("<h1>" . $lang_login['h1_not_logged_in']. "</h1>\n");
-		print("<p><b>" . $lang_login['p_error']. "</b> " . $lang_login['p_after_logged_in']. "</p>\n");
+		$returnNotice .= "<h2>" . $lang_login['h1_not_logged_in'] . "</h2>\n";
+		$returnNotice .= "<p><b>" . $lang_login['p_error'] . "</b> " . $lang_login['p_after_logged_in'] . "</p>\n";
 	}
 }
 $useChallengeResponseAuthentication = \App\Models\Setting::getIsUseChallengeResponseAuthentication();
@@ -54,10 +51,25 @@ if (!$useChallengeResponseAuthentication) {
     $passwordName .= ' name="password"';
 }
 ?>
+<div class="login-page-wrap">
+	<div class="login-shell">
+		<aside class="login-hero">
+		</aside>
+		<section class="login-panel">
+			<form method="get" action="<?php echo $_SERVER['REQUEST_URI'] ?>" class="lang-form-wrap">
+				<input type="hidden" name="secret" value="<?php echo $secret ?>">
+				<span><?php echo $lang_login['text_select_lang']; ?></span>
+				<?php echo $s; ?>
+			</form>
+
+			<h1><?php echo $lang_login['head_login']; ?></h1>
+			<p class="login-subtitle"><?php echo $lang_login['p_you_have']; ?> <b><?php echo remaining ();?></b> <?php echo $lang_login['p_remaining_tries']?></p>
+			<?php if (!empty($returnNotice)) { ?>
+			<div class="login-return-tip"><?php echo $returnNotice; ?></div>
+			<?php } ?>
 <form id="login-form" method="post" action="takelogin.php">
     <input type="hidden" name="secret" value="<?php echo $secret?>">
 <p><?php echo $lang_login['p_need_cookies_enables']?><br /> [<b><?php echo $maxloginattempts;?></b>] <?php echo $lang_login['p_fail_ban']?></p>
-<p><?php echo $lang_login['p_you_have']?> <b><?php echo remaining ();?></b> <?php echo $lang_login['p_remaining_tries']?></p>
 <table border="0" cellpadding="5">
 <?php $formInputStyle = 'style="width: min(100%, 320px); min-width: 180px; border: 1px solid gray; box-sizing: border-box"'; ?>
 <tr><td class="rowhead"><?php echo $lang_login['rowhead_username']?></td><td class="rowfollow" align="left"><input type="text" class="username" name="username" autocomplete="username" <?php echo $formInputStyle; ?> /></td></tr>
@@ -92,7 +104,6 @@ if (isset($returnto)) {
 if ($useChallengeResponseAuthentication) {
     print('<input type="hidden" name="response" />');
 }
-\App\Repositories\UserPasskeyRepository::renderLogin();
 ?>
 </form>
 <?php
@@ -104,6 +115,7 @@ $items = [];
 foreach ($oauthProviders as $oauthProvider) {
     $items[] = sprintf('[<b><a href="oauth/redirect/%s">%s</a></b>]', $oauthProvider->uuid, $oauthProvider->name);
 }
+echo '<div class="login-extra-links">';
 if (!empty($items)) {
     echo sprintf("<p>%s: %s</p>", $lang_login['other_methods'], implode("&nbsp;&nbsp;", $items));
 }
@@ -120,6 +132,12 @@ if ($smtptype != 'none'){
 <p><?php echo $lang_login['p_resend_confirm']?></p>
 <?php
 }
+echo '</div>';
+?>
+		</section>
+	</div>
+</div>
+<?php
 if ($showhelpbox_main != 'no'){?>
 <table width="100%" class="main" border="0" cellspacing="0" cellpadding="0"><tr><td class="embedded">
 <h2><?php echo $lang_login['text_helpbox'] ?><font class="small"> - <?php echo $lang_login['text_helpbox_note'] ?><font id= "waittime" color="red"></font></h2>
@@ -135,5 +153,5 @@ print("</td></tr></table></form></td></tr></table>");
 ?>
 <?php
 render_password_challenge_js("login-form", "username", "password");
-\Nexus\Nexus::js('js/passkey.js', 'footer', true);
+\Nexus\Nexus::js('document.addEventListener("DOMContentLoaded", function () { var nav = document.getElementById("nav_block"); if (!nav) return; var wrap = nav.querySelector(".login-page-wrap"); if (!wrap) return; while (nav.firstChild && nav.firstChild !== wrap) { nav.removeChild(nav.firstChild); } });', 'footer', false);
 stdfoot();

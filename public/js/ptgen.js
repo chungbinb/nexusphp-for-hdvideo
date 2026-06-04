@@ -1,35 +1,97 @@
-jQuery('.btn-get-pt-gen').on('click', function () {
+function fillFromPtGen(form, response, replaceDescription) {
+    if (replaceDescription) {
+        clearContent()
+    }
+    doInsert(response.data.format, '', false)
+    if (response.data.aka && response.data.site === 'douban') {
+        let aka = response.data.aka
+        if (response.data.chinese_title) {
+            aka.unshift(response.data.chinese_title)
+        }
+        form.find("input[name=small_descr]").val(aka.join("/"))
+    }
+    if (response.data.imdb_link) {
+        form.find("input[data-pt-gen=url]").val(response.data.imdb_link)
+    }
+}
+
+function fetchPtGen(url, onSuccess, onFail) {
+    let params = {
+        action: 'getPtGen',
+        params: {url: url}
+    }
+    jQuery.post('ajax.php', params, function (response) {
+        if (response.ret != 0) {
+            onFail(response.msg || 'Parse failed')
+            return
+        }
+        onSuccess(response)
+    }, 'json').fail(function () {
+        onFail('Parse failed')
+    })
+}
+
+jQuery('#compose').on('click', '.btn-get-pt-gen', function () {
     let input = jQuery(this).closest('td').find('[data-pt-gen]')
     let form = jQuery(this).closest('form')
     let value = input.val().trim()
     if (value == '') {
         return
     }
-    let params = {
-        action: 'getPtGen',
-        params: {url: value}
-    }
     jQuery('body').loading({
         stoppable: false
-    });
-    jQuery.post('ajax.php', params, function (response) {
-        jQuery('body').loading('stop');
-        if (response.ret != 0) {
-            alert(response.msg)
+    })
+    fetchPtGen(value, function (response) {
+        jQuery('body').loading('stop')
+        fillFromPtGen(form, response, false)
+    }, function (msg) {
+        jQuery('body').loading('stop')
+        alert(msg)
+    })
+})
+
+jQuery('#compose').on('click', '.btn-parse-desc', function () {
+    let form = jQuery(this).closest('form')
+    let imdbUrl = (form.find("input[name=url]").val() || '').trim()
+    let doubanUrl = (form.find("input[name=douban_url]").val() || '').trim()
+    if (imdbUrl == '' && doubanUrl == '') {
+        alert('请先填写豆瓣链接或IMDb链接')
+        return
+    }
+
+    let fallbackToImdb = function (msg) {
+        if (imdbUrl == '') {
+            jQuery('body').loading('stop')
+            alert(msg)
             return
         }
-        doInsert(response.data.format, '', false)
-        if (response.data.aka && response.data.site === 'douban') {
-            let aka = response.data.aka
-            if (response.data.chinese_title) {
-                aka.unshift(response.data.chinese_title)
-            }
-            form.find("input[name=small_descr]").val(aka.join("/"))
-        }
-        if (response.data.imdb_link) {
-            form.find("input[data-pt-gen=url]").val(response.data.imdb_link)
-        }
-    }, 'json')
+        fetchPtGen(imdbUrl, function (response) {
+            jQuery('body').loading('stop')
+            fillFromPtGen(form, response, true)
+        }, function (imdbMsg) {
+            jQuery('body').loading('stop')
+            alert(imdbMsg)
+        })
+    }
+
+    jQuery('body').loading({
+        stoppable: false
+    })
+
+    if (doubanUrl != '') {
+        fetchPtGen(doubanUrl, function (response) {
+            jQuery('body').loading('stop')
+            fillFromPtGen(form, response, true)
+        }, fallbackToImdb)
+    } else {
+        fetchPtGen(imdbUrl, function (response) {
+            jQuery('body').loading('stop')
+            fillFromPtGen(form, response, true)
+        }, function (msg) {
+            jQuery('body').loading('stop')
+            alert(msg)
+        })
+    }
 })
 
 //auto fill quality

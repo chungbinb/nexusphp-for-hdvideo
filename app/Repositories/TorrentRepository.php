@@ -1133,11 +1133,30 @@ HTML;
             NexusDB::cache_del('imdb_id_'.$thenumbers.'_median', true);
             NexusDB::cache_del('imdb_id_'.$thenumbers.'_minor', true);
             NexusDB::cache_del(Imdb::getMovieCoverCacheKey($imdb_id));
+            NexusDB::cache_del(self::buildImdbFallbackCacheKey($torrentId));
             do_log("$log, done");
         } catch (\Exception $e) {
             $log .= ", error: " . $e->getMessage() . ", trace: " . $e->getTraceAsString();
             do_log($log, 'error');
+            try {
+                $parser = new \App\Services\ExternalDescriptionParser();
+                $parsed = $parser->parse('', build_imdb_url($imdb_id));
+                if (!empty($parsed['descr'])) {
+                    NexusDB::cache_put(self::buildImdbFallbackCacheKey($torrentId), $parsed['descr'], 86400);
+                    do_log("$log, fallback cache generated");
+                }
+            } catch (\Exception $fallbackException) {
+                do_log("$log, fallback error: " . $fallbackException->getMessage(), 'error');
+            }
+        } finally {
+            $torrent->cache_stamp = 0;
+            $torrent->save();
         }
+    }
+
+    public static function buildImdbFallbackCacheKey(int $torrentId): string
+    {
+        return "torrent_imdb_fallback_$torrentId";
     }
 
     public function changeCategory(Collection $torrents, int $sectionId, array $specificSubCategoryAndTags): void

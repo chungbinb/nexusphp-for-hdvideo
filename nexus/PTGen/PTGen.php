@@ -84,15 +84,31 @@ class PTGen
 
     public function generate(string $url, bool $withoutCache = false): array
     {
-//        $parsed = $this->parse($url);
-        $targetUrl = trim($this->apiPoint, '/');
-        if (Str::contains($targetUrl, '?')) {
-            $targetUrl .= "&";
-        } else {
-            $targetUrl .= "?";
+        $url = trim($url);
+        if ($url === '') {
+            throw new PTGenException('链接不能为空');
         }
-//        $targetUrl .= sprintf('site=%s&sid=%s&url=%s', $parsed['site'] , $parsed['id'], urlencode($parsed['url']));
-        $targetUrl .= "url=" . urlencode($url);
+
+        $apiPoint = trim($this->apiPoint);
+        if ($apiPoint === '') {
+            throw new PTGenException('PT-Gen 接口地址未配置，请在站点设置中填写 PT-Gen 接口地址');
+        }
+        if (!preg_match('#^https?://#i', $apiPoint)) {
+            $apiPoint = 'https://' . $apiPoint;
+        }
+
+        $parsedApiPoint = parse_url($apiPoint);
+        if (empty($parsedApiPoint['scheme']) || empty($parsedApiPoint['host'])) {
+            throw new PTGenException('PT-Gen 接口地址格式不正确，请填写完整 URL，例如：https://example.com');
+        }
+
+        $targetUrl = rtrim($apiPoint, '/');
+        if (Str::contains($targetUrl, '?')) {
+            $targetUrl .= '&';
+        } else {
+            $targetUrl .= '?';
+        }
+        $targetUrl .= 'url=' . urlencode($url);
         return $this->request($targetUrl, $withoutCache);
     }
 

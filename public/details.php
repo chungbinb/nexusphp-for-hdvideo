@@ -352,6 +352,9 @@ JS;
 
 	if ($imdb_id && $showextinfo['imdb'] == 'yes' && $CURUSER['showimdb'] != 'no')
 	{
+		$imdbInfoTitle = '<a id="imdb-info"></a>' . $lang_details['text_imdb'] . $lang_details['row_info'];
+		$imdbFallbackCacheKey = \App\Repositories\TorrentRepository::buildImdbFallbackCacheKey((int)$row['id']);
+		$imdbFallbackDesc = \Nexus\Database\NexusDB::cache_get($imdbFallbackCacheKey);
 		$thenumbers = $imdb_id;
 		$Cache->new_page('imdb_id_'.$thenumbers.'_large', 3600*24, true);
 		if (!$Cache->get_page()){
@@ -359,10 +362,24 @@ JS;
 			{
 				case "0" : //cache is not ready, try to
 				{
+					if (!empty($imdbFallbackDesc)) {
+						$fallbackContent = format_comment($imdbFallbackDesc);
+						if (user_can('updateextinfo')) {
+							$fallbackContent .= "<br />" . $lang_details['text_information_updated_at'] . date("Y-m-d H:i:s") . $lang_details['text_might_be_outdated'] . "<a href=\"retriver.php?id=" . $id . "&amp;type=2&amp;siteid=1\">" . $lang_details['text_here_to_update'] . "</a>";
+						}
+						tr($imdbInfoTitle, $fallbackContent, 1);
+						break;
+					}
 					if($row['cache_stamp']==0 || ($row['cache_stamp'] != 0 && (time()-$row['cache_stamp']) > 120))	//not exist or timed out
-						tr($lang_details['text_imdb'] . $lang_details['row_info'] , $lang_details['text_imdb'] . $lang_details['text_not_ready']."<a href=\"retriver.php?id=". $id ."&amp;type=1&amp;siteid=1\">".$lang_details['text_here_to_retrieve'] . $lang_details['text_imdb'],1);
+						tr($imdbInfoTitle , $lang_details['text_imdb'] . $lang_details['text_not_ready']."<a href=\"retriver.php?id=". $id ."&amp;type=1&amp;siteid=1\">".$lang_details['text_here_to_retrieve'] . $lang_details['text_imdb'],1);
 					else
-						tr($lang_details['text_imdb'] . $lang_details['row_info'] , "<img src=\"pic/progressbar.gif\" alt=\"\" />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" . $lang_details['text_someone_has_requested'].min(max(time()-$row['cache_stamp'],0),120) . $lang_details['text_please_be_patient'],1);
+					{
+						$waitingText = "<img src=\"pic/progressbar.gif\" alt=\"\" />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" . $lang_details['text_someone_has_requested'].min(max(time()-$row['cache_stamp'],0),120) . $lang_details['text_please_be_patient'];
+						if (user_can('updateextinfo')) {
+							$waitingText .= "&nbsp;&nbsp;<a href=\"retriver.php?id=" . $id . "&amp;type=2&amp;siteid=1\">" . $lang_details['text_here_to_update'] . "</a>";
+						}
+						tr($imdbInfoTitle , $waitingText,1);
+					}
 					break;
 				}
 				case "1" :
@@ -377,7 +394,7 @@ JS;
                         $cache_time = $imdb->getCachedAt($imdb_id);
                         $Cache->add_whole_row();
                         print("<tr>");
-                        print("<td class=\"rowhead\"><a href=\"javascript: klappe_ext('imdb')\"><span class=\"nowrap\"><img class=\"minus\" src=\"pic/trans.gif\" alt=\"Show/Hide\" id=\"picimdb\" title=\"".$lang_details['title_show_or_hide']."\" /> ".$lang_details['text_imdb'] . $lang_details['row_info'] ."</span></a><div id=\"posterimdb\">".  $smallth."</div></td>");
+						print("<td class=\"rowhead\"><a id=\"imdb-info\"></a><a href=\"javascript: klappe_ext('imdb')\"><span class=\"nowrap\"><img class=\"minus\" src=\"pic/trans.gif\" alt=\"Show/Hide\" id=\"picimdb\" title=\"".$lang_details['title_show_or_hide']."\" /> ".$lang_details['text_imdb'] . $lang_details['row_info'] ."</span></a><div id=\"posterimdb\">".  $smallth."</div></td>");
                         $Cache->end_whole_row();
                         $Cache->add_row();
                         $Cache->add_part();

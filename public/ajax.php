@@ -39,6 +39,18 @@ class AjaxInterface{
         }
     }
 
+    public static function parseExternalDescription($params)
+    {
+        $doubanUrl = trim((string)($params['douban_url'] ?? ''));
+        $imdbUrl = trim((string)($params['imdb_url'] ?? ''));
+        $imdbBrowserData = $params['imdb_browser_data'] ?? [];
+        if (!is_array($imdbBrowserData)) {
+            $imdbBrowserData = [];
+        }
+        $service = new \App\Services\ExternalDescriptionParser();
+        return $service->parse($doubanUrl, $imdbUrl, $imdbBrowserData);
+    }
+
     public static function addClaim($params)
     {
         global $CURUSER;
