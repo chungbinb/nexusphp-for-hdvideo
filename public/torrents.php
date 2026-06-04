@@ -197,6 +197,13 @@ elseif ($include_dead == 2)		//dead
 //	$wherea[] = "visible = 'no'";
     $whereothera[] = "visible = 'no'";
 }
+
+// In active/dead views, prioritize torrents tagged as official.
+$officialTag = intval(get_setting('bonus.official_tag', 0));
+if ($officialTag > 0 && in_array($include_dead, [1, 2], true)) {
+	$officialOrder = "CASE WHEN EXISTS (SELECT 1 FROM torrent_tags tt WHERE tt.torrent_id = torrents.id AND tt.tag_id = {$officialTag}) THEN 1 ELSE 0 END DESC, ";
+	$orderby = preg_replace('/^ORDER BY\s+/i', 'ORDER BY ' . $officialOrder, $orderby);
+}
 // ----------------- end include dead ---------------------//
 
 if (!isset($CURUSER) || !user_can('seebanned')) {
