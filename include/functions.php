@@ -2563,6 +2563,8 @@ $cssupdatedate=($cssupdatedate ? "?".htmlspecialchars($cssupdatedate) : "");
 <link rel="stylesheet" href="<?php echo $css_uri."theme.css".$cssupdatedate?>" type="text/css" />
 <link rel="stylesheet" href="<?php echo $css_uri."DomTT.css".$cssupdatedate?>" type="text/css" />
 <link rel="stylesheet" href="styles/nexus.css<?php echo $cssupdatedate?>" type="text/css" />
+<?php $modernRefreshVersion = @filemtime(ROOT_PATH . 'public/styles/modern-refresh.css') ?: time(); ?>
+<link rel="stylesheet" href="styles/modern-refresh.css?v=<?php echo intval($modernRefreshVersion) ?>" type="text/css" />
 <?php
 if ($CURUSER){
 //	$caticonrow = get_category_icon_row($CURUSER['caticon']);
@@ -2602,7 +2604,8 @@ foreach (\Nexus\Nexus::getAppendHeaders() as $value) {
 </script>
 <script type="text/javascript" src="vendor/layer-v3.5.1/layer/layer.js<?php echo $cssupdatedate?>"></script>
 </head>
-<body>
+<?php $pageClass = preg_replace('/[^a-z0-9_-]+/i', '-', nexus()->getScript()); ?>
+<body class="page-<?php echo htmlspecialchars($pageClass ?: 'index') ?>">
 <table class="head" cellspacing="0" cellpadding="0" align="center" style="width: <?php echo isset($GLOBALS['CURUSER']) ? CONTENT_WIDTH + 28.66 : CONTENT_WIDTH ?>px">
 	<tr>
 		<td class="clear">
