@@ -39,3 +39,5 @@ attachments
 bitbucket
 /public/attachments
 /public/bitbucket
+/.btpanel.local.json
+/.btpanel.local.*.json

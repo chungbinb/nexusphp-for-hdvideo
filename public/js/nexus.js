@@ -82,12 +82,64 @@ jQuery(document).ready(function () {
         const domainList = ['img1.doubanio.com', 'img2.doubanio.com', 'img3.doubanio.com', 'img9.doubanio.com'];
         const imgList = [...document.querySelectorAll('.nexus-lazy-load')];
         const loadedImages = {};
+        const detailPosterCache = {};
+
+        async function resolvePosterFromDetails(el) {
+            const row = el.closest('tr');
+            const detailsLink = row ? row.querySelector('a[href*="details.php?id="]') : null;
+            if (!detailsLink) {
+                return '';
+            }
+            const href = detailsLink.getAttribute('href') || '';
+            if (!href) {
+                return '';
+            }
+            if (detailPosterCache[href] !== undefined) {
+                return detailPosterCache[href];
+            }
+            try {
+                const response = await fetch(href, { credentials: 'same-origin' });
+                const html = await response.text();
+                let match = html.match(/<img[^>]+src=["'](https?:\/\/m\.media-amazon\.com\/images\/[^"]+)["']/i);
+                if (!match) {
+                    match = html.match(/\[img(?:=[^\]]+)?\](https?:\/\/[^\[]+)\[\/img\]/i);
+                }
+                if (!match) {
+                    match = html.match(/<img[^>]+src=["'](https?:\/\/[^"']+)["']/i);
+                }
+                const poster = match && match[1] ? match[1].trim() : '';
+                detailPosterCache[href] = poster;
+                return poster;
+            } catch (error) {
+                detailPosterCache[href] = '';
+                return '';
+            }
+        }
+
         const io = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 const el = entry.target;
                 const intersectionRatio = entry.intersectionRatio;
                 if (intersectionRatio > 0 && intersectionRatio <= 1 && !el.classList.contains('preview')) {
                     let src = el.dataset.src;
+                    if (!src) {
+                        if (el.dataset.coverResolving === '1') {
+                            return;
+                        }
+                        el.dataset.coverResolving = '1';
+                        resolvePosterFromDetails(el).then((poster) => {
+                            delete el.dataset.coverResolving;
+                            if (!poster) {
+                                return;
+                            }
+                            el.dataset.src = poster;
+                            if (!el.classList.contains('preview')) {
+                                io.unobserve(el);
+                                io.observe(el);
+                            }
+                        });
+                        return;
+                    }
                     if (src && src.includes('doubanio.com') && src.includes('l_ratio_poster')) {
                         src = src.replace('l_ratio_poster', 's_ratio_poster');
                         el.dataset.src = src;

@@ -20,6 +20,7 @@ $customField = new \Nexus\Field\Field();
 $hitAndRunRep = new \App\Repositories\HitAndRunRepository();
 $tagRep = new \App\Repositories\TagRepository();
 $tagIdArr = \App\Models\TorrentTag::query()->where('torrent_id', $id)->get()->pluck('tag_id')->toArray();
+$styleIdArr = hdvideo_get_torrent_style_ids($id);
 $searchBoxRep = new \App\Repositories\SearchBoxRepository();
 if ($enablespecial == 'yes' && user_can('movetorrent'))
 	$allowmove = true; //enable moving torrent to other section
@@ -163,6 +164,7 @@ else {
 
     $sectionCurrent = $searchBoxRep->renderTaxonomySelect($sectionmode, $row);
     tr($lang_edit['row_quality'], $sectionCurrent, 1, "mode_$sectionmode");
+    hdvideo_render_upload_region_style_rows($sectionmode, (int)($row['region'] ?? 0), $styleIdArr);
     echo $customField->renderOnUploadPage($id, $sectionmode);
     echo $hitAndRunRep->renderOnUploadPage($row['hr'], $sectionmode);
     tr($lang_functions['text_tags'], $tagRep->renderCheckbox($sectionmode, $tagIdArr), 1, "mode_$sectionmode");
@@ -170,6 +172,7 @@ else {
     if ($allowmove && $othermode) {
         $selectOther = $searchBoxRep->renderTaxonomySelect($othermode, $row);
         tr($lang_edit['row_quality'], $selectOther, 1, "mode_$othermode");
+        hdvideo_render_upload_region_style_rows($othermode, (int)($row['region'] ?? 0), $styleIdArr);
         echo $customField->renderOnUploadPage($id, $othermode);
         echo $hitAndRunRep->renderOnUploadPage($row['hr'], $othermode);
         tr($lang_functions['text_tags'], $tagRep->renderCheckbox($othermode, $tagIdArr), 1, "mode_$othermode");

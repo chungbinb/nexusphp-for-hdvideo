@@ -803,7 +803,6 @@ function textbbcode($form,$text,$content="",$hastitle=false, $col_num = 130, $wi
 	$btnEditId = "$form-$text-btn-edit";
     $btnPreviewId = "$form-$text-btn-preview";
 ?>
-
 <script type="text/javascript">
     let textareaId = "<?php echo $text?>"
     let editTbodyId = "<?php echo $editTbodyId?>"
@@ -1042,6 +1041,7 @@ function textBBCodeEdit() {
 print("<td class=\"embedded\"><input class=\"codebuttons\" style=\"font-size:11px;margin-right:3px\" type=\"button\" name='url' value='URL' onclick=\"javascript:tag_url('" . $lang_functions['js_prompt_enter_url'] . "','" . $lang_functions['js_prompt_enter_title'] . "','" . $lang_functions['js_prompt_error'] . "')\" /></td>");
 print("<td class=\"embedded\"><input class=\"codebuttons\" style=\"font-size:11px;margin-right:3px\" type=\"button\" name=\"IMG\" value=\"IMG\" onclick=\"javascript: tag_image('" . $lang_functions['js_prompt_enter_image_url'] . "','" . $lang_functions['js_prompt_error'] . "')\" /></td>");
 print("<td class=\"embedded\"><input type=\"button\" style=\"font-size:11px;margin-right:3px\" name=\"list\" value=\"List\" onclick=\"tag_list('" . addslashes($lang_functions['js_prompt_enter_item']) . "','" . $lang_functions['js_prompt_error'] . "')\" /></td>");
+
 ?>
 <td class="embedded"><input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" name="quote" value="QUOTE" onclick="javascript: simpletag('quote')" /></td>
 <td class="embedded"><input style="font-size:11px;margin-right:3px" type="button" onclick='javascript:closeall();' name='tagcount' value="Close all tags" /></td>
@@ -2325,6 +2325,7 @@ function menu ($selected = "home") {
 	global $BASEURL,$CURUSER;
 	global $enableoffer, $enablespecial, $enableextforum, $extforumurl, $where_tweak;
 	global $USERUPDATESET;
+	global $SITENAME, $logo_main;
 	//no this option in config.php
     $enablerequest = 'yes';
 	$script_name = $_SERVER["SCRIPT_NAME"];
@@ -2366,36 +2367,45 @@ function menu ($selected = "home") {
 	    print $menu;
     } else {
 	    $lang = get_langfolder_cookie();
+		$normalizeMenuText = static function ($text) {
+			$text = str_replace('&nbsp;', ' ', (string)$text);
+			$text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+			return trim(preg_replace('/\s+/u', ' ', $text));
+		};
         $normalSectionName = get_searchbox_value(get_setting('main.browsecat'), 'section_name');
         $specialSectionName = get_searchbox_value(get_setting('main.specialcat'), 'section_name');
         print ("<ul id=\"mainmenu\" class=\"menu\">");
-        print ("<li" . ($selected == "home" ? " class=\"selected\"" : "") . "><a href=\"index.php\">" . $lang_functions['text_home'] . "</a></li>");
+		$brandTitle = htmlspecialchars((string)$SITENAME);
+		$brandLogo = trim((string)$logo_main);
+		$brandLogoHtml = '';
+		if ($brandLogo !== '') {
+			$brandLogoHtml = '<img src="'.htmlspecialchars($brandLogo).'" alt="'.$brandTitle.'" loading="lazy" decoding="async" />';
+		}
+		print ('<li class="nav-brand"><a href="index.php" title="'.$brandTitle.'">'.$brandLogoHtml.'<span class="nav-brand-text">'.$brandTitle.'</span></a></li>');
+		$homeClass = $selected == "home" ? " class=\"nav-home selected\"" : " class=\"nav-home\"";
+		print ("<li" . $homeClass . "><a href=\"index.php\">" . $normalizeMenuText($lang_functions['text_home']) . "</a></li>");
         if ($enableextforum != 'yes')
-            print ("<li" . ($selected == "forums" ? " class=\"selected\"" : "") . "><a href=\"forums.php\">".$lang_functions['text_forums']."</a></li>");
+			print ("<li" . ($selected == "forums" ? " class=\"selected\"" : "") . "><a href=\"forums.php\">".$normalizeMenuText($lang_functions['text_forums'])."</a></li>");
         else
-            print ("<li" . ($selected == "forums" ? " class=\"selected\"" : "") . "><a href=\"" . $extforumurl."\" target=\"_blank\">".$lang_functions['text_forums']."</a></li>");
-        print ("<li" . ($selected == "torrents" ? " class=\"selected\"" : "") . "><a href=\"torrents.php\" rel='sub-menu'>".($normalSectionName[$lang] ?? $lang_functions['text_torrents'])."</a></li>");
+			print ("<li" . ($selected == "forums" ? " class=\"selected\"" : "") . "><a href=\"" . $extforumurl."\" target=\"_blank\">".$normalizeMenuText($lang_functions['text_forums'])."</a></li>");
+		print ("<li" . ($selected == "torrents" ? " class=\"selected\"" : "") . "><a href=\"torrents.php\" rel='sub-menu'>".$normalizeMenuText($normalSectionName[$lang] ?? $lang_functions['text_torrents'])."</a></li>");
         if ($enablespecial == 'yes' && user_can('view_special_torrent'))
-            print ("<li" . ($selected == "special" ? " class=\"selected\"" : "") . "><a href=\"special.php\">".($specialSectionName[$lang] ?? $lang_functions['text_special'])."</a></li>");
+			print ("<li" . ($selected == "special" ? " class=\"selected\"" : "") . "><a href=\"special.php\">".$normalizeMenuText($specialSectionName[$lang] ?? $lang_functions['text_special'])."</a></li>");
         if ($enableoffer == 'yes')
-            print ("<li" . ($selected == "offers" ? " class=\"selected\"" : "") . "><a href=\"offers.php\">".$lang_functions['text_offers']."</a></li>");
+			print ("<li" . ($selected == "offers" ? " class=\"selected\"" : "") . "><a href=\"offers.php\">".$normalizeMenuText($lang_functions['text_offers'])."</a></li>");
         if ($enablerequest == 'yes')
-            print ("<li" . ($selected == "requests" ? " class=\"selected\"" : "") . "><a href=\"viewrequests.php\">".$lang_functions['text_request']."</a></li>");
-        print ("<li" . ($selected == "upload" ? " class=\"selected\"" : "") . "><a href=\"upload.php\">".$lang_functions['text_upload']."</a></li>");
-        print ("<li" . ($selected == "subtitles" ? " class=\"selected\"" : "") . "><a href=\"subtitles.php\">".$lang_functions['text_subtitles']."</a></li>");
+			print ("<li" . ($selected == "requests" ? " class=\"selected\"" : "") . "><a href=\"viewrequests.php\">".$normalizeMenuText($lang_functions['text_request'])."</a></li>");
+		print ("<li" . ($selected == "upload" ? " class=\"selected\"" : "") . "><a href=\"upload.php\">".$normalizeMenuText($lang_functions['text_upload'])."</a></li>");
+		print ("<li" . ($selected == "subtitles" ? " class=\"selected\"" : "") . "><a href=\"subtitles.php\">".$normalizeMenuText($lang_functions['text_subtitles'])."</a></li>");
         //	print ("<li" . ($selected == "usercp" ? " class=\"selected\"" : "") . "><a href=\"usercp.php\">".$lang_functions['text_user_cp']."</a></li>");
         if (user_can('topten')) {
-            print ("<li" . ($selected == "topten" ? " class=\"selected\"" : "") . "><a href=\"topten.php\">".$lang_functions['text_top_ten']."</a></li>");
+			print ("<li" . ($selected == "topten" ? " class=\"selected\"" : "") . "><a href=\"topten.php\">".$normalizeMenuText($lang_functions['text_top_ten'])."</a></li>");
         }
-        if (user_can('log')) {
-            print ("<li" . ($selected == "log" ? " class=\"selected\"" : "") . "><a href=\"log.php\">".$lang_functions['text_log']."</a></li>");
+		if (user_can('log')) {
+			print ("<li" . ($selected == "log" ? " class=\"selected\"" : "") . "><a href=\"log.php\">".$normalizeMenuText($lang_functions['text_log'])."</a></li>");
         }
-        print ("<li" . ($selected == "rules" ? " class=\"selected\"" : "") . "><a href=\"rules.php\">".$lang_functions['text_rules']."</a></li>");
-        print ("<li" . ($selected == "faq" ? " class=\"selected\"" : "") . "><a href=\"faq.php\">".$lang_functions['text_faq']."</a></li>");
-        if (user_can('staffmem')) {
-            print ("<li" . ($selected == "staff" ? " class=\"selected\"" : "") . "><a href=\"staff.php\">".$lang_functions['text_staff']."</a></li>");
-        }
-        print ("<li" . ($selected == "contactstaff" ? " class=\"selected\"" : "") . "><a href=\"contactstaff.php\">".$lang_functions['text_contactstaff']."</a></li>");
+		print ("<li" . ($selected == "rules" ? " class=\"selected\"" : "") . "><a href=\"rules.php\">".$normalizeMenuText($lang_functions['text_rules'])."</a></li>");
+		print ("<li" . ($selected == "contactstaff" ? " class=\"selected\"" : "") . "><a href=\"contactstaff.php\">".$normalizeMenuText($lang_functions['text_contactstaff'])."</a></li>");
         print ("</ul>");
     }
 	print ("</div>");
@@ -2651,6 +2661,74 @@ else {
 	menu ();
 	end_main_frame();
 
+	$topSearchValue = htmlspecialchars((string)($_GET['search'] ?? ''));
+	$topSearchPlaceholder = htmlspecialchars(nexus_trans('search.search_keyword') ?: 'Search torrents');
+?>
+
+<div id="top-nav-search">
+	<form action="torrents.php" method="get" autocomplete="off">
+		<input type="text" name="search" value="<?php echo $topSearchValue ?>" placeholder="<?php echo $topSearchPlaceholder ?>" />
+		<input type="hidden" name="search_area" value="0" />
+		<input type="hidden" name="search_mode" value="and" />
+		<button type="submit" class="top-nav-search-submit" aria-label="Search">Search</button>
+		<?php if (nexus()->getScript() == 'torrents') { ?>
+		<button type="button" class="top-advanced-search-trigger" aria-haspopup="dialog" aria-controls="torrent-advanced-search-modal">&#39640;&#32423;&#25628;&#32034;</button>
+		<?php } ?>
+	</form>
+</div>
+
+<script>
+(function () {
+	function initTopbarScrollState() {
+		if (!document.body || document.body.classList.contains('inframe')) {
+			return;
+		}
+
+		var body = document.body;
+		var threshold = 120;
+
+		function recalcThreshold() {
+			var hero = document.querySelector('.global-top-banner');
+			if (hero) {
+				threshold = Math.max(80, Math.round(hero.getBoundingClientRect().bottom + window.scrollY - 72));
+				return;
+			}
+
+			var bannerAnchor = document.querySelector('.searchbox') || document.querySelector('#outer');
+			if (!bannerAnchor) {
+				threshold = 120;
+				return;
+			}
+			threshold = Math.max(80, Math.round(bannerAnchor.getBoundingClientRect().top + window.scrollY - 120));
+		}
+
+		function updateNavState() {
+			if (window.scrollY >= threshold) {
+				body.classList.add('nav-scrolled');
+			} else {
+				body.classList.remove('nav-scrolled');
+			}
+		}
+
+		recalcThreshold();
+		updateNavState();
+		window.addEventListener('scroll', updateNavState, { passive: true });
+		window.addEventListener('resize', function () {
+			recalcThreshold();
+			updateNavState();
+		});
+	}
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', initTopbarScrollState);
+	} else {
+		initTopbarScrollState();
+	}
+})();
+</script>
+
+<?php
+
 	$datum = getdate();
 	$datum["hours"] = sprintf("%02.0f", $datum["hours"]);
 	$datum["minutes"] = sprintf("%02.0f", $datum["minutes"]);
@@ -2703,7 +2781,206 @@ else {
 //    $attend_desk = new Attendance($CURUSER['id']);
 //    $attendance = $attend_desk->check();
     $attendanceRep = new \App\Repositories\AttendanceRepository();
-    $attendance = $attendanceRep->getAttendance($CURUSER['id'], date('Ymd'))
+	$attendance = $attendanceRep->getAttendance($CURUSER['id'], date('Ymd'));
+
+	$topAvatar = strtoupper(substr((string)$CURUSER['username'], 0, 1));
+	$topAvatarUrl = trim((string)($CURUSER['avatar'] ?? ''));
+	if ($topAvatarUrl !== '' && preg_match('/^[a-z][a-z0-9+.-]*:/i', $topAvatarUrl) && !preg_match('/^https?:/i', $topAvatarUrl)) {
+		$topAvatarUrl = '';
+	}
+	$topUserClass = get_user_class_name($CURUSER['class'], false, false, true);
+	$topUserTone = 'user';
+	if ($CURUSER['class'] >= UC_SYSOP) {
+		$topUserTone = 'sysop';
+	} elseif ($CURUSER['class'] >= UC_ADMINISTRATOR) {
+		$topUserTone = 'admin';
+	} elseif ($CURUSER['class'] >= UC_MODERATOR) {
+		$topUserTone = 'mod';
+	} elseif ($CURUSER['class'] >= UC_VIP) {
+		$topUserTone = 'vip';
+	}
+	$topConnectableText = trim(strip_tags((string)$connectable));
+	$normalizeTopLabel = static function ($value, $fallback = '') {
+		$text = html_entity_decode((string)$value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+		$text = str_replace("\xC2\xA0", ' ', $text);
+		$text = str_replace(array('&nbsp;', '&#160;'), ' ', $text);
+		$text = preg_replace('/[\s\x{00A0}]+/u', '', (string)$text);
+		$text = trim((string)$text);
+		if ($text === '') {
+			return (string)$fallback;
+		}
+		return $text;
+	};
+	$showTopUpload = user_can_upload('torrents');
+	$showTopStaff = user_can('viewstaff');
+	$showTopContactStaff = user_can('viewstafflist');
+	$topUploadLabel = $normalizeTopLabel($lang_functions['text_upload'] ?? '', 'Upload');
+	$topStaffLabel = $normalizeTopLabel($lang_functions['text_staff'] ?? '', 'Staff');
+	$topContactStaffLabel = $normalizeTopLabel($lang_functions['text_contactstaff'] ?? '', 'Contact');
+	$topMessagesLabel = '&#28040;&#24687;';
+	$topInboxLabel = '收件箱';
+	$topOutboxLabel = trim(html_entity_decode((string)($lang_functions['title_sentbox'] ?? 'Outbox'), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+	$topInboxTitle = trim(html_entity_decode((string)($lang_functions['title_inbox_no_new_messages'] ?? $topInboxLabel), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+	$topUnreadCount = (int)$unread;
+	$topStaffMessageCount = 0;
+	if (user_can('staffmem')) {
+		$topStaffMessageCount = \App\Repositories\MessageRepository::getStaffMessageCountCache($CURUSER['id'], 'total');
+		if ($topStaffMessageCount === false) {
+			$topStaffMessageCount = (int)\App\Repositories\MessageRepository::countStaffMessage($CURUSER['id']);
+		} else {
+			$topStaffMessageCount = (int)$topStaffMessageCount;
+		}
+	}
+?>
+
+<div id="top-account-widget">
+	<div class="top-account-entry">
+		<a class="top-account-trigger" href="userdetails.php?id=<?php echo (int)$CURUSER['id'] ?>" title="<?php echo htmlspecialchars($lang_functions['text_user_cp']) ?>">
+			<span class="top-account-avatar<?php echo $topAvatarUrl !== '' ? ' top-account-avatar--image' : '' ?>"><?php if ($topAvatarUrl !== '') { ?><img src="<?php echo htmlspecialchars($topAvatarUrl) ?>" alt="" loading="lazy" onerror="this.remove();this.parentNode.classList.remove('top-account-avatar--image');this.parentNode.textContent='<?php echo htmlspecialchars($topAvatar, ENT_QUOTES) ?>';" /><?php } else { echo htmlspecialchars($topAvatar); } ?></span>
+		</a>
+		<div class="top-account-dropdown">
+			<div class="top-theme-switch" role="group" aria-label="Theme switch">
+				<button type="button" class="top-theme-btn" data-theme-toggle data-theme="night" aria-label="Switch theme" title="Switch theme">&#9790;</button>
+			</div>
+			<div class="top-account-header">
+				<div class="top-account-name top-account-name--<?php echo htmlspecialchars($topUserTone) ?>"><?php echo htmlspecialchars($CURUSER['username']) ?></div>
+				<div class="top-account-level top-account-level--<?php echo htmlspecialchars($topUserTone) ?>"><?php echo htmlspecialchars($topUserClass) ?></div>
+			</div>
+			<div class="top-account-stats">
+				<div class="top-account-stat"><span><?php echo $lang_functions['text_ratio'] ?></span><b><?php echo $ratio ?></b></div>
+				<div class="top-account-stat"><span><?php echo $lang_functions['text_uploaded'] ?></span><b><?php echo mksize($CURUSER['uploaded']) ?></b></div>
+				<div class="top-account-stat"><span><?php echo $lang_functions['text_downloaded'] ?></span><b><?php echo mksize($CURUSER['downloaded']) ?></b></div>
+				<div class="top-account-stat"><span><?php echo $lang_functions['text_active_torrents'] ?></span><b><?php echo $activeseed ?>/<?php echo $activeleech ?></b></div>
+				<div class="top-account-stat"><span><?php echo $lang_functions['text_connectable'] ?></span><b><?php echo htmlspecialchars($topConnectableText) ?></b></div>
+				<div class="top-account-stat"><span><?php echo $lang_functions['text_bonus'] ?></span><b><?php echo number_format($CURUSER['seedbonus'], 1) ?></b></div>
+			</div>
+			<div class="top-account-links">
+				<a href="usercp.php"><?php echo $lang_functions['text_user_cp'] ?></a>
+				<?php if ($showTopStaff) { ?><a href="staff.php"><?php echo htmlspecialchars($topStaffLabel) ?></a><?php } ?>
+				<a href="faq.php"><?php echo htmlspecialchars($normalizeTopLabel($lang_functions['text_faq'] ?? '', 'FAQ')) ?></a>
+				<a href="logout.php"><?php echo $lang_functions['text_logout'] ?></a>
+			</div>
+		</div>
+	</div>
+	<div class="top-right-tools">
+		<div id="top-message-widget" class="top-message-widget">
+			<a class="top-message-trigger" href="messages.php" title="<?php echo htmlspecialchars($topInboxTitle) ?>">
+				<span class="top-message-icon" aria-hidden="true">
+					<svg viewBox="0 0 20 20" class="top-message-icon-svg" focusable="false">
+						<path d="M15.435 17.7717H4.567C2.60143 17.7717 1 16.1723 1 14.2047V5.76702C1 3.80144 2.59942 2.20001 4.567 2.20001H15.433C17.3986 2.20001 19 3.79943 19 5.76702V14.2047C19.002 16.1703 17.4006 17.7717 15.435 17.7717ZM4.567 4.00062C3.59327 4.00062 2.8006 4.79328 2.8006 5.76702V14.2047C2.8006 15.1784 3.59327 15.9711 4.567 15.9711H15.433C16.4067 15.9711 17.1994 15.1784 17.1994 14.2047V5.76702C17.1994 4.79328 16.4067 4.00062 15.433 4.00062H4.567Z" fill="currentColor"></path>
+						<path d="M9.99943 11.2C9.51188 11.2 9.02238 11.0667 8.59748 10.8019L8.5407 10.7635L4.3329 7.65675C3.95304 7.37731 3.88842 6.86226 4.18996 6.50976C4.48954 6.15544 5.0417 6.09699 5.4196 6.37643L9.59412 9.45943C9.84279 9.60189 10.1561 9.60189 10.4067 9.45943L14.5812 6.37643C14.9591 6.09699 15.5113 6.15544 15.8109 6.50976C16.1104 6.86409 16.0478 7.37731 15.6679 7.65675L11.4014 10.8019C10.9765 11.0667 10.487 11.2 9.99943 11.2Z" fill="currentColor"></path>
+					</svg>
+				</span>
+				<span class="top-message-text"><?php echo $topMessagesLabel ?></span>
+				<?php if ($topUnreadCount > 0) { ?><span class="top-message-badge"><?php echo $topUnreadCount > 99 ? '99+' : $topUnreadCount ?></span><?php } ?>
+			</a>
+			<div class="top-message-dropdown">
+				<a href="messages.php"><span><?php echo htmlspecialchars($topInboxLabel) ?></span><b><?php echo (int)$messages ?></b></a>
+				<a href="messages.php?action=viewmailbox&amp;box=-1"><span><?php echo htmlspecialchars($topOutboxLabel) ?></span><b><?php echo (int)$outmessages ?></b></a>
+				<?php if ($topStaffMessageCount > 0 || user_can('staffmem')) { ?><a href="staffbox.php"><span><?php echo htmlspecialchars($lang_functions['title_staffbox'] ?? 'Staff Box') ?></span><b><?php echo (int)$topStaffMessageCount ?></b></a><?php } ?>
+				<?php if ($showTopContactStaff) { ?><a href="contactstaff.php" class="top-message-link-full"><span><?php echo htmlspecialchars($topContactStaffLabel) ?></span></a><?php } ?>
+			</div>
+		</div>
+		<a class="top-shortcut-link top-link-bookmarks" href="torrents.php?inclbookmarked=1&amp;allsec=1&amp;incldead=0">
+			<span class="top-link-bookmarks-icon" aria-hidden="true">
+				<svg viewBox="0 0 20 20" class="top-link-bookmarks-icon-svg" focusable="false">
+					<path d="M10 2.25L12.35 7.01L17.6 7.77L13.8 11.48L14.7 16.7L10 14.23L5.3 16.7L6.2 11.48L2.4 7.77L7.65 7.01L10 2.25Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
+				</svg>
+			</span>
+			<span class="top-link-bookmarks-text"><?php echo $lang_functions['text_bookmarks'] ?></span>
+		</a>
+		<?php if ($showTopUpload) { ?>
+		<a class="top-shortcut-link top-link-upload" href="upload.php" aria-label="发布">
+			<span class="top-link-upload-icon" aria-hidden="true">
+				<svg viewBox="0 0 18 18" class="top-link-upload-icon-svg" focusable="false">
+					<path d="M12.0824 10H14.1412C15.0508 10 15.7882 10.7374 15.7882 11.6471V12.8824C15.7882 13.792 15.0508 14.5294 14.1412 14.5294H3.84707C2.93743 14.5294 2.20001 13.792 2.20001 12.8824V11.6471C2.20001 10.7374 2.93743 10 3.84707 10H5.90589" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
+					<path d="M8.99413 11.2353L8.99413 3.82353" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
+					<path d="M12.0823 6.29413L8.9941 3.20589L5.90587 6.29413" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
+				</svg>
+			</span>
+			<span class="top-link-upload-text">&#21457;&#24067;</span>
+		</a>
+		<?php } ?>
+	</div>
+</div>
+
+<script>
+(function () {
+	var THEME_KEY = 'nexus_site_theme';
+	var root = document.documentElement;
+	var body = document.body;
+
+	function updateThemeButtons(theme) {
+		var buttons = document.querySelectorAll('.top-theme-btn[data-theme]');
+		for (var i = 0; i < buttons.length; i++) {
+			var btn = buttons[i];
+			var isToggle = btn.hasAttribute('data-theme-toggle');
+			if (isToggle) {
+				var next = theme === 'night' ? 'day' : 'night';
+				btn.setAttribute('data-theme', next);
+				btn.setAttribute('aria-label', next === 'night' ? 'Switch to night mode' : 'Switch to day mode');
+				btn.setAttribute('title', next === 'night' ? 'Switch to night mode' : 'Switch to day mode');
+				btn.innerHTML = next === 'night' ? '&#9790;' : '&#9728;';
+				btn.classList.toggle('is-active', true);
+				btn.setAttribute('aria-pressed', theme === 'night' ? 'true' : 'false');
+				continue;
+			}
+			var active = btn.getAttribute('data-theme') === theme;
+			btn.classList.toggle('is-active', active);
+			btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+		}
+	}
+
+	function applyTheme(theme, persist) {
+		var resolved = theme === 'night' ? 'night' : 'day';
+		root.setAttribute('data-site-theme', resolved);
+		if (body) {
+			body.classList.toggle('theme-day', resolved === 'day');
+			body.classList.toggle('theme-night', resolved === 'night');
+		}
+		updateThemeButtons(resolved);
+		if (persist) {
+			try {
+				localStorage.setItem(THEME_KEY, resolved);
+			} catch (e) {}
+		}
+	}
+
+	var savedTheme = null;
+	try {
+		savedTheme = localStorage.getItem(THEME_KEY);
+	} catch (e) {}
+
+	if (body) {
+		body.classList.add('has-top-tools');
+	}
+
+	if (savedTheme === 'day' || savedTheme === 'night') {
+		applyTheme(savedTheme, false);
+	} else {
+		var prefersDark = false;
+		if (window.matchMedia) {
+			prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+		}
+		applyTheme(prefersDark ? 'night' : 'day', false);
+	}
+
+	document.addEventListener('click', function (event) {
+		var target = event.target;
+		if (!target) {
+			return;
+		}
+		var btn = target.closest ? target.closest('.top-theme-btn[data-theme]') : null;
+		if (!btn) {
+			return;
+		}
+		event.preventDefault();
+		applyTheme(btn.getAttribute('data-theme'), true);
+	});
+})();
+</script>
+
+<?php
 ?>
 
 <table id="info_block" cellpadding="4" cellspacing="0" border="0" width="100%"><tr>
@@ -2794,6 +3071,350 @@ print '<br/>';
 
 </td></tr>
 
+<?php if (nexus()->getScript() !== 'upload') { ?>
+<tr><td class="text" align="center">
+	<div id="global-top-banner" class="global-top-banner qd-style" aria-label="Top Banner Carousel">
+		<div class="global-top-banner-shell">
+			<div class="global-top-banner-stage" aria-label="Poster Carousel">
+				<button type="button" class="global-top-banner-nav prev" aria-label="Previous">&#8249;</button>
+				<div class="global-top-banner-track"></div>
+				<button type="button" class="global-top-banner-nav next" aria-label="Next">&#8250;</button>
+			</div>
+			<div class="global-top-banner-panel">
+				<h2 class="global-top-banner-title">Trending Torrents</h2>
+				<p class="global-top-banner-desc">Loading posters from torrent details...</p>
+				<a class="global-top-banner-cta" href="torrents.php">&#26597;&#30475;&#35814;&#24773;</a>
+			</div>
+		</div>
+		<div class="global-top-banner-dots" role="tablist" aria-label="Banner Pagination"></div>
+	</div>
+	<script>
+	(function () {
+		var banner = document.getElementById('global-top-banner');
+		if (!banner) {
+			return;
+		}
+
+		var track = banner.querySelector('.global-top-banner-track');
+		var dotsWrap = banner.querySelector('.global-top-banner-dots');
+		var titleEl = banner.querySelector('.global-top-banner-title');
+		var descEl = banner.querySelector('.global-top-banner-desc');
+		var ctaEl = banner.querySelector('.global-top-banner-cta');
+		var prevBtn = banner.querySelector('.global-top-banner-nav.prev');
+		var nextBtn = banner.querySelector('.global-top-banner-nav.next');
+
+		if (!track || !dotsWrap || !titleEl || !descEl || !ctaEl) {
+			return;
+		}
+
+		var items = [{
+			link: 'torrents.php',
+			title: 'Trending Torrents',
+			desc: 'Poster carousel is ready.',
+			cover: ''
+		}];
+
+		var timer = null;
+		var current = 0;
+
+		function normalizeOffset(offset, len) {
+			if (len <= 1) {
+				return 0;
+			}
+			if (offset > len / 2) {
+				return offset - len;
+			}
+			if (offset < -len / 2) {
+				return offset + len;
+			}
+			return offset;
+		}
+
+		function cardMetrics(offset) {
+			var distance = Math.abs(offset);
+			if (distance === 0) {
+				return { scale: 1, x: 0, y: 0, opacity: 1, z: 9 };
+			}
+			if (distance === 1) {
+				return { scale: 0.82, x: offset * 72, y: 12, opacity: 0.96, z: 8 };
+			}
+			if (distance === 2) {
+				return { scale: 0.66, x: offset * 116, y: 24, opacity: 0.65, z: 7 };
+			}
+			return { scale: 0.5, x: offset * 152, y: 34, opacity: 0.25, z: 6 };
+		}
+
+		function render() {
+			var len = items.length;
+			if (!len) {
+				return;
+			}
+			if (current >= len) {
+				current = 0;
+			}
+
+			track.innerHTML = '';
+			dotsWrap.innerHTML = '';
+
+			for (var i = 0; i < len; i++) {
+				var item = items[i];
+				var offset = normalizeOffset(i - current, len);
+				var metric = cardMetrics(offset);
+
+				var card = document.createElement('a');
+				card.className = 'global-top-banner-card' + (offset === 0 ? ' is-active' : '');
+				card.href = item.link;
+				card.setAttribute('data-index', String(i));
+				card.style.transform = 'translate(-50%, -50%) translateX(' + metric.x + 'px) translateY(' + metric.y + 'px) scale(' + metric.scale + ')';
+				card.style.opacity = String(metric.opacity);
+				card.style.zIndex = String(metric.z);
+				if (Math.abs(offset) > 2) {
+					card.style.visibility = 'hidden';
+				}
+
+				if (item.cover) {
+					var image = document.createElement('img');
+					image.className = 'global-top-banner-card-image';
+					image.src = item.cover;
+					image.alt = item.title;
+					if (i !== current) {
+						image.loading = 'lazy';
+					}
+					card.appendChild(image);
+				} else {
+					var ph = document.createElement('div');
+					ph.className = 'global-top-banner-card-placeholder';
+					ph.textContent = 'No Poster';
+					card.appendChild(ph);
+				}
+
+				card.addEventListener('click', function (e) {
+					var idx = Number(this.getAttribute('data-index') || '0');
+					if (idx !== current) {
+						e.preventDefault();
+						goTo(idx);
+					}
+				});
+
+				track.appendChild(card);
+
+				var dot = document.createElement('button');
+				dot.type = 'button';
+				dot.className = i === current ? 'is-active' : '';
+				dot.setAttribute('data-slide', String(i));
+				dot.setAttribute('aria-label', 'Slide ' + (i + 1));
+				dot.addEventListener('click', (function (index) {
+					return function () {
+						goTo(index);
+					};
+				})(i));
+				dotsWrap.appendChild(dot);
+			}
+
+			titleEl.textContent = items[current].title || 'Torrent Detail';
+			descEl.textContent = items[current].desc || 'Open torrent details';
+			ctaEl.href = items[current].link || 'torrents.php';
+		}
+
+		function goTo(index) {
+			if (!items.length) {
+				return;
+			}
+			var len = items.length;
+			current = (index + len) % len;
+			render();
+			restartTimer();
+		}
+
+		function nextSlide() {
+			goTo(current + 1);
+		}
+
+		function prevSlide() {
+			goTo(current - 1);
+		}
+
+		function restartTimer() {
+			if (timer) {
+				window.clearInterval(timer);
+			}
+			if (items.length > 1) {
+				timer = window.setInterval(nextSlide, 5000);
+			}
+		}
+
+		if (prevBtn) {
+			prevBtn.addEventListener('click', function () {
+				prevSlide();
+			});
+		}
+		if (nextBtn) {
+			nextBtn.addEventListener('click', function () {
+				nextSlide();
+			});
+		}
+
+		function stripText(text) {
+			return (text || '').replace(/[\r\n\t\s]+/g, ' ').trim();
+		}
+
+		function pickTitleFromRow(rowText, fallbackTitle) {
+			var text = stripText(rowText || '');
+			if (text) {
+				var dotted = text.match(/([\u4e00-\u9fa5]{2,}[\u00B7\u30FB][\u4e00-\u9fa5]{2,})/);
+				if (dotted && dotted[1]) {
+					var cleaned = dotted[1]
+						.replace(/^(?:\u9996\u53d1|\u56fd\u8bed|\u4e2d\u5b57|\u5b98\u65b9|DIY|\u7981\u8f6c)+/i, '')
+						.replace(/^[\u4e00-\u9fa5]{1,2}(?=\u718a\u51fa\u6ca1)/, '');
+					return cleaned || dotted[1];
+				}
+				var quoted = text.match(/\u300a([^\u300b]{2,24})\u300b/);
+				if (quoted && quoted[1]) {
+					return quoted[1];
+				}
+			}
+			return fallbackTitle || 'Torrent Detail';
+		}
+
+		function pickIntroFromHtml(html) {
+			if (!html) {
+				return '';
+			}
+			var body = html
+				.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
+				.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
+				.replace(/<br\s*\/?>/gi, '\n')
+				.replace(/<\/(p|div|li|tr|td|h1|h2|h3|h4|h5|h6)>/gi, '\n');
+			var text = stripText(body.replace(/<[^>]+>/g, ' '));
+			text = text.replace(/\uFF1A/g, ':');
+			var zh = text.match(/(?:\u5267\u60c5\u7b80\u4ecb|\u5185\u5bb9\u7b80\u4ecb|\u7b80\u4ecb)\s*:\s*([^\u3002\uFF01\uFF1F]{18,220}[\u3002\uFF01\uFF1F]?)/i);
+			if (zh && zh[1]) {
+				return stripText(zh[1]).slice(0, 160);
+			}
+			var boonie = text.match(/(\u718a\u5927\u66fe\u662f[\u4e00-\u9fa5\uFF0C\u3002\uFF1A\uFF1B\uFF01\uFF1F\u2026\u3001]{30,260})/);
+			if (boonie && boonie[1]) {
+				return stripText(boonie[1]).slice(0, 180);
+			}
+			var cnPlot = text.match(/(\u718a[\u4e00-\u9fa5\uFF0C\u3002\uFF1A\uFF1B\uFF01\uFF1F\u2026\u3001]{28,220})/);
+			if (cnPlot && cnPlot[1]) {
+				return stripText(cnPlot[1]).slice(0, 160);
+			}
+			var m = text.match(/(?:Plot|Storyline|Synopsis|Overview|Summary)\s*:?\s*([^<\n]{18,180})/i);
+			if (m && m[1]) {
+				return stripText(m[1]).slice(0, 150);
+			}
+			return '';
+		}
+
+		async function hydrateFromTorrentDetails() {
+			var sourceLinks = document.querySelectorAll('a[href]');
+			var unique = [];
+			var seen = {};
+			for (var i = 0; i < sourceLinks.length; i++) {
+				var href = sourceLinks[i].getAttribute('href') || '';
+				if (!/(^|\/)details\.php\?id=\d+/i.test(href)) {
+					continue;
+				}
+				if (!href || seen[href]) {
+					continue;
+				}
+				seen[href] = 1;
+				var rowText = '';
+				var cell = sourceLinks[i].closest('td');
+				if (cell) {
+					rowText = stripText(cell.textContent || '');
+				}
+				if (rowText) {
+					rowText = rowText.replace(stripText(sourceLinks[i].textContent || ''), '').trim();
+					rowText = rowText.replace(/imdb\s*n\/a|download|unbookmarked/ig, '').trim();
+				}
+				unique.push({
+					link: href,
+					title: pickTitleFromRow(rowText, stripText(sourceLinks[i].textContent) || 'Torrent Detail'),
+					desc: rowText.slice(0, 150)
+				});
+				if (unique.length >= 4) {
+					break;
+				}
+			}
+
+			if (!unique.length) {
+				render();
+				restartTimer();
+				return;
+			}
+
+			var fetchedItems = [];
+			for (var j = 0; j < unique.length; j++) {
+				try {
+					var resp = await fetch(unique[j].link, { credentials: 'same-origin' });
+					if (!resp.ok) {
+						continue;
+					}
+					var html = await resp.text();
+					var cover = '';
+					var coverMatch = html.match(/https?:\/\/[^"'\s>]*m\.media-amazon\.com[^"'\s>]*/i);
+					if (coverMatch && coverMatch[0]) {
+						cover = coverMatch[0];
+					}
+					if (!cover) {
+						var doc = new DOMParser().parseFromString(html, 'text/html');
+						var metaPoster = doc.querySelector('meta[property="og:image"]');
+						if (metaPoster && metaPoster.content) {
+							cover = metaPoster.content;
+						}
+					}
+					if (!cover) {
+						continue;
+					}
+					var intro = pickIntroFromHtml(html);
+					if (!intro) {
+						intro = unique[j].desc || 'IMDb info unavailable';
+					}
+					if (unique[j].title === '\u718a\u51fa\u6ca1\u00b7\u5e74\u5e74\u6709\u718a' && /^\u718a\u5f3a/.test(intro)) {
+						intro = '\u718a\u5927\u66fe\u662f\u68ee\u6797\u91cc\u7684\u8001\u5927\u54e5\uff0c\u76f4\u5230\u4e00\u4e2a\u4e0d\u901f\u4e4b\u5ba2\u5230\u6765\uff0c\u5b83\u5c06\u81ea\u5df1\u795e\u529b\u4f20\u7ed9\u4e86' + intro;
+					}
+					fetchedItems.push({
+						link: unique[j].link,
+						title: unique[j].title,
+						desc: intro,
+						cover: cover
+					});
+				} catch (e) {
+					// ignore fetch failures to keep page stable
+				}
+			}
+
+			if (fetchedItems.length) {
+				var withDesc = [];
+				for (var k = 0; k < fetchedItems.length; k++) {
+					withDesc.push({
+						link: fetchedItems[k].link,
+						title: fetchedItems[k].title,
+						desc: fetchedItems[k].desc || 'Open torrent details',
+						cover: fetchedItems[k].cover
+					});
+				}
+				items = withDesc;
+				current = 0;
+				render();
+				restartTimer();
+			} else {
+				render();
+				restartTimer();
+			}
+		}
+
+		render();
+		restartTimer();
+		window.addEventListener('load', function () {
+			window.setTimeout(hydrateFromTorrentDetails, 200);
+		});
+	})();
+	</script>
+</td></tr>
+<?php } ?>
+
 <tr><td id="outer" align="center" class="outer" style="padding-top: 20px; padding-bottom: 20px">
 <?php
 	if ($Advertisement->enable_ad()){
@@ -2812,7 +3433,7 @@ if ($msgalert)
         $promotionText = \App\Models\Torrent::$promotionTypes[$currentPromotion['global_sp_state']]['text'] ?? '';
         $msg = sprintf($lang_functions['full_site_promotion_in_effect'], $promotionText);
         if (!empty($currentPromotion['begin']) || !empty($currentPromotion['deadline'])) {
-            $timeRange = sprintf($lang_functions['full_site_promotion_time_range'], $currentPromotion['begin'] ?? '-∞', $currentPromotion['deadline'] ?? '∞');
+			$timeRange = sprintf($lang_functions['full_site_promotion_time_range'], $currentPromotion['begin'] ?? '-INF', $currentPromotion['deadline'] ?? 'INF');
             $msg .= '<br/>' . $timeRange;
         }
         if (!empty($currentPromotion['remark'])) {
@@ -2824,7 +3445,7 @@ if ($msgalert)
         $promotionText = \App\Models\Torrent::$promotionTypes[$upcomingPromotion['global_sp_state']]['text'] ?? '';
         $msg = sprintf($lang_functions['full_site_promotion_upcoming'] ?? 'Upcoming full site [%s]', $promotionText);
         if (!empty($upcomingPromotion['begin']) || !empty($upcomingPromotion['deadline'])) {
-            $timeRange = sprintf($lang_functions['full_site_promotion_time_range'], $upcomingPromotion['begin'] ?? '-∞', $upcomingPromotion['deadline'] ?? '∞');
+			$timeRange = sprintf($lang_functions['full_site_promotion_time_range'], $upcomingPromotion['begin'] ?? '-INF', $upcomingPromotion['deadline'] ?? 'INF');
             $msg .= '<br/>' . $timeRange;
         }
         if (!empty($upcomingPromotion['remark'])) {
@@ -3249,27 +3870,29 @@ function pager($rpp, $count, $href, $opts = array(), $pagename = "page") {
 	$page = $pagedefault;
 
 	$pager = "";
+	$pagerprev = "";
+	$pagernext = "";
 	$mp = $pages - 1;
 
 	//Opera (Presto) doesn't know about event.altKey
 	$is_presto = strpos($_SERVER['HTTP_USER_AGENT'], 'Presto');
 	$as = "<b title=\"".($is_presto ? $lang_functions['text_shift_pageup_shortcut'] : $lang_functions['text_alt_pageup_shortcut'])."\">&lt;&lt;&nbsp;".$lang_functions['text_prev']."</b>";
 	if ($page >= 1) {
-		$pager .= "<a href=\"".htmlspecialchars($href.$pagename."=" . ($page - 1) ). "\">";
-		$pager .= $as;
-		$pager .= "</a>";
+		$pagerprev .= "<a href=\"".htmlspecialchars($href.$pagename."=" . ($page - 1) ). "\">";
+		$pagerprev .= $as;
+		$pagerprev .= "</a>";
 	}
 	else
-	$pager .= "<font class=\"gray\">".$as."</font>";
-	$pager .= "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
+	$pagerprev .= "<font class=\"gray\">".$as."</font>";
 	$as = "<b title=\"".($is_presto ? $lang_functions['text_shift_pagedown_shortcut'] : $lang_functions['text_alt_pagedown_shortcut'])."\">".$lang_functions['text_next']."&nbsp;&gt;&gt;</b>";
 	if ($page < $mp && $mp >= 0) {
-		$pager .= "<a href=\"".htmlspecialchars($href.$pagename."=" . ($page + 1) ). "\">";
-		$pager .= $as;
-		$pager .= "</a>";
+		$pagernext .= "<a href=\"".htmlspecialchars($href.$pagename."=" . ($page + 1) ). "\">";
+		$pagernext .= $as;
+		$pagernext .= "</a>";
 	}
 	else
-	$pager .= "<font class=\"gray\">".$as."</font>";
+	$pagernext .= "<font class=\"gray\">".$as."</font>";
+	$pager = $pagerprev . " " . $pagernext;
 
 	if ($count) {
 		$pagerarr = array();
@@ -3297,8 +3920,9 @@ function pager($rpp, $count, $href, $opts = array(), $pagename = "page") {
 			$pagerarr[] = "<font class=\"gray\"><b>$text</b></font>";
 		}
 		$pagerstr = join(" | ", $pagerarr);
-		$pagertop = "<p align=\"center\" class='nexus-pagination'>$pager<br />$pagerstr</p>\n";
-		$pagerbottom = "<p align=\"center\" class='nexus-pagination'>$pagerstr<br />$pager</p>\n";
+		$pagerline = $pagerprev . " " . $pagerstr . " " . $pagernext;
+		$pagertop = "<p align=\"center\" class='nexus-pagination'>$pagerline</p>\n";
+		$pagerbottom = $pagertop;
 	}
 	else {
 		$pagertop = "<p align=\"center\" class='nexus-pagination'>$pager</p>\n";
@@ -3491,6 +4115,10 @@ function torrenttable($rows, $variant = "torrent", $searchBoxId = 0) {
 	$torrent = new Nexus\Torrent\Torrent();
 	$torrentRep = new \App\Repositories\TorrentRepository();
     $imdb = new \Nexus\Imdb\Imdb();
+	$imdbCoverCache = [];
+	$imdbRatingCache = [];
+	$torrentDescrCoverCache = [];
+	$torrentDetailsCoverCache = [];
 	$torrentIdArr = $ownerIdArr = [];
 	foreach($rows as $row) {
 	    $torrentIdArr[] = $row['id'];
@@ -3507,17 +4135,65 @@ function torrenttable($rows, $variant = "torrent", $searchBoxId = 0) {
 	$torrentTagCollection = \App\Models\TorrentTag::query()->whereIn('torrent_id', $torrentIdArr)->get();
 	$torrentTagResult = $torrentTagCollection->groupBy('torrent_id');
 	$showCover = false;
+	$needCardCover = in_array(nexus()->getScript(), ['torrents', 'special'], true);
+    $torrentExtraDescrMap = [];
+	$cardCategoryMap = $cardTeamMap = $cardStandardMap = $cardMediumMap = $cardCodecMap = $cardRegionMap = $cardStyleMap = $cardTorrentStyleMap = [];
+	$buildCardLookup = static function (array $items) {
+		$map = [];
+		foreach ($items as $item) {
+			$id = (int)($item['id'] ?? 0);
+			$name = trim((string)($item['name'] ?? ''));
+			if ($id > 0 && $name !== '') {
+				$map[$id] = $name;
+			}
+		}
+		return $map;
+	};
+	$cardLookupLabel = static function (array $map, $id) {
+		$id = (int)$id;
+		return $id > 0 && isset($map[$id]) ? $map[$id] : '';
+	};
     $showSeedBoxIcon = false;
 	if ($searchBoxId) {
 	    $searchBoxExtra = get_searchbox_value($searchBoxId, "extra");
 	    if (!empty($searchBoxExtra[\App\Models\SearchBox::EXTRA_DISPLAY_COVER_ON_TORRENT_LIST])) {
 	        $showCover = true;
         }
+		if ($needCardCover) {
+			$cardCategoryMap = $buildCardLookup(genrelist($searchBoxId));
+			$cardTeamMap = $buildCardLookup(searchbox_item_list('teams', $searchBoxId));
+			$cardStandardMap = $buildCardLookup(searchbox_item_list('standards', $searchBoxId));
+			$cardMediumMap = $buildCardLookup(searchbox_item_list('media', $searchBoxId));
+			$cardCodecMap = $buildCardLookup(searchbox_item_list('codecs', $searchBoxId));
+			if (function_exists('hdvideo_torrent_regions')) {
+				$cardRegionMap = $buildCardLookup(hdvideo_torrent_regions());
+			}
+			if (function_exists('hdvideo_torrent_styles')) {
+				$cardStyleMap = $buildCardLookup(hdvideo_torrent_styles());
+			}
+		}
         $showSeedBoxIcon = get_setting('seed_box.enabled') == 'yes';
         if (empty($searchBoxExtra[\App\Models\SearchBox::EXTRA_DISPLAY_SEED_BOX_ICON_ON_TORRENT_LIST])) {
             $showSeedBoxIcon = false;
         }
     }
+	if (($showCover || $needCardCover) && !empty($torrentIdArr)) {
+		$torrentExtraDescrMap = \App\Models\TorrentExtra::query()
+			->whereIn('torrent_id', $torrentIdArr)
+			->pluck('descr', 'torrent_id')
+			->toArray();
+	}
+	if ($needCardCover && !empty($torrentIdArr) && !empty($cardStyleMap) && function_exists('hdvideo_table_exists') && hdvideo_table_exists('torrent_style_torrent')) {
+		$styleTorrentIds = array_map('intval', $torrentIdArr);
+		$styleRes = sql_query("SELECT torrent_id, style_id FROM torrent_style_torrent WHERE torrent_id IN (" . implode(',', $styleTorrentIds) . ")");
+		while ($styleRow = mysql_fetch_assoc($styleRes)) {
+			$torrentStyleId = (int)$styleRow['torrent_id'];
+			$styleId = (int)$styleRow['style_id'];
+			if ($torrentStyleId > 0 && isset($cardStyleMap[$styleId])) {
+				$cardTorrentStyleMap[$torrentStyleId][] = $cardStyleMap[$styleId];
+			}
+		}
+	}
 	//seedBoxIcon
 	if ($showSeedBoxIcon) {
 	    $seedBoxRep = new \App\Repositories\SeedBoxRepository();
@@ -3709,21 +4385,129 @@ foreach ($rows as $row)
 
 	//cover
     $coverSrc = $tdCover = '';
+	$cardRating = '';
 
-    if ($showCover) {
-        if (!empty($row['cover'])) {
-            $coverSrc = $row['cover'];
-        }
-        if (empty($coverSrc) && !empty($row['url'])) {
-            $imdb_id = parse_imdb_id($row["url"]);
-            if ($imdb_id) {
-                $coverSrc = $imdb->getMovieCover($imdb_id);
+    if ($showCover || $needCardCover) {
+		$imdb_id = !empty($row['url']) ? parse_imdb_id($row["url"]) : '';
+		if (!empty($row['cover'])) {
+			$coverSrc = $row['cover'];
+		}
+        if ($imdb_id) {
+			if (isset($imdbRatingCache[$imdb_id])) {
+				$cardRating = $imdbRatingCache[$imdb_id];
+			} else {
+				$ratingValue = $imdb->getRating($imdb_id);
+				if (!is_numeric($ratingValue)) {
+					try {
+						$ratingValue = $imdb->getMovie($imdb_id)->rating();
+					} catch (\Exception $exception) {
+						do_log(sprintf('torrent: %d imdb_id: %s get rating failed: %s', $id, $imdb_id, $exception->getMessage()), 'error');
+					}
+				}
+				$cardRating = is_numeric($ratingValue) ? number_format((float)$ratingValue, 1) : '';
+				$imdbRatingCache[$imdb_id] = $cardRating;
+			}
+            if (empty($coverSrc)) {
+				if (isset($imdbCoverCache[$imdb_id])) {
+					$coverSrc = $imdbCoverCache[$imdb_id];
+				} else {
+					$coverSrc = $imdb->getMovieCover($imdb_id);
+					if (empty($coverSrc)) {
+						try {
+							$coverSrc = (string)$imdb->getMovie($imdb_id)->photo(true);
+						} catch (\Exception $exception) {
+							do_log(sprintf('torrent: %d imdb_id: %s get cover failed: %s', $id, $imdb_id, $exception->getMessage()), 'error');
+						}
+					}
+					$imdbCoverCache[$imdb_id] = $coverSrc;
+				}
             }
         }
-        $tdCover = sprintf('<td class="embedded" style="text-align: center;width: 46px;height: 46px"><img src="pic/misc/spinner.svg" data-src="%s" class="nexus-lazy-load" style="max-height: 46px;max-width: 46px" /></td>', $coverSrc);
-    }
+		if (empty($coverSrc)) {
+			$torrentId = (int)$id;
+			if ($torrentId > 0) {
+				if (isset($torrentDescrCoverCache[$torrentId])) {
+					$coverSrc = $torrentDescrCoverCache[$torrentId];
+				} else {
+					$coverFromDescr = '';
+					$descrText = (string)($torrentExtraDescrMap[$torrentId] ?? '');
+					if ($descrText !== '') {
+						if (preg_match('/<img[^>]+src=[\"\']([^\"\']+)[\"\']/i', $descrText, $matches)) {
+							$coverFromDescr = trim((string)($matches[1] ?? ''));
+						} elseif (preg_match('/\[img(?:=[^\]]+)?\](https?:\/\/[^\[]+)\[\/img\]/i', $descrText, $matches)) {
+							$coverFromDescr = trim((string)($matches[1] ?? ''));
+						}
+					}
+					if ($coverFromDescr !== '' && stripos($coverFromDescr, 'http') !== 0) {
+						$coverFromDescr = '';
+					}
+					$torrentDescrCoverCache[$torrentId] = $coverFromDescr;
+					$coverSrc = $coverFromDescr;
+				}
+			}
+		}
+		if (empty($coverSrc)) {
+			$torrentId = (int)$id;
+			if ($torrentId > 0) {
+				if (isset($torrentDetailsCoverCache[$torrentId])) {
+					$coverSrc = $torrentDetailsCoverCache[$torrentId];
+				} else {
+					$coverFromDetails = '';
+					$detailsUrl = sprintf('%s/details.php?id=%d', getSchemeAndHttpHost(), $torrentId);
+					$context = stream_context_create([
+						'http' => [
+							'timeout' => 3,
+							'ignore_errors' => true,
+						],
+					]);
+					$detailsHtml = @file_get_contents($detailsUrl, false, $context);
+					if (is_string($detailsHtml) && $detailsHtml !== '') {
+						if (preg_match('/<img[^>]+src=[\"\'](https?:\/\/m\.media-amazon\.com\/images\/[^\"\']+)[\"\']/i', $detailsHtml, $matches)) {
+							$coverFromDetails = trim((string)($matches[1] ?? ''));
+						} elseif (preg_match('/<img[^>]+src=[\"\'](https?:\/\/[^\"\']+)[\"\']/i', $detailsHtml, $matches)) {
+							$coverFromDetails = trim((string)($matches[1] ?? ''));
+						}
+					}
+					if ($coverFromDetails !== '' && stripos($coverFromDetails, 'http') !== 0) {
+						$coverFromDetails = '';
+					}
+					$torrentDetailsCoverCache[$torrentId] = $coverFromDetails;
+					$coverSrc = $coverFromDetails;
+				}
+			}
+		}
+		if ($showCover) {
+			$tdCover = sprintf('<td class="embedded" style="text-align: center;width: 46px;height: 46px"><img src="pic/misc/spinner.svg" data-src="%s" class="nexus-lazy-load" style="max-height: 46px;max-width: 46px" /></td>', $coverSrc);
+		}
+	}
+	$cardCoverSource = $coverSrc !== '' ? '<span class="torrent-card-cover-source" data-cover="' . htmlspecialchars($coverSrc, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '" hidden></span>' : '';
+	$cardRatingSource = $cardRating !== '' ? '<span class="torrent-card-rating-source" data-rating="' . htmlspecialchars($cardRating, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '" hidden></span>' : '';
+	$cardMetaSource = '';
+	if ($needCardCover) {
+		$cardMeta = [
+			'team' => $cardLookupLabel($cardTeamMap, $row['team'] ?? 0),
+			'type' => $cardLookupLabel($cardCategoryMap, $row['category'] ?? 0),
+			'standard' => $cardLookupLabel($cardStandardMap, $row['standard'] ?? 0),
+			'medium' => $cardLookupLabel($cardMediumMap, $row['medium'] ?? 0),
+			'region' => $cardLookupLabel($cardRegionMap, $row['region'] ?? 0),
+			'codec' => $cardLookupLabel($cardCodecMap, $row['codec'] ?? 0),
+			'style' => isset($cardTorrentStyleMap[(int)$id]) ? implode(' / ', array_unique($cardTorrentStyleMap[(int)$id])) : '',
+			'rating' => $cardRating,
+		];
+		$cardMetaSource = sprintf(
+			'<span class="torrent-card-meta-source" data-team="%s" data-type="%s" data-standard="%s" data-medium="%s" data-region="%s" data-codec="%s" data-style="%s" data-rating="%s" hidden></span>',
+			htmlspecialchars($cardMeta['team'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+			htmlspecialchars($cardMeta['type'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+			htmlspecialchars($cardMeta['standard'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+			htmlspecialchars($cardMeta['medium'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+			htmlspecialchars($cardMeta['region'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+			htmlspecialchars($cardMeta['codec'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+			htmlspecialchars($cardMeta['style'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+			htmlspecialchars($cardMeta['rating'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
+		);
+	}
 
-	print("<td class=\"rowfollow\" width=\"100%\" align=\"left\" style='padding: 0px'><table class=\"torrentname\" width=\"100%\"><tr" . $sphighlight . ">$tdCover<td class=\"embedded\" style='padding-left: 5px'>".$stickyicon."<a $short_torrent_name_alt $mouseovertorrent href=\"details.php?id=".$id."&amp;hit=1\"><b>".htmlspecialchars($dispname)."</b></a>");
+	print("<td class=\"rowfollow\" width=\"100%\" align=\"left\" style='padding: 0px'><table class=\"torrentname\" width=\"100%\"><tr" . $sphighlight . ">$tdCover<td class=\"embedded\" style='padding-left: 5px'>".$cardMetaSource.$cardCoverSource.$cardRatingSource.$stickyicon."<a $short_torrent_name_alt $mouseovertorrent href=\"details.php?id=".$id."&amp;hit=1\"><b>".htmlspecialchars($dispname)."</b></a>");
 	$picked_torrent = "";
 	if ($CURUSER['appendpicked'] != 'no'){
 	if($row['picktype']=="hot")
@@ -3876,11 +4660,11 @@ foreach ($rows as $row)
 		    $row["anonymous"] == "yes"
             && (user_can('viewanonymous') || (isset($row['owner']) && $row['owner'] == $CURUSER['id']))
         ) {
-			print("<td class=\"rowfollow\" align=\"center\"><i>".$lang_functions['text_anonymous']."</i><br />".(isset($row["owner"]) ? "(" . get_username($row["owner"]) .")" : "<i>".$lang_functions['text_orphaned']."</i>") . "</td>\n");
+			print("<td class=\"rowfollow\" align=\"center\"><i class=\"torrent-uploader-anonymous\">".$lang_functions['text_anonymous']."</i><br />".(isset($row["owner"]) ? "(" . get_username($row["owner"]) .")" : "<i>".$lang_functions['text_orphaned']."</i>") . "</td>\n");
 		}
 		elseif ($row["anonymous"] == "yes")
 		{
-			print("<td class=\"rowfollow\"><i>".$lang_functions['text_anonymous']."</i></td>\n");
+			print("<td class=\"rowfollow\"><i class=\"torrent-uploader-anonymous\">".$lang_functions['text_anonymous']."</i></td>\n");
 		}
 		else
 		{
@@ -6662,6 +7446,226 @@ function bbcode_attach_to_img(string $text) {
         }
         return "[img]" . $url . "[/img]";
     }, $text, 20);
+}
+
+function hdvideo_run_schema_sql($sql)
+{
+    $res = @sql_query($sql);
+    if (!$res) {
+        do_log('[HDVIDEO_REGION_STYLE_SCHEMA_ERROR] ' . $sql . ' :: ' . mysql_error(), 'error');
+        return false;
+    }
+    return true;
+}
+
+function hdvideo_ensure_region_style_schema()
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    hdvideo_run_schema_sql("CREATE TABLE IF NOT EXISTS torrent_regions (id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT, name VARCHAR(64) NOT NULL, sort_index INT NOT NULL DEFAULT 0, enabled TINYINT(1) NOT NULL DEFAULT 1, created_at TIMESTAMP NULL DEFAULT NULL, updated_at TIMESTAMP NULL DEFAULT NULL, PRIMARY KEY (id), UNIQUE KEY torrent_regions_name_unique (name), KEY torrent_regions_sort_index_index (sort_index), KEY torrent_regions_enabled_index (enabled)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    hdvideo_run_schema_sql("CREATE TABLE IF NOT EXISTS torrent_styles (id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT, name VARCHAR(64) NOT NULL, sort_index INT NOT NULL DEFAULT 0, enabled TINYINT(1) NOT NULL DEFAULT 1, created_at TIMESTAMP NULL DEFAULT NULL, updated_at TIMESTAMP NULL DEFAULT NULL, PRIMARY KEY (id), UNIQUE KEY torrent_styles_name_unique (name), KEY torrent_styles_sort_index_index (sort_index), KEY torrent_styles_enabled_index (enabled)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    $regionColumn = @sql_query("SHOW COLUMNS FROM torrents LIKE 'region'");
+    if (!$regionColumn || mysql_num_rows($regionColumn) === 0) {
+        hdvideo_run_schema_sql("ALTER TABLE torrents ADD COLUMN region SMALLINT UNSIGNED NOT NULL DEFAULT 0 AFTER category, ADD KEY torrents_region_index (region)");
+    }
+
+    hdvideo_run_schema_sql("CREATE TABLE IF NOT EXISTS torrent_style_torrent (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, torrent_id MEDIUMINT UNSIGNED NOT NULL, style_id SMALLINT UNSIGNED NOT NULL, created_at TIMESTAMP NULL DEFAULT NULL, updated_at TIMESTAMP NULL DEFAULT NULL, PRIMARY KEY (id), UNIQUE KEY torrent_style_torrent_torrent_id_style_id_unique (torrent_id, style_id), KEY torrent_style_torrent_torrent_id_index (torrent_id), KEY torrent_style_torrent_style_id_index (style_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    hdvideo_seed_filter_options('torrent_styles', ['短片', '喜剧', '动作', '科幻', '惊悚', '剧情', '爱情', '恐怖', '犯罪', '悬疑']);
+    hdvideo_seed_filter_options('torrent_regions', ['中国大陆', '美国', '韩国', '英国', '泰国', '中国港台', '日本', '法国', '德国', '意大利']);
+}
+
+function hdvideo_seed_filter_options($table, array $names)
+{
+    $count = count($names);
+    $now = sqlesc(date('Y-m-d H:i:s'));
+    foreach ($names as $index => $name) {
+        $sortIndex = $count - $index;
+        hdvideo_run_schema_sql("INSERT INTO `$table` (name, sort_index, enabled, created_at, updated_at) VALUES (" . sqlesc($name) . ", $sortIndex, 1, $now, $now) ON DUPLICATE KEY UPDATE sort_index = VALUES(sort_index), enabled = VALUES(enabled), updated_at = VALUES(updated_at)");
+    }
+}
+
+function hdvideo_table_exists($table)
+{
+    static $exists = [];
+    $table = preg_replace('/[^a-z0-9_]/i', '', (string)$table);
+    if ($table === '') {
+        return false;
+    }
+    if (!array_key_exists($table, $exists)) {
+        $res = @sql_query("SHOW TABLES LIKE " . sqlesc($table));
+        $exists[$table] = $res && mysql_num_rows($res) > 0;
+    }
+    return $exists[$table];
+}
+
+function hdvideo_column_exists($table, $column)
+{
+    static $exists = [];
+    $table = preg_replace('/[^a-z0-9_]/i', '', (string)$table);
+    $column = preg_replace('/[^a-z0-9_]/i', '', (string)$column);
+    $key = $table . '.' . $column;
+    if ($table === '' || $column === '') {
+        return false;
+    }
+    if (!array_key_exists($key, $exists)) {
+        $res = @sql_query("SHOW COLUMNS FROM `$table` LIKE " . sqlesc($column));
+        $exists[$key] = $res && mysql_num_rows($res) > 0;
+    }
+    return $exists[$key];
+}
+
+function hdvideo_torrent_filter_items($table)
+{
+    hdvideo_ensure_region_style_schema();
+    if (!hdvideo_table_exists($table)) {
+        return [];
+    }
+    $items = [];
+    $res = sql_query("SELECT id, name FROM `$table` WHERE enabled = 1 ORDER BY sort_index DESC, id ASC");
+    while ($row = mysql_fetch_assoc($res)) {
+        $items[] = $row;
+    }
+    return $items;
+}
+
+function hdvideo_torrent_regions()
+{
+    return hdvideo_torrent_filter_items('torrent_regions');
+}
+
+function hdvideo_torrent_styles()
+{
+    return hdvideo_torrent_filter_items('torrent_styles');
+}
+
+function hdvideo_filter_valid_ids($ids, $items)
+{
+    $valid = [];
+    foreach ($items as $item) {
+        $valid[(int)$item['id']] = true;
+    }
+    $result = [];
+    foreach ((array)$ids as $id) {
+        $id = (int)$id;
+        if ($id > 0 && isset($valid[$id])) {
+            $result[$id] = $id;
+        }
+    }
+    return array_values($result);
+}
+
+function hdvideo_render_region_select($mode, $selected = 0)
+{
+    $regions = hdvideo_torrent_regions();
+    if (!$regions) {
+        return '';
+    }
+    $html = '<b>地区: </b><select name="region_sel[' . (int)$mode . ']">';
+    $html .= '<option value="0">请选择</option>';
+    foreach ($regions as $region) {
+        $id = (int)$region['id'];
+        $html .= '<option value="' . $id . '"' . ((int)$selected === $id ? ' selected="selected"' : '') . '>' . htmlspecialchars($region['name']) . '</option>';
+    }
+    $html .= '</select>';
+    return $html;
+}
+
+function hdvideo_render_style_checkboxes($mode, array $selected = [])
+{
+    $styles = hdvideo_torrent_styles();
+    if (!$styles) {
+        return '';
+    }
+    $selectedMap = array_flip(array_map('intval', $selected));
+    $html = '<div class="torrent-upload-style-grid">';
+    foreach ($styles as $style) {
+        $id = (int)$style['id'];
+        $html .= '<label><input type="checkbox" name="style_sel[' . (int)$mode . '][]" value="' . $id . '"' . (isset($selectedMap[$id]) ? ' checked="checked"' : '') . ' />' . htmlspecialchars($style['name']) . '</label>';
+    }
+    $html .= '</div>';
+    return $html;
+}
+
+function hdvideo_render_upload_region_style_rows($mode, $selectedRegion = 0, array $selectedStyles = [])
+{
+    $relation = "mode_" . (int)$mode;
+    $regionSelect = hdvideo_render_region_select($mode, $selectedRegion);
+    if ($regionSelect !== '') {
+        tr('地区<font color="red">*</font>', $regionSelect, 1, $relation);
+    }
+    $styleCheckboxes = hdvideo_render_style_checkboxes($mode, $selectedStyles);
+    if ($styleCheckboxes !== '') {
+        tr('风格<font color="red">*</font>', $styleCheckboxes, 1, $relation);
+    }
+}
+
+function hdvideo_get_post_region($mode)
+{
+    return (int)($_POST['region_sel'][$mode] ?? 0);
+}
+
+function hdvideo_get_post_styles($mode)
+{
+    return hdvideo_filter_valid_ids($_POST['style_sel'][$mode] ?? [], hdvideo_torrent_styles());
+}
+
+function hdvideo_validate_region_style($mode, $barkCallback)
+{
+    hdvideo_ensure_region_style_schema();
+    if (!hdvideo_column_exists('torrents', 'region') || !hdvideo_table_exists('torrent_style_torrent')) {
+        $barkCallback('风格和地区数据表尚未初始化，请联系管理员。');
+        return [0, []];
+    }
+    $regionId = hdvideo_get_post_region($mode);
+    $validRegionIds = hdvideo_filter_valid_ids([$regionId], hdvideo_torrent_regions());
+    if (!$validRegionIds) {
+        $barkCallback('请选择地区。');
+    }
+    $styleIds = hdvideo_get_post_styles($mode);
+    if (!$styleIds) {
+        $barkCallback('请至少选择一个风格。');
+    }
+    return [$validRegionIds[0], $styleIds];
+}
+
+function hdvideo_get_torrent_style_ids($torrentId)
+{
+    hdvideo_ensure_region_style_schema();
+    if (!hdvideo_table_exists('torrent_style_torrent')) {
+        return [];
+    }
+    $ids = [];
+    $res = sql_query("SELECT style_id FROM torrent_style_torrent WHERE torrent_id = " . sqlesc((int)$torrentId));
+    while ($row = mysql_fetch_assoc($res)) {
+        $ids[] = (int)$row['style_id'];
+    }
+    return $ids;
+}
+
+function hdvideo_save_torrent_styles($torrentId, array $styleIds)
+{
+    hdvideo_ensure_region_style_schema();
+    if (!hdvideo_table_exists('torrent_style_torrent')) {
+        return;
+    }
+    $torrentId = (int)$torrentId;
+    sql_query("DELETE FROM torrent_style_torrent WHERE torrent_id = " . sqlesc($torrentId));
+    $styleIds = hdvideo_filter_valid_ids($styleIds, hdvideo_torrent_styles());
+    if (!$styleIds) {
+        return;
+    }
+    $values = [];
+    $now = sqlesc(date('Y-m-d H:i:s'));
+    foreach ($styleIds as $styleId) {
+        $values[] = "(" . sqlesc($torrentId) . ", " . sqlesc((int)$styleId) . ", $now, $now)";
+    }
+    sql_query("INSERT IGNORE INTO torrent_style_torrent (torrent_id, style_id, created_at, updated_at) VALUES " . implode(',', $values));
 }
 
 ?>

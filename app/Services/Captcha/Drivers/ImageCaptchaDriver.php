@@ -2,7 +2,6 @@
 
 namespace App\Services\Captcha\Drivers;
 
-use App\Models\RegImage;
 use App\Services\Captcha\CaptchaDriverInterface;
 use App\Services\Captcha\Exceptions\CaptchaValidationException;
 
@@ -28,11 +27,16 @@ class ImageCaptchaDriver implements CaptchaDriverInterface
         $secret = $context['secret'] ?? '';
 
         $imagehash = $this->issue();
-        $imageUrl = htmlspecialchars(sprintf('image.php?action=regimage&imagehash=%s&secret=%s', $imagehash, $secret ?? ''), ENT_QUOTES, 'UTF-8');
+        $imageUrl = htmlspecialchars($this->buildImageUrl($imagehash, $secret), ENT_QUOTES, 'UTF-8');
+        $refreshUrl = htmlspecialchars('image.php?' . http_build_query([
+            'action' => 'regimage_refresh',
+            'secret' => $secret,
+        ]), ENT_QUOTES, 'UTF-8');
 
         return implode("\n", [
-            sprintf('<tr><td class="rowhead">%s</td><td align="left"><img src="%s" border="0" alt="CAPTCHA" /></td></tr>', htmlspecialchars($imageLabel, ENT_QUOTES, 'UTF-8'), $imageUrl),
+            sprintf('<tr><td class="rowhead">%s</td><td align="left"><img class="nexus-captcha-image" src="%s" data-captcha-refresh-url="%s" border="0" alt="CAPTCHA" title="Click to refresh CAPTCHA" style="cursor: pointer" /></td></tr>', htmlspecialchars($imageLabel, ENT_QUOTES, 'UTF-8'), $imageUrl, $refreshUrl),
             sprintf('<tr><td class="rowhead">%s</td><td align="left"><input type="text" autocomplete="off" style="width: 100%%; min-width: 180px; border: 1px solid gray; box-sizing: border-box" name="imagestring" value="" /><input type="hidden" name="imagehash" value="%s" /></td></tr>', htmlspecialchars($codeLabel, ENT_QUOTES, 'UTF-8'), htmlspecialchars($imagehash, ENT_QUOTES, 'UTF-8')),
+            '<script type="text/javascript">(function () { if (window.__nexusCaptchaRefreshBound) return; window.__nexusCaptchaRefreshBound = true; document.addEventListener("click", function (event) { var img = event.target && event.target.closest ? event.target.closest("img[data-captcha-refresh-url]") : null; if (!img) return; var form = img.closest("form") || document; var hashInput = form.querySelector("input[name=imagehash]"); var codeInput = form.querySelector("input[name=imagestring]"); var refreshUrl = img.getAttribute("data-captcha-refresh-url"); if (!refreshUrl) return; fetch(refreshUrl + (refreshUrl.indexOf("?") === -1 ? "?" : "&") + "_=" + Date.now(), { credentials: "same-origin" }).then(function (response) { return response.json(); }).then(function (data) { if (!data || !data.imagehash || !data.imageurl) return; img.src = data.imageurl + (data.imageurl.indexOf("?") === -1 ? "?" : "&") + "_=" + Date.now(); if (hashInput) hashInput.value = data.imagehash; if (codeInput) codeInput.value = ""; }).catch(function () {}); }); })();</script>',
         ]);
     }
 
@@ -68,12 +72,33 @@ class ImageCaptchaDriver implements CaptchaDriverInterface
         $random = random_str();
         $imagehash = md5($random);
         $dateline = time();
-        RegImage::query()->insert([
-            'imagehash' => $imagehash,
-            'dateline' => $dateline,
-            'imagestring' => $random,
-        ]);
+        $insert = sprintf(
+            "INSERT INTO regimages (imagehash, dateline, imagestring) VALUES ('%s', %s, '%s')",
+            mysql_real_escape_string($imagehash),
+            intval($dateline),
+            mysql_real_escape_string($random)
+        );
+        sql_query($insert);
         return $imagehash;
+    }
+
+    public function issuePayload(string $secret = ''): array
+    {
+        $imagehash = $this->issue();
+
+        return [
+            'imagehash' => $imagehash,
+            'imageurl' => $this->buildImageUrl($imagehash, $secret),
+        ];
+    }
+
+    protected function buildImageUrl(string $imagehash, string $secret = ''): string
+    {
+        return 'image.php?' . http_build_query([
+            'action' => 'regimage',
+            'imagehash' => $imagehash,
+            'secret' => $secret,
+        ]);
     }
 
     public function outputImage(string $imagehash): void
