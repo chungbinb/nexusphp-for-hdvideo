@@ -11,7 +11,7 @@ class Torrent extends NexusModel
 {
     protected $fillable = [
         'name', 'filename', 'save_as', 'small_descr',
-        'category', 'source', 'medium', 'codec', 'standard', 'processing', 'team', 'audiocodec',
+        'category', 'region', 'source', 'medium', 'codec', 'standard', 'processing', 'team', 'audiocodec',
         'size', 'added', 'type', 'numfiles', 'owner', 'nfo', 'sp_state', 'promotion_time_type',
         'promotion_until', 'anonymous', 'url', 'pos_state', 'cache_stamp', 'picktype', 'picktime',
         'last_reseed', 'leechers', 'seeders', 'cover', 'last_action', 'info_hash', 'pieces_hash',
@@ -43,7 +43,7 @@ class Torrent extends NexusModel
     public static $commentFields = [
         'id', 'name', 'added', 'visible', 'banned', 'owner', 'sp_state', 'promotion_time_type', 'promotion_until', 'pos_state',
         'hr', 'picktype', 'picktime', 'last_action', 'leechers', 'seeders', 'times_completed', 'views', 'size', 'cover', 'anonymous',
-        'approval_status', 'pos_state_until', 'category', 'source', 'medium', 'codec', 'standard', 'processing', 'team', 'audiocodec',
+        'approval_status', 'pos_state_until', 'category', 'region', 'source', 'medium', 'codec', 'standard', 'processing', 'team', 'audiocodec',
         'price',
     ];
 
@@ -288,7 +288,7 @@ class Torrent extends NexusModel
 
     public static function getFieldsForList($appendTableName = false): array|bool
     {
-        $fields = 'id, sp_state, promotion_time_type, promotion_until, banned, picktype, pos_state, category, source, medium, codec, standard, processing, team, audiocodec, leechers, seeders, name, small_descr, times_completed, size, added, comments,anonymous,owner,url,cache_stamp, hr, approval_status, cover, price';
+        $fields = 'id, sp_state, promotion_time_type, promotion_until, banned, picktype, pos_state, category, region, source, medium, codec, standard, processing, team, audiocodec, leechers, seeders, name, small_descr, times_completed, size, added, comments,anonymous,owner,url,cache_stamp, hr, approval_status, cover, price';
         $fields = preg_split('/[,\s]+/', $fields);
         if ($appendTableName) {
             foreach ($fields as &$value) {

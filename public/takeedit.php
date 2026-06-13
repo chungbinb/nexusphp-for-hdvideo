@@ -107,6 +107,8 @@ $updateset[] = "url = " . sqlesc($url);
 $updateset[] = "small_descr = " . sqlesc($_POST["small_descr"]);
 //$updateset[] = "ori_descr = " . sqlesc($descr);
 $updateset[] = "category = " . sqlesc($catid);
+[$regionId, $styleIds] = hdvideo_validate_region_style($newcatmode, 'bark');
+$updateset[] = "region = " . sqlesc($regionId);
 $updateset[] = "source = " . sqlesc(intval($_POST["source_sel"][$newcatmode] ?? 0));
 $updateset[] = "medium = " . sqlesc(intval($_POST["medium_sel"][$newcatmode] ?? 0));
 $updateset[] = "codec = " . sqlesc(intval($_POST["codec_sel"][$newcatmode] ?? 0));
@@ -241,6 +243,7 @@ if (user_can('torrent-set-price') && $paidTorrentEnabled) {
 $sql = "UPDATE torrents SET " . join(",", $updateset) . " WHERE id = $id";
 do_log("[UPDATE_TORRENT]: $sql");
 $affectedRows = sql_query($sql) or sqlerr(__FILE__, __LINE__);
+hdvideo_save_torrent_styles($id, $styleIds);
 $torrentInfo = \App\Models\Torrent::query()->find($id);
 $torrentInfo->extra()->updateOrCreate(['torrent_id' => $id], $extraUpdate);
 fire_event("torrent_updated", $torrentInfo, $torrentOld);

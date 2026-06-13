@@ -82,6 +82,7 @@ $standardid = intval($_POST["standard_sel"][$catmod] ?? 0);
 $processingid = intval($_POST["processing_sel"][$catmod] ?? 0);
 $teamid = intval($_POST["team_sel"][$catmod] ?? 0);
 $audiocodecid = intval($_POST["audiocodec_sel"][$catmod] ?? 0);
+[$regionId, $styleIds] = hdvideo_validate_region_style($catmod, 'bark');
 
 if (!is_valid_id($catid))
 bark($lang_takeupload['std_category_unselected']);
@@ -300,6 +301,7 @@ $insert = [
 //    'descr' => $descr,
 //    'ori_descr' => $descr,
     'category' => $catid,
+    'region' => $regionId,
     'source' => $sourceid,
     'medium' => $mediumid,
     'codec' => $codecid,
@@ -365,6 +367,7 @@ if (user_can('torrent-set-price') && $paidTorrentEnabled) {
 }
 do_log("[INSERT_TORRENT]: " . nexus_json_encode($insert));
 $id = \App\Models\Torrent::query()->insertGetId($insert);
+hdvideo_save_torrent_styles($id, $styleIds);
 
 //$ret = sql_query("INSERT INTO torrents (filename, owner, visible, anonymous, name, size, numfiles, type, url, small_descr, descr, ori_descr, category, source, medium, codec, audiocodec, standard, processing, team, save_as, sp_state, added, last_action, nfo, info_hash, pt_gen, technical_info) VALUES (".sqlesc($fname).", ".sqlesc($CURUSER["id"]).", 'yes', ".sqlesc($anonymous).", ".sqlesc($torrent).", ".sqlesc($totallen).", ".count($filelist).", ".sqlesc($type).", ".sqlesc($url).", ".sqlesc($small_descr).", ".sqlesc($descr).", ".sqlesc($descr).", ".sqlesc($catid).", ".sqlesc($sourceid).", ".sqlesc($mediumid).", ".sqlesc($codecid).", ".sqlesc($audiocodecid).", ".sqlesc($standardid).", ".sqlesc($processingid).", ".sqlesc($teamid).", ".sqlesc($dname).", ".sqlesc($sp_state) .
 //", " . sqlesc(date("Y-m-d H:i:s")) . ", " . sqlesc(date("Y-m-d H:i:s")) . ", ".sqlesc($nfo).", " . sqlesc($infohash). ", " . sqlesc($_POST['pt_gen']) . ", " . sqlesc($_POST['technical_info'] ?? '') . ")");
@@ -379,6 +382,7 @@ $id = \App\Models\Torrent::query()->insertGetId($insert);
 $torrentFilePath = "$torrentSavePath/$id.torrent";
 $saveResult = $dict->dump($torrentFilePath);
 if ($saveResult === false) {
+    sql_query("delete from torrent_style_torrent where torrent_id = $id");
     sql_query("delete from torrents where id = $id limit 1");
     bark("save torrent to $torrentFilePath fail.");
 }

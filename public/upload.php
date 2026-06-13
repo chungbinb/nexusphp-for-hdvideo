@@ -160,6 +160,7 @@ stdhead($lang_upload['head_upload']);
                 if ($allowtorrents) {
                     $selectNormal = $searchBoxRep->renderTaxonomySelect($browsecatmode);
                     tr($lang_upload['row_quality'], $selectNormal, 1, "mode_$browsecatmode");
+                    hdvideo_render_upload_region_style_rows($browsecatmode);
                     echo $customField->renderOnUploadPage(0, $browsecatmode);
                     echo $hitAndRunRep->renderOnUploadPage('', $browsecatmode);
                     tr($lang_functions['text_tags'], $tagRep->renderCheckbox($browsecatmode), 1, "mode_$browsecatmode");
@@ -167,6 +168,7 @@ stdhead($lang_upload['head_upload']);
                 if ($allowspecial) {
                     $selectNormal = $searchBoxRep->renderTaxonomySelect($specialcatmode);
                     tr($lang_upload['row_quality'], $selectNormal, 1, "mode_$specialcatmode");
+                    hdvideo_render_upload_region_style_rows($specialcatmode);
                     echo $customField->renderOnUploadPage(0, $specialcatmode);
                     echo $hitAndRunRep->renderOnUploadPage('', $specialcatmode);
                     tr($lang_functions['text_tags'], $tagRep->renderCheckbox($specialcatmode), 1, "mode_$specialcatmode");

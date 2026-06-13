@@ -22,7 +22,7 @@ failedloginscheck ();
 cur_user_check () ;
 $loginTheme = $_GET['theme'] ?? 'modern';
 if ($loginTheme === 'modern') {
-	\Nexus\Nexus::css('css/login-modern.css', 'header', true);
+	\Nexus\Nexus::css('css/login-modern.css?v=20260610-login7', 'header', true);
 }
 stdhead($lang_login['head_login']);
 
@@ -50,16 +50,35 @@ $passwordName = 'class="password"';
 if (!$useChallengeResponseAuthentication) {
     $passwordName .= ' name="password"';
 }
+$siteName = get_setting('basic.SITENAME') ?: ($SITENAME ?? 'HDvideo');
 ?>
 <div class="login-page-wrap">
 	<div class="login-shell">
 		<aside class="login-hero">
+			<div class="login-brand-card">
+				<span class="login-brand-title"><?php echo htmlspecialchars($siteName); ?></span>
+			</div>
+			<div class="login-hero-copy">
+				<p class="hero-title"><?php echo htmlspecialchars($lang_login['head_login']); ?></p>
+				<p class="hero-text"><?php echo strip_tags($lang_login['p_need_cookies_enables']); ?></p>
+				<ul class="login-hero-points">
+					<li><?php echo htmlspecialchars($lang_login['text_advanced_options']); ?></li>
+					<li><?php echo htmlspecialchars($lang_login['other_methods']); ?></li>
+					<li><?php echo htmlspecialchars($lang_login['text_helpbox']); ?></li>
+				</ul>
+			</div>
 		</aside>
 		<section class="login-panel">
 			<form method="get" action="<?php echo $_SERVER['REQUEST_URI'] ?>" class="lang-form-wrap">
 				<input type="hidden" name="secret" value="<?php echo $secret ?>">
-				<span><?php echo $lang_login['text_select_lang']; ?></span>
-				<?php echo $s; ?>
+				<button class="login-theme-toggle" type="button" data-login-theme-toggle aria-label="Toggle day or night mode">
+					<span class="login-theme-toggle__icon" aria-hidden="true"></span>
+					<span class="login-theme-toggle__text" data-login-theme-label>Day</span>
+				</button>
+				<div class="login-language-select">
+					<span><?php echo $lang_login['text_select_lang']; ?></span>
+					<?php echo $s; ?>
+				</div>
 			</form>
 
 			<h1><?php echo $lang_login['head_login']; ?></h1>
@@ -154,4 +173,5 @@ print("</td></tr></table></form></td></tr></table>");
 <?php
 render_password_challenge_js("login-form", "username", "password");
 \Nexus\Nexus::js('document.addEventListener("DOMContentLoaded", function () { var nav = document.getElementById("nav_block"); if (!nav) return; var wrap = nav.querySelector(".login-page-wrap"); if (!wrap) return; while (nav.firstChild && nav.firstChild !== wrap) { nav.removeChild(nav.firstChild); } });', 'footer', false);
+\Nexus\Nexus::js('document.addEventListener("DOMContentLoaded", function () { var wrap = document.querySelector(".login-page-wrap"); var toggle = document.querySelector("[data-login-theme-toggle]"); var label = document.querySelector("[data-login-theme-label]"); if (!wrap || !toggle) return; var storageKey = "hdvideo-login-theme"; var siteThemeKey = "nexus_site_theme"; function readTheme() { try { return localStorage.getItem(storageKey) || localStorage.getItem(siteThemeKey); } catch (e) { return ""; } } function saveTheme(theme) { try { localStorage.setItem(storageKey, theme); localStorage.setItem(siteThemeKey, theme); } catch (e) {} } function applyTheme(theme) { var isNight = theme === "night"; wrap.setAttribute("data-theme", isNight ? "night" : "day"); document.documentElement.setAttribute("data-site-theme", isNight ? "night" : "day"); if (document.body) { document.body.classList.toggle("login-theme-night", isNight); document.body.classList.toggle("theme-night", isNight); document.body.classList.toggle("theme-day", !isNight); } if (label) label.textContent = isNight ? "Night" : "Day"; toggle.setAttribute("aria-pressed", isNight ? "true" : "false"); } var saved = readTheme(); var preferred = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "night" : "day"; applyTheme(saved || preferred); toggle.addEventListener("click", function () { var next = wrap.getAttribute("data-theme") === "night" ? "day" : "night"; saveTheme(next); applyTheme(next); }); });', 'footer', false);
 stdfoot();

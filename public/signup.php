@@ -53,6 +53,7 @@ else {
 	failedloginscheck ("Signup");
 	stdhead($lang_signup['head_signup']);
 }
+\Nexus\Nexus::js('document.addEventListener("DOMContentLoaded", function () { var theme = ""; try { theme = localStorage.getItem("nexus_site_theme") || localStorage.getItem("hdvideo-login-theme") || ""; } catch (e) {} if (theme !== "night" && theme !== "day") return; document.documentElement.setAttribute("data-site-theme", theme); if (document.body) { document.body.classList.toggle("theme-night", theme === "night"); document.body.classList.toggle("theme-day", theme === "day"); } });', 'footer', false);
 
 $s = "<select name=\"sitelanguage\" onchange='submit()'>\n";
 

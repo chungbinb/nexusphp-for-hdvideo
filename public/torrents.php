@@ -6,6 +6,62 @@ require_once(get_langfile_path('special.php'));
 loggedinorreturn();
 parked();
 
+if (!function_exists('hdvideo_torrent_styles')) {
+	function hdvideo_run_schema_sql($sql) {
+		$res = @sql_query($sql);
+		if (!$res) {
+			do_log('[HDVIDEO_REGION_STYLE_SCHEMA_ERROR] ' . $sql . ' :: ' . mysql_error(), 'error');
+			return false;
+		}
+		return true;
+	}
+	function hdvideo_ensure_region_style_schema() {
+		static $done = false;
+		if ($done) return;
+		$done = true;
+		hdvideo_run_schema_sql("CREATE TABLE IF NOT EXISTS torrent_regions (id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT, name VARCHAR(64) NOT NULL, sort_index INT NOT NULL DEFAULT 0, enabled TINYINT(1) NOT NULL DEFAULT 1, created_at TIMESTAMP NULL DEFAULT NULL, updated_at TIMESTAMP NULL DEFAULT NULL, PRIMARY KEY (id), UNIQUE KEY torrent_regions_name_unique (name), KEY torrent_regions_sort_index_index (sort_index), KEY torrent_regions_enabled_index (enabled)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+		hdvideo_run_schema_sql("CREATE TABLE IF NOT EXISTS torrent_styles (id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT, name VARCHAR(64) NOT NULL, sort_index INT NOT NULL DEFAULT 0, enabled TINYINT(1) NOT NULL DEFAULT 1, created_at TIMESTAMP NULL DEFAULT NULL, updated_at TIMESTAMP NULL DEFAULT NULL, PRIMARY KEY (id), UNIQUE KEY torrent_styles_name_unique (name), KEY torrent_styles_sort_index_index (sort_index), KEY torrent_styles_enabled_index (enabled)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+		$regionColumn = @sql_query("SHOW COLUMNS FROM torrents LIKE 'region'");
+		if (!$regionColumn || mysql_num_rows($regionColumn) === 0) {
+			hdvideo_run_schema_sql("ALTER TABLE torrents ADD COLUMN region SMALLINT UNSIGNED NOT NULL DEFAULT 0 AFTER category, ADD KEY torrents_region_index (region)");
+		}
+		hdvideo_run_schema_sql("CREATE TABLE IF NOT EXISTS torrent_style_torrent (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, torrent_id MEDIUMINT UNSIGNED NOT NULL, style_id SMALLINT UNSIGNED NOT NULL, created_at TIMESTAMP NULL DEFAULT NULL, updated_at TIMESTAMP NULL DEFAULT NULL, PRIMARY KEY (id), UNIQUE KEY torrent_style_torrent_torrent_id_style_id_unique (torrent_id, style_id), KEY torrent_style_torrent_torrent_id_index (torrent_id), KEY torrent_style_torrent_style_id_index (style_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+		hdvideo_seed_filter_options('torrent_styles', ['短片', '喜剧', '动作', '科幻', '惊悚', '剧情', '爱情', '恐怖', '犯罪', '悬疑']);
+		hdvideo_seed_filter_options('torrent_regions', ['中国大陆', '美国', '韩国', '英国', '泰国', '中国港台', '日本', '法国', '德国', '意大利']);
+	}
+	function hdvideo_seed_filter_options($table, array $names) {
+		$count = count($names);
+		$now = sqlesc(date('Y-m-d H:i:s'));
+		foreach ($names as $index => $name) {
+			$sortIndex = $count - $index;
+			hdvideo_run_schema_sql("INSERT INTO `$table` (name, sort_index, enabled, created_at, updated_at) VALUES (" . sqlesc($name) . ", $sortIndex, 1, $now, $now) ON DUPLICATE KEY UPDATE sort_index = VALUES(sort_index), enabled = VALUES(enabled), updated_at = VALUES(updated_at)");
+		}
+	}
+	function hdvideo_torrent_filter_items($table) {
+		hdvideo_ensure_region_style_schema();
+		$items = [];
+		$res = sql_query("SELECT id, name FROM `$table` WHERE enabled = 1 ORDER BY sort_index DESC, id ASC");
+		while ($row = mysql_fetch_assoc($res)) $items[] = $row;
+		return $items;
+	}
+	function hdvideo_torrent_styles() {
+		return hdvideo_torrent_filter_items('torrent_styles');
+	}
+	function hdvideo_torrent_regions() {
+		return hdvideo_torrent_filter_items('torrent_regions');
+	}
+	function hdvideo_filter_valid_ids($ids, $items) {
+		$valid = [];
+		foreach ($items as $item) $valid[(int)$item['id']] = true;
+		$result = [];
+		foreach ((array)$ids as $id) {
+			$id = (int)$id;
+			if ($id > 0 && isset($valid[$id])) $result[$id] = $id;
+		}
+		return array_values($result);
+	}
+}
+
 //check searchbox
 switch (nexus()->getScript()) {
     case 'torrents':
@@ -44,6 +100,8 @@ $catsperrow = get_searchbox_value($sectiontype, 'catsperrow'); //show how many c
 $catpadding = get_searchbox_value($sectiontype, 'catpadding'); //padding space between categories in pixel
 
 $cats = genrelist($sectiontype);
+$torrentStyles = hdvideo_torrent_styles();
+$torrentRegions = hdvideo_torrent_regions();
 if ($showsubcat){
 	if ($showsource) $sources = searchbox_item_list("sources", $sectiontype);
 	if ($showmedium) $media = searchbox_item_list("media", $sectiontype);
@@ -117,6 +175,8 @@ $whereprocessingina = array();
 $whereteamina = array();
 $whereaudiocodecina = array();
 $whereothera = [];
+$style_get = intval($_GET['style'] ?? 0);
+$region_get = intval($_GET['region'] ?? 0);
 //----------------- start whether show torrents from all sections---------------------//
 if ($_GET)
 	$allsec = intval($_GET["allsec"] ?? 0);
@@ -709,6 +769,28 @@ $whereaudiocodecin = implode(",",$whereaudiocodecina);
 elseif (count($whereaudiocodecina) == 1)
 $wherea[] = "audiocodec = $whereaudiocodecina[0]";}
 
+if ($region_get) {
+	int_check($region_get, true, true, true);
+	if (hdvideo_filter_valid_ids([$region_get], $torrentRegions)) {
+		$wherea[] = "torrents.region = $region_get";
+		$searchParams['region'] = $region_get;
+		$addparam .= "region=$region_get&";
+	}
+}
+
+if ($style_get) {
+	int_check($style_get, true, true, true);
+	if (hdvideo_filter_valid_ids([$style_get], $torrentStyles)) {
+		$wherea[] = "EXISTS (SELECT 1 FROM torrent_style_torrent tst WHERE tst.torrent_id = torrents.id AND tst.style_id = $style_get)";
+		$searchParams['style'] = $style_get;
+		$addparam .= "style=$style_get&";
+	}
+}
+
+if ($region_get || $style_get) {
+	$shouldUseMeili = false;
+}
+
 $wherebase = $wherea;
 $search_area = 0;
 if (isset($searchstr))
@@ -1029,13 +1111,110 @@ if (isset($searchstr))
 elseif ($sectiontype == $browsecatmode)
 	stdhead($lang_torrents['head_torrents']);
 else stdhead($lang_torrents['head_special']);
+
+function torrent_quick_filter_url($field, $value = null) {
+	$params = $_GET;
+	unset($params['page']);
+	foreach (['cat', 'source', 'medium', 'codec', 'standard', 'processing', 'team', 'audiocodec', 'style', 'region'] as $key) {
+		if ($key === $field) {
+			unset($params[$key]);
+		}
+		foreach (array_keys($params) as $paramKey) {
+			if (preg_match('/^' . preg_quote($key, '/') . '\d+$/', (string)$paramKey)) {
+				unset($params[$paramKey]);
+			}
+		}
+	}
+	if ($value !== null) {
+		$params[$field] = (int)$value;
+	}
+	$query = http_build_query($params);
+	return '?' . ($query ? $query : '');
+}
+
+function torrent_quick_filter_group($title, $field, $items, $activeValue, $limit = 8) {
+	if (empty($items)) {
+		return '';
+	}
+	$html = '<section class="torrent-quick-filter-group">';
+	$cleanTitle = rtrim($title, ':：');
+	$modalItems = [];
+	foreach ($items as $item) {
+		$id = (int)$item['id'];
+		$name = trim((string)$item['name']);
+		if ($id <= 0 || $name === '') {
+			continue;
+		}
+		$modalItems[] = [
+			'name' => $name,
+			'url' => torrent_quick_filter_url($field, $id),
+			'active' => (int)$activeValue === $id,
+		];
+	}
+	array_unshift($modalItems, [
+		'name' => '全部',
+		'url' => torrent_quick_filter_url($field),
+		'active' => (int)$activeValue === 0,
+	]);
+	$titleText = htmlspecialchars($cleanTitle, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+	if ($field === 'style') {
+		$titleText = '&#39118;&#26684;';
+	} elseif ($field === 'region') {
+		$titleText = '&#22320;&#21306;';
+	}
+	$html .= '<div class="torrent-quick-filter-heading"><span>' . $titleText . '</span><a href="#" data-quick-filter-modal="1" data-filter-title="' . $titleText . '" data-filter-items="' . htmlspecialchars(json_encode($modalItems, JSON_UNESCAPED_UNICODE), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '" class="' . ((int)$activeValue === 0 ? 'is-active' : '') . '">全部 &gt;</a></div>';
+	$html .= '<div class="torrent-quick-filter-links">';
+	$count = 0;
+	foreach ($items as $item) {
+		if ($count >= $limit) {
+			break;
+		}
+		$id = (int)$item['id'];
+		$name = trim((string)$item['name']);
+		if ($id <= 0 || $name === '') {
+			continue;
+		}
+		$html .= '<a href="' . htmlspecialchars(torrent_quick_filter_url($field, $id)) . '" class="' . ((int)$activeValue === $id ? 'is-active' : '') . '">' . htmlspecialchars($name) . '</a>';
+		$count++;
+	}
+	$html .= '</div></section>';
+	return $html;
+}
+
+function render_torrent_quick_filters($lang_torrents, $cats, $category_get, $sources, $source_get, $media, $medium_get, $teams, $team_get, $torrentStyles, $style_get, $torrentRegions, $region_get, $showsource, $showmedium, $showteam) {
+	$groups = [];
+	$groups[] = torrent_quick_filter_group($lang_torrents['text_category'], 'cat', $cats, $category_get, 8);
+	if ($showsource) {
+		$groups[] = torrent_quick_filter_group($lang_torrents['text_source'], 'source', $sources, $source_get, 8);
+	}
+	if ($showmedium) {
+		$groups[] = torrent_quick_filter_group($lang_torrents['text_medium'], 'medium', $media, $medium_get, 8);
+	}
+	if ($showteam) {
+		$groups[] = torrent_quick_filter_group($lang_torrents['text_team'], 'team', $teams, $team_get, 8);
+	}
+	$groups[] = torrent_quick_filter_group('风格', 'style', $torrentStyles, $style_get, 10);
+	$groups[] = torrent_quick_filter_group('地区', 'region', $torrentRegions, $region_get, 10);
+	$groups = array_filter($groups);
+	if (!$groups) {
+		return;
+	}
+	print('<div class="torrent-quick-filters">' . implode('', $groups) . '</div>');
+	print('<div class="torrent-quick-filter-modal" id="torrent-quick-filter-modal" aria-hidden="true"><div class="torrent-quick-filter-modal-backdrop" data-quick-filter-close="1"></div><div class="torrent-quick-filter-modal-dialog" role="dialog" aria-modal="true"><button type="button" class="torrent-quick-filter-modal-close" data-quick-filter-close="1">&times;</button><h2></h2><div class="torrent-quick-filter-modal-list"></div></div></div>');
+}
+
 print("<table width=\"97%\" class=\"main\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tr><td class=\"embedded\">");
 
 displayHotAndClassic();
 $searchBoxRightTdStyle = 'padding: 1px;padding-left: 10px;white-space: nowrap';
 if ($allsec != 1 || $enablespecial != 'yes'){ //do not print searchbox if showing bookmarked torrents from all sections;
 ?>
-<form method="get" name="searchbox" action="?">
+
+<div id="torrent-advanced-search-modal" class="torrent-advanced-search-modal" aria-hidden="true">
+	<div class="torrent-advanced-search-backdrop" data-advanced-search-close="1"></div>
+	<div class="torrent-advanced-search-dialog" role="dialog" aria-modal="true" aria-label="<?php echo htmlspecialchars($lang_torrents['text_search_box']) ?>">
+		<button type="button" class="torrent-advanced-search-close" data-advanced-search-close="1" aria-label="Close">&times;</button>
+		<form method="get" name="searchbox" action="?">
 	<table border="1" class="searchbox" cellspacing="0" cellpadding="5" width="100%">
 		<tbody>
 		<tr>
@@ -1297,7 +1476,9 @@ if ($allTags->isNotEmpty()) {
 		</tr>
 		</tbody>
 	</table>
-	</form>
+		</form>
+	</div>
+</div>
 <?php
 }
 	if ($Advertisement->enable_ad()){
@@ -1306,6 +1487,24 @@ if ($allTags->isNotEmpty()) {
             echo "<div align=\"center\" style=\"margin-top: 10px\" id=\"\">".$belowsearchboxad[0]."</div>";
         }
 	}
+render_torrent_quick_filters(
+	$lang_torrents,
+	$cats,
+	$category_get,
+	$sources ?? [],
+	$source_get,
+	$media ?? [],
+	$medium_get,
+	$teams ?? [],
+	$team_get,
+	$torrentStyles,
+	$style_get,
+	$torrentRegions,
+	$region_get,
+	$showsource,
+	$showmedium,
+	$showteam
+);
 if($inclbookmarked == 1)
 {
 	print("<h1 align=\"center\">" . get_username($CURUSER['id']) . $lang_torrents['text_s_bookmarked_torrent'] . "</h1>");
@@ -1325,7 +1524,13 @@ if ($count) {
         }
     }
     $rows = apply_filter('torrent_list', $rows, $page, $sectiontype, $_GET['search'] ?? '');
-	print($pagertop);
+	print('<div class="torrent-view-toolbar">'
+	. '<div class="torrent-view-title">Torrent List</div>'
+		. '<div class="torrent-view-switch" role="tablist" aria-label="Torrent View Switch">'
+	. '<button type="button" class="torrent-view-btn is-active" data-view="list">List</button>'
+	. '<button type="button" class="torrent-view-btn" data-view="card">Card</button>'
+		. '</div>'
+		. '</div>');
 	if ($sectiontype == $browsecatmode)
 		torrenttable($rows, "torrents", $sectiontype);
 	elseif ($sectiontype == $specialcatmode)
@@ -1347,5 +1552,515 @@ if ($CURUSER){
 		$USERUPDATESET[] = "last_browse = ".TIMENOW;
 	else	$USERUPDATESET[] = "last_music = ".TIMENOW;
 }
+?>
+<script>
+(function () {
+	var body = document.body;
+	if (!body || !body.classList.contains('page-torrents')) {
+		return;
+	}
+
+	var storageKey = 'nexus_torrents_view';
+	var toolbar = document.querySelector('.torrent-view-toolbar');
+	var table = document.querySelector('table.torrents');
+	if (!toolbar || !table) {
+		return;
+	}
+
+	var buttons = toolbar.querySelectorAll('.torrent-view-btn');
+	var cardGrid = document.createElement('div');
+	cardGrid.className = 'torrent-card-grid';
+	table.parentNode.insertBefore(cardGrid, table.nextSibling);
+
+	function cleanText(value) {
+		return (value || '').replace(/\s+/g, ' ').trim();
+	}
+
+	function getCardImage(nameCell, typeCell) {
+		var source = nameCell.querySelector('.torrent-card-cover-source[data-cover]');
+		if (source && source.getAttribute('data-cover')) {
+			return source.getAttribute('data-cover');
+		}
+		var img = nameCell.querySelector('img[data-src], img[src]');
+		if (!img && typeCell) {
+			img = typeCell.querySelector('img[data-src], img[src]');
+		}
+		if (!img) {
+			return '';
+		}
+		var src = img.getAttribute('data-src') || img.getAttribute('src') || '';
+		if (src.indexOf('pic/misc/spinner.svg') !== -1) {
+			src = img.getAttribute('data-src') || '';
+		}
+		return src;
+	}
+
+	function getCardSubtitle(nameCell, title) {
+		var clone = nameCell.cloneNode(true);
+		var removeNodes = clone.querySelectorAll('img, a[href*="details.php"], .nexus-lazy-load, script, style');
+		for (var i = 0; i < removeNodes.length; i++) {
+			removeNodes[i].parentNode.removeChild(removeNodes[i]);
+		}
+		var text = cleanText(clone.textContent).replace(title, '');
+		text = cleanText(text.replace(/^\[[^\]]+\]\s*/g, ''));
+		return text.length > 34 ? text.slice(0, 33) + '...' : text;
+	}
+
+	function getCardRating(text) {
+		var match = cleanText(text).match(/(?:豆瓣|IMDb|IMDB|评分)[^\d]*(\d(?:\.\d)?)/i);
+		return match ? match[1] : '';
+	}
+
+	function getCardMeta(nameCell, rating) {
+		var source = nameCell.querySelector('.torrent-card-meta-source');
+		return {
+			team: source ? cleanText(source.getAttribute('data-team')) : '',
+			type: source ? cleanText(source.getAttribute('data-type')) : '',
+			standard: source ? cleanText(source.getAttribute('data-standard')) : '',
+			medium: source ? cleanText(source.getAttribute('data-medium')) : '',
+			region: source ? cleanText(source.getAttribute('data-region')) : '',
+			codec: source ? cleanText(source.getAttribute('data-codec')) : '',
+			style: source ? cleanText(source.getAttribute('data-style')) : '',
+			tags: getCardTags(nameCell),
+			rating: source && source.getAttribute('data-rating') ? cleanText(source.getAttribute('data-rating')) : rating
+		};
+	}
+
+	function appendBadge(wrap, type, label, value) {
+		value = cleanText(value);
+		if (!value) {
+			return;
+		}
+		if (type === 'rating' && /^\d(?:\.\d)?$/.test(value)) {
+			value = Number(value).toFixed(1);
+		}
+		var badge = document.createElement('span');
+		badge.className = 'torrent-poster-badge is-' + type;
+		badge.textContent = label ? label + ' ' + value : value;
+		wrap.appendChild(badge);
+	}
+
+	function getCardTags(nameCell) {
+		var seen = {};
+		var tags = [];
+		var nodes = nameCell.querySelectorAll('span[style]');
+		for (var i = 0; i < nodes.length; i++) {
+			var node = nodes[i];
+			if (node.hidden || node.className.indexOf('torrent-card-') !== -1) {
+				continue;
+			}
+			var text = cleanText(node.textContent);
+			if (!text || seen[text]) {
+				continue;
+			}
+			seen[text] = true;
+			tags.push({
+				text: text,
+				style: node.getAttribute('style') || ''
+			});
+		}
+		return tags;
+	}
+
+	function buildCardBadges(meta) {
+		var wrap = document.createElement('div');
+		wrap.className = 'torrent-poster-badges';
+		appendBadge(wrap, 'team', '制作组', meta.team);
+		appendBadge(wrap, 'type', '类型', meta.type);
+		appendBadge(wrap, 'medium', '媒介', meta.medium);
+		appendBadge(wrap, 'standard', '分辨率', meta.standard);
+		appendBadge(wrap, 'region', '地区', meta.region);
+		appendBadge(wrap, 'codec', '编码', meta.codec);
+		appendBadge(wrap, 'style', '风格', meta.style);
+		return wrap.children.length ? wrap : null;
+	}
+
+	function buildPosterTags(tags) {
+		if (!tags || !tags.length) {
+			return null;
+		}
+		var wrap = document.createElement('div');
+		wrap.className = 'torrent-poster-tags';
+		for (var i = 0; i < tags.length; i++) {
+			var item = tags[i];
+			var tag = document.createElement('span');
+			tag.className = 'torrent-poster-tag';
+			tag.textContent = item.text;
+			if (item.style) {
+				tag.style.cssText = item.style;
+			}
+			tag.style.margin = '0';
+			tag.style.display = 'inline-flex';
+			tag.style.alignItems = 'center';
+			tag.style.lineHeight = '1.15';
+			wrap.appendChild(tag);
+		}
+		return wrap.children.length ? wrap : null;
+	}
+
+	function appendPosterTags(poster, tags) {
+		if (!tags || poster.querySelector('.torrent-poster-tags')) {
+			return;
+		}
+		poster.appendChild(tags);
+	}
+
+	function findCardCellText(cells, patterns) {
+		for (var i = 0; i < cells.length; i++) {
+			var label = cleanText(cells[i].getAttribute('data-label')).toLowerCase();
+			for (var p = 0; p < patterns.length; p++) {
+				if (label.indexOf(patterns[p]) !== -1) {
+					return cleanText(cells[i].textContent);
+				}
+			}
+		}
+		return '';
+	}
+
+	function getCardStats(cells) {
+		var uploader = '';
+		var uploaderNode = null;
+		for (var i = 0; i < cells.length; i++) {
+			var userLink = cells[i].querySelector('a[href*="userdetails.php"]');
+			if (userLink) {
+				uploader = cleanText(userLink.textContent);
+				uploaderNode = userLink.cloneNode(true);
+			}
+		}
+		return {
+			seeders: findCardCellText(cells, ['seed', '做种', '上传']),
+			leechers: findCardCellText(cells, ['leech', '下载']),
+			uploader: uploader || findCardCellText(cells, ['uploader', '上传者', '发布者']),
+			uploaderNode: uploaderNode
+		};
+	}
+
+	function appendPosterStats(poster, stats) {
+		if (!stats || poster.querySelector('.torrent-poster-stats')) {
+			return;
+		}
+		if (!stats.seeders && !stats.leechers && !stats.uploader && !stats.uploaderNode) {
+			return;
+		}
+		var wrap = document.createElement('div');
+		wrap.className = 'torrent-poster-stats';
+		if (stats.seeders || stats.leechers) {
+			var uploadLine = document.createElement('span');
+			uploadLine.className = 'torrent-poster-stat-line torrent-poster-stat-upload';
+			uploadLine.textContent = '上传 ' + (stats.seeders || '0');
+			wrap.appendChild(uploadLine);
+			var downloadLine = document.createElement('span');
+			downloadLine.className = 'torrent-poster-stat-line torrent-poster-stat-download';
+			downloadLine.textContent = '下载 ' + (stats.leechers || '0');
+			wrap.appendChild(downloadLine);
+		}
+		if (stats.uploader || stats.uploaderNode) {
+			var line = document.createElement('span');
+			line.className = 'torrent-poster-stat-line torrent-poster-stat-uploader';
+			line.appendChild(document.createTextNode('上传者 '));
+			if (stats.uploaderNode) {
+				line.appendChild(stats.uploaderNode);
+			} else {
+				var anonymous = document.createElement('span');
+				anonymous.className = 'torrent-uploader-anonymous';
+				anonymous.textContent = stats.uploader;
+				line.appendChild(anonymous);
+			}
+			wrap.appendChild(line);
+		}
+		poster.appendChild(wrap);
+	}
+
+	function setPosterImage(poster, title, image, badges, rating, tags, stats) {
+		poster.classList.remove('is-empty');
+		poster.textContent = '';
+		var img = document.createElement('img');
+		img.src = image;
+		img.alt = title;
+		img.loading = 'lazy';
+		poster.appendChild(img);
+		if (badges) {
+			poster.appendChild(badges);
+		}
+		appendPosterTags(poster, tags);
+		appendPosterStats(poster, stats);
+		appendPosterScore(poster, rating);
+	}
+
+	function appendPosterScore(poster, rating) {
+		rating = cleanText(rating);
+		if (!rating || poster.querySelector('.torrent-poster-score')) {
+			return;
+		}
+		if (/^\d(?:\.\d)?$/.test(rating)) {
+			rating = Number(rating).toFixed(1);
+		}
+		var score = document.createElement('span');
+		score.className = 'torrent-poster-score';
+		score.textContent = rating;
+		poster.appendChild(score);
+	}
+
+	function hydratePosterFromDetails(poster, title, href, badges, rating, tags, stats) {
+		if (!href || !window.fetch) {
+			return;
+		}
+		fetch(href, { credentials: 'same-origin' })
+			.then(function (response) {
+				return response.ok ? response.text() : '';
+			})
+			.then(function (html) {
+				if (!html) {
+					return;
+				}
+				var imageMatch = html.match(/https?:\/\/[^"'\s<>]*m\.media-amazon\.com[^"'\s<>]*/i)
+					|| html.match(/<img[^>]+src=["'](https?:\/\/[^"']+)["']/i);
+				var image = imageMatch ? (imageMatch[1] || imageMatch[0] || '') : '';
+				image = image.replace(/&amp;/g, '&');
+				if (image && !poster.querySelector('img')) {
+					setPosterImage(poster, title, image, badges || poster.querySelector('.torrent-poster-badges'), rating, tags || poster.querySelector('.torrent-poster-tags'), stats || poster.querySelector('.torrent-poster-stats'));
+				}
+				var ratingMatch = html.match(/(?:IMDb|IMDB)[\s\S]{0,160}?(\d(?:\.\d)?)/i);
+				if (ratingMatch) {
+					appendPosterScore(poster, ratingMatch[1]);
+				}
+			})
+			.catch(function () {});
+	}
+
+	function getTorrentRows() {
+		var bodyRows = table.tBodies && table.tBodies.length ? table.tBodies[0].rows : table.rows;
+		return Array.prototype.slice.call(bodyRows || []);
+	}
+
+	function buildCardGrid() {
+		var rows = getTorrentRows();
+		cardGrid.innerHTML = '';
+		for (var r = 1; r < rows.length; r++) {
+			var cells = rows[r].children;
+			if (cells.length < 2) {
+				continue;
+			}
+			var typeCell = cells[0];
+			var nameCell = cells[1];
+			var link = nameCell.querySelector('a[href*="details.php"]');
+			if (!link) {
+				continue;
+			}
+			var title = cleanText(link.textContent);
+			var subtitle = getCardSubtitle(nameCell, title);
+			var image = getCardImage(nameCell, typeCell);
+			var ratingSource = nameCell.querySelector('.torrent-card-rating-source[data-rating]');
+			var rating = ratingSource && ratingSource.getAttribute('data-rating') ? ratingSource.getAttribute('data-rating') : getCardRating(nameCell.textContent);
+			var meta = getCardMeta(nameCell, rating);
+			var badges = buildCardBadges(meta);
+			var tagStrip = buildPosterTags(meta.tags);
+			var posterStats = getCardStats(cells);
+			var posterRating = meta.rating || rating;
+			var card = document.createElement('a');
+			card.className = 'torrent-poster-card';
+			card.href = link.href;
+			var poster = document.createElement('div');
+			poster.className = 'torrent-poster-media';
+			if (image) {
+				setPosterImage(poster, title, image, badges, posterRating, tagStrip, posterStats);
+			} else {
+				poster.className += ' is-empty';
+				poster.textContent = title.slice(0, 2) || 'HD';
+				if (badges) {
+					poster.appendChild(badges);
+				}
+				appendPosterTags(poster, tagStrip);
+				appendPosterStats(poster, posterStats);
+				appendPosterScore(poster, posterRating);
+				hydratePosterFromDetails(poster, title, link.href, badges, posterRating, tagStrip, posterStats);
+			}
+			var titleEl = document.createElement('strong');
+			titleEl.className = 'torrent-poster-title';
+			titleEl.textContent = title;
+			var descEl = document.createElement('span');
+			descEl.className = 'torrent-poster-desc';
+			descEl.textContent = subtitle;
+			card.appendChild(poster);
+			card.appendChild(titleEl);
+			card.appendChild(descEl);
+			cardGrid.appendChild(card);
+		}
+	}
+
+	function setView(view) {
+		var finalView = view === 'card' ? 'card' : 'list';
+		if (finalView === 'card' && !cardGrid.children.length) {
+			buildCardGrid();
+		}
+		body.classList.remove('view-list', 'view-card');
+		body.classList.add('view-' + finalView);
+		for (var i = 0; i < buttons.length; i++) {
+			var btn = buttons[i];
+			var active = btn.getAttribute('data-view') === finalView;
+			btn.classList.toggle('is-active', active);
+			btn.setAttribute('aria-selected', active ? 'true' : 'false');
+		}
+		try {
+			window.localStorage.setItem(storageKey, finalView);
+		} catch (e) {}
+	}
+
+	var headers = table.querySelectorAll('tr:first-child > td.colhead');
+	var labels = [];
+	for (var h = 0; h < headers.length; h++) {
+		var header = headers[h];
+		var text = (header.textContent || '').replace(/\s+/g, ' ').trim();
+		if (!text) {
+			var icon = header.querySelector('img');
+			text = icon ? (icon.getAttribute('title') || '') : '';
+		}
+		labels.push(text);
+	}
+
+	var rows = getTorrentRows();
+	for (var r = 1; r < rows.length; r++) {
+		var cells = rows[r].children;
+		for (var c = 0; c < cells.length; c++) {
+			if (labels[c]) {
+				cells[c].setAttribute('data-label', labels[c]);
+			}
+		}
+	}
+
+	for (var i = 0; i < buttons.length; i++) {
+		buttons[i].addEventListener('click', function () {
+			setView(this.getAttribute('data-view'));
+		});
+	}
+
+	var saved = 'list';
+	try {
+		saved = window.localStorage.getItem(storageKey) || 'list';
+	} catch (e) {}
+	setView(saved);
+})();
+
+(function () {
+	var body = document.body;
+	if (!body || !body.classList.contains('page-torrents')) {
+		return;
+	}
+
+	var trigger = document.querySelector('.top-advanced-search-trigger');
+	var modal = document.getElementById('torrent-advanced-search-modal');
+	if (!trigger || !modal) {
+		return;
+	}
+
+	var closeNodes = modal.querySelectorAll('[data-advanced-search-close]');
+	var filterWrap = modal.querySelector('#ksearchboxmain');
+	var filterIcon = modal.querySelector('#picsearchboxmain');
+	var previousOverflow = '';
+
+	function expandFilterPanel() {
+		if (filterWrap && filterWrap.style.display === 'none') {
+			filterWrap.style.display = '';
+		}
+		if (filterIcon) {
+			filterIcon.classList.remove('plus');
+			filterIcon.classList.add('minus');
+		}
+	}
+
+	function openModal() {
+		expandFilterPanel();
+		modal.setAttribute('aria-hidden', 'false');
+		body.classList.add('searchbox-modal-open');
+		previousOverflow = body.style.overflow;
+		body.style.overflow = 'hidden';
+		var input = modal.querySelector('#searchinput') || modal.querySelector('input[name="search"]');
+		if (input) {
+			window.setTimeout(function () {
+				input.focus();
+			}, 60);
+		}
+	}
+
+	function closeModal() {
+		modal.setAttribute('aria-hidden', 'true');
+		body.classList.remove('searchbox-modal-open');
+		body.style.overflow = previousOverflow || '';
+	}
+
+	trigger.addEventListener('click', function (e) {
+		e.preventDefault();
+		openModal();
+	});
+
+	for (var i = 0; i < closeNodes.length; i++) {
+		closeNodes[i].addEventListener('click', function (e) {
+			e.preventDefault();
+			closeModal();
+		});
+	}
+
+	document.addEventListener('keydown', function (e) {
+		if (e.key === 'Escape' && body.classList.contains('searchbox-modal-open')) {
+			closeModal();
+		}
+	});
+})();
+
+(function () {
+	var modal = document.getElementById('torrent-quick-filter-modal');
+	if (!modal) {
+		return;
+	}
+	var title = modal.querySelector('h2');
+	var list = modal.querySelector('.torrent-quick-filter-modal-list');
+	var triggers = document.querySelectorAll('[data-quick-filter-modal]');
+	var closeNodes = modal.querySelectorAll('[data-quick-filter-close]');
+
+	function closeModal() {
+		modal.setAttribute('aria-hidden', 'true');
+	}
+
+	function openModal(trigger) {
+		var raw = trigger.getAttribute('data-filter-items') || '[]';
+		var items = [];
+		try {
+			items = JSON.parse(raw);
+		} catch (e) {}
+		title.textContent = trigger.getAttribute('data-filter-title') || '';
+		list.innerHTML = '';
+		for (var i = 0; i < items.length; i++) {
+			var item = items[i];
+			var link = document.createElement('a');
+			link.href = item.url || '#';
+			link.textContent = item.name || '';
+			if (item.active) {
+				link.className = 'is-active';
+			}
+			list.appendChild(link);
+		}
+		modal.setAttribute('aria-hidden', 'false');
+	}
+
+	for (var i = 0; i < triggers.length; i++) {
+		triggers[i].addEventListener('click', function (e) {
+			e.preventDefault();
+			openModal(this);
+		});
+	}
+	for (var c = 0; c < closeNodes.length; c++) {
+		closeNodes[c].addEventListener('click', function (e) {
+			e.preventDefault();
+			closeModal();
+		});
+	}
+	document.addEventListener('keydown', function (e) {
+		if (e.key === 'Escape' && modal.getAttribute('aria-hidden') === 'false') {
+			closeModal();
+		}
+	});
+})();
+</script>
+<?php
 print("</td></tr></table>");
 stdfoot();
