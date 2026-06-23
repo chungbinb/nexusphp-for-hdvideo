@@ -41,3 +41,4 @@ bitbucket
 /public/bitbucket
 /.btpanel.local.json
 /.btpanel.local.*.json
+/.ssh-deploy*.json
