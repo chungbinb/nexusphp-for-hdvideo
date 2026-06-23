@@ -271,12 +271,12 @@ class SearchBoxRepository extends BaseRepository
         $namePrefix .= ".section.$mode";
         if ($multiple) {
             $schema[] = Forms\Components\CheckboxList::make("$namePrefix.category")
-                ->options($searchBox->categories()->orderBy('sort_index', 'desc')->orderBy('id')->pluck('name', 'id'))
+                ->options($searchBox->categories()->orderBy('sort_index')->orderBy('id')->pluck('name', 'id'))
                 ->label(nexus_trans('label.search_box.category'))
                 ->columns(6);
         } else {
             $schema[] = Forms\Components\Radio::make("$namePrefix.category")
-                ->options($searchBox->categories()->orderBy('sort_index', 'desc')->orderBy('id')->pluck('name', 'id'))
+                ->options($searchBox->categories()->orderBy('sort_index')->orderBy('id')->pluck('name', 'id'))
                 ->label(nexus_trans('label.search_box.category'))
                 ->columns(6);
         }

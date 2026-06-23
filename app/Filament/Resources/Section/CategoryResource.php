@@ -108,7 +108,7 @@ class CategoryResource extends Resource
                 TextColumn::make('class_name')->label(__('label.search_box.taxonomy.class_name')),
                 TextColumn::make('sort_index')->label(__('label.priority'))->sortable(),
             ])
-            ->defaultSort('sort_index', 'desc')
+            ->defaultSort('sort_index')
             ->filters([
                 SelectFilter::make('mode')
                     ->options(SearchBox::query()->pluck('name', 'id')->toArray())

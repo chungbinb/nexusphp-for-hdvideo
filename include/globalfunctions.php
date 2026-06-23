@@ -364,6 +364,36 @@ function get_setting_from_db($name = null, $default = null)
     return arr_get($final, $name, $default);
 }
 
+function should_show_top_carousel(?array $user = null): bool
+{
+    if (get_setting('basic.force_show_carousel') == 'yes') {
+        return true;
+    }
+
+    $default = get_setting('basic.show_carousel', 'yes') != 'no';
+    $uid = $user['id'] ?? ($GLOBALS['CURUSER']['id'] ?? 0);
+    $uid = (int)$uid;
+    if ($uid <= 0) {
+        return $default;
+    }
+
+    $personal = \Nexus\Database\NexusDB::remember("qd_show_carousel_$uid", 600, function () use ($uid) {
+        return \App\Models\UserMeta::query()
+            ->where('uid', $uid)
+            ->where('meta_key', \App\Models\UserMeta::META_KEY_SHOW_CAROUSEL)
+            ->where('status', \App\Models\UserMeta::STATUS_NORMAL)
+            ->value('meta_value');
+    });
+
+    if ($personal === 'yes') {
+        return true;
+    }
+    if ($personal === 'no') {
+        return false;
+    }
+    return $default;
+}
+
 
 function nexus_env($key = null, $default = null)
 {

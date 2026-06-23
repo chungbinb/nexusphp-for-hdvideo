@@ -13,6 +13,17 @@ class Category extends NexusModel
 
     protected $fillable = ['mode', 'name', 'class_name', 'image', 'sort_index', 'icon_id'];
 
+    protected static function booted(): void
+    {
+        static::saved(function () {
+            \clear_category_cache();
+        });
+
+        static::deleted(function () {
+            \clear_category_cache();
+        });
+    }
+
     public static function getLabelName()
     {
         return nexus_trans('searchbox.category_label');

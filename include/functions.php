@@ -2769,7 +2769,7 @@ $pageClass = preg_replace('/[^a-z0-9_-]+/i', '-', nexus()->getScript());
 $isInframePage = !empty($_GET['inframe']);
 $qdCarouselOff = !$isInframePage
     && !in_array(nexus()->getScript(), ['upload', 'details'], true)
-    && get_setting('basic.show_carousel') == 'no';
+    && !should_show_top_carousel($GLOBALS['CURUSER'] ?? null);
 $bodyClass = trim('page-' . ($pageClass ?: 'index') . ($isInframePage ? ' inframe' : '') . ($qdCarouselOff ? ' carousel-off' : ''));
 ?>
 <body class="<?php echo htmlspecialchars($bodyClass) ?>">
@@ -3577,7 +3577,7 @@ print '<br/>';
 
 </td></tr>
 
-<?php if (!in_array(nexus()->getScript(), ['upload', 'details'], true) && empty($GLOBALS['nexus_hide_top_banner']) && get_setting('basic.show_carousel') != 'no') {
+<?php if (!in_array(nexus()->getScript(), ['upload', 'details'], true) && empty($GLOBALS['nexus_hide_top_banner']) && should_show_top_carousel($GLOBALS['CURUSER'] ?? null)) {
 	$nexusTopBannerItems = [];
 	if ($Advertisement && $Advertisement->enable_ad()) {
 		foreach (['header', 'belownav'] as $nexusAdPosition) {
@@ -4692,7 +4692,7 @@ function genrelist($catmode = 1) {
 	global $Cache;
 	if (!$ret = $Cache->get_value('category_list_mode_'.$catmode)){
 		$ret = array();
-		$res = sql_query("SELECT id, mode, name, image FROM categories WHERE mode = ".sqlesc($catmode)." ORDER BY sort_index desc");
+		$res = sql_query("SELECT id, mode, name, image FROM categories WHERE mode = ".sqlesc($catmode)." ORDER BY sort_index ASC, id ASC");
 		while ($row = mysql_fetch_array($res))
 			$ret[] = $row;
 		$Cache->cache_value('category_list_mode_'.$catmode, $ret, 3600);
@@ -7744,7 +7744,7 @@ function build_search_box_category_table($mode, $checkboxValue, $categoryHrefPre
     //Category
     $html .= sprintf('<tr><td class="embedded" align="left">%s</td></tr>', nexus_trans('label.search_box.category'));
     /** @var \Illuminate\DataBase\Eloquent\Collection $categoryCollection */
-    $categoryCollection = $searchBox->categories()->with('icon')->orderBy('sort_index', 'desc')->get();
+    $categoryCollection = $searchBox->categories()->with('icon')->orderBy('sort_index')->orderBy('id')->get();
     if (!empty($options['select_unselect'])) {
         $categoryCollection->push(new \App\Models\Category(['mode' => -1]));
     }

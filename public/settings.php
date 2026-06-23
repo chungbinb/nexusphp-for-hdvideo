@@ -111,7 +111,7 @@ elseif ($action == 'savesettings_basic') 	// save basic
 	stdhead($lang_settings['head_save_basic_settings']);
 	echo qd_settings_tabs($action);
 	$validConfig = array(
-		'SITENAME', 'BASEURL', 'announce_url', 'show_carousel'
+		'SITENAME', 'BASEURL', 'announce_url', 'show_carousel', 'force_show_carousel'
 	);
 	GetVar($validConfig);
 	$BASIC = [];
@@ -570,7 +570,8 @@ elseif ($action == 'basicsettings')	// basic settings
 	print ("<form method='post' action='".$_SERVER["SCRIPT_NAME"]."'><input type='hidden' name='action' value='savesettings_basic'>");
 	tr($lang_settings['row_site_name'],"<input type='text' style=\"width: 300px\" name=SITENAME value='".($config["SITENAME"] ? $config["SITENAME"]: "Nexus")."'> ".$lang_settings['text_site_name_note'], 1);
 	tr($lang_settings['row_base_url'],"<input type='text' style=\"width: 300px\" name=BASEURL value='".($config["BASEURL"] ? $config["BASEURL"] : $_SERVER["HTTP_HOST"])."'> ".$lang_settings['text_it_should_be'] . $_SERVER["HTTP_HOST"] . $lang_settings['text_base_url_note'], 1);
-	yesorno('轮播区', 'show_carousel', isset($config["show_carousel"]) ? $config["show_carousel"] : 'yes', '开启后页面顶部显示海报轮播区，关闭则隐藏。');
+	yesorno('轮播区默认开启', 'show_carousel', isset($config["show_carousel"]) ? $config["show_carousel"] : 'yes', '作为用户未设置个人偏好时的默认值；不会覆盖用户在个人设定里的轮播区开关。');
+	yesorno('强制开启轮播区', 'force_show_carousel', isset($config["force_show_carousel"]) ? $config["force_show_carousel"] : 'no', '勾选“是”后会覆盖所有用户的个人关闭状态，所有页面仍显示轮播区。');
 //	tr($lang_settings['row_announce_url'],"<input type='text' style=\"width: 300px\" name=announce_url value='".($config["announce_url"] ? $config["announce_url"] : $_SERVER["HTTP_HOST"].DEFAULT_TRACKER_URI)."'> ".$lang_settings['text_it_should_be'] . $_SERVER["HTTP_HOST"].DEFAULT_TRACKER_URI, 1);
 //	tr($lang_settings['row_mysql_host'],"<input type='text' style=\"width: 300px\" name=mysql_host value='".($config["mysql_host"] ? $config["mysql_host"] : "localhost")."'> ".$lang_settings['text_mysql_host_note'], 1);
 //	tr($lang_settings['row_mysql_user'],"<input type='text' style=\"width: 300px\" name=mysql_user value='".($config["mysql_user"] ? $config["mysql_user"] : "root")."'> ".$lang_settings['text_mysql_user_note'], 1);
