@@ -18,34 +18,16 @@ jobs:
       - name: Checkout main
         uses: actions/checkout@v4
 
-      - name: Backup current production site
-        run: |
-          set -euo pipefail
-          SITE_ROOT=/www/wwwroot/hdvideo.top
-          BACKUP_DIR=/www/backup/hdvideo-prod-deploy
-          BACKUP_FILE="$BACKUP_DIR/hdvideo.top-code-$(date +%Y%m%d%H%M%S).tar.gz"
-          sudo mkdir -p "$BACKUP_DIR"
-          if [ -d "$SITE_ROOT" ]; then
-            sudo tar -C "$SITE_ROOT" \
-              --exclude="./.env" \
-              --exclude="./vendor" \
-              --exclude="./node_modules" \
-              --exclude="./storage" \
-              --exclude="./attachments" \
-              --exclude="./bitbucket" \
-              --exclude="./subs" \
-              --exclude="./public/attachments" \
-              --exclude="./public/bitbucket" \
-              -czf "$BACKUP_FILE" .
-            echo "Backup created: $BACKUP_FILE"
-          fi
-
       - name: Sync files to production site
         run: |
           set -euo pipefail
           SITE_ROOT=/www/wwwroot/hdvideo.top
+          BACKUP_DIR=/www/backup/hdvideo-prod-deploy/changed-files-$(date +%Y%m%d%H%M%S)
           sudo mkdir -p "$SITE_ROOT"
+          sudo mkdir -p "$BACKUP_DIR"
           sudo rsync -a --delete \
+            --backup \
+            --backup-dir="$BACKUP_DIR" \
             --exclude=".git/" \
             --exclude=".github/" \
             --exclude=".env" \
@@ -70,6 +52,7 @@ jobs:
             --exclude="scripts/_stdhead_personalize.txt" \
             --exclude="scripts/_torrents_*.txt" \
             ./ "$SITE_ROOT"/
+          echo "Changed/deleted file backup: $BACKUP_DIR"
 
       - name: Install PHP dependencies
         run: |
