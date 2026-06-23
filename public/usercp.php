@@ -420,6 +420,19 @@ tr($lang_usercp['row_school'], "<select name=school>$schools</select>", 1);
 					$showcomment = 'yes';
 				else $showcomment = 'no';
 				$updateset[] = "showcomment = " . sqlesc($showcomment);
+				$showCarousel = (isset($_POST["show_carousel"]) && $_POST["show_carousel"] == "yes") ? "yes" : "no";
+				\App\Models\UserMeta::query()->updateOrCreate(
+					[
+						'uid' => (int)$CURUSER['id'],
+						'meta_key' => \App\Models\UserMeta::META_KEY_SHOW_CAROUSEL,
+					],
+					[
+						'meta_value' => $showCarousel,
+						'status' => \App\Models\UserMeta::STATUS_NORMAL,
+						'deadline' => null,
+					]
+				);
+				\Nexus\Database\NexusDB::cache_del("qd_show_carousel_" . (int)$CURUSER['id']);
 
 				$query = "UPDATE users SET " . implode(",", $updateset) . " WHERE id =".sqlesc($CURUSER["id"]);
 				//stderr("",$query);
@@ -616,6 +629,14 @@ if ($showaudiocodec) $audiocodecs = searchbox_item_list("audiocodecs");
             }
             $categories .= $delimiter . "<table><caption><font class='big'>{$lang_usercp['text_additional_selection']}</font></caption><tr><td class=bottom><b>".$lang_usercp['text_show_dead_active']."</b><br /><select name=\"incldead\"><option value=\"0\" ".(strpos($CURUSER['notifs'], "[incldead=0]") !== false ? " selected" : "").">".$lang_usercp['select_including_dead']."</option><option value=\"1\" ".(strpos($CURUSER['notifs'], "[incldead=1]") !== false ||  strpos($CURUSER['notifs'], "incldead") == false ? " selected" : "").">".$lang_usercp['select_active']."</option><option value=\"2\" ".(strpos($CURUSER['notifs'], "[incldead=2]") !== false  ? " selected" : "").">".$lang_usercp['select_dead']."</option></select></td><td class=bottom align=left><b>".$lang_usercp['text_show_special_torrents']."</b><br /><select name=\"spstate\"><option value=\"0\" ".($special_state == 0 ? " selected" : "").">".$lang_usercp['select_all']."</option>".promotion_selection($special_state)."</select></td><td class=bottom><b>".$lang_usercp['text_show_bookmarked']."</b><br /><select name=\"inclbookmarked\"><option value=\"0\" ".(strpos($CURUSER['notifs'], "[inclbookmarked=0]") !== false ? " selected" : "").">".$lang_usercp['select_all']."</option><option value=\"1\" ".(strpos($CURUSER['notifs'], "[inclbookmarked=1]") !== false ? " selected" : "")." >".$lang_usercp['select_bookmarked']."</option><option value=\"2\" ".(strpos($CURUSER['notifs'], "[inclbookmarked=2]") !== false ? " selected" : "").">".$lang_usercp['select_bookmarked_exclude']."</option></select></td></tr></table>";
             tr_small($lang_usercp['row_browse_default_categories'], $categories,1);
+			$carouselSetting = \App\Models\UserMeta::query()
+				->where('uid', (int)$CURUSER['id'])
+				->where('meta_key', \App\Models\UserMeta::META_KEY_SHOW_CAROUSEL)
+				->where('status', \App\Models\UserMeta::STATUS_NORMAL)
+				->value('meta_value');
+			$carouselChecked = ($carouselSetting === null ? get_setting('basic.show_carousel', 'yes') != 'no' : $carouselSetting == 'yes');
+			$carouselForceNote = get_setting('basic.force_show_carousel') == 'yes' ? '<br /><font class=small size=1>当前站点已强制开启轮播区，即使这里关闭也会显示。</font>' : '';
+			tr_small('轮播区', "<input type=checkbox name=show_carousel" . ($carouselChecked ? " checked" : "") . " value=yes>显示页面顶部海报轮播区" . $carouselForceNote, 1);
             $categoryicons = '';
             $stylesheets = "<option value=\"" . (int)$hdvideoUnifiedStylesheetId . "\" selected=\"selected\">" . htmlspecialchars($hdvideoUnifiedStylesheetName) . "</option>\n";
             tr_small($lang_usercp['row_stylesheet'], "<select name=stylesheet>\n$stylesheets\n</select>",1);
