@@ -67,7 +67,7 @@ jobs:
           set -euo pipefail
           cd /www/wwwroot/hdvideo.top
           sudo php artisan optimize:clear || true
-          sudo chown -R www:www /www/wwwroot/hdvideo.top
+          sudo chown -R www:www /www/wwwroot/hdvideo.top || true
           sudo chmod -R ug+rwX storage bootstrap/cache
 
       - name: Health check
