@@ -1,0 +1,70 @@
+name: Deploy dev to BaoTa test
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-dev-test
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, linux, x64, hdvideo-test]
+
+    steps:
+      - name: Checkout dev
+        uses: actions/checkout@v4
+
+      - name: Sync files to test site
+        run: |
+          set -euo pipefail
+          SITE_ROOT=/www/wwwroot/hdvideo.test
+          mkdir -p "$SITE_ROOT"
+          rsync -a --delete \
+            --exclude=".git/" \
+            --exclude=".github/" \
+            --exclude=".env" \
+            --exclude=".ssh-deploy*.json" \
+            --exclude="vendor/" \
+            --exclude="node_modules/" \
+            --exclude="storage/" \
+            --exclude="attachments/" \
+            --exclude="bitbucket/" \
+            --exclude="subs/" \
+            --exclude="public/attachments/" \
+            --exclude="public/bitbucket/" \
+            --exclude="tmp_audit/" \
+            --exclude="scripts/_backup*" \
+            --exclude="scripts/_diag*" \
+            --exclude="scripts/_live*" \
+            --exclude="scripts/_lint*" \
+            --exclude="scripts/_ajax_methods.txt" \
+            --exclude="scripts/_help_new.txt" \
+            --exclude="scripts/_hook.php" \
+            --exclude="scripts/_hr_*.php" \
+            --exclude="scripts/_stdhead_personalize.txt" \
+            --exclude="scripts/_torrents_*.txt" \
+            ./ "$SITE_ROOT"/
+
+      - name: Install PHP dependencies
+        run: |
+          set -euo pipefail
+          cd /www/wwwroot/hdvideo.test
+          export COMPOSER_ALLOW_SUPERUSER=1
+          composer install --no-dev --optimize-autoloader --no-interaction
+
+      - name: Clear cache and fix permissions
+        run: |
+          set -euo pipefail
+          cd /www/wwwroot/hdvideo.test
+          php artisan optimize:clear || true
+          chown -R www:www /www/wwwroot/hdvideo.test
+          chmod -R ug+rwX storage bootstrap/cache
+
+      - name: Health check
+        run: |
+          set -euo pipefail
+          curl -I --max-time 15 -H "Host: 192.168.200.230" http://127.0.0.1/login.php
