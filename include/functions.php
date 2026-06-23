@@ -2769,7 +2769,7 @@ $pageClass = preg_replace('/[^a-z0-9_-]+/i', '-', nexus()->getScript());
 $isInframePage = !empty($_GET['inframe']);
 $qdCarouselOff = !$isInframePage
     && !in_array(nexus()->getScript(), ['upload', 'details'], true)
-    && get_setting('basic.show_carousel') == 'no';
+    && !should_show_top_carousel($GLOBALS['CURUSER'] ?? null);
 $bodyClass = trim('page-' . ($pageClass ?: 'index') . ($isInframePage ? ' inframe' : '') . ($qdCarouselOff ? ' carousel-off' : ''));
 ?>
 <body class="<?php echo htmlspecialchars($bodyClass) ?>">
@@ -3577,7 +3577,7 @@ print '<br/>';
 
 </td></tr>
 
-<?php if (!in_array(nexus()->getScript(), ['upload', 'details'], true) && empty($GLOBALS['nexus_hide_top_banner']) && get_setting('basic.show_carousel') != 'no') {
+<?php if (!in_array(nexus()->getScript(), ['upload', 'details'], true) && empty($GLOBALS['nexus_hide_top_banner']) && should_show_top_carousel($GLOBALS['CURUSER'] ?? null)) {
 	$nexusTopBannerItems = [];
 	if ($Advertisement && $Advertisement->enable_ad()) {
 		foreach (['header', 'belownav'] as $nexusAdPosition) {

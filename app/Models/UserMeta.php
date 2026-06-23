@@ -18,6 +18,8 @@ class UserMeta extends NexusModel
 
     const META_KEY_CHANGE_USERNAME = 'CHANGE_USERNAME';
 
+    const META_KEY_SHOW_CAROUSEL = 'SHOW_CAROUSEL';
+
     protected $appends = ['meta_key_text'];
 
     protected $casts = [
@@ -27,6 +29,7 @@ class UserMeta extends NexusModel
     public static array $metaKeys = [
         self::META_KEY_PERSONALIZED_USERNAME => ['text' => 'PERSONALIZED_USERNAME', 'multiple' => false],
         self::META_KEY_CHANGE_USERNAME => ['text' => 'CHANGE_USERNAME', 'multiple' => false],
+        self::META_KEY_SHOW_CAROUSEL => ['text' => 'SHOW_CAROUSEL', 'multiple' => false],
     ];
 
     public static function listProps()
@@ -34,6 +37,7 @@ class UserMeta extends NexusModel
         return [
             self::META_KEY_PERSONALIZED_USERNAME => nexus_trans('label.user_meta.meta_keys.' . self::META_KEY_PERSONALIZED_USERNAME),
             self::META_KEY_CHANGE_USERNAME => nexus_trans('label.user_meta.meta_keys.' . self::META_KEY_CHANGE_USERNAME),
+            self::META_KEY_SHOW_CAROUSEL => nexus_trans('label.user_meta.meta_keys.' . self::META_KEY_SHOW_CAROUSEL),
         ];
     }
 

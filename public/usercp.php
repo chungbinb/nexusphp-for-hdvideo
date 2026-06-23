@@ -132,6 +132,19 @@ if ($action){
 
 				$updateset[] = "info = " . sqlesc($info);
 				$updateset[] = "tracker_url_id = " . sqlesc($_POST["tracker_url_id"]);
+				$showCarousel = (isset($_POST["show_carousel"]) && $_POST["show_carousel"] == "yes") ? "yes" : "no";
+				\App\Models\UserMeta::query()->updateOrCreate(
+					[
+						'uid' => (int)$CURUSER['id'],
+						'meta_key' => \App\Models\UserMeta::META_KEY_SHOW_CAROUSEL,
+					],
+					[
+						'meta_value' => $showCarousel,
+						'status' => \App\Models\UserMeta::STATUS_NORMAL,
+						'deadline' => null,
+					]
+				);
+				\Nexus\Database\NexusDB::cache_del("qd_show_carousel_" . (int)$CURUSER['id']);
 
 				//notifs
                 if (!empty($_POST['notifs'])) {
@@ -631,6 +644,14 @@ if ($showaudiocodec) $audiocodecs = searchbox_item_list("audiocodecs");
 			$s .= "\n</select>&nbsp;&nbsp;<font class=small>".$lang_usercp['text_translation_note']."<a href=\"aboutnexus.php#translation\"><b>".$lang_usercp['text_translation_link']."</b></a></font>.</td></tr>";
 
 			tr_small($lang_usercp['row_site_language'], $s,1);
+			$carouselSetting = \App\Models\UserMeta::query()
+				->where('uid', (int)$CURUSER['id'])
+				->where('meta_key', \App\Models\UserMeta::META_KEY_SHOW_CAROUSEL)
+				->where('status', \App\Models\UserMeta::STATUS_NORMAL)
+				->value('meta_value');
+			$carouselChecked = ($carouselSetting === null ? get_setting('basic.show_carousel', 'yes') != 'no' : $carouselSetting == 'yes');
+			$carouselForceNote = get_setting('basic.force_show_carousel') == 'yes' ? '<br /><font class=small size=1>当前站点已强制开启轮播区，即使这里关闭也会显示。</font>' : '';
+			tr_small('轮播区', "<input type=checkbox name=show_carousel" . ($carouselChecked ? " checked" : "") . " value=yes>显示页面顶部海报轮播区" . $carouselForceNote, 1);
 
 			if($showmovies['hot'] == "yes" || $showmovies['classic'] == "yes")
 			tr_small($lang_usercp['row_recommended_movies'], ($showmovies['hot'] == "yes" ? "<input type=checkbox name=show_hot" . ($CURUSER["showhot"] == "yes" ? " checked" : "") . " value=yes>".$lang_usercp['checkbox_show_hot']. "&nbsp;" : "") . ($showmovies['classic'] == "yes" ? "<input type=checkbox name=show_classic" . ($CURUSER["showclassic"] == "yes" ? " checked" : "") . " value=yes>".$lang_usercp['checkbox_show_classic']."&nbsp;" : ""),1);
