@@ -1348,6 +1348,14 @@ function get_passkey_by_authkey($authkey)
 
 function executeCommand($command, $format = 'string', $artisan = false, $exception = true): string|array
 {
+    if (!function_exists('exec')) {
+        $message = 'PHP function exec() is disabled.';
+        do_log("command skipped: $command, $message", 'error');
+        if ($exception) {
+            throw new \RuntimeException($message);
+        }
+        return $format == 'string' ? $message : [$message];
+    }
     $append = " 2>&1";
     if (!str_ends_with($command, $append)) {
         $command .= $append;
