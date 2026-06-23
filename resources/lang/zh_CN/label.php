@@ -144,6 +144,16 @@ return [
             'max_uploaded_duration' => '最大上传量倍数有效时间范围',
             'max_uploaded_duration_help' => '单位：小时。种子发布后的这个时间范围内，最大上传量倍数生效，超过此范围不生效。设置为 0 一直生效',
         ],
+        'torrent_region_style' => [
+            'tab_header' => '发布页地区/风格',
+            'enabled_help' => '是否在发布页和编辑页显示地区、风格字段。关闭后提交时不再校验也不保存这些字段。',
+            'required' => '是否必填',
+            'required_help' => '启用后发布和编辑种子必须选择地区，并至少选择一个风格。',
+            'regions' => '地区选项',
+            'regions_help' => '每行一个地区，也支持用逗号分隔。保存后前台会同步到发布页、编辑页和种子列表筛选。',
+            'styles' => '风格选项',
+            'styles_help' => '每行一个风格，也支持用逗号分隔。保存后前台会同步到发布页、编辑页和种子列表筛选。',
+        ],
         'captcha' => [
             'tab_header' => '验证码',
             'driver' => '验证码驱动',

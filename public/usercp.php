@@ -5,6 +5,8 @@ require_once(get_langfile_path());
 loggedinorreturn();
 $userInfo = \App\Models\User::query()->findOrFail($CURUSER["id"]);
 $siteName = \App\Models\Setting::getSiteName();
+$hdvideoUnifiedStylesheetId = 6;
+$hdvideoUnifiedStylesheetName = 'HDvideo 现代风格';
 function bark($msg) {
 	stdhead();
 	global $lang_usercp;
@@ -304,7 +306,7 @@ tr($lang_usercp['row_school'], "<select name=school>$schools</select>", 1);
 				if ($inclbookmarked) {
                     $notifs["inclbookmarked=$inclbookmarked"] = 1;
                 }
-				$stylesheet = $_POST["stylesheet"];
+				$stylesheet = $hdvideoUnifiedStylesheetId;
 //				$caticon = $_POST["caticon"];
 				$sitelanguage = $_POST["sitelanguage"];
 				$fontsize = $_POST["fontsize"];
@@ -601,24 +603,9 @@ if ($showaudiocodec) $audiocodecs = searchbox_item_list("audiocodecs");
             }
             $categories .= $delimiter . "<table><caption><font class='big'>{$lang_usercp['text_additional_selection']}</font></caption><tr><td class=bottom><b>".$lang_usercp['text_show_dead_active']."</b><br /><select name=\"incldead\"><option value=\"0\" ".(strpos($CURUSER['notifs'], "[incldead=0]") !== false ? " selected" : "").">".$lang_usercp['select_including_dead']."</option><option value=\"1\" ".(strpos($CURUSER['notifs'], "[incldead=1]") !== false ||  strpos($CURUSER['notifs'], "incldead") == false ? " selected" : "").">".$lang_usercp['select_active']."</option><option value=\"2\" ".(strpos($CURUSER['notifs'], "[incldead=2]") !== false  ? " selected" : "").">".$lang_usercp['select_dead']."</option></select></td><td class=bottom align=left><b>".$lang_usercp['text_show_special_torrents']."</b><br /><select name=\"spstate\"><option value=\"0\" ".($special_state == 0 ? " selected" : "").">".$lang_usercp['select_all']."</option>".promotion_selection($special_state)."</select></td><td class=bottom><b>".$lang_usercp['text_show_bookmarked']."</b><br /><select name=\"inclbookmarked\"><option value=\"0\" ".(strpos($CURUSER['notifs'], "[inclbookmarked=0]") !== false ? " selected" : "").">".$lang_usercp['select_all']."</option><option value=\"1\" ".(strpos($CURUSER['notifs'], "[inclbookmarked=1]") !== false ? " selected" : "")." >".$lang_usercp['select_bookmarked']."</option><option value=\"2\" ".(strpos($CURUSER['notifs'], "[inclbookmarked=2]") !== false ? " selected" : "").">".$lang_usercp['select_bookmarked_exclude']."</option></select></td></tr></table>";
             tr_small($lang_usercp['row_browse_default_categories'], $categories,1);
-			$ss_r = sql_query("SELECT * FROM stylesheets") or die;
-			$ss_sa = array();
-			while ($ss_a = mysql_fetch_array($ss_r))
-			{
-				$ss_id = $ss_a["id"];
-				$ss_name = $ss_a["name"];
-				$ss_sa[$ss_name] = $ss_id;
-			}
-			ksort($ss_sa);
-			reset($ss_sa);
-            $stylesheets = $categoryicons = '';
-//			while (list($ss_name, $ss_id) = each($ss_sa))
-            foreach ($ss_sa as $ss_name => $ss_id)
-			{
-				if ($ss_id == $CURUSER["stylesheet"]) $ss = " selected"; else $ss = "";
-				$stylesheets .= "<option value=$ss_id$ss>$ss_name</option>\n";
-			}
-            tr_small($lang_usercp['row_stylesheet'], "<select name=stylesheet>\n$stylesheets\n</select>&nbsp;&nbsp;<font class=small>".$lang_usercp['text_stylesheet_note']."<a href=\"aboutnexus.php#stylesheet\" ><b>".$lang_usercp['text_stylesheet_link']."</b></a></font>.",1);
+            $categoryicons = '';
+            $stylesheets = "<option value=\"" . (int)$hdvideoUnifiedStylesheetId . "\" selected=\"selected\">" . htmlspecialchars($hdvideoUnifiedStylesheetName) . "</option>\n";
+            tr_small($lang_usercp['row_stylesheet'], "<select name=stylesheet>\n$stylesheets\n</select>",1);
             /**
              * make no sense, should no exists!
              * @since v1.6.0

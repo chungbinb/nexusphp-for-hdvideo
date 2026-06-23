@@ -11,6 +11,7 @@ return [
         'exams_list' => '考核 & 任务',
         'medals_list' => '勋章',
         'settings' => '设置',
+        'torrent_region_style_setting' => '风格设置',
         'users_medals' => '用户勋章',
         'claims' => '用户认领',
         'torrent_list' => '种子',

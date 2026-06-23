@@ -103,6 +103,16 @@ return [
             'max_uploaded_duration' => 'Maximum upload volume multiplier effective time range',
             'max_uploaded_duration_help' => 'Unit: hours. The maximum upload volume multiplier takes effect within this time range after the torrent is published, and does not take effect beyond this range. A setting of 0 is always in effect',
         ],
+        'torrent_region_style' => [
+            'tab_header' => 'Upload regions/styles',
+            'enabled_help' => 'Show region and style fields on upload and edit pages. When disabled, submit validation and saving are skipped.',
+            'required' => 'Required',
+            'required_help' => 'When enabled, uploading and editing torrents must select one region and at least one style.',
+            'regions' => 'Region options',
+            'regions_help' => 'One region per line. Comma-separated values are also supported. Saved values sync to upload, edit, and torrent-list filters.',
+            'styles' => 'Style options',
+            'styles_help' => 'One style per line. Comma-separated values are also supported. Saved values sync to upload, edit, and torrent-list filters.',
+        ],
         'captcha' => [
             'tab_header' => 'Captcha',
             'driver' => 'Captcha driver',

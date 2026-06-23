@@ -11,7 +11,10 @@ if (!isset($id) || !$id)
 die();
 
 $taxonomyFields = "sources.name AS source_name, media.name AS medium_name, codecs.name AS codec_name, standards.name AS standard_name, processings.name AS processing_name, teams.name AS team_name, audiocodecs.name AS audiocodec_name";
-$extraFields = "torrent_extras.descr, torrent_extras.nfo, LENGTH(torrent_extras.nfo) AS nfosz, torrent_extras.media_info as technical_info";
+$detailDescrField = hdvideo_column_exists('torrents', 'descr') ? "COALESCE(NULLIF(torrent_extras.descr, ''), torrents.descr)" : 'torrent_extras.descr';
+$detailNfoField = hdvideo_column_exists('torrents', 'nfo') ? "COALESCE(NULLIF(torrent_extras.nfo, ''), torrents.nfo)" : 'torrent_extras.nfo';
+$detailTechnicalInfoField = hdvideo_column_exists('torrents', 'technical_info') ? "COALESCE(NULLIF(torrent_extras.media_info, ''), torrents.technical_info)" : 'torrent_extras.media_info';
+$extraFields = "$detailDescrField AS descr, $detailNfoField AS nfo, LENGTH($detailNfoField) AS nfosz, $detailTechnicalInfoField AS technical_info, torrent_extras.imdb_info";
 $res = sql_query("SELECT torrents.cache_stamp, torrents.sp_state, torrents.url, torrents.small_descr, torrents.seeders, torrents.banned, torrents.leechers, torrents.info_hash, torrents.filename, torrents.last_action, torrents.name, torrents.owner, torrents.save_as, torrents.visible, torrents.size, torrents.added, torrents.views, torrents.hits, torrents.times_completed, torrents.id, torrents.type, torrents.numfiles, torrents.anonymous, torrents.hr, torrents.promotion_until, torrents.promotion_time_type, torrents.approval_status, torrents.price,
        categories.name AS cat_name, categories.mode as search_box_id, $taxonomyFields, $extraFields
 FROM torrents LEFT JOIN categories ON torrents.category = categories.id
@@ -354,7 +357,10 @@ JS;
 	{
 		$imdbInfoTitle = '<a id="imdb-info"></a>' . $lang_details['text_imdb'] . $lang_details['row_info'];
 		$imdbFallbackCacheKey = \App\Repositories\TorrentRepository::buildImdbFallbackCacheKey((int)$row['id']);
-		$imdbFallbackDesc = \Nexus\Database\NexusDB::cache_get($imdbFallbackCacheKey);
+		$imdbFallbackDesc = trim((string)($row['imdb_info'] ?? ''));
+		if ($imdbFallbackDesc === '') {
+			$imdbFallbackDesc = \Nexus\Database\NexusDB::cache_get($imdbFallbackCacheKey);
+		}
 		$thenumbers = $imdb_id;
 		$Cache->new_page('imdb_id_'.$thenumbers.'_large', 3600*24, true);
 		if (!$Cache->get_page()){

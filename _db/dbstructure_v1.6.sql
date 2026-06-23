@@ -1611,6 +1611,7 @@ CREATE TABLE `posts` (
   `ori_body` text,
   `editedby` mediumint(8) unsigned NOT NULL DEFAULT '0',
   `editdate` datetime DEFAULT NULL,
+  `anonymous` enum('yes','no') NOT NULL DEFAULT 'no',
   PRIMARY KEY (`id`),
   KEY `userid` (`userid`),
   KEY `topicid_id` (`topicid`,`id`),

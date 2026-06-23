@@ -68,7 +68,7 @@ class Imdb
 
     public function getCachedAt(int $id)
     {
-        $id = parse_imdb_id($id);
+        $id = self::normalizeImdbNumericId($id);
         $log = "id: $id";
         $cacheFile = $this->getCacheFilePath($id);
         if (!file_exists($cacheFile)) {
@@ -87,7 +87,7 @@ class Imdb
      */
     public function getCacheStatus(int $id)
     {
-        $id = parse_imdb_id($id);
+        $id = self::normalizeImdbNumericId($id);
         $log = "id: $id";
         $cacheFile = $this->getCacheFilePath($id);
         if (!file_exists($cacheFile)) {
@@ -121,6 +121,7 @@ class Imdb
 
     public function getMovie($id)
     {
+        $id = self::normalizeImdbNumericId($id);
         if (!isset($this->movies[$id])) {
             $this->movies[$id] = new Title($id, $this->config);
         }
@@ -129,7 +130,7 @@ class Imdb
 
     private function getCacheFilePath($id, $suffix = '')
     {
-        $id = parse_imdb_id($id);
+        $id = self::normalizeImdbNumericId($id);
         $result = sprintf('%stitle.tt%s', $this->config->cachedir, $id);
         if ($suffix) {
             $result .= ".$suffix";
@@ -139,7 +140,7 @@ class Imdb
 
     public function updateCache($id)
     {
-        $id = parse_imdb_id($id);
+        $id = self::normalizeImdbNumericId($id);
         $movie = $this->getMovie($id);
         //because getPage() is protected, so...
         $movie->title();
@@ -167,7 +168,8 @@ class Imdb
         //$comment = $movie->comment();
 //        $similiar_movies = $movie->similiar_movies();
 
-        $autodata = '<a href="https://www.imdb.com/title/tt'.$thenumbers.'">https://www.imdb.com/title/tt'.$thenumbers."</a><br /><strong><font color=\"navy\">------------------------------------------------------------------------------------------------------------------------------------</font><br />\n";
+        $imdbUrl = build_imdb_url($thenumbers);
+        $autodata = '<a href="'.$imdbUrl.'">'.$imdbUrl."</a><br /><strong><font color=\"navy\">------------------------------------------------------------------------------------------------------------------------------------</font><br />\n";
         $autodata .= "<font color=\"darkred\" size=\"3\">".$lang_details['text_information']."</font><br />\n";
         $autodata .= "<font color=\"navy\">------------------------------------------------------------------------------------------------------------------------------------</font></strong><br />\n";
         $autodata .= "<strong><font color=\"DarkRed\">". $lang_details['text_title']."</font></strong>" . "".$movie->title ()."<br />\n";
@@ -284,7 +286,7 @@ class Imdb
 
     public function getRating($imdbId): float|string
     {
-        $imdbId = parse_imdb_id($imdbId);
+        $imdbId = self::normalizeImdbNumericId($imdbId);
         $defaultRating = $rating = 'N/A';
         if ($imdbId && $this->getCacheStatus($imdbId) == 1) {
             $movie = $this->getMovie($imdbId);
@@ -306,6 +308,7 @@ class Imdb
 
     public function getMovieCover($imdbId): string
     {
+        $imdbId = self::normalizeImdbNumericId($imdbId);
         static $enabled;
         if (is_null($enabled)) {
             $enabled = Setting::getIsImdbEnabled();
@@ -328,6 +331,13 @@ class Imdb
 
     public static function getMovieCoverCacheKey($imdbId): string
     {
+        $imdbId = self::normalizeImdbNumericId($imdbId);
         return "imdb:cover:$imdbId";
+    }
+
+    private static function normalizeImdbNumericId($imdbId): string
+    {
+        $imdbId = parse_imdb_id($imdbId);
+        return $imdbId ? str_pad((string)$imdbId, 7, '0', STR_PAD_LEFT) : '';
     }
 }

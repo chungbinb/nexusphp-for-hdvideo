@@ -28,6 +28,7 @@ use App\Models\Standard;
 use App\Models\Team;
 use App\Models\Torrent;
 use App\Models\TorrentBuyLog;
+use App\Models\TorrentExtra;
 use App\Models\TorrentOperationLog;
 use App\Models\TorrentSecret;
 use App\Models\TorrentTag;
@@ -1135,23 +1136,78 @@ HTML;
             NexusDB::cache_del(Imdb::getMovieCoverCacheKey($imdb_id));
             NexusDB::cache_del(self::buildImdbFallbackCacheKey($torrentId));
             do_log("$log, done");
+            $this->saveImdbFallbackInfoIfMissing($torrentId, $imdb_id, $log);
         } catch (\Exception $e) {
             $log .= ", error: " . $e->getMessage() . ", trace: " . $e->getTraceAsString();
             do_log($log, 'error');
-            try {
-                $parser = new \App\Services\ExternalDescriptionParser();
-                $parsed = $parser->parse('', build_imdb_url($imdb_id));
-                if (!empty($parsed['descr'])) {
-                    NexusDB::cache_put(self::buildImdbFallbackCacheKey($torrentId), $parsed['descr'], 86400);
-                    do_log("$log, fallback cache generated");
-                }
-            } catch (\Exception $fallbackException) {
-                do_log("$log, fallback error: " . $fallbackException->getMessage(), 'error');
-            }
+            $this->saveImdbFallbackInfoIfMissing($torrentId, $imdb_id, $log);
         } finally {
             $torrent->cache_stamp = 0;
             $torrent->save();
         }
+    }
+
+    private function saveImdbFallbackInfoIfMissing(int $torrentId, string $imdbId, string $log): void
+    {
+        try {
+            $torrentExtra = TorrentExtra::query()->firstOrNew(['torrent_id' => $torrentId]);
+            if ($this->imdbInfoHasRating((string)($torrentExtra->imdb_info ?? ''))) {
+                $this->syncTorrentCoverFromExternalDescription($torrentId, (string)$torrentExtra->imdb_info);
+                do_log("$log, fallback imdb info already has rating");
+                return;
+            }
+            $parser = new \App\Services\ExternalDescriptionParser();
+            $parsed = $parser->parse('', build_imdb_url($imdbId));
+            if (!empty($parsed['descr'])) {
+                NexusDB::cache_put(self::buildImdbFallbackCacheKey($torrentId), $parsed['descr'], 86400);
+                if (!$torrentExtra->exists && $torrentExtra->descr === null) {
+                    $torrentExtra->descr = '';
+                }
+                $torrentExtra->imdb_info = $parsed['descr'];
+                $torrentExtra->save();
+                $this->syncTorrentCoverFromExternalDescription($torrentId, $parsed['descr']);
+                do_log("$log, fallback imdb info saved");
+            }
+        } catch (\Exception $fallbackException) {
+            do_log("$log, fallback error: " . $fallbackException->getMessage(), 'error');
+        }
+    }
+
+    private function imdbInfoHasRating(string $imdbInfo): bool
+    {
+        return preg_match('/(?:IMDb|豆瓣)评分[^\r\n\d]*\d+(?:\.\d+)?/iu', $imdbInfo) === 1;
+    }
+
+    private function syncTorrentCoverFromExternalDescription(int $torrentId, string $description): void
+    {
+        $cover = $this->extractFirstPosterUrl($description);
+        if ($cover === '') {
+            return;
+        }
+        Torrent::query()
+            ->where('id', $torrentId)
+            ->where(function (Builder $query) {
+                $query->whereNull('cover')->orWhere('cover', '');
+            })
+            ->update(['cover' => $cover]);
+    }
+
+    private function extractFirstPosterUrl(string $description): string
+    {
+        $patterns = [
+            '/\[img(?:=[^\]]*)?\]\s*(https?:\/\/[^\[\]\s]+)\s*\[\/img\]/i',
+            '/<img\b[^>]*\bsrc=(["\'])(.*?)\1/i',
+            '/https?:\/\/[^\s"\'<>\]]+\.(?:jpe?g|png|webp)(?:\?[^\s"\'<>\]]*)?/i',
+        ];
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $description, $matches)) {
+                $url = trim(html_entity_decode((string)($matches[2] ?? $matches[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                if ($url !== '' && stripos($url, 'data:image/svg') !== 0) {
+                    return $url;
+                }
+            }
+        }
+        return '';
     }
 
     public static function buildImdbFallbackCacheKey(int $torrentId): string

@@ -10,7 +10,7 @@ class TorrentExtra extends NexusModel
 {
     public $timestamps = true;
 
-    protected $fillable = ['torrent_id', 'descr', 'ori_descr', 'media_info', 'nfo', 'pt_gen'];
+    protected $fillable = ['torrent_id', 'descr', 'ori_descr', 'media_info', 'nfo', 'pt_gen', 'imdb_info'];
 
     protected function ptGen(): Attribute
     {

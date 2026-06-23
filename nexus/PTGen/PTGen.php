@@ -33,13 +33,13 @@ class PTGen
             'url_pattern' => '/(?:https?:\/\/)?(?:www\.)?imdb\.com\/title\/(tt\d+)\/?/',
             'home_page' => 'https://www.imdb.com/',
             'rating_average_img' => 'pic/imdb2.png',
-            'rating_pattern_in_desc' => "/IMDb评分.*([\d\.]+)\//iU",
+            'rating_pattern_in_desc' => "/IMDb评分[^\r\n\d]*(\d+(?:\.\d+)?)/i",
         ],
         self::SITE_DOUBAN => [
             'url_pattern' => '/(?:https?:\/\/)?(?:(?:movie|www)\.)?douban\.com\/(?:subject|movie)\/(\d+)\/?/',
             'home_page' => 'https://www.douban.com/',
             'rating_average_img' => 'pic/douban2.png',
-            'rating_pattern_in_desc' => "/豆瓣评分.*([\d\.]+)\//iU",
+            'rating_pattern_in_desc' => "/豆瓣评分[^\r\n\d]*(\d+(?:\.\d+)?)/i",
         ],
         self::SITE_BANGUMI => [
             'url_pattern' => '/(?:https?:\/\/)?(?:bgm\.tv|bangumi\.tv|chii\.in)\/subject\/(\d+)\/?/',
@@ -380,8 +380,11 @@ HTML;
         }
     }
 
-    public function listRatings(array $ptGenData, string $imdbLink, string $desc = ''): array
+    public function listRatings(array $ptGenData, ?string $imdbLink = null, string $desc = ''): array
     {
+        // 某些种子没有 IMDB 链接时 $torrentInfo['url'] 为 null，旧签名要求 string 会抛
+        // TypeError 致命错误，导致整个种子列表页（torrents.php）崩溃。这里允许 null 并规整为 ''。
+        $imdbLink = (string) $imdbLink;
         $results = [];
         $log = "";
         $sharedFallbackLinks = [];
@@ -422,6 +425,12 @@ HTML;
             $externalId = $this->extractExternalId($site, $siteEntry, $fallbackLinks);
 
             $allowEmptyRatingWithId = in_array($site, [self::SITE_IMDB, self::SITE_DOUBAN], true);
+            if (($rating === '' || $rating === null) && $site === self::SITE_IMDB && $externalId) {
+                $imdb = new Imdb();
+                $rating = $imdb->getRating($externalId);
+                $log .= ", get imdb rating from api: $externalId -> $rating";
+            }
+
             if (($rating === '' || $rating === null) && !($allowEmptyRatingWithId && $externalId)) {
                 $log .= ", can't get rating";
                 continue;
@@ -452,7 +461,7 @@ HTML;
         //Otherwise, get from desc
         if (!empty($desc)) {
             foreach (self::$validSites as $site => $info) {
-                if (isset($results[$site])) {
+                if (isset($results[$site]) && !in_array((string)($results[$site]['rating'] ?? ''), ['', 'N/A'], true)) {
                     continue;
                 }
                 if (empty($info['rating_pattern_in_desc'])) {
@@ -462,7 +471,7 @@ HTML;
                 $log .= ", at last, trying to get '$site' from desc with pattern: $pattern";
                 if (preg_match($pattern, $desc, $matches)) {
                     $log .= ", get " . $matches[1];
-                    $externalId = $this->extractExternalId($site, $ptGenData[$site] ?? []);
+                    $externalId = $results[$site]['id'] ?? $this->extractExternalId($site, $ptGenData[$site] ?? []);
                     $results[$site] = [
                         'rating' => $matches[1],
                         'id' => $externalId,
@@ -557,7 +566,7 @@ HTML;
         return null;
     }
 
-    public function updateTorrentPtGen(int $id): bool|array
+    public function updateTorrentPtGen(int $id, bool $force = false): bool|array
     {
         $now = Carbon::now();
         $log = "updateTorrentPtGen, torrent: " . $id;
@@ -574,7 +583,7 @@ HTML;
                 $updatedAt = Carbon::parse($arr['__updated_at']);
                 $diffInDays = $now->diffInDays($updatedAt);
                 $log .= ", diffInDays: $diffInDays";
-                if ($diffInDays < 30) {
+                if (!$force && $diffInDays < 30) {
                     do_log("$log, less 30 days, don't update");
                     return false;
                 }
@@ -592,9 +601,13 @@ HTML;
             if (!preg_match($siteConfig['url_pattern'], $link, $matches)) {
                 continue;
             }
+            $ptGenInfo[$site]['link'] = $matches[0];
+            $ptGenInfo[$site]['data'] = [];
             try {
                 $response = $this->generate($matches[0], true);
-                $ptGenInfo[$site]['data'] = $response;
+                if (!empty($response)) {
+                    $ptGenInfo[$site]['data'] = $response;
+                }
             } catch (\Exception $exception) {
                 do_log("$log, site: $site can not be updated: " . $exception->getMessage(), 'error');
             }
@@ -603,7 +616,7 @@ HTML;
             do_log("$log, no pt gen info updated");
             return false;
         }
-        $siteIdAndRating = $this->listRatings($ptGenInfo, $torrent->url, $extra->descr);
+        $siteIdAndRating = $this->listRatings($ptGenInfo, (string)($torrent->url ?? ''), (string)($extra->descr ?? ''));
         foreach ($siteIdAndRating as $key => $value) {
             if (!isset($ptGenInfo[$key]['data']) || !is_array($ptGenInfo[$key]['data'])) {
                 continue;

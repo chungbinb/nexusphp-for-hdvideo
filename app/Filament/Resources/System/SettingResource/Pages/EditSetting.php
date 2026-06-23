@@ -10,6 +10,7 @@ use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Schemas\Components\Fieldset;
@@ -74,6 +75,12 @@ class EditSetting extends Page implements HasForms
             $normalized = (bool) $rawSetting;
         }
         Arr::set($settings, 'captcha.attendance.enabled', $normalized);
+
+        foreach ($this->getTorrentRegionStyleDefaultSettings() as $key => $value) {
+            if (Arr::get($settings, "torrent_region_style.$key") === null) {
+                Arr::set($settings, "torrent_region_style.$key", $value);
+            }
+        }
 
         $this->content->fill($settings);
     }
@@ -179,6 +186,15 @@ class EditSetting extends Page implements HasForms
                 TextInput::make('seed_box.max_uploaded_duration')->label(__('label.setting.seed_box.max_uploaded_duration'))->helperText(__('label.setting.seed_box.max_uploaded_duration_help'))->integer(),
             ])->columns(2);
 
+        $tabs[] = Tab::make(__('label.setting.torrent_region_style.tab_header'))
+            ->id('torrent_region_style')
+            ->schema([
+                Radio::make('torrent_region_style.enabled')->options(self::$yesOrNo)->inline(true)->label(__('label.enabled'))->helperText(__('label.setting.torrent_region_style.enabled_help')),
+                Radio::make('torrent_region_style.required')->options(self::$yesOrNo)->inline(true)->label(__('label.setting.torrent_region_style.required'))->helperText(__('label.setting.torrent_region_style.required_help')),
+                Textarea::make('torrent_region_style.regions')->rows(8)->label(__('label.setting.torrent_region_style.regions'))->helperText(__('label.setting.torrent_region_style.regions_help')),
+                Textarea::make('torrent_region_style.styles')->rows(8)->label(__('label.setting.torrent_region_style.styles'))->helperText(__('label.setting.torrent_region_style.styles_help')),
+            ])->columns(2);
+
         $id = "meilisearch";
         $tabs[] = Tab::make(__("label.setting.$id.tab_header"))
             ->id($id)
@@ -261,6 +277,16 @@ class EditSetting extends Page implements HasForms
 
         $tabs = apply_filter('nexus_setting_tabs', $tabs);
         return $tabs;
+    }
+
+    private function getTorrentRegionStyleDefaultSettings(): array
+    {
+        return [
+            'enabled' => 'yes',
+            'required' => 'yes',
+            'regions' => "中国大陆\n美国\n韩国\n英国\n泰国\n中国港台\n日本\n法国\n德国\n意大利",
+            'styles' => "短片\n喜剧\n动作\n科幻\n惊悚\n剧情\n爱情\n恐怖\n犯罪\n悬疑",
+        ];
     }
 
     private function getTabCaptchaSchema(): array

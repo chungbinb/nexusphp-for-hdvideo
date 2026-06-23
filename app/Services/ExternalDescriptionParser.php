@@ -197,7 +197,7 @@ class ExternalDescriptionParser
         $summaryRaw = $this->extractFirst('/<span[^>]*property="v:summary"[^>]*>(.*?)<\/span>/is', $html);
         $summary = $this->normalizeText($summaryRaw);
         $poster = $this->extractMeta($html, 'og:image');
-        $imdbId = $this->extractFirst('/imdb\.com\/title\/(tt\d+)/i', $html);
+        $imdbId = $this->normalizeImdbId($this->extractFirst('/imdb\.com\/title\/(tt\d+)/i', $html));
         $imdbUrl = $imdbId !== '' ? "https://www.imdb.com/title/{$imdbId}/" : '';
 
         $infoBlock = $this->extractFirst('/<div\s+id="info">(.*?)<\/div>/is', $html);
@@ -243,7 +243,7 @@ class ExternalDescriptionParser
 
     private function parseImdb(string $url, array $imdbBrowserData = []): array
     {
-        $imdbId = $this->extractFirst('/(tt\d{5,})/i', $url);
+        $imdbId = $this->normalizeImdbId($url);
         if ($imdbId === '') {
             throw new RuntimeException('无法识别IMDb条目ID');
         }
@@ -652,11 +652,20 @@ class ExternalDescriptionParser
         if ($imdb === '') {
             return '';
         }
-        if (preg_match('/tt\d{5,}/i', $imdb, $m)) {
-            return 'https://www.imdb.com/title/' . strtolower($m[0]) . '/';
+        $imdbId = $this->normalizeImdbId($imdb);
+        if ($imdbId !== '') {
+            return 'https://www.imdb.com/title/' . $imdbId . '/';
         }
         if (preg_match('#^https?://#i', $imdb)) {
             return $imdb;
+        }
+        return '';
+    }
+
+    private function normalizeImdbId(string $imdb): string
+    {
+        if (preg_match('/tt(\d{1,})/i', $imdb, $m) || preg_match('/(\d{1,})/', $imdb, $m)) {
+            return 'tt' . str_pad($m[1], 7, '0', STR_PAD_LEFT);
         }
         return '';
     }
