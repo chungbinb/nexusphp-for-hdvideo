@@ -4692,7 +4692,7 @@ function genrelist($catmode = 1) {
 	global $Cache;
 	if (!$ret = $Cache->get_value('category_list_mode_'.$catmode)){
 		$ret = array();
-		$res = sql_query("SELECT id, mode, name, image FROM categories WHERE mode = ".sqlesc($catmode)." ORDER BY sort_index desc");
+		$res = sql_query("SELECT id, mode, name, image FROM categories WHERE mode = ".sqlesc($catmode)." ORDER BY sort_index ASC, id ASC");
 		while ($row = mysql_fetch_array($res))
 			$ret[] = $row;
 		$Cache->cache_value('category_list_mode_'.$catmode, $ret, 3600);
@@ -7744,7 +7744,7 @@ function build_search_box_category_table($mode, $checkboxValue, $categoryHrefPre
     //Category
     $html .= sprintf('<tr><td class="embedded" align="left">%s</td></tr>', nexus_trans('label.search_box.category'));
     /** @var \Illuminate\DataBase\Eloquent\Collection $categoryCollection */
-    $categoryCollection = $searchBox->categories()->with('icon')->orderBy('sort_index', 'desc')->get();
+    $categoryCollection = $searchBox->categories()->with('icon')->orderBy('sort_index')->orderBy('id')->get();
     if (!empty($options['select_unselect'])) {
         $categoryCollection->push(new \App\Models\Category(['mode' => -1]));
     }
