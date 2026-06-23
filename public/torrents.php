@@ -26,18 +26,49 @@ if (!function_exists('hdvideo_torrent_styles')) {
 			hdvideo_run_schema_sql("ALTER TABLE torrents ADD COLUMN region SMALLINT UNSIGNED NOT NULL DEFAULT 0 AFTER category, ADD KEY torrents_region_index (region)");
 		}
 		hdvideo_run_schema_sql("CREATE TABLE IF NOT EXISTS torrent_style_torrent (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, torrent_id MEDIUMINT UNSIGNED NOT NULL, style_id SMALLINT UNSIGNED NOT NULL, created_at TIMESTAMP NULL DEFAULT NULL, updated_at TIMESTAMP NULL DEFAULT NULL, PRIMARY KEY (id), UNIQUE KEY torrent_style_torrent_torrent_id_style_id_unique (torrent_id, style_id), KEY torrent_style_torrent_torrent_id_index (torrent_id), KEY torrent_style_torrent_style_id_index (style_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
-		hdvideo_seed_filter_options('torrent_styles', ['短片', '喜剧', '动作', '科幻', '惊悚', '剧情', '爱情', '恐怖', '犯罪', '悬疑']);
-		hdvideo_seed_filter_options('torrent_regions', ['中国大陆', '美国', '韩国', '英国', '泰国', '中国港台', '日本', '法国', '德国', '意大利']);
+		hdvideo_seed_filter_options('torrent_styles', hdvideo_region_style_option_names('styles'));
+		hdvideo_seed_filter_options('torrent_regions', hdvideo_region_style_option_names('regions'));
 	}
 	function hdvideo_seed_filter_options($table, array $names) {
 		$count = count($names);
 		$now = sqlesc(date('Y-m-d H:i:s'));
+		$listedNames = [];
 		foreach ($names as $index => $name) {
+			$name = trim((string)$name);
+			if ($name === '') continue;
+			$listedNames[] = sqlesc($name);
 			$sortIndex = $count - $index;
 			hdvideo_run_schema_sql("INSERT INTO `$table` (name, sort_index, enabled, created_at, updated_at) VALUES (" . sqlesc($name) . ", $sortIndex, 1, $now, $now) ON DUPLICATE KEY UPDATE sort_index = VALUES(sort_index), enabled = VALUES(enabled), updated_at = VALUES(updated_at)");
 		}
+		if ($listedNames) {
+			hdvideo_run_schema_sql("UPDATE `$table` SET enabled = 0, updated_at = $now WHERE name NOT IN (" . implode(',', $listedNames) . ")");
+		}
+	}
+	function hdvideo_region_style_default_options($type) {
+		$defaults = [
+			'styles' => ['短片', '喜剧', '动作', '科幻', '惊悚', '剧情', '爱情', '恐怖', '犯罪', '悬疑'],
+			'regions' => ['中国大陆', '美国', '韩国', '英国', '泰国', '中国港台', '日本', '法国', '德国', '意大利'],
+		];
+		return $defaults[$type] ?? [];
+	}
+	function hdvideo_region_style_option_names($type) {
+		$raw = get_setting("torrent_region_style.$type", '');
+		if (is_array($raw)) $raw = implode("\n", $raw);
+		$raw = trim((string)$raw);
+		if ($raw === '') return hdvideo_region_style_default_options($type);
+		$names = preg_split('/[\r\n,，、]+/u', $raw);
+		$result = [];
+		foreach ($names as $name) {
+			$name = trim((string)$name);
+			if ($name !== '') $result[$name] = $name;
+		}
+		return array_values($result ?: hdvideo_region_style_default_options($type));
+	}
+	function hdvideo_region_style_enabled() {
+		return get_setting('torrent_region_style.enabled', 'yes') !== 'no';
 	}
 	function hdvideo_torrent_filter_items($table) {
+		if (!hdvideo_region_style_enabled()) return [];
 		hdvideo_ensure_region_style_schema();
 		$items = [];
 		$res = sql_query("SELECT id, name FROM `$table` WHERE enabled = 1 ORDER BY sort_index DESC, id ASC");
@@ -1199,6 +1230,8 @@ function render_torrent_quick_filters($lang_torrents, $cats, $category_get, $sou
 	if (!$groups) {
 		return;
 	}
+	print('<form class="qd-torrent-search" method="get" action="?" role="search"><input type="text" name="search" value="' . htmlspecialchars((string)($_GET['search'] ?? '')) . '" placeholder="搜索关键字..." autocomplete="off" /><button type="submit">搜索</button><button type="button" class="qd-torrent-search-adv top-advanced-search-trigger">高级搜索</button></form>');
+	print('<div id="qd-adv-inline" class="qd-adv-inline" hidden></div>');
 	print('<div class="torrent-quick-filters">' . implode('', $groups) . '</div>');
 	print('<div class="torrent-quick-filter-modal" id="torrent-quick-filter-modal" aria-hidden="true"><div class="torrent-quick-filter-modal-backdrop" data-quick-filter-close="1"></div><div class="torrent-quick-filter-modal-dialog" role="dialog" aria-modal="true"><button type="button" class="torrent-quick-filter-modal-close" data-quick-filter-close="1">&times;</button><h2></h2><div class="torrent-quick-filter-modal-list"></div></div></div>');
 }
@@ -1523,9 +1556,10 @@ if ($count) {
             $rows[] = $row;
         }
     }
-    $rows = apply_filter('torrent_list', $rows, $page, $sectiontype, $_GET['search'] ?? '');
+	$rows = apply_filter('torrent_list', $rows, $page, $sectiontype, $_GET['search'] ?? '');
 	print('<div class="torrent-view-toolbar">'
 	. '<div class="torrent-view-title">Torrent List</div>'
+		. '<div class="torrent-view-pager">' . $pagertop . '</div>'
 		. '<div class="torrent-view-switch" role="tablist" aria-label="Torrent View Switch">'
 	. '<button type="button" class="torrent-view-btn is-active" data-view="list">List</button>'
 	. '<button type="button" class="torrent-view-btn" data-view="card">Card</button>'
@@ -1576,9 +1610,30 @@ if ($CURUSER){
 		return (value || '').replace(/\s+/g, ' ').trim();
 	}
 
+	function isValidPosterImage(src, img) {
+		src = (src || '').replace(/&amp;/g, '&').trim();
+		if (!src || src.indexOf('http') !== 0) {
+			return false;
+		}
+		var tag = img && img.outerHTML ? img.outerHTML : '';
+		var haystack = (src + ' ' + tag).toLowerCase();
+		var blocked = [
+			'alt="avatar"', "alt='avatar'", 'check_avatar', 'default_avatar', '/avatar', 'avatar/',
+			'userdetails.php', 'pic/trans.gif', 'pic/cattrans.gif', 'pic/smilies/', 'pic/flag/',
+			'progressbar.gif', 'spinner.svg', 'image.php?action=regimage', 'favicon.ico',
+			'logo', 'donate.gif', 'sprites', 'passkey', 'data:image/svg'
+		];
+		for (var i = 0; i < blocked.length; i++) {
+			if (haystack.indexOf(blocked[i]) !== -1) {
+				return false;
+			}
+		}
+		return true;
+	}
+
 	function getCardImage(nameCell, typeCell) {
 		var source = nameCell.querySelector('.torrent-card-cover-source[data-cover]');
-		if (source && source.getAttribute('data-cover')) {
+		if (source && isValidPosterImage(source.getAttribute('data-cover'))) {
 			return source.getAttribute('data-cover');
 		}
 		var img = nameCell.querySelector('img[data-src], img[src]');
@@ -1592,23 +1647,139 @@ if ($CURUSER){
 		if (src.indexOf('pic/misc/spinner.svg') !== -1) {
 			src = img.getAttribute('data-src') || '';
 		}
-		return src;
+		return isValidPosterImage(src, img) ? src : '';
 	}
 
-	function getCardSubtitle(nameCell, title) {
-		var clone = nameCell.cloneNode(true);
-		var removeNodes = clone.querySelectorAll('img, a[href*="details.php"], .nexus-lazy-load, script, style');
-		for (var i = 0; i < removeNodes.length; i++) {
-			removeNodes[i].parentNode.removeChild(removeNodes[i]);
+	function getCardFallbackImage(nameCell) {
+		var source = nameCell.querySelector('.torrent-card-cover-source[data-fallback-cover]');
+		var fallback = source ? source.getAttribute('data-fallback-cover') : '';
+		return isValidPosterImage(fallback) ? fallback : '';
+	}
+
+	function getCardSubtitle(nameCell, title, link) {
+		var br = nameCell.querySelector('br');
+		if (br) {
+			var brParts = [];
+			var brNode = br.nextSibling;
+			while (brNode) {
+				if (brNode.nodeType === 3) {
+					brParts.push(brNode.nodeValue || '');
+				} else if (brNode.nodeType === 1) {
+					if (brNode.hidden || brNode.className.indexOf('torrent-card-') !== -1) {
+						brNode = brNode.nextSibling;
+						continue;
+					}
+					var brTag = (brNode.tagName || '').toLowerCase();
+					if (brTag === 'script' || brTag === 'style' || brTag === 'img') {
+						brNode = brNode.nextSibling;
+						continue;
+					}
+					if (brNode.matches && brNode.matches('span[style]')) {
+						brNode = brNode.nextSibling;
+						continue;
+					}
+					brParts.push(' ' + cleanText(brNode.textContent));
+				}
+				brNode = brNode.nextSibling;
+			}
+			var brText = cleanText(brParts.join(' '));
+			brText = cleanText(brText.split('【')[0].split('[')[0]);
+			brText = cleanText(brText.replace(/^(?:副标题|别名)\s*[:：]\s*/i, ''));
+			if (brText) {
+				return brText.length > 34 ? brText.slice(0, 33) + '...' : brText;
+			}
 		}
-		var text = cleanText(clone.textContent).replace(title, '');
+		var parts = [];
+		var node = link ? link.nextSibling : null;
+		while (node) {
+			if (node.nodeType === 3) {
+				parts.push(node.nodeValue || '');
+			} else if (node.nodeType === 1) {
+				var tagName = (node.tagName || '').toLowerCase();
+				if (tagName === 'br') {
+					break;
+				}
+				var text = cleanText(node.textContent);
+				if (text && /^[\/,，、\s]*(?:【|\[|剩余时间|奖励魔力|禁转|官方|原创|首发|中字|源码|豆瓣|IMDb|IMDB)/.test(text)) {
+					break;
+				}
+				if (text && !node.hidden && node.className.indexOf('torrent-card-') === -1) {
+					parts.push(' ' + text);
+				}
+				break;
+			}
+			node = node.nextSibling;
+		}
+		var text = cleanText(parts.join(' ')).replace(title, '');
 		text = cleanText(text.replace(/^\[[^\]]+\]\s*/g, ''));
+		text = cleanText(text.split('【')[0].split('[')[0]);
+		text = cleanText(text.replace(/^(?:副标题|别名)\s*[:：]\s*/i, ''));
 		return text.length > 34 ? text.slice(0, 33) + '...' : text;
 	}
 
 	function getCardRating(text) {
 		var match = cleanText(text).match(/(?:豆瓣|IMDb|IMDB|评分)[^\d]*(\d(?:\.\d)?)/i);
 		return match ? match[1] : '';
+	}
+
+	function normalizeCardRating(value) {
+		value = cleanText(value);
+		if (!value || /^N\/?A$/i.test(value)) {
+			return '';
+		}
+		var match = value.match(/(\d(?:\.\d)?)/);
+		return match ? match[1] : '';
+	}
+
+	function getCardRatingBySite(cells, site) {
+		var siteLower = site.toLowerCase();
+		var dataAttr = siteLower === 'douban' ? 'data-doubanid' : 'data-imdbid';
+		for (var i = 0; i < cells.length; i++) {
+			var cell = cells[i];
+			var dataNode = cell.querySelector('span[' + dataAttr + ']');
+			var rating = dataNode ? normalizeCardRating(dataNode.textContent) : '';
+			if (rating) {
+				return rating;
+			}
+			var imgs = cell.querySelectorAll('img[alt], img[title]');
+			for (var j = 0; j < imgs.length; j++) {
+				var img = imgs[j];
+				var label = ((img.getAttribute('alt') || '') + ' ' + (img.getAttribute('title') || '') + ' ' + (img.getAttribute('src') || '')).toLowerCase();
+				if (label.indexOf(siteLower) === -1) {
+					continue;
+				}
+				var parent = img.parentNode;
+				rating = normalizeCardRating(parent ? parent.textContent : '');
+				if (rating) {
+					return rating;
+				}
+			}
+		}
+		return '';
+	}
+
+	function getCardRatingFromRow(cells, nameCell) {
+		var douban = getCardRatingBySite(cells, 'douban');
+		if (douban) {
+			return douban;
+		}
+		var imdb = getCardRatingBySite(cells, 'imdb');
+		if (imdb) {
+			return imdb;
+		}
+		var rowText = '';
+		for (var i = 0; i < cells.length; i++) {
+			rowText += ' ' + cleanText(cells[i].textContent);
+		}
+		var doubanMatch = rowText.match(/豆瓣(?:评分)?[^\d]*(\d(?:\.\d)?)/i);
+		if (doubanMatch) {
+			return doubanMatch[1];
+		}
+		var imdbMatch = rowText.match(/(?:IMDb|IMDB)(?:评分)?[^\d]*(\d(?:\.\d)?)/i);
+		if (imdbMatch) {
+			return imdbMatch[1];
+		}
+		return getCardRating(nameCell.textContent);
 	}
 
 	function getCardMeta(nameCell, rating) {
@@ -1698,6 +1869,26 @@ if ($CURUSER){
 		return wrap.children.length ? wrap : null;
 	}
 
+	function buildPosterTextTags(tags) {
+		var wrap = document.createElement('span');
+		wrap.className = 'torrent-poster-tagline';
+		if (!tags || !tags.length) {
+			return wrap;
+		}
+		for (var i = 0; i < tags.length; i++) {
+			var item = tags[i];
+			var tag = document.createElement('span');
+			tag.className = 'torrent-poster-text-tag';
+			tag.textContent = item.text;
+			if (item.style) {
+				tag.style.cssText = item.style;
+			}
+			tag.style.margin = '0';
+			wrap.appendChild(tag);
+		}
+		return wrap;
+	}
+
 	function appendPosterTags(poster, tags) {
 		if (!tags || poster.querySelector('.torrent-poster-tags')) {
 			return;
@@ -1771,19 +1962,51 @@ if ($CURUSER){
 		poster.appendChild(wrap);
 	}
 
-	function setPosterImage(poster, title, image, badges, rating, tags, stats) {
+	function applyPosterReferrerPolicy(img, src) {
+		if (src && src.indexOf('doubanio.com') === -1) {
+			img.referrerPolicy = 'no-referrer';
+		} else {
+			img.removeAttribute('referrerpolicy');
+		}
+	}
+
+	function setPosterImage(poster, title, image, rating, fallbackImage) {
 		poster.classList.remove('is-empty');
 		poster.textContent = '';
+		var posterImage = image;
 		var img = document.createElement('img');
-		img.src = image;
 		img.alt = title;
 		img.loading = 'lazy';
+		applyPosterReferrerPolicy(img, posterImage);
+		img.onerror = function () {
+			var current = this.getAttribute('src') || '';
+			var original = posterImage || current;
+			if (fallbackImage && current !== fallbackImage) {
+				this.removeAttribute('data-douban-fallback-index');
+				applyPosterReferrerPolicy(this, fallbackImage);
+				this.src = fallbackImage;
+				return;
+			}
+			if (original.indexOf('doubanio.com') !== -1) {
+				var domains = []; /* qd: no douban mirror-cycling (all mirrors hotlink-block the same -> console spam) */
+				var index = Number(this.getAttribute('data-douban-fallback-index') || '0');
+				while (index < domains.length) {
+					var next = original.replace(/https:\/\/[a-zA-Z0-9.-]+\.doubanio\.com/, 'https://' + domains[index]);
+					index++;
+					if (next && next !== current) {
+						this.setAttribute('data-douban-fallback-index', String(index));
+						applyPosterReferrerPolicy(this, next);
+						this.src = next;
+						return;
+					}
+				}
+			}
+			poster.classList.add('is-empty');
+			poster.textContent = title.slice(0, 2) || 'HD';
+			appendPosterScore(poster, rating);
+		};
+		img.src = posterImage;
 		poster.appendChild(img);
-		if (badges) {
-			poster.appendChild(badges);
-		}
-		appendPosterTags(poster, tags);
-		appendPosterStats(poster, stats);
 		appendPosterScore(poster, rating);
 	}
 
@@ -1813,12 +2036,39 @@ if ($CURUSER){
 				if (!html) {
 					return;
 				}
-				var imageMatch = html.match(/https?:\/\/[^"'\s<>]*m\.media-amazon\.com[^"'\s<>]*/i)
-					|| html.match(/<img[^>]+src=["'](https?:\/\/[^"']+)["']/i);
-				var image = imageMatch ? (imageMatch[1] || imageMatch[0] || '') : '';
+				var image = '';
+				var amazonMatch = html.match(/https?:\/\/[^"'\s<>]*m\.media-amazon\.com[^"'\s<>]*/i);
+				if (amazonMatch && amazonMatch[0]) {
+					image = amazonMatch[0];
+				}
+				if (!image) {
+					var doc = new DOMParser().parseFromString(html, 'text/html');
+					var metaPoster = doc.querySelector('meta[property="og:image"]');
+					if (metaPoster && isValidPosterImage(metaPoster.content)) {
+						image = metaPoster.content;
+					}
+					if (!image) {
+						var posterImg = doc.querySelector('#posterimdb img');
+						var posterSrc = posterImg ? (posterImg.getAttribute('src') || '') : '';
+						if (isValidPosterImage(posterSrc, posterImg)) {
+							image = posterSrc;
+						}
+					}
+					if (!image) {
+						var descrImgs = doc.querySelectorAll('#kdescr img');
+						for (var i = 0; i < descrImgs.length; i++) {
+							var src = descrImgs[i].getAttribute('data-src') || descrImgs[i].getAttribute('src') || '';
+							if (isValidPosterImage(src, descrImgs[i])) {
+								image = src;
+								break;
+							}
+						}
+					}
+				}
 				image = image.replace(/&amp;/g, '&');
-				if (image && !poster.querySelector('img')) {
-					setPosterImage(poster, title, image, badges || poster.querySelector('.torrent-poster-badges'), rating, tags || poster.querySelector('.torrent-poster-tags'), stats || poster.querySelector('.torrent-poster-stats'));
+				var currentImg = poster.querySelector('img');
+				if (image && (!currentImg || currentImg.naturalWidth === 0 || poster.classList.contains('is-empty'))) {
+					setPosterImage(poster, title, image, rating);
 				}
 				var ratingMatch = html.match(/(?:IMDb|IMDB)[\s\S]{0,160}?(\d(?:\.\d)?)/i);
 				if (ratingMatch) {
@@ -1848,32 +2098,25 @@ if ($CURUSER){
 				continue;
 			}
 			var title = cleanText(link.textContent);
-			var subtitle = getCardSubtitle(nameCell, title);
+			var subtitle = getCardSubtitle(nameCell, title, link);
 			var image = getCardImage(nameCell, typeCell);
+			var fallbackImage = getCardFallbackImage(nameCell);
 			var ratingSource = nameCell.querySelector('.torrent-card-rating-source[data-rating]');
-			var rating = ratingSource && ratingSource.getAttribute('data-rating') ? ratingSource.getAttribute('data-rating') : getCardRating(nameCell.textContent);
+			var rating = ratingSource && ratingSource.getAttribute('data-rating') ? ratingSource.getAttribute('data-rating') : getCardRatingFromRow(cells, nameCell);
 			var meta = getCardMeta(nameCell, rating);
-			var badges = buildCardBadges(meta);
-			var tagStrip = buildPosterTags(meta.tags);
-			var posterStats = getCardStats(cells);
 			var posterRating = meta.rating || rating;
+			var tagLine = buildPosterTextTags(meta.tags);
 			var card = document.createElement('a');
 			card.className = 'torrent-poster-card';
 			card.href = link.href;
 			var poster = document.createElement('div');
 			poster.className = 'torrent-poster-media';
 			if (image) {
-				setPosterImage(poster, title, image, badges, posterRating, tagStrip, posterStats);
+				setPosterImage(poster, title, image, posterRating, fallbackImage);
 			} else {
 				poster.className += ' is-empty';
 				poster.textContent = title.slice(0, 2) || 'HD';
-				if (badges) {
-					poster.appendChild(badges);
-				}
-				appendPosterTags(poster, tagStrip);
-				appendPosterStats(poster, posterStats);
 				appendPosterScore(poster, posterRating);
-				hydratePosterFromDetails(poster, title, link.href, badges, posterRating, tagStrip, posterStats);
 			}
 			var titleEl = document.createElement('strong');
 			titleEl.className = 'torrent-poster-title';
@@ -1883,8 +2126,12 @@ if ($CURUSER){
 			descEl.textContent = subtitle;
 			card.appendChild(poster);
 			card.appendChild(titleEl);
+			card.appendChild(tagLine);
 			card.appendChild(descEl);
 			cardGrid.appendChild(card);
+			if (!image || image.indexOf('doubanio.com') !== -1) {
+				hydratePosterFromDetails(poster, title, link.href, [], posterRating, meta.tags, null);
+			}
 		}
 	}
 
@@ -1947,16 +2194,18 @@ if ($CURUSER){
 		return;
 	}
 
-	var trigger = document.querySelector('.top-advanced-search-trigger');
 	var modal = document.getElementById('torrent-advanced-search-modal');
-	if (!trigger || !modal) {
+	var dialog = modal ? modal.querySelector('.torrent-advanced-search-dialog') : null;
+	var inline = document.getElementById('qd-adv-inline');
+	if (!modal || !dialog || !inline) {
 		return;
 	}
+	inline.appendChild(dialog);
+	modal.style.display = 'none';
 
-	var closeNodes = modal.querySelectorAll('[data-advanced-search-close]');
-	var filterWrap = modal.querySelector('#ksearchboxmain');
-	var filterIcon = modal.querySelector('#picsearchboxmain');
-	var previousOverflow = '';
+	var closeNodes = dialog.querySelectorAll('[data-advanced-search-close]');
+	var filterWrap = dialog.querySelector('#ksearchboxmain');
+	var filterIcon = dialog.querySelector('#picsearchboxmain');
 
 	function expandFilterPanel() {
 		if (filterWrap && filterWrap.style.display === 'none') {
@@ -1970,11 +2219,8 @@ if ($CURUSER){
 
 	function openModal() {
 		expandFilterPanel();
-		modal.setAttribute('aria-hidden', 'false');
-		body.classList.add('searchbox-modal-open');
-		previousOverflow = body.style.overflow;
-		body.style.overflow = 'hidden';
-		var input = modal.querySelector('#searchinput') || modal.querySelector('input[name="search"]');
+		inline.hidden = false;
+		var input = dialog.querySelector('#searchinput') || dialog.querySelector('input[name="search"]');
 		if (input) {
 			window.setTimeout(function () {
 				input.focus();
@@ -1983,14 +2229,14 @@ if ($CURUSER){
 	}
 
 	function closeModal() {
-		modal.setAttribute('aria-hidden', 'true');
-		body.classList.remove('searchbox-modal-open');
-		body.style.overflow = previousOverflow || '';
+		inline.hidden = true;
 	}
 
-	trigger.addEventListener('click', function (e) {
-		e.preventDefault();
-		openModal();
+	document.querySelectorAll('.top-advanced-search-trigger').forEach(function (tg) {
+		tg.addEventListener('click', function (e) {
+			e.preventDefault();
+			if (inline.hidden) { openModal(); } else { closeModal(); }
+		});
 	});
 
 	for (var i = 0; i < closeNodes.length; i++) {
@@ -2001,7 +2247,7 @@ if ($CURUSER){
 	}
 
 	document.addEventListener('keydown', function (e) {
-		if (e.key === 'Escape' && body.classList.contains('searchbox-modal-open')) {
+		if (e.key === 'Escape' && !inline.hidden) {
 			closeModal();
 		}
 	});

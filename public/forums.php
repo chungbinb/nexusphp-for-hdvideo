@@ -171,6 +171,145 @@ function get_last_read_post_id($topicid) {
 	else return 0;
 }
 
+function forum_posts_support_anonymous(): bool
+{
+	static $support = null;
+	if ($support === null) {
+		$support = \Nexus\Database\NexusDB::hasColumn('posts', 'anonymous');
+	}
+	return $support;
+}
+
+function forum_post_is_anonymous($post): bool
+{
+	return forum_posts_support_anonymous() && (($post['anonymous'] ?? 'no') === 'yes');
+}
+
+function forum_can_view_anonymous_author($post): bool
+{
+	global $CURUSER;
+	$posterId = intval($post['userid'] ?? 0);
+	return $posterId > 0
+		&& (intval($CURUSER['id'] ?? 0) === $posterId || get_user_class() >= UC_ADMINISTRATOR || user_can('postmanage'));
+}
+
+function forum_anonymous_name(): string
+{
+	return "<i class=\"forum-post-anonymous\">匿名用户</i>";
+}
+
+function forum_strip_username_medals($usernameHtml): string
+{
+	return preg_replace('/<img\b[^>]*\bnexus-username-medal(?:-big)?\b[^>]*>/i', '', (string)$usernameHtml);
+}
+
+function forum_post_author_name($post, $withAnonymousMarker = false): string
+{
+	$posterId = intval($post['userid'] ?? 0);
+	if (forum_post_is_anonymous($post)) {
+		if (!forum_can_view_anonymous_author($post)) {
+			return forum_anonymous_name();
+		}
+		$name = forum_strip_username_medals(get_username($posterId,false,true,true,false,false,true));
+		return $withAnonymousMarker ? $name . " <span class=\"forum-post-anonymous-note\">(匿名)</span>" : $name;
+	}
+	return forum_strip_username_medals(get_username($posterId,false,true,true,false,false,true));
+}
+
+function forum_posts_support_reply_to(): bool
+{
+	static $support = null;
+	if ($support === null) {
+		$support = \Nexus\Database\NexusDB::hasColumn('posts', 'reply_to_post_id');
+		if (!$support) {
+			@sql_query("ALTER TABLE posts ADD COLUMN reply_to_post_id MEDIUMINT UNSIGNED NOT NULL DEFAULT 0 AFTER userid, ADD KEY posts_reply_to_post_id_index (reply_to_post_id)");
+			$support = \Nexus\Database\NexusDB::hasColumn('posts', 'reply_to_post_id');
+		}
+	}
+	return $support;
+}
+
+function forum_reply_root_post_id($postId, $topicId): int
+{
+	if (!forum_posts_support_reply_to()) {
+		return (int)$postId;
+	}
+	$postId = (int)$postId;
+	$topicId = (int)$topicId;
+	$seen = [];
+	for ($i = 0; $i < 20 && $postId > 0 && empty($seen[$postId]); $i++) {
+		$seen[$postId] = true;
+		$res = sql_query("SELECT id, reply_to_post_id FROM posts WHERE id=" . sqlesc($postId) . " AND topicid=" . sqlesc($topicId) . " LIMIT 1") or sqlerr(__FILE__, __LINE__);
+		$row = mysql_fetch_assoc($res);
+		if (!$row) {
+			break;
+		}
+		$parentId = (int)($row['reply_to_post_id'] ?? 0);
+		if ($parentId <= 0) {
+			return (int)$row['id'];
+		}
+		$postId = $parentId;
+	}
+	return (int)$postId;
+}
+
+function forum_render_user_medals($user): string
+{
+	if (!$user || !$user->relationLoaded('wearing_medals') || $user->wearing_medals->isEmpty()) {
+		return '';
+	}
+
+	$html = '<div class="forum-user-medals">';
+	foreach ($user->wearing_medals as $medal) {
+		$image = trim((string)($medal->image_small ?: $medal->image_large));
+		if ($image === '') {
+			continue;
+		}
+		$name = htmlspecialchars((string)$medal->name, ENT_QUOTES);
+		$html .= '<img class="forum-user-medal" src="' . htmlspecialchars($image, ENT_QUOTES) . '" alt="' . $name . '" title="' . $name . '" />';
+	}
+	$html .= '</div>';
+
+	return $html === '<div class="forum-user-medals"></div>' ? '' : $html;
+}
+
+function forum_inline_quote_body($post): string
+{
+	$author = forum_post_is_anonymous($post) && !forum_can_view_anonymous_author($post) ? '匿名用户' : get_single_value("users", "username", "WHERE id=" . sqlesc($post['userid']));
+	return "[quote=" . htmlspecialchars($author) . "]" . htmlspecialchars(unesc($post["body"])) . "[/quote]\n";
+}
+
+function forum_render_inline_reply_form($post, $topicId): string
+{
+	global $lang_functions;
+	$postId = (int)$post['id'];
+	$formName = "replypost" . $postId;
+	$textareaId = "replybody" . $postId;
+	$submitId = "qrpost" . $postId;
+	$body = htmlspecialchars(forum_inline_quote_body($post));
+	$html = "<div id=\"forum-inline-reply-" . $postId . "\" class=\"forum-inline-reply\" style=\"display: none;\">";
+	$html .= "<form id=\"" . $formName . "\" name=\"" . $formName . "\" method=\"post\" action=\"?action=post\">";
+	$html .= "<input type=\"hidden\" name=\"id\" value=\"" . (int)$topicId . "\" />";
+	$html .= "<input type=\"hidden\" name=\"type\" value=\"reply\" />";
+	$html .= "<input type=\"hidden\" name=\"postid\" value=\"" . $postId . "\" />";
+	$html .= "<textarea class=\"forum-inline-reply-body\" name=\"body\" id=\"" . $textareaId . "\" rows=\"8\" onkeydown=\"ctrlenter(event,'" . $formName . "','" . $submitId . "')\">" . $body . "</textarea>";
+	$html .= smile_row($formName, "body");
+	if (forum_posts_support_anonymous()) {
+		$html .= "<label class=\"forum-anonymous-option\"><input type=\"checkbox\" name=\"anonymous\" value=\"yes\" /> 匿名发表</label>";
+	}
+	$html .= "<div class=\"forum-inline-reply-actions\"><a class=\"btn forum-inline-advanced\" href=\"" . htmlspecialchars("?action=quotepost&postid=" . $postId) . "\">高级模式</a>";
+	$html .= "<input type=\"submit\" id=\"" . $submitId . "\" class=\"btn\" value=\"" . $lang_functions['submit_submit'] . "\" />";
+	$html .= "<input type=\"button\" class=\"btn2\" value=\"取消\" onclick=\"return forumCancelInlineReply(" . $postId . ");\" /></div>";
+	$html .= "</form></div>";
+	return $html;
+}
+
+function forum_inline_reply_link($postId, $title): string
+{
+	$postId = (int)$postId;
+	return "<a href=\"" . htmlspecialchars("?action=quotepost&postid=" . $postId) . "\" onclick=\"return forumToggleInlineReply(" . $postId . ");\"><img class=\"f_quote\" src=\"pic/trans.gif\" alt=\"Quote\" title=\"" . $title . "\" /></a>";
+}
+
 //-------- Inserts a compose frame
 function insert_compose_frame($id, $type = 'new')
 {
@@ -199,11 +338,13 @@ function insert_compose_frame($id, $type = 'new')
 			$topicid=get_single_value("posts","topicid","WHERE id=".sqlesc($id));
 			$topicname = get_single_value("topics","subject","WHERE id=".sqlesc($topicid));
 			$title = $lang_forums['text_reply_to_topic']." <a href=\"".htmlspecialchars("?action=viewtopic&topicid=".$topicid)."\">".htmlspecialchars($topicname)."</a> ";
-			$res = sql_query("SELECT posts.body, users.username FROM posts LEFT JOIN users ON posts.userid = users.id WHERE posts.id=$id") or sqlerr(__FILE__, __LINE__);
+			$anonymousSelect = forum_posts_support_anonymous() ? ", posts.anonymous" : "";
+			$res = sql_query("SELECT posts.body, posts.userid$anonymousSelect, users.username FROM posts LEFT JOIN users ON posts.userid = users.id WHERE posts.id=$id") or sqlerr(__FILE__, __LINE__);
 			if (mysql_num_rows($res) != 1)
 				stderr($lang_forums['std_error'], $lang_forums['std_no_post_id']);
 			$arr = mysql_fetch_assoc($res);
-			$body = "[quote=".htmlspecialchars($arr["username"])."]".htmlspecialchars(unesc($arr["body"]))."[/quote]";
+			$quoteAuthor = forum_post_is_anonymous($arr) && !forum_can_view_anonymous_author($arr) ? '匿名用户' : $arr["username"];
+			$body = "[quote=".htmlspecialchars($quoteAuthor)."]".htmlspecialchars(unesc($arr["body"]))."[/quote]";
 			$postid = $id;
 			$id = $topicid;
 			$type = 'reply';
@@ -212,7 +353,7 @@ function insert_compose_frame($id, $type = 'new')
 		}
 		case 'edit':
 		{
-			$res = sql_query("SELECT topicid, body FROM posts WHERE id=".sqlesc($id)." LIMIT 1") or sqlerr(__FILE__, __LINE__);
+			$res = sql_query("SELECT * FROM posts WHERE id=".sqlesc($id)." LIMIT 1") or sqlerr(__FILE__, __LINE__);
 			$row = mysql_fetch_array($res);
 			$topicid=$row['topicid'];
 			$firstpost = get_single_value("posts","MIN(id)", "WHERE topicid=".sqlesc($topicid));
@@ -222,6 +363,7 @@ function insert_compose_frame($id, $type = 'new')
 			}
 			$body = htmlspecialchars(unesc($row["body"]));
 			$title = $lang_forums['text_edit_post'];
+			$isAnonymous = forum_post_is_anonymous($row);
 			break;
 		}
 		default:
@@ -231,7 +373,7 @@ function insert_compose_frame($id, $type = 'new')
 	}
 	print("<input type=\"hidden\" name=\"id\" value=\"".$id."\" />");
 	print("<input type=\"hidden\" name=\"type\" value=\"".$type."\" />");
-	begin_compose($title, $type, $body, $hassubject, $subject);
+	begin_compose($title, $type, $body, $hassubject, $subject, $maxsubjectlength, $isAnonymous ?? false);
 	end_compose();
 	print("</form>");
 }
@@ -349,7 +491,13 @@ if ($action == "post")
 			check_whether_exist($id, 'topic');
 			$topicid = $id;
 			$forumid = get_single_value("topics", "forumid", "WHERE id=".sqlesc($topicid));
-			$quotepostid = $_POST["postid"];
+			$quotepostid = intval($_POST["postid"] ?? 0);
+			if ($quotepostid > 0) {
+				$quoteTopicId = (int)get_single_value("posts", "topicid", "WHERE id=" . sqlesc($quotepostid));
+				if ($quoteTopicId !== (int)$topicid) {
+					$quotepostid = 0;
+				}
+			}
 			break;
 		}
 		case 'edit':
@@ -394,6 +542,7 @@ if ($action == "post")
 
 	$userid = intval($CURUSER["id"] ?? 0);
 	$date = date("Y-m-d H:i:s");
+	$anonymous = (($_POST['anonymous'] ?? '') === 'yes') ? 'yes' : 'no';
 
 	if ($type != 'new'){
 		//---- Make sure topic is unlocked
@@ -404,6 +553,7 @@ if ($action == "post")
 			stderr($lang_forums['std_error'], $lang_forums['std_topic_locked']);
 	}
 
+	$replyToPostId = 0;
 	if ($type == 'edit')
 	{
         $postid = $id;
@@ -418,7 +568,8 @@ if ($action == "post")
 			if ($forum_last_replied_topic_row && $forum_last_replied_topic_row['id'] == $topicid)
 				$Cache->delete_value('forum_'.$forumid.'_last_replied_topic_content');
 		}
-		sql_query("UPDATE posts SET body=".sqlesc($body).", editdate=".sqlesc($date).", editedby=".sqlesc($CURUSER['id'])." WHERE id=".sqlesc($id)) or sqlerr(__FILE__, __LINE__);
+		$anonymousUpdate = forum_posts_support_anonymous() ? ", anonymous=".sqlesc($anonymous) : "";
+		sql_query("UPDATE posts SET body=".sqlesc($body).", editdate=".sqlesc($date).", editedby=".sqlesc($CURUSER['id']).$anonymousUpdate." WHERE id=".sqlesc($id)) or sqlerr(__FILE__, __LINE__);
 		$Cache->delete_value('post_'.$postid.'_content');
         //send pm
         $postUrl = sprintf('[url=forums.php?action=viewtopic&topicid=%s&page=p%s#pid%s]%s[/url]', $topicid, $id, $id, $topicInfo->subject);
@@ -465,7 +616,16 @@ if ($action == "post")
 			sql_query("UPDATE forums SET postcount=postcount+1 WHERE id=".sqlesc($forumid));
 		}
 
-		sql_query("INSERT INTO posts (topicid, userid, added, body, ori_body) VALUES ($topicid, $userid, ".sqlesc($date).", ".sqlesc($body).", ".sqlesc($body).")") or sqlerr(__FILE__, __LINE__);
+		$replyToPostId = ($type == 'reply' && !empty($quotepostid) && forum_posts_support_reply_to()) ? (int)$quotepostid : 0;
+		if (forum_posts_support_anonymous() && forum_posts_support_reply_to()) {
+			sql_query("INSERT INTO posts (topicid, userid, reply_to_post_id, added, body, ori_body, anonymous) VALUES ($topicid, $userid, $replyToPostId, ".sqlesc($date).", ".sqlesc($body).", ".sqlesc($body).", ".sqlesc($anonymous).")") or sqlerr(__FILE__, __LINE__);
+		} elseif (forum_posts_support_anonymous()) {
+			sql_query("INSERT INTO posts (topicid, userid, added, body, ori_body, anonymous) VALUES ($topicid, $userid, ".sqlesc($date).", ".sqlesc($body).", ".sqlesc($body).", ".sqlesc($anonymous).")") or sqlerr(__FILE__, __LINE__);
+		} elseif (forum_posts_support_reply_to()) {
+			sql_query("INSERT INTO posts (topicid, userid, reply_to_post_id, added, body, ori_body) VALUES ($topicid, $userid, $replyToPostId, ".sqlesc($date).", ".sqlesc($body).", ".sqlesc($body).")") or sqlerr(__FILE__, __LINE__);
+		} else {
+			sql_query("INSERT INTO posts (topicid, userid, added, body, ori_body) VALUES ($topicid, $userid, ".sqlesc($date).", ".sqlesc($body).", ".sqlesc($body).")") or sqlerr(__FILE__, __LINE__);
+		}
 		$postid = mysql_insert_id() or die($lang_forums['std_post_id_not_available']);
 		//send pm
         $topicInfo = \App\Models\Topic::query()->findOrFail($topicid);
@@ -532,6 +692,8 @@ if ($action == "post")
 
 	if ($type == 'edit')
 		header($headerstr."&page=p".$postid."#pid".$postid);
+	elseif ($replyToPostId > 0)
+		header($headerstr."&page=p".$postid."#pid".$postid);
 	else
 		header($headerstr."&page=last#pid$postid");
 	die;
@@ -557,7 +719,14 @@ if ($action == "viewtopic")
 		$where = "WHERE topicid=".sqlesc($topicid);
 		$addparam = "action=viewtopic&topicid=".$topicid;
 	}
+	$psort = (($_GET['psort'] ?? '') === 'asc') ? 'asc' : 'desc';
+	$psortSql = $psort === 'asc' ? 'ASC' : 'DESC';
+	$addparam .= '&psort=' . $psort;
+	$firstPostId = (int)get_single_value("posts", "MIN(id)", "WHERE topicid=".sqlesc($topicid));
+	$postOrderBy = ($psort === 'desc') ? "(id = $firstPostId) DESC, id DESC" : "id ASC";
 	$userid = $CURUSER["id"];
+	$threadedReplies = !$authorid && forum_posts_support_reply_to();
+	$rootReplyWhere = "WHERE topicid=".sqlesc($topicid)." AND (reply_to_post_id = 0 OR reply_to_post_id IS NULL)";
 
 	//------ Get topic info
 
@@ -592,7 +761,7 @@ if ($action == "viewtopic")
 	sql_query("UPDATE topics SET views = views + 1 WHERE id=$topicid") or sqlerr(__FILE__, __LINE__);
 
 	//------ Get post count
-	$postcount = get_row_count("posts",$where);
+	$postcount = get_row_count("posts", $threadedReplies ? $rootReplyWhere : $where);
 	if (!$authorid)
 		$Cache->cache_value('topic_'.$topicid.'_post_count', $postcount, 3600);
 
@@ -607,7 +776,10 @@ if ($action == "viewtopic")
 	if (isset($page[0]) && $page[0] == "p")
 	{
 		$findpost = substr($page, 1);
-		$res = sql_query("SELECT id FROM posts $where ORDER BY added") or sqlerr(__FILE__, __LINE__);
+		if ($threadedReplies) {
+			$findpost = forum_reply_root_post_id($findpost, $topicid);
+		}
+		$res = sql_query("SELECT id FROM posts " . ($threadedReplies ? $rootReplyWhere : $where) . " ORDER BY $postOrderBy") or sqlerr(__FILE__, __LINE__);
 		$i = 0;
 		while ($arr = mysql_fetch_row($res))
 		{
@@ -629,7 +801,7 @@ if ($action == "viewtopic")
 		$page = $pages - 1;
 		}
 	}
-	else {if ($CURUSER["clicktopic"] == "firstpage")
+	else {if ($psort === 'desc' || $CURUSER["clicktopic"] == "firstpage")
 		$page = 0;
 		else $page = $pages-1;
 	}
@@ -671,7 +843,7 @@ if ($action == "viewtopic")
 	$pagerbottom = "<p align=\"center\">".$pagerstr."<br />".$pager."</p>\n";
 	//------ Get posts
 
-	$res = sql_query("SELECT * FROM posts $where ORDER BY id LIMIT $perpage offset $offset") or sqlerr(__FILE__, __LINE__);
+	$res = sql_query("SELECT * FROM posts " . ($threadedReplies ? $rootReplyWhere : $where) . " ORDER BY $postOrderBy LIMIT $perpage offset $offset") or sqlerr(__FILE__, __LINE__);
 
 	stdhead($lang_forums['head_view_topic']." \"".$orgsubject."\"");
 	begin_main_frame("",true);
@@ -685,6 +857,10 @@ if ($action == "viewtopic")
 	begin_main_frame();
 	print("<table border=\"0\" class=\"main\" cellspacing=\"0\" cellpadding=\"5\" width=\"97%\"><tr>\n");
 	print("<td class=\"embedded\" width=\"99%\">&nbsp;&nbsp;".$lang_forums['there_is']."<b>".$views."</b>".$lang_forums['hits_on_this_topic']);
+	$qdSortNext = $psort === 'desc' ? 'asc' : 'desc';
+	$qdSortCur = $psort === 'desc' ? '倒序' : '正序';
+	$qdSortUrl = "?action=viewtopic&topicid=".$topicid.($authorid ? "&authorid=".$authorid : "")."&psort=".$qdSortNext;
+	print("&nbsp;&nbsp;<a class=\"qd-postsort-btn\" href=\"".htmlspecialchars($qdSortUrl)."\" title=\"点击切换楼层正序/倒序\">楼层：".$qdSortCur." ⇅</a>");
 	print("</td>\n");
 	print("<td class=\"embedded nowrap\" width=\"1%\" align=\"right\">");
 	if ($maypost)
@@ -701,10 +877,41 @@ if ($action == "viewtopic")
         $allPosts[] = $arr;
         $uidArr[$arr['userid']] = 1;
     }
+	$nestedReplyChildren = [];
+	$nestedReplyChildIds = [];
+	if ($threadedReplies && $allPosts) {
+		$frontierPostIds = [];
+		foreach ($allPosts as $rootPost) {
+			$frontierPostIds[] = (int)$rootPost['id'];
+		}
+		$seenReplyIds = array_fill_keys($frontierPostIds, true);
+		for ($replyDepth = 0; $replyDepth < 20 && $frontierPostIds; $replyDepth++) {
+			$parentIds = implode(',', array_map('intval', $frontierPostIds));
+			$frontierPostIds = [];
+			$childRes = sql_query("SELECT * FROM posts WHERE topicid=" . sqlesc($topicid) . " AND reply_to_post_id IN ($parentIds) ORDER BY id") or sqlerr(__FILE__, __LINE__);
+			while ($childPost = mysql_fetch_assoc($childRes)) {
+				$childPostId = (int)$childPost['id'];
+				if (isset($seenReplyIds[$childPostId])) {
+					continue;
+				}
+				$parentPostId = (int)$childPost['reply_to_post_id'];
+				$nestedReplyChildren[$parentPostId][] = $childPost;
+				$nestedReplyChildIds[$childPostId] = true;
+				$seenReplyIds[$childPostId] = true;
+				$frontierPostIds[] = $childPostId;
+				$allPosts[] = $childPost;
+				$uidArr[$childPost['userid']] = 1;
+			}
+		}
+	}
     $uidArr = array_keys($uidArr);
     unset($arr);
     $neededColumns = array('id', 'noad', 'class', 'enabled', 'privacy', 'avatar', 'signature', 'uploaded', 'downloaded', 'last_access', 'username', 'donor', 'leechwarn', 'warned', 'title');
-    $userInfoArr = \App\Models\User::query()->find($uidArr, $neededColumns)->keyBy('id');
+    $userInfoArr = \App\Models\User::query()->with('wearing_medals')->find($uidArr, $neededColumns)->keyBy('id');
+	$lastVisiblePostId = 0;
+	foreach ($allPosts as $visiblePost) {
+		$lastVisiblePostId = max($lastVisiblePostId, (int)$visiblePost['id']);
+	}
 	$pn = 0;
 	$lpr = get_last_read_post_id($topicid);
 	if ($Advertisement->enable_ad())
@@ -721,8 +928,117 @@ if ($action == "viewtopic")
 //		$protected_enabled=false;
 //	}
 
+	print("<script type=\"text/javascript\">
+function forumToggleInlineReply(postId) {
+	var box = document.getElementById('forum-inline-reply-' + postId);
+	if (!box) {
+		return true;
+	}
+	box.style.display = box.style.display === 'none' || box.style.display === '' ? 'block' : 'none';
+	if (box.style.display === 'block') {
+		var textarea = box.getElementsByTagName('textarea')[0];
+		if (textarea) {
+			textarea.focus();
+		}
+	}
+	return false;
+}
+function forumCancelInlineReply(postId) {
+	var box = document.getElementById('forum-inline-reply-' + postId);
+	if (box) {
+		box.style.display = 'none';
+	}
+	return false;
+}
+</script>\n");
+
+	$renderNestedReplies = function ($parentPostId, $depth = 1) use (&$renderNestedReplies, &$nestedReplyChildren, $userInfoArr, $topicid, $highlight, $allPosts, $lang_forums, $maypost, $locked, $is_forummod, $CURUSER, $userid) {
+		$parentPostId = (int)$parentPostId;
+		if (empty($nestedReplyChildren[$parentPostId])) {
+			return;
+		}
+		$depth = min(max((int)$depth, 1), 5);
+		print("<div class=\"forum-nested-replies forum-nested-depth-" . $depth . "\">\n");
+		foreach ($nestedReplyChildren[$parentPostId] as $replyPost) {
+			$replyPostId = (int)$replyPost['id'];
+			$replyPosterId = (int)$replyPost['userid'];
+			$replyUserInfo = $userInfoArr->get($replyPosterId) ?: \App\Models\User::defaultUser();
+			$replyUser = $replyUserInfo->toArray();
+			$isAnonymousHidden = forum_post_is_anonymous($replyPost) && !forum_can_view_anonymous_author($replyPost);
+			$replyAuthor = forum_post_author_name($replyPost, true);
+			$replyAdded = gettime($replyPost["added"], true, false);
+			$replyAvatar = ($CURUSER["avatars"] == "yes" ? htmlspecialchars($replyUser["avatar"]) : "");
+			if (!$replyAvatar) {
+				$replyAvatar = "pic/default_avatar.png";
+			}
+			$replyUserPanel = return_avatar_image($replyAvatar);
+			if (!$isAnonymousHidden) {
+				$replyPosts = get_row_count("posts", "WHERE userid=" . $replyPosterId);
+				$replyUploaded = mksize($replyUser["uploaded"]);
+				$replyDownloaded = mksize($replyUser["downloaded"]);
+				$replyRatio = get_ratio($replyUser['id']);
+				$replyClassImage = get_user_class_image($replyUser["class"]);
+				$replyUserPanel .= "<br /><span class=\"forum-nested-username\">" . $replyAuthor . "</span>";
+				$replyUserPanel .= "<br /><br /><img alt=\"" . get_user_class_name($replyUser["class"], false, false, true) . "\" title=\"" . get_user_class_name($replyUser["class"], false, false, true) . "\" src=\"" . $replyClassImage . "\" />";
+				$replyUserPanel .= "<br />&nbsp;&nbsp;" . $lang_forums['text_posts'] . $replyPosts . "<br />&nbsp;&nbsp;" . $lang_forums['text_ul'] . $replyUploaded . "<br />&nbsp;&nbsp;" . $lang_forums['text_dl'] . $replyDownloaded . "<br />&nbsp;&nbsp;" . $lang_forums['text_ratio'] . $replyRatio;
+				$replyUserPanel .= forum_post_is_anonymous($replyPost) ? "" : forum_render_user_medals($replyUserInfo);
+			}
+			$canViewProtected = can_view_post($userid, $replyPost);
+			if ($canViewProtected) {
+				$replyBodyContent = format_comment($replyPost["body"]);
+			} else {
+				$replyBodyContent = format_comment($lang_forums["text_post_protected"]);
+			}
+			if ($highlight) {
+				$replyBodyContent = highlight($highlight, $replyBodyContent);
+			}
+			if (is_valid_id($replyPost['editedby'])) {
+				$lastedittime = gettime($replyPost['editdate'], true, false);
+				$replyBodyContent .= "<br /><p><font class=\"small\">" . $lang_forums['text_last_edited_by'] . get_username($replyPost['editedby']) . $lang_forums['text_last_edit_at'] . $lastedittime . "</font></p>\n";
+			}
+			$replyBodyContent = apply_filter('post_body', $replyBodyContent, $replyPost, $allPosts);
+			$replyTools = "";
+			ob_start();
+			do_action('post_toolbox', $replyPost, $allPosts, $CURUSER['id']);
+			$replyTools .= ob_get_clean();
+			if ($maypost && $canViewProtected) {
+				$replyTools .= forum_inline_reply_link($replyPostId, $lang_forums['title_reply_with_quote']);
+			}
+			if (user_can('postmanage') || $is_forummod) {
+				$replyTools .= "<a href=\"" . htmlspecialchars("?action=deletepost&postid=" . $replyPostId) . "\"><img class=\"f_delete\" src=\"pic/trans.gif\" alt=\"Delete\" title=\"" . $lang_forums['title_delete_post'] . "\" /></a>";
+			}
+			if (($CURUSER["id"] == $replyPosterId && !$locked) || user_can('postmanage') || $is_forummod) {
+				$replyTools .= "<a href=\"" . htmlspecialchars("?action=editpost&postid=" . $replyPostId) . "\"><img class=\"f_edit\" src=\"pic/trans.gif\" alt=\"Edit\" title=\"" . $lang_forums['title_edit_post'] . "\" /></a>";
+			}
+			$replyPosterTools = "";
+			$dt = sqlesc(date("Y-m-d H:i:s", (TIMENOW - 900)));
+			if (!$isAnonymousHidden) {
+				$replyPosterTools .= ("'" . $replyUser['last_access'] . "'" > $dt)
+					? "<img class=\"f_online\" src=\"pic/trans.gif\" alt=\"Online\" title=\"" . $lang_forums['title_online'] . "\" />"
+					: "<img class=\"f_offline\" src=\"pic/trans.gif\" alt=\"Offline\" title=\"" . $lang_forums['title_offline'] . "\" />";
+				$replyPosterTools .= "<a href=\"sendmessage.php?receiver=" . htmlspecialchars(trim($replyUser["id"])) . "\"><img class=\"f_pm\" src=\"pic/trans.gif\" alt=\"PM\" title=\"" . $lang_forums['title_send_message_to'] . htmlspecialchars($replyUser["username"]) . "\" /></a>";
+			}
+			$replyPosterTools .= "<a href=\"report.php?forumpost=" . $replyPostId . "\"><img class=\"f_report\" src=\"pic/trans.gif\" alt=\"Report\" title=\"" . $lang_forums['title_report_this_post'] . "\" /></a>";
+			print("<div class=\"forum-nested-reply-wrap\">");
+			print("<div class=\"forum-nested-reply-head\"><a id=\"pid" . $replyPostId . "\" href=\"" . htmlspecialchars("forums.php?action=viewtopic&topicid=" . $topicid . "&page=p" . $replyPostId . "#pid" . $replyPostId) . "\">#" . $replyPostId . "</a>&nbsp;&nbsp;<font color=\"gray\">" . $lang_forums['text_by'] . "</font>" . $replyAuthor . "&nbsp;&nbsp;<font color=\"gray\">" . $lang_forums['text_at'] . "</font>" . $replyAdded . "</div>");
+			print("<table class=\"main forum-nested-reply\" width=\"100%\" border=\"1\" cellspacing=\"0\" cellpadding=\"5\">");
+			print("<tr><td class=\"rowfollow forum-nested-user\" width=\"150\" valign=\"top\" align=\"left\">" . ($isAnonymousHidden ? return_avatar_image("pic/default_avatar.png") : $replyUserPanel) . "</td><td class=\"rowfollow\" valign=\"top\"><div id=\"pid" . $replyPostId . "body\" class=\"forum-nested-reply-body\">" . $replyBodyContent . "</div></td></tr>");
+			print("<tr><td class=\"rowfollow\" align=\"center\" valign=\"middle\">" . $replyPosterTools . "</td><td class=\"toolbox forum-nested-reply-tools\" align=\"right\">" . $replyTools . "</td></tr>");
+			print("</table>");
+			if ($maypost && $canViewProtected) {
+				print(forum_render_inline_reply_form($replyPost, $topicid));
+			}
+			print("</div>\n");
+			$renderNestedReplies($replyPostId, $depth + 1);
+		}
+		print("</div>\n");
+	};
+
 	foreach ($allPosts as $arr)
 	{
+		if (isset($nestedReplyChildIds[(int)$arr['id']])) {
+			continue;
+		}
 		if ($pn>=1)
 		{
 			if ($Advertisement->enable_ad()){
@@ -731,6 +1047,7 @@ if ($action == "viewtopic")
 			}
 		}
 		++$pn;
+        $realFloor = ($psort === 'desc') ? (($arr['id'] == $firstPostId) ? 1 : ($postcount - $offset - $pn + 2)) : ($pn + $offset);
 
 		$postid = $arr["id"];
 		$posterid = $arr["userid"];
@@ -757,7 +1074,14 @@ if ($action == "viewtopic")
 		$avatar = ($CURUSER["avatars"] == "yes" ? htmlspecialchars($arr2["avatar"]) : "");
 
 		$uclass = get_user_class_image($arr2["class"]);
-		$by = get_username($posterid,false,true,true,false,false,true);
+		$isAnonymousPost = forum_post_is_anonymous($arr);
+		$isAnonymousHidden = forum_post_is_anonymous($arr) && !forum_can_view_anonymous_author($arr);
+		$by = forum_post_author_name($arr, true);
+		if ($isAnonymousHidden) {
+			$signature = "";
+			$avatar = "pic/default_avatar.png";
+			$stats = "";
+		}
 
 		if (!$avatar)
 			$avatar = "pic/default_avatar.png";
@@ -765,11 +1089,11 @@ if ($action == "viewtopic")
 		if ($pn == $pc)
 		{
 			print("<span id=\"last\"></span>\n");
-			if ($postid > $lpr){
+			if ($lastVisiblePostId > $lpr){
 				if ($lpr == $CURUSER['last_catchup']) // There is no record of this topic
-					sql_query("INSERT INTO readposts(userid, topicid, lastpostread) VALUES (".$userid.", ".$topicid.", ".$postid.")") or sqlerr(__FILE__, __LINE__);
+					sql_query("INSERT INTO readposts(userid, topicid, lastpostread) VALUES (".$userid.", ".$topicid.", ".$lastVisiblePostId.")") or sqlerr(__FILE__, __LINE__);
 				elseif ($lpr > $CURUSER['last_catchup']) //There is record of this topic
-					sql_query("UPDATE readposts SET lastpostread=$postid WHERE userid=$userid AND topicid=$topicid") or sqlerr(__FILE__, __LINE__);
+					sql_query("UPDATE readposts SET lastpostread=$lastVisiblePostId WHERE userid=$userid AND topicid=$topicid") or sqlerr(__FILE__, __LINE__);
 				$Cache->delete_value('user_'.$CURUSER['id'].'_last_read_post_list');
 			}
 		}
@@ -780,9 +1104,9 @@ if ($action == "viewtopic")
 		print("&nbsp;&nbsp;<font color=\"gray\">|</font>&nbsp;&nbsp;");
 		if ($authorid)
 			print("<a href=\"?action=viewtopic&topicid=".$topicid."\">".$lang_forums['text_view_all_posts']."</a>");
-		else
+		else if (!$isAnonymousHidden)
 			print("<a href=\"".htmlspecialchars("?action=viewtopic&topicid=".$topicid."&authorid=".$posterid)."\">".$lang_forums['text_view_this_author_only']."</a>");
-		print("</td><td class=\"embedded nowrap\" width=\"1%\"><font class=\"big\">".$lang_forums['text_number']."<b>".($pn+$offset)."</b>".$lang_forums['text_lou']."&nbsp;&nbsp;</font><a href=\"#top\"><img class=\"top\" src=\"pic/trans.gif\" alt=\"Top\" title=\"".$lang_forums['text_back_to_top']."\" /></a>&nbsp;&nbsp;</td></tr>");
+		print("</td><td class=\"embedded nowrap\" width=\"1%\"><font class=\"big\">".$lang_forums['text_number']."<b>".$realFloor."</b>".$lang_forums['text_lou']."&nbsp;&nbsp;</font><a href=\"#top\"><img class=\"top\" src=\"pic/trans.gif\" alt=\"Top\" title=\"".$lang_forums['text_back_to_top']."\" /></a>&nbsp;&nbsp;</td></tr>");
 
 		print("</table></div>\n");
 
@@ -791,7 +1115,7 @@ if ($action == "viewtopic")
 		$body = "<div id=\"pid".$postid."body\" style=\"word-break: break-all;\">";
 		//hidden content applied to second or higher floor post (for whose user class below Ad , not poster , not mods ,not reply's author)
 //		if ($protected_enabled && $pn+$offset>1 && get_user_class()<UC_ADMINISTRATOR && $userid != $base_posterid && $posterid!=$userid && !$is_forummod){
-		if ($pn+$offset>1 && !can_view_post($userid, $arr)){
+		if ($realFloor>1 && !can_view_post($userid, $arr)){
 			//enable content protection
 			$bodyContent = format_comment($lang_forums["text_post_protected"]);
             $canViewProtected = false;
@@ -814,18 +1138,28 @@ if ($action == "viewtopic")
 		if ($signature)
 		$body .= "<p style='vertical-align:bottom'><br />____________________<br />" . format_comment($signature,false,false,false,true,500,true,false, 1,200) . "</p>";
 
-		$stats = "<br />"."&nbsp;&nbsp;".$lang_forums['text_posts']."$forumposts<br />"."&nbsp;&nbsp;".$lang_forums['text_ul']."$uploaded <br />"."&nbsp;&nbsp;".$lang_forums['text_dl']."$downloaded<br />"."&nbsp;&nbsp;".$lang_forums['text_ratio']."$ratio";
+		if (!$isAnonymousHidden) {
+			$stats = "<br />"."&nbsp;&nbsp;".$lang_forums['text_posts']."$forumposts<br />"."&nbsp;&nbsp;".$lang_forums['text_ul']."$uploaded <br />"."&nbsp;&nbsp;".$lang_forums['text_dl']."$downloaded<br />"."&nbsp;&nbsp;".$lang_forums['text_ratio']."$ratio";
+		}
+		$userMedals = $isAnonymousPost ? "" : forum_render_user_medals($userInfo);
 		print("<tr><td class=\"rowfollow\" width=\"150\" valign=\"top\" align=\"left\" style='padding: 0px'>" .
-		return_avatar_image($avatar). "<br /><br /><br />&nbsp;&nbsp;<img alt=\"".get_user_class_name($arr2["class"],false,false,true)."\" title=\"".get_user_class_name($arr2["class"],false,false,true)."\" src=\"".$uclass."\" />".$stats."</td><td class=\"rowfollow\" valign=\"top\"><br />".$body."</td></tr>\n");
+		return_avatar_image($avatar). ($isAnonymousHidden ? "" : "<br /><br /><br />&nbsp;&nbsp;<img alt=\"".get_user_class_name($arr2["class"],false,false,true)."\" title=\"".get_user_class_name($arr2["class"],false,false,true)."\" src=\"".$uclass."\" />".$stats.$userMedals)."</td><td class=\"rowfollow\" valign=\"top\"><br />".$body."</td></tr>\n");
 		$secs = 900;
 		$dt = sqlesc(date("Y-m-d H:i:s",(TIMENOW - $secs))); // calculate date.
-		print("<tr><td class=\"rowfollow\" align=\"center\" valign=\"middle\">".("'".$arr2['last_access']."'">$dt?"<img class=\"f_online\" src=\"pic/trans.gif\" alt=\"Online\" title=\"".$lang_forums['title_online']."\" />":"<img class=\"f_offline\" src=\"pic/trans.gif\" alt=\"Offline\" title=\"".$lang_forums['title_offline']."\" />" )."<a href=\"sendmessage.php?receiver=".htmlspecialchars(trim($arr2["id"]))."\"><img class=\"f_pm\" src=\"pic/trans.gif\" alt=\"PM\" title=\"".$lang_forums['title_send_message_to'].htmlspecialchars($arr2["username"])."\" /></a><a href=\"report.php?forumpost=$postid\"><img class=\"f_report\" src=\"pic/trans.gif\" alt=\"Report\" title=\"".$lang_forums['title_report_this_post']."\" /></a></td>");
+		$posterTools = "";
+		if (!$isAnonymousHidden) {
+			$posterTools .= ("'".$arr2['last_access']."'">$dt)
+				? "<img class=\"f_online\" src=\"pic/trans.gif\" alt=\"Online\" title=\"".$lang_forums['title_online']."\" />"
+				: "<img class=\"f_offline\" src=\"pic/trans.gif\" alt=\"Offline\" title=\"".$lang_forums['title_offline']."\" />";
+			$posterTools .= "<a href=\"sendmessage.php?receiver=".htmlspecialchars(trim($arr2["id"]))."\"><img class=\"f_pm\" src=\"pic/trans.gif\" alt=\"PM\" title=\"".$lang_forums['title_send_message_to'].htmlspecialchars($arr2["username"])."\" /></a>";
+		}
+		print("<tr><td class=\"rowfollow\" align=\"center\" valign=\"middle\">".$posterTools."<a href=\"report.php?forumpost=$postid\"><img class=\"f_report\" src=\"pic/trans.gif\" alt=\"Report\" title=\"".$lang_forums['title_report_this_post']."\" /></a></td>");
 		print("<td class=\"toolbox\" align=\"right\">");
 
 		do_action('post_toolbox', $arr, $allPosts, $CURUSER['id']);
 
 		if ($maypost && $canViewProtected)
-		print("<a href=\"".htmlspecialchars("?action=quotepost&postid=".$postid)."\"><img class=\"f_quote\" src=\"pic/trans.gif\" alt=\"Quote\" title=\"".$lang_forums['title_reply_with_quote']."\" /></a>");
+		print(forum_inline_reply_link($postid, $lang_forums['title_reply_with_quote']));
 
 		if (user_can('postmanage') || $is_forummod)
 		print("<a href=\"".htmlspecialchars("?action=deletepost&postid=".$postid)."\"><img class=\"f_delete\" src=\"pic/trans.gif\" alt=\"Delete\" title=\"".$lang_forums['title_delete_post']."\" /></a>");
@@ -833,6 +1167,10 @@ if ($action == "viewtopic")
 		if (($CURUSER["id"] == $posterid && !$locked) || user_can('postmanage') || $is_forummod)
 		print("<a href=\"".htmlspecialchars("?action=editpost&postid=".$postid)."\"><img class=\"f_edit\" src=\"pic/trans.gif\" alt=\"Edit\" title=\"".$lang_forums['title_edit_post']."\" /></a>");
 		print("</td></tr></table>");
+		if ($maypost && $canViewProtected) {
+			print(forum_render_inline_reply_form($arr, $topicid));
+		}
+		$renderNestedReplies($postid);
 	}
 
 	//------ Mod options
@@ -1069,6 +1407,10 @@ if ($action == "deletepost")
 	}
 
 	//------- Delete post
+	if (forum_posts_support_reply_to()) {
+		$replyToPostId = (int)get_single_value("posts", "reply_to_post_id", "WHERE id=" . sqlesc($postid));
+		sql_query("UPDATE posts SET reply_to_post_id=" . sqlesc($replyToPostId) . " WHERE reply_to_post_id=" . sqlesc($postid)) or sqlerr(__FILE__, __LINE__);
+	}
 	sql_query("DELETE FROM posts WHERE id=$postid") or sqlerr(__FILE__, __LINE__);
 	$Cache->delete_value('user_'.$userid.'_post_count');
 	$Cache->delete_value('topic_'.$topicid.'_post_count');
@@ -1289,7 +1631,7 @@ if ($action == "viewforum")
 			$arr = get_post_row($topicarr['lastpost']);
 			$lppostid = intval($arr["id"] ?? 0);
 			$lpuserid = intval($arr["userid"] ?? 0);
-			$lpusername = get_username($lpuserid);
+			$lpusername = forum_post_author_name($arr, true);
 			$lpadded = gettime($arr["added"],true,false);
 			$onmouseover = "";
 			if ($enabletooltip_tweak == 'yes' && $CURUSER['showlastpost'] != 'no'){
@@ -1305,7 +1647,7 @@ if ($action == "viewforum")
 
 			$arr = get_post_row($topicarr['firstpost']);
 			$fpuserid = intval($arr["userid"] ?? 0);
-			$fpauthor = get_username($arr["userid"]);
+			$fpauthor = forum_post_author_name($arr, true);
 
 			$subject = ($sticky ? "<img class=\"sticky\" src=\"pic/trans.gif\" alt=\"Sticky\" title=\"".$lang_forums['title_sticky']."\" />&nbsp;&nbsp;" : "") . "<a href=\"".htmlspecialchars("?action=viewtopic&forumid=".$forumid."&topicid=".$topicid)."\" ".$onmouseover.">" .highlight_topic(highlight($search,htmlspecialchars($topicarr["subject"])), $hlcolor) . "</a>".$topicpages;
 			$lastpostread = get_last_read_post_id($topicid);
@@ -1328,7 +1670,7 @@ if ($action == "viewforum")
 			print("<tr><td class=\"rowfollow\" align=\"left\"><table border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tr>" .
 			"<td class=\"embedded\" style='padding-right: 10px'>".$img .
 			"</td><td class=\"embedded\" align=\"left\">\n" .
-			$subject."</td></tr></table></td><td class=\"rowfollow\" align=\"center\">".get_username($fpuserid)."<br />".$topictime."</td><td class=\"rowfollow\" align=\"center\">".$replies." / <font color=\"gray\">".$views."</font></td>\n" .
+			$subject."</td></tr></table></td><td class=\"rowfollow\" align=\"center\">".$fpauthor."<br />".$topictime."</td><td class=\"rowfollow\" align=\"center\">".$replies." / <font color=\"gray\">".$views."</font></td>\n" .
 			"<td class=\"rowfollow nowrap\" align=\"center\">".$lpadded."<br />".$lpusername."</td>\n");
 
 			print("</tr>\n");
@@ -1498,7 +1840,8 @@ if ($action == "search")
 	{
 		$perpage = $topicsperpage;
 		list($pagertop, $pagerbottom, $limit) = pager($perpage, $hits, "forums.php?action=search&keywords=".rawurlencode($keywords)."&");
-		$res = sql_query("SELECT posts.id, posts.topicid, posts.userid, posts.added, topics.subject, topics.hlcolor, forums.id AS forumid, forums.name AS forumname FROM posts LEFT JOIN topics ON posts.topicid = topics.id LEFT JOIN forums ON topics.forumid = forums.id WHERE forums.minclassread <= ".sqlesc(get_user_class())." AND ((topics.subject $extraSql AND posts.id=topics.firstpost) OR posts.body $extraSql) ORDER BY posts.id DESC $limit") or sqlerr(__FILE__, __LINE__);
+		$anonymousSelect = forum_posts_support_anonymous() ? ", posts.anonymous" : "";
+		$res = sql_query("SELECT posts.id, posts.topicid, posts.userid, posts.added$anonymousSelect, topics.subject, topics.hlcolor, forums.id AS forumid, forums.name AS forumname FROM posts LEFT JOIN topics ON posts.topicid = topics.id LEFT JOIN forums ON topics.forumid = forums.id WHERE forums.minclassread <= ".sqlesc(get_user_class())." AND ((topics.subject $extraSql AND posts.id=topics.firstpost) OR posts.body $extraSql) ORDER BY posts.id DESC $limit") or sqlerr(__FILE__, __LINE__);
 
 		print($pagertop);
 		print("<table border=\"1\" cellspacing=\"0\" cellpadding=\"5\" width=\"97%\">\n");
@@ -1506,7 +1849,7 @@ if ($action == "search")
 
 		while ($post = mysql_fetch_array($res))
 		{
-			print("<tr><td class=\"rowfollow\" align=\"center\" width=\"1%\">".$post['id']."</td><td class=\"rowfollow\" align=\"left\"><a href=\"".htmlspecialchars("?action=viewtopic&topicid=".$post['topicid']."&highlight=".rawurlencode($keywords)."&page=p".$post['id']."#pid".$post['id'])."\">" . highlight_topic(highlight($keywords,htmlspecialchars($post['subject'])), $post['hlcolor']) . "</a></td><td class=\"rowfollow nowrap\" align=\"left\"><a href=\"".htmlspecialchars("?action=viewforum&forumid=".$post['forumid'])."\"><b>" . htmlspecialchars($post["forumname"]) . "</b></a></td><td class=\"rowfollow nowrap\" align=\"left\">" . gettime($post['added'],true,false) . "&nbsp;|&nbsp;". get_username($post['userid']) ."</td></tr>\n");
+			print("<tr><td class=\"rowfollow\" align=\"center\" width=\"1%\">".$post['id']."</td><td class=\"rowfollow\" align=\"left\"><a href=\"".htmlspecialchars("?action=viewtopic&topicid=".$post['topicid']."&highlight=".rawurlencode($keywords)."&page=p".$post['id']."#pid".$post['id'])."\">" . highlight_topic(highlight($keywords,htmlspecialchars($post['subject'])), $post['hlcolor']) . "</a></td><td class=\"rowfollow nowrap\" align=\"left\"><a href=\"".htmlspecialchars("?action=viewforum&forumid=".$post['forumid'])."\"><b>" . htmlspecialchars($post["forumname"]) . "</b></a></td><td class=\"rowfollow nowrap\" align=\"left\">" . gettime($post['added'],true,false) . "&nbsp;|&nbsp;". forum_post_author_name($post, true) ."</td></tr>\n");
 		}
 
 		print("</table>\n");
@@ -1606,7 +1949,7 @@ foreach ($overforums as $a)
 				$lasttopicdissubject = mb_substr($lasttopicdissubject, 0, $max_length_of_topic_subject-2,"UTF-8") . "..";
 			$lasttopic = highlight_topic(htmlspecialchars($lasttopicdissubject), $hlcolor);
 
-			$lastpost = "<a href=\"".htmlspecialchars("?action=viewtopic&topicid=".$lasttopicid."&page=last#last")."\" title=\"".htmlspecialchars($lasttopicsubject)."\">".$lasttopic."</a><br />". $lastpostdate."&nbsp;|&nbsp;".get_username($lastposterid);
+			$lastpost = "<a href=\"".htmlspecialchars("?action=viewtopic&topicid=".$lasttopicid."&page=last#last")."\" title=\"".htmlspecialchars($lasttopicsubject)."\">".$lasttopic."</a><br />". $lastpostdate."&nbsp;|&nbsp;".forum_post_author_name($post_arr, true);
 
 			$lastreadpost = get_last_read_post_id($lasttopicid);
 

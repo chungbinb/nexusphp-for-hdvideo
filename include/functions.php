@@ -914,6 +914,74 @@ function tag_image(PromptImageURL, PromptError) {
 	doInsert("[img]"+enterURL+"[/img]", "", false);
 }
 
+function nexusOpenAttachmentUpload(trigger) {
+	var editor = trigger && trigger.closest ? trigger.closest('.nexus-bbcode-editor') : null;
+	var frame = editor ? editor.querySelector('.nexus-bbcode-attachment iframe') : null;
+	if (!frame) {
+		alert('附件上传未启用');
+		return;
+	}
+	try {
+		var doc = frame.contentWindow.document;
+		var input = doc.querySelector('input[type="file"]');
+		if (!input || input.disabled) {
+			alert('附件上传当前不可用');
+			return;
+		}
+		if (!input.getAttribute('data-nexus-auto-submit')) {
+			input.setAttribute('data-nexus-auto-submit', '1');
+			input.addEventListener('change', function() {
+				if (this.files && this.files.length && this.form) {
+					this.form.submit();
+				}
+			});
+		}
+		input.click();
+	} catch (e) {
+		alert('无法打开附件上传，请刷新页面后重试');
+	}
+}
+
+function nexusCloseEditorPopovers() {
+	var popovers = document.querySelectorAll('.nexus-editor-popover');
+	for (var i = 0; i < popovers.length; i++) {
+		popovers[i].parentNode.removeChild(popovers[i]);
+	}
+}
+
+function nexusChooseImageSource(trigger, PromptImageURL, PromptError) {
+	nexusCloseEditorPopovers();
+	var editor = trigger && trigger.closest ? trigger.closest('.nexus-bbcode-editor') : null;
+	if (!editor) {
+		tag_image(PromptImageURL, PromptError);
+		return;
+	}
+	var popover = document.createElement('div');
+	popover.className = 'nexus-editor-popover';
+	popover.innerHTML = '<button type="button" data-action="upload">上传图片</button><button type="button" data-action="url">使用 URL</button>';
+	editor.appendChild(popover);
+	var editorRect = editor.getBoundingClientRect();
+	var triggerRect = trigger.getBoundingClientRect();
+	popover.style.left = Math.max(8, triggerRect.left - editorRect.left - 44) + 'px';
+	popover.style.top = (triggerRect.bottom - editorRect.top + 6) + 'px';
+	popover.querySelector('[data-action="upload"]').onclick = function() {
+		nexusCloseEditorPopovers();
+		nexusOpenAttachmentUpload(trigger);
+	};
+	popover.querySelector('[data-action="url"]').onclick = function() {
+		nexusCloseEditorPopovers();
+		tag_image(PromptImageURL, PromptError);
+	};
+	setTimeout(function() {
+		document.addEventListener('click', function closePopover(event) {
+			if (!popover.contains(event.target) && event.target !== trigger) {
+				nexusCloseEditorPopovers();
+				document.removeEventListener('click', closePopover);
+			}
+		});
+	}, 0);
+}
+
 function tag_extimage(content) {
 	doInsert(content, "", false);
 }
@@ -1029,24 +1097,26 @@ function textBBCodeEdit() {
 }
 //]]>
 </script>
-<table width="100%" cellspacing="0" cellpadding="5" border="0">
+<table class="nexus-bbcode-table" width="100%" cellspacing="0" cellpadding="5" border="0">
     <tbody id="<?php echo $editTbodyId?>">
 <tr><td align="left" colspan="2">
-<table cellspacing="1" cellpadding="2" border="0">
-<tr>
-<td class="embedded"><input style="font-weight: bold;font-size:11px; margin-right:3px" type="button" name="b" value="B" onclick="javascript: simpletag('b')" /></td>
-<td class="embedded"><input class="codebuttons" style="font-style: italic;font-size:11px;margin-right:3px" type="button" name="i" value="I" onclick="javascript: simpletag('i')" /></td>
-<td class="embedded"><input class="codebuttons" style="text-decoration: underline;font-size:11px;margin-right:3px" type="button" name="u" value="U" onclick="javascript: simpletag('u')" /></td>
-<?php
-print("<td class=\"embedded\"><input class=\"codebuttons\" style=\"font-size:11px;margin-right:3px\" type=\"button\" name='url' value='URL' onclick=\"javascript:tag_url('" . $lang_functions['js_prompt_enter_url'] . "','" . $lang_functions['js_prompt_enter_title'] . "','" . $lang_functions['js_prompt_error'] . "')\" /></td>");
-print("<td class=\"embedded\"><input class=\"codebuttons\" style=\"font-size:11px;margin-right:3px\" type=\"button\" name=\"IMG\" value=\"IMG\" onclick=\"javascript: tag_image('" . $lang_functions['js_prompt_enter_image_url'] . "','" . $lang_functions['js_prompt_error'] . "')\" /></td>");
-print("<td class=\"embedded\"><input type=\"button\" style=\"font-size:11px;margin-right:3px\" name=\"list\" value=\"List\" onclick=\"tag_list('" . addslashes($lang_functions['js_prompt_enter_item']) . "','" . $lang_functions['js_prompt_error'] . "')\" /></td>");
-
-?>
-<td class="embedded"><input class="codebuttons" style="font-size:11px;margin-right:3px" type="button" name="quote" value="QUOTE" onclick="javascript: simpletag('quote')" /></td>
-<td class="embedded"><input style="font-size:11px;margin-right:3px" type="button" onclick='javascript:closeall();' name='tagcount' value="Close all tags" /></td>
-<td class="embedded"><select class="med codebuttons" style="margin-right:3px" name='color' onchange="alterfont(this.options[this.selectedIndex].value, 'color')">
-<option value='0'>--- <?php echo $lang_functions['select_color'] ?> ---</option>
+<div class="nexus-bbcode-editor">
+<div class="nexus-bbcode-toolbar" role="toolbar" aria-label="BBCode editor toolbar">
+<div class="nexus-editor-group nexus-editor-group-block">
+<button class="nexus-editor-btn nexus-editor-btn-text" type="button" title="Paragraph">正文<span class="nexus-editor-caret">▾</span></button>
+<button class="nexus-editor-btn nexus-editor-btn-quote-mark" type="button" name="quote" value="QUOTE" title="Quote" aria-label="Quote" onclick="javascript: simpletag('quote')">“</button>
+</div>
+<div class="nexus-editor-group nexus-editor-group-format">
+<button class="nexus-editor-btn nexus-editor-btn-strong" type="button" name="b" value="B" title="Bold" aria-label="Bold" onclick="javascript: simpletag('b')">B</button>
+<button class="nexus-editor-btn nexus-editor-btn-underline" type="button" name="u" value="U" title="Underline" aria-label="Underline" onclick="javascript: simpletag('u')">U</button>
+<button class="nexus-editor-btn nexus-editor-btn-italic" type="button" name="i" value="I" title="Italic" aria-label="Italic" onclick="javascript: simpletag('i')">I</button>
+<button class="nexus-editor-btn nexus-editor-btn-text" type="button" name="list" value="List" title="List item" aria-label="List item" onclick="tag_list('<?php echo addslashes($lang_functions['js_prompt_enter_item']) ?>','<?php echo $lang_functions['js_prompt_error'] ?>')">…<span class="nexus-editor-caret">▾</span></button>
+</div>
+<div class="nexus-editor-group nexus-editor-group-style">
+<label class="nexus-editor-select-wrap nexus-editor-select-wrap-color">
+<span class="nexus-editor-select-icon nexus-editor-select-icon-color" aria-hidden="true">A</span>
+<select class="med codebuttons nexus-editor-select" name='color' aria-label="Text color" onchange="alterfont(this.options[this.selectedIndex].value, 'color')">
+<option value='0'>A</option>
 <option style="background-color: black" value="Black">Black</option>
 <option style="background-color: sienna" value="Sienna">Sienna</option>
 <option style="background-color: darkolivegreen" value="DarkOliveGreen">Dark Olive Green</option>
@@ -1087,10 +1157,26 @@ print("<td class=\"embedded\"><input type=\"button\" style=\"font-size:11px;marg
 <option style="background-color: lightblue" value="LightBlue">Light Blue</option>
 <option style="background-color: plum" value="Plum">Plum</option>
 <option style="background-color: white" value="White">White</option>
-</select></td>
-<td class="embedded">
-<select class="med codebuttons" name='font' onchange="alterfont(this.options[this.selectedIndex].value, 'font')">
-<option value="0">--- <?php echo $lang_functions['select_font'] ?> ---</option>
+</select>
+</label>
+<button class="nexus-editor-btn nexus-editor-btn-text" type="button" title="Highlight">A<span class="nexus-editor-caret">▾</span></button>
+</div>
+<div class="nexus-editor-group nexus-editor-group-selects">
+<label class="nexus-editor-select-wrap nexus-editor-select-wrap-size">
+<select class="med codebuttons nexus-editor-select nexus-editor-select-small" name='size' aria-label="Font size" onchange="alterfont(this.options[this.selectedIndex].value, 'size')">
+<option value="0">默认字号</option>
+<option value="1">1</option>
+<option value="2">2</option>
+<option value="3">3</option>
+<option value="4">4</option>
+<option value="5">5</option>
+<option value="6">6</option>
+<option value="7">7</option>
+</select>
+</label>
+<label class="nexus-editor-select-wrap nexus-editor-select-wrap-font">
+<select class="med codebuttons nexus-editor-select" name='font' aria-label="Font" onchange="alterfont(this.options[this.selectedIndex].value, 'font')">
+<option value="0">默认字体</option>
 <option value="Arial">Arial</option>
 <option value="Arial Black">Arial Black</option>
 <option value="Arial Narrow">Arial Narrow</option>
@@ -1112,53 +1198,66 @@ print("<td class=\"embedded\"><input type=\"button\" style=\"font-size:11px;marg
 <option value="Trebuchet MS">Trebuchet MS</option>
 <option value="Verdana">Verdana</option>
 </select>
-</td>
-<td class="embedded">
-<select class="med codebuttons" name='size' onchange="alterfont(this.options[this.selectedIndex].value, 'size')">
-<option value="0">--- <?php echo $lang_functions['select_size'] ?> ---</option>
-<option value="1">1</option>
-<option value="2">2</option>
-<option value="3">3</option>
-<option value="4">4</option>
-<option value="5">5</option>
-<option value="6">6</option>
-<option value="7">7</option>
-</select></td></tr>
-</table>
-</td>
-</tr>
+</label>
+<button class="nexus-editor-btn nexus-editor-btn-text nexus-editor-btn-lineheight" type="button" title="Line height">默认行高<span class="nexus-editor-caret">▾</span></button>
+</div>
+<div class="nexus-editor-group nexus-editor-group-list">
+<button class="nexus-editor-btn" type="button" title="Bulleted list" onclick="javascript: doInsert('[*]', '', false)">☷</button>
+<button class="nexus-editor-btn" type="button" title="Numbered list" onclick="javascript: doInsert('[list=1]\n[*]\n[/list]', '', false)">☰</button>
+<button class="nexus-editor-btn" type="button" title="Task item" onclick="javascript: doInsert('[*] [ ] ', '', false)">☑</button>
+<button class="nexus-editor-btn" type="button" title="Align">≡<span class="nexus-editor-caret">▾</span></button>
+<button class="nexus-editor-btn" type="button" title="Indent">▸<span class="nexus-editor-caret">▾</span></button>
+</div>
+<div class="nexus-editor-group nexus-editor-group-insert">
+<?php
+print("<button class=\"nexus-editor-btn\" type=\"button\" title=\"Smilies\" onclick=\"javascript:winop();\">☺<span class=\"nexus-editor-caret\">▾</span></button>");
+print("<button class=\"nexus-editor-btn\" type=\"button\" name='url' value='URL' title=\"Link\" aria-label=\"Link\" onclick=\"javascript:tag_url('" . $lang_functions['js_prompt_enter_url'] . "','" . $lang_functions['js_prompt_enter_title'] . "','" . $lang_functions['js_prompt_error'] . "')\">🔗</button>");
+if ($enableattach_attachment == 'yes') {
+	print("<button class=\"nexus-editor-btn\" type=\"button\" name=\"IMG\" value=\"IMG\" title=\"Image\" aria-label=\"Image\" onclick=\"javascript:nexusChooseImageSource(this, '" . $lang_functions['js_prompt_enter_image_url'] . "','" . $lang_functions['js_prompt_error'] . "')\">▣<span class=\"nexus-editor-caret\">▾</span></button>");
+	print("<button class=\"nexus-editor-btn\" type=\"button\" title=\"Upload attachment\" aria-label=\"Upload attachment\" onclick=\"javascript:nexusOpenAttachmentUpload(this)\">📎</button>");
+} else {
+	print("<button class=\"nexus-editor-btn\" type=\"button\" name=\"IMG\" value=\"IMG\" title=\"Image\" aria-label=\"Image\" onclick=\"javascript:tag_image('" . $lang_functions['js_prompt_enter_image_url'] . "','" . $lang_functions['js_prompt_error'] . "')\">▣<span class=\"nexus-editor-caret\">▾</span></button>");
+}
+
+?>
+<button class="nexus-editor-btn" type="button" title="Video" onclick="javascript: doInsert('[video]', '[/video]', true)">▶<span class="nexus-editor-caret">▾</span></button>
+<button class="nexus-editor-btn" type="button" title="Table">▦<span class="nexus-editor-caret">▾</span></button>
+<button class="nexus-editor-btn" type="button" title="Code" onclick="javascript: doInsert('[code]', '[/code]', true)">‹/›</button>
+<button class="nexus-editor-btn" type="button" onclick='javascript:closeall();' name='tagcount' value="Close all tags" title="Close all tags">☰</button>
+</div>
+<div class="nexus-editor-group nexus-editor-group-actions">
+<button class="nexus-editor-btn" type="button" title="Undo" onclick="javascript: document.getElementById('<?php echo $text ?>').focus(); document.execCommand('undo')">↶</button>
+<button class="nexus-editor-btn" type="button" title="Redo" onclick="javascript: document.getElementById('<?php echo $text ?>').focus(); document.execCommand('redo')">↷</button>
+<button class="nexus-editor-btn" type="button" title="Fullscreen" onclick="javascript: this.closest('.nexus-bbcode-editor').classList.toggle('is-fullscreen')">⛶</button>
+</div>
+</div>
 <?php
 if ($enableattach_attachment == 'yes'){
 ?>
-<tr>
-<td colspan="2" valign="middle">
+<div class="nexus-bbcode-attachment">
 <iframe src="<?php echo getSchemeAndHttpHost()?>/attachment.php" width="100%" height="24" frameborder="0" scrolling="no" marginheight="0" marginwidth="0"></iframe>
-</td>
-</tr>
+</div>
 <?php
 }
-print("<tr>");
-print("<td align=\"left\"><textarea class=\"bbcode\" cols=\"100\" style=\"width: 100%;\" name=\"".$text."\" id=\"".$text."\" rows=\"20\" onkeydown=\"ctrlenter(event,'compose','qr')\">".$content."</textarea>");
+print("<div class=\"nexus-bbcode-body\">");
+print("<textarea class=\"bbcode nexus-bbcode-textarea\" cols=\"100\" name=\"".$text."\" id=\"".$text."\" rows=\"20\" placeholder=\"Type here...\" spellcheck=\"false\" onkeydown=\"ctrlenter(event,'compose','qr')\">".$content."</textarea>");
 ?>
-</td>
-<td align="center" width="">
-<table cellspacing="1" cellpadding="3">
-<tr>
+<div class="nexus-bbcode-smilies">
+<div class="nexus-bbcode-smilies-grid">
 <?php
 $i = 0;
 $quickSmilies = array(1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 13, 16, 17, 19, 20, 21, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 39, 40, 41);
 foreach ($quickSmilies as $smily) {
-	if ($i%4 == 0 && $i > 0) {
-		print('</tr><tr>');
-	}
-	print("<td class=\"embedded\" style=\"padding: 3px;\">".getSmileIt($form, $text, $smily)."</td>");
+	print("<span class=\"nexus-bbcode-smily\">".getSmileIt($form, $text, $smily)."</span>");
 	$i++;
 }
 ?>
-</tr></table>
-<br />
-<a href="javascript:winop();"><?php echo $lang_functions['text_more_smilies'] ?></a>
-</td></tr></tobdy>
+</div>
+<a class="nexus-bbcode-more-smilies" href="javascript:winop();"><?php echo $lang_functions['text_more_smilies'] ?></a>
+</div>
+</div>
+</div>
+</td></tr></tbody>
     <?php if($withPreview) {?>
     <tbody id="<?php echo $previewTbodyId?>"></tbody>
     <tbody>
@@ -1172,7 +1271,7 @@ foreach ($quickSmilies as $smily) {
 <?php
 }
 
-function begin_compose($title = "",$type="new", $body="", $hassubject=true, $subject="", $maxsubjectlength=100){
+function begin_compose($title = "",$type="new", $body="", $hassubject=true, $subject="", $maxsubjectlength=100, $anonymous = false){
 	global $lang_functions;
 	if ($title)
 		print("<h1 align=\"center\">".$title."</h1>");
@@ -1207,7 +1306,9 @@ function begin_compose($title = "",$type="new", $body="", $hassubject=true, $sub
 	print("<table class=\"main\" width=\"100%\" border=\"1\" cellspacing=\"0\" cellpadding=\"5\">\n");
 	if ($hassubject)
 		print("<tr><td class=\"rowhead\">".$lang_functions['row_subject']."</td>" .
-"<td class=\"rowfollow\" align=\"left\"><input type=\"text\" style=\"width: 99%;\" name=\"subject\" maxlength=\"".$maxsubjectlength."\" value=\"".htmlspecialchars($subject)."\" /></td></tr>\n");
+"<td class=\"rowfollow\" align=\"left\"><input type=\"text\" style=\"display: block; width: 100%; box-sizing: border-box;\" name=\"subject\" maxlength=\"".$maxsubjectlength."\" value=\"".htmlspecialchars($subject)."\" /></td></tr>\n");
+	$anonymousChecked = $anonymous ? " checked=\"checked\"" : "";
+	print("<tr><td class=\"rowhead\">匿名</td><td class=\"rowfollow\" align=\"left\"><label class=\"forum-anonymous-option\"><input type=\"checkbox\" name=\"anonymous\" value=\"yes\"".$anonymousChecked." /> 匿名发表</label></td></tr>\n");
 	print("<tr><td class=\"rowhead\" valign=\"top\">".$lang_functions['row_body']."</td><td class=\"rowfollow\" align=\"left\"><span style=\"display: none;\" id=\"previewouter\"></span><div id=\"editorouter\">");
 	textbbcode("compose","body", $body, false);
 	print("</div></td></tr>");
@@ -1243,7 +1344,7 @@ function get_external_tr($imdb_url = "")
 	    return '';
     }
 	$imdbNumber = parse_imdb_id($imdb_url);
-	$imdbValue = $imdbNumber ? "https://www.imdb.com/title/tt".parse_imdb_id($imdb_url) : "";
+	$imdbValue = $imdbNumber ? build_imdb_url($imdbNumber) : "";
 	$imdbInput = "<input type=\"text\" style=\"width: 99%;\" name=\"url\" value=\"" . htmlspecialchars($imdbValue) . "\" /><br /><font class=\"medium\">" . $lang_functions['text_imdb_url_note'] . "</font>";
 	$doubanInput = "<input type=\"text\" style=\"width: 99%;\" name=\"douban_url\" value=\"\" /><br /><font class=\"medium\">豆瓣条目链接，如 https://movie.douban.com/subject/1292052/</font>";
     return tr($lang_functions['row_imdb_url'], $imdbInput, 1) . tr("Douban URL", $doubanInput, 1);
@@ -1285,7 +1386,8 @@ function parse_imdb_id($url)
 
 function build_imdb_url($imdb_id)
 {
-	return $imdb_id == "" ? "" : "https://www.imdb.com/title/tt" . $imdb_id . "/";
+	$imdb_id = parse_imdb_id($imdb_id);
+	return $imdb_id ? "https://www.imdb.com/title/tt" . str_pad((string)$imdb_id, 7, '0', STR_PAD_LEFT) . "/" : "";
 }
 
 // it's a stub implemetation here, we need more acurate regression analysis to complete our algorithm
@@ -2381,14 +2483,20 @@ function menu ($selected = "home") {
 		if ($brandLogo !== '') {
 			$brandLogoHtml = '<img src="'.htmlspecialchars($brandLogo).'" alt="'.$brandTitle.'" loading="lazy" decoding="async" />';
 		}
-		print ('<li class="nav-brand"><a href="index.php" title="'.$brandTitle.'">'.$brandLogoHtml.'<span class="nav-brand-text">'.$brandTitle.'</span></a></li>');
+		$brandInner = is_file(ROOT_PATH . 'public/pic/logo.png') ? '<img class="nav-brand-logo" src="/pic/logo.png?v='.@filemtime(ROOT_PATH . 'public/pic/logo.png').'" alt="'.$brandTitle.'" loading="lazy" decoding="async" />' : '<span class="nav-brand-text">'.$brandTitle.'</span>'; print ('<li class="nav-brand"><a href="index.php" title="'.$brandTitle.'">'.$brandInner.'</a></li>');
 		$homeClass = $selected == "home" ? " class=\"nav-home selected\"" : " class=\"nav-home\"";
 		print ("<li" . $homeClass . "><a href=\"index.php\">" . $normalizeMenuText($lang_functions['text_home']) . "</a></li>");
         if ($enableextforum != 'yes')
 			print ("<li" . ($selected == "forums" ? " class=\"selected\"" : "") . "><a href=\"forums.php\">".$normalizeMenuText($lang_functions['text_forums'])."</a></li>");
         else
 			print ("<li" . ($selected == "forums" ? " class=\"selected\"" : "") . "><a href=\"" . $extforumurl."\" target=\"_blank\">".$normalizeMenuText($lang_functions['text_forums'])."</a></li>");
-		print ("<li" . ($selected == "torrents" ? " class=\"selected\"" : "") . "><a href=\"torrents.php\" rel='sub-menu'>".$normalizeMenuText($normalSectionName[$lang] ?? $lang_functions['text_torrents'])."</a></li>");
+		$qdTorrentSelected = ($selected == "torrents");
+		print ("<li class=\"nav-torrents has-submenu" . ($qdTorrentSelected ? " selected" : "") . "\"><a href=\"torrents.php\">".$normalizeMenuText($normalSectionName[$lang] ?? $lang_functions['text_torrents'])."</a><ul class=\"nav-submenu nav-torrents-submenu\">");
+		foreach (genrelist(get_setting('main.browsecat')) as $qdCat) {
+			if (empty($qdCat['id'])) { continue; }
+			print ("<li><a href=\"torrents.php?cat=".(int)$qdCat['id']."\">".htmlspecialchars((string)$qdCat['name'])."</a></li>");
+		}
+		print ("</ul></li>");
         if ($enablespecial == 'yes' && user_can('view_special_torrent'))
 			print ("<li" . ($selected == "special" ? " class=\"selected\"" : "") . "><a href=\"special.php\">".$normalizeMenuText($specialSectionName[$lang] ?? $lang_functions['text_special'])."</a></li>");
         if ($enableoffer == 'yes')
@@ -2401,11 +2509,24 @@ function menu ($selected = "home") {
         if (user_can('topten')) {
 			print ("<li" . ($selected == "topten" ? " class=\"selected\"" : "") . "><a href=\"topten.php\">".$normalizeMenuText($lang_functions['text_top_ten'])."</a></li>");
         }
+		$rulesMenuSelected = in_array($selected, ["rules", "log", "faq", "contactstaff"], true);
+		print ("<li class=\"nav-rules has-submenu" . ($rulesMenuSelected ? " selected" : "") . "\"><a href=\"javascript:void(0)\" onclick=\"return false;\">帮助</a><ul class=\"nav-submenu nav-rules-submenu\">");
+				print ("<li" . ($selected == "rules" ? " class=\"selected\"" : "") . "><a href=\"rules.php\">".$normalizeMenuText($lang_functions['text_rules'])."</a></li>");
+		print ("<li" . ($selected == "faq" ? " class=\"selected\"" : "") . "><a href=\"faq.php\">".$normalizeMenuText($lang_functions['text_faq'])."</a></li>");
 		if (user_can('log')) {
 			print ("<li" . ($selected == "log" ? " class=\"selected\"" : "") . "><a href=\"log.php\">".$normalizeMenuText($lang_functions['text_log'])."</a></li>");
-        }
-		print ("<li" . ($selected == "rules" ? " class=\"selected\"" : "") . "><a href=\"rules.php\">".$normalizeMenuText($lang_functions['text_rules'])."</a></li>");
+		}
+		print ("<li><a href=\"user-ban-log.php\">封禁记录</a></li>");
+		if (user_can('staffmem')) {
+			print ("<li class=\"has-submenu has-subsubmenu\"><a href=\"staff.php\">管理组</a><ul class=\"nav-submenu nav-subsubmenu\">");
+			print ("<li><a href=\"staffbox.php\">管理组信箱</a></li>");
+			print ("<li><a href=\"reports.php\">举报信箱</a></li>");
+			print ("<li><a href=\"cheaterbox.php\">作弊者</a></li>");
+			print ("<li><a href=\"complains.php?action=list\">申诉处理</a></li>");
+			print ("</ul></li>");
+		}
 		print ("<li" . ($selected == "contactstaff" ? " class=\"selected\"" : "") . "><a href=\"contactstaff.php\">".$normalizeMenuText($lang_functions['text_contactstaff'])."</a></li>");
+		print ("</ul></li>");
         print ("</ul>");
     }
 	print ("</div>");
@@ -2542,7 +2663,7 @@ function stdhead($title = "", $msgalert = true, $script = "", $place = "")
 		}
 	}
 ?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
@@ -2565,6 +2686,7 @@ $css_uri = get_css_uri();
 $cssupdatedate=($cssupdatedate ? "?".htmlspecialchars($cssupdatedate) : "");
 ?>
 <title><?php echo $title?></title>
+<?php if (!empty($GLOBALS['nexus_base_href'])) { ?><base href="<?php echo htmlspecialchars($GLOBALS['nexus_base_href']) ?>" /><?php } ?>
 <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
 <link rel="search" type="application/opensearchdescription+xml" title="<?php echo $SITENAME?> Torrents" href="opensearch.php" />
 <link rel="stylesheet" href="<?php echo get_font_css_uri().$cssupdatedate?>" type="text/css" />
@@ -2575,6 +2697,34 @@ $cssupdatedate=($cssupdatedate ? "?".htmlspecialchars($cssupdatedate) : "");
 <link rel="stylesheet" href="styles/nexus.css<?php echo $cssupdatedate?>" type="text/css" />
 <?php $modernRefreshVersion = @filemtime(ROOT_PATH . 'public/styles/modern-refresh.css') ?: time(); ?>
 <link rel="stylesheet" href="styles/modern-refresh.css?v=<?php echo intval($modernRefreshVersion) ?>" type="text/css" />
+<?php
+$qdPV = ''; $qdPJ = 'null';
+if (!empty($GLOBALS['CURUSER']['id'])) {
+    $qdUid = (int)$GLOBALS['CURUSER']['id'];
+    try {
+        $qdM = \Nexus\Database\NexusDB::remember("qd_personalize_$qdUid", 3600, function () use ($qdUid) {
+            return (string)(\App\Models\UserMeta::query()->where('uid', $qdUid)->where('meta_key', 'PERSONALIZE')->where('status', 0)->value('meta_value') ?: '');
+        });
+        if ($qdM !== '') {
+            $qdArr = json_decode($qdM, true);
+            if (is_array($qdArr)) {
+                $qdAllow = ['--bili-primary', '--bili-accent', '--bili-bg', '--bili-surface', '--bili-text'];
+                $qdClean = [];
+                foreach ($qdAllow as $qdK) {
+                    if (isset($qdArr[$qdK]) && preg_match('/^#[0-9a-fA-F]{6}$/', $qdArr[$qdK])) {
+                        $qdClean[$qdK] = $qdArr[$qdK];
+                        $qdPV .= $qdK . ':' . $qdArr[$qdK] . ';';
+                    }
+                }
+                $qdPJ = json_encode($qdClean);
+            }
+        }
+    } catch (\Throwable $qdE) {}
+}
+echo '<style id="qd-personalize-vars">' . ($qdPV !== '' ? (':root[data-site-theme="day"],html:not([data-site-theme]){' . $qdPV . '}') : '') . '</style>';
+echo '<script>window.__QD_P__=' . $qdPJ . ';</script>';
+?>
+
 <?php
 if ($CURUSER){
 //	$caticonrow = get_category_icon_row($CURUSER['caticon']);
@@ -2614,8 +2764,19 @@ foreach (\Nexus\Nexus::getAppendHeaders() as $value) {
 </script>
 <script type="text/javascript" src="vendor/layer-v3.5.1/layer/layer.js<?php echo $cssupdatedate?>"></script>
 </head>
-<?php $pageClass = preg_replace('/[^a-z0-9_-]+/i', '-', nexus()->getScript()); ?>
-<body class="page-<?php echo htmlspecialchars($pageClass ?: 'index') ?>">
+<?php
+$pageClass = preg_replace('/[^a-z0-9_-]+/i', '-', nexus()->getScript());
+$isInframePage = !empty($_GET['inframe']);
+$qdCarouselOff = !$isInframePage
+    && !in_array(nexus()->getScript(), ['upload', 'details'], true)
+    && get_setting('basic.show_carousel') == 'no';
+$bodyClass = trim('page-' . ($pageClass ?: 'index') . ($isInframePage ? ' inframe' : '') . ($qdCarouselOff ? ' carousel-off' : ''));
+?>
+<body class="<?php echo htmlspecialchars($bodyClass) ?>">
+<?php if ($isInframePage) { ?>
+<table class="mainouter" width="100%" cellspacing="0" cellpadding="5" align="center">
+<tr><td id="outer" align="center" class="outer" style="padding: 12px 14px">
+<?php return; } ?>
 <table class="head" cellspacing="0" cellpadding="0" align="center" style="width: <?php echo isset($GLOBALS['CURUSER']) ? CONTENT_WIDTH + 28.66 : CONTENT_WIDTH ?>px">
 	<tr>
 		<td class="clear">
@@ -2782,13 +2943,16 @@ else {
 //    $attendance = $attend_desk->check();
     $attendanceRep = new \App\Repositories\AttendanceRepository();
 	$attendance = $attendanceRep->getAttendance($CURUSER['id'], date('Ymd'));
+	$showTopAttendancePrompt = !$attendance
+		&& ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET'
+		&& nexus()->getScript() !== 'attendance';
 
 	$topAvatar = strtoupper(substr((string)$CURUSER['username'], 0, 1));
 	$topAvatarUrl = trim((string)($CURUSER['avatar'] ?? ''));
 	if ($topAvatarUrl !== '' && preg_match('/^[a-z][a-z0-9+.-]*:/i', $topAvatarUrl) && !preg_match('/^https?:/i', $topAvatarUrl)) {
 		$topAvatarUrl = '';
 	}
-	$topUserClass = get_user_class_name($CURUSER['class'], false, false, true);
+	$topUserClassColor = get_user_class_name($CURUSER['class'], true, false, false) . '_Name';
 	$topUserTone = 'user';
 	if ($CURUSER['class'] >= UC_SYSOP) {
 		$topUserTone = 'sysop';
@@ -2800,6 +2964,14 @@ else {
 		$topUserTone = 'vip';
 	}
 	$topConnectableText = trim(strip_tags((string)$connectable));
+	$topInviteCount = (int)($CURUSER['invites'] ?? 0);
+	$topHrCount = (int)\App\Models\HitAndRun::query()
+		->where('uid', $CURUSER['id'])
+		->where('status', \App\Models\HitAndRun::STATUS_INSPECTING)
+		->count();
+	$topClaimCount = (int)\App\Models\Claim::query()
+		->where('uid', $CURUSER['id'])
+		->count();
 	$normalizeTopLabel = static function ($value, $fallback = '') {
 		$text = html_entity_decode((string)$value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 		$text = str_replace("\xC2\xA0", ' ', $text);
@@ -2812,16 +2984,45 @@ else {
 		return $text;
 	};
 	$showTopUpload = user_can_upload('torrents');
+	$showTopStaffPanel = get_user_class() >= UC_MODERATOR;
 	$showTopStaff = user_can('viewstaff');
 	$showTopContactStaff = user_can('viewstafflist');
+	$showTopSiteSettings = get_user_class() >= UC_SYSOP;
+	$showTopManagementSystem = get_user_class() >= \App\Models\User::getAccessAdminClassMin();
 	$topUploadLabel = $normalizeTopLabel($lang_functions['text_upload'] ?? '', 'Upload');
+	$topStaffPanelLabel = $normalizeTopLabel($lang_functions['text_staff_panel'] ?? '', 'Staff Panel');
 	$topStaffLabel = $normalizeTopLabel($lang_functions['text_staff'] ?? '', 'Staff');
 	$topContactStaffLabel = $normalizeTopLabel($lang_functions['text_contactstaff'] ?? '', 'Contact');
+	$topSiteSettingsLabel = $normalizeTopLabel($lang_functions['text_site_settings'] ?? '', 'Site Settings');
+	$topManagementSystemLabel = $normalizeTopLabel($lang_functions['text_management_system'] ?? '', 'Management');
+	$topManagementSystemUrl = nexus_env('FILAMENT_PATH', 'nexusphp');
+	$topAccountMenuIcon = function ($type) {
+		$icons = [
+			'user' => '<path d="M10 10.5a3.25 3.25 0 1 0 0-6.5 3.25 3.25 0 0 0 0 6.5Z"></path><path d="M4.2 17a5.9 5.9 0 0 1 11.6 0"></path>',
+			'friends' => '<path d="M7.2 9.5a2.7 2.7 0 1 0 0-5.4 2.7 2.7 0 0 0 0 5.4Z"></path><path d="M13.2 10a2.25 2.25 0 1 0 0-4.5"></path><path d="M3.2 16.2a4.2 4.2 0 0 1 8 0"></path><path d="M12.2 13.2a3.55 3.55 0 0 1 4.6 3"></path>',
+			'medal' => '<path d="M7.2 3.5h5.6l1.4 3.6-4.2 4.4-4.2-4.4 1.4-3.6Z"></path><path d="M6.1 7.1h7.8"></path><path d="M10 11.5v2.1"></path><path d="M7.2 16.5a2.8 2.8 0 1 1 5.6 0"></path><path d="M8.3 16.5h3.4"></path>',
+			'task' => '<path d="M6 3.5h8A1.5 1.5 0 0 1 15.5 5v10A1.5 1.5 0 0 1 14 16.5H6A1.5 1.5 0 0 1 4.5 15V5A1.5 1.5 0 0 1 6 3.5Z"></path><path d="M7.2 7.2h5.6"></path><path d="M7.2 10h5.6"></path><path d="M7.2 12.8h3.2"></path><path d="M13.2 12.3l.8.8 1.6-1.8"></path>',
+			'staff' => '<path d="M6 3.5h6.8L16 6.7V16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5.5a2 2 0 0 1 2-2Z"></path><path d="M12.5 3.8v3.4h3.3"></path><path d="M8.2 12.2h3.2"></path><path d="M8.2 15h4.8"></path>',
+			'panel' => '<path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h9A1.5 1.5 0 0 1 16 5.5v9a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 4 14.5v-9Z"></path><path d="M7 7.5h6"></path><path d="M7 10h6"></path><path d="M7 12.5h3.5"></path>',
+			'management' => '<path d="M4 5.2A1.7 1.7 0 0 1 5.7 3.5h8.6A1.7 1.7 0 0 1 16 5.2v5.9a1.7 1.7 0 0 1-1.7 1.7H5.7A1.7 1.7 0 0 1 4 11.1V5.2Z"></path><path d="M8.2 16.5h3.6"></path><path d="M10 12.8v3.7"></path><path d="M6.8 6.5h6.4"></path><path d="M6.8 9h3.8"></path>',
+			'settings' => '<path d="M10 3.5 12 5l2.4-.5 1.1 2.1-1.6 1.9.1 1 1.7 1.8-1.1 2.2-2.5-.4-.9.6-.9 2.3H7.8l-.9-2.3-.9-.6-2.5.4-1.1-2.2 1.7-1.8.1-1-1.6-1.9 1.1-2.1L6 5l2-1.5h2Z"></path><path d="M10 12.4a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8Z"></path>',
+			'logout' => '<path d="M8.2 5H5.5A1.5 1.5 0 0 0 4 6.5v7A1.5 1.5 0 0 0 5.5 15h2.7"></path><path d="M11 7l3 3-3 3"></path><path d="M14 10H7.5"></path>',
+		];
+		return '<span class="top-account-link-icon" aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false">' . ($icons[$type] ?? $icons['user']) . '</svg></span>';
+	};
 	$topMessagesLabel = '&#28040;&#24687;';
 	$topInboxLabel = '收件箱';
 	$topOutboxLabel = trim(html_entity_decode((string)($lang_functions['title_sentbox'] ?? 'Outbox'), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
 	$topInboxTitle = trim(html_entity_decode((string)($lang_functions['title_inbox_no_new_messages'] ?? $topInboxLabel), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
 	$topUnreadCount = (int)$unread;
+	$topCheaterCount = 0;
+	if (user_can('cheatmanage')) {
+		$topCheaterCount = (int)get_row_count("cheaters");
+	}
+	$topReportCount = 0;
+	if (user_can('staffmem')) {
+		$topReportCount = (int)get_row_count("reports");
+	}
 	$topStaffMessageCount = 0;
 	if (user_can('staffmem')) {
 		$topStaffMessageCount = \App\Repositories\MessageRepository::getStaffMessageCountCache($CURUSER['id'], 'total');
@@ -2834,31 +3035,57 @@ else {
 ?>
 
 <div id="top-account-widget">
+	<div id="top-stats-bar" class="top-stats-bar">
+		<span class="top-stat"><i><?php echo $lang_functions['text_ratio'] ?? '分享率' ?></i><b><?php echo $ratio ?></b></span>
+		<a class="top-stat" href="mybonus.php"><i><?php echo $lang_functions['text_bonus'] ?? '电影票' ?></i><b><?php echo number_format($CURUSER['seedbonus'], 1) ?></b></a>
+		<a class="top-stat" href="invite.php?id=<?php echo (int)$CURUSER['id'] ?>"><i>邀请</i><b><?php echo (int)($topInviteCount ?? 0) ?></b></a>
+		<a class="top-stat" href="claim.php?uid=<?php echo (int)$CURUSER['id'] ?>"><i>认领</i><b><?php echo (int)($topClaimCount ?? 0) ?></b></a>
+		<span class="top-stat"><i><?php echo $lang_functions['text_active_torrents'] ?? '活动' ?></i><b><em class="up"><?php echo (int)($activeseed ?? 0) ?></em>/<em class="dn"><?php echo (int)($activeleech ?? 0) ?></em></b></span>
+		<a class="top-stat" href="userdetails.php?id=<?php echo (int)$CURUSER['id'] ?>"><i class="up"><?php echo $lang_functions['text_uploaded'] ?? '上传' ?></i><b><?php echo mksize($CURUSER['uploaded']) ?></b></a>
+		<a class="top-stat" href="userdetails.php?id=<?php echo (int)$CURUSER['id'] ?>"><i class="dn"><?php echo $lang_functions['text_downloaded'] ?? '下载' ?></i><b><?php echo mksize($CURUSER['downloaded']) ?></b></a>
+		<a class="top-stat" href="myhr.php"><i>H&amp;R</i><b><?php echo (int)($topHrCount ?? 0) ?></b></a>
+	</div>
 	<div class="top-account-entry">
 		<a class="top-account-trigger" href="userdetails.php?id=<?php echo (int)$CURUSER['id'] ?>" title="<?php echo htmlspecialchars($lang_functions['text_user_cp']) ?>">
 			<span class="top-account-avatar<?php echo $topAvatarUrl !== '' ? ' top-account-avatar--image' : '' ?>"><?php if ($topAvatarUrl !== '') { ?><img src="<?php echo htmlspecialchars($topAvatarUrl) ?>" alt="" loading="lazy" onerror="this.remove();this.parentNode.classList.remove('top-account-avatar--image');this.parentNode.textContent='<?php echo htmlspecialchars($topAvatar, ENT_QUOTES) ?>';" /><?php } else { echo htmlspecialchars($topAvatar); } ?></span>
 		</a>
 		<div class="top-account-dropdown">
-			<div class="top-theme-switch" role="group" aria-label="Theme switch">
-				<button type="button" class="top-theme-btn" data-theme-toggle data-theme="night" aria-label="Switch theme" title="Switch theme">&#9790;</button>
-			</div>
 			<div class="top-account-header">
-				<div class="top-account-name top-account-name--<?php echo htmlspecialchars($topUserTone) ?>"><?php echo htmlspecialchars($CURUSER['username']) ?></div>
-				<div class="top-account-level top-account-level--<?php echo htmlspecialchars($topUserTone) ?>"><?php echo htmlspecialchars($topUserClass) ?></div>
+				<div class="top-account-name top-account-name--<?php echo htmlspecialchars($topUserTone) ?> <?php echo htmlspecialchars($topUserClassColor) ?>"><?php echo htmlspecialchars($CURUSER['username']) ?></div>
+				<div class="top-theme-switch" role="group" aria-label="Theme switch">
+					<button type="button" class="top-theme-btn" data-theme-toggle data-theme="night" aria-label="Switch theme" title="Switch theme">&#9790;</button>
+				</div>
 			</div>
 			<div class="top-account-stats">
-				<div class="top-account-stat"><span><?php echo $lang_functions['text_ratio'] ?></span><b><?php echo $ratio ?></b></div>
-				<div class="top-account-stat"><span><?php echo $lang_functions['text_uploaded'] ?></span><b><?php echo mksize($CURUSER['uploaded']) ?></b></div>
-				<div class="top-account-stat"><span><?php echo $lang_functions['text_downloaded'] ?></span><b><?php echo mksize($CURUSER['downloaded']) ?></b></div>
-				<div class="top-account-stat"><span><?php echo $lang_functions['text_active_torrents'] ?></span><b><?php echo $activeseed ?>/<?php echo $activeleech ?></b></div>
-				<div class="top-account-stat"><span><?php echo $lang_functions['text_connectable'] ?></span><b><?php echo htmlspecialchars($topConnectableText) ?></b></div>
-				<div class="top-account-stat"><span><?php echo $lang_functions['text_bonus'] ?></span><b><?php echo number_format($CURUSER['seedbonus'], 1) ?></b></div>
+				<div class="top-account-stat top-account-stat-ratio"><span><?php echo $lang_functions['text_ratio'] ?></span><b><?php echo $ratio ?></b></div>
+				<div class="top-account-stat top-account-stat-uploaded"><span style="color: #008000 !important;"><?php echo $lang_functions['text_uploaded'] ?></span><b style="color: #008000 !important;"><?php echo mksize($CURUSER['uploaded']) ?></b></div>
+				<div class="top-account-stat top-account-stat-downloaded"><span style="color: #8b0000 !important;"><?php echo $lang_functions['text_downloaded'] ?></span><b style="color: #8b0000 !important;"><?php echo mksize($CURUSER['downloaded']) ?></b></div>
+				<div class="top-account-stat top-account-stat-active"><span><?php echo $lang_functions['text_active_torrents'] ?></span><b><img class="arrowup" alt="Torrents seeding" title="<?php echo $lang_functions['title_torrents_seeding'] ?>" src="pic/trans.gif" /><em class="top-account-active-up"><?php echo $activeseed ?></em><i>/</i><img class="arrowdown" alt="Torrents leeching" title="<?php echo $lang_functions['title_torrents_leeching'] ?>" src="pic/trans.gif" /><em class="top-account-active-down"><?php echo $activeleech ?></em></b></div>
+				<div class="top-account-stat top-account-stat-connectable"><span><?php echo $lang_functions['text_connectable'] ?></span><b><?php echo htmlspecialchars($topConnectableText) ?></b></div>
+				<a class="top-account-stat top-account-stat-link top-account-stat-bonus" href="mybonus.php"><span><?php echo $lang_functions['text_bonus'] ?></span><b><?php echo number_format($CURUSER['seedbonus'], 1) ?></b></a>
+				<a class="top-account-stat top-account-stat-link top-account-stat-invite" href="invite.php?id=<?php echo (int)$CURUSER['id'] ?>"><span>邀请</span><b><?php echo $topInviteCount ?></b></a>
+				<a class="top-account-stat top-account-stat-link top-account-stat-hr" href="myhr.php"><span>H&amp;R</span><b><?php echo $topHrCount ?></b></a>
+				<a class="top-account-stat top-account-stat-link top-account-stat-claim" href="claim.php?uid=<?php echo (int)$CURUSER['id'] ?>"><span>认领</span><b><?php echo $topClaimCount ?></b></a>
 			</div>
+			<?php if ($enabledonation == 'yes') { ?>
+			<a class="top-account-donate-card" href="donate.php">
+				<span class="top-account-donate-copy">
+					<strong>捐赠权益活动</strong>
+					<em>点我看看</em>
+				</span>
+				<span class="top-account-donate-action">去捐赠</span>
+			</a>
+			<?php } ?>
 			<div class="top-account-links">
-				<a href="usercp.php"><?php echo $lang_functions['text_user_cp'] ?></a>
-				<?php if ($showTopStaff) { ?><a href="staff.php"><?php echo htmlspecialchars($topStaffLabel) ?></a><?php } ?>
-				<a href="faq.php"><?php echo htmlspecialchars($normalizeTopLabel($lang_functions['text_faq'] ?? '', 'FAQ')) ?></a>
-				<a href="logout.php"><?php echo $lang_functions['text_logout'] ?></a>
+				<a class="top-account-menu-item top-account-menu-user" href="usercp.php"><?php echo $topAccountMenuIcon('user') ?><span><?php echo htmlspecialchars($lang_functions['text_user_cp']) ?></span></a>
+				<a class="top-account-menu-item top-account-menu-friends" href="friends.php"><?php echo $topAccountMenuIcon('friends') ?><span>好友社交</span></a>
+				<a class="top-account-menu-item top-account-menu-medal" href="medal.php"><?php echo $topAccountMenuIcon('medal') ?><span><?php echo htmlspecialchars(nexus_trans('medal.label') ?: '勋章') ?></span></a>
+				<a class="top-account-menu-item top-account-menu-task" href="task.php"><?php echo $topAccountMenuIcon('task') ?><span><?php echo htmlspecialchars(nexus_trans('exam.type_task') ?: '任务') ?></span></a>
+				<?php if ($showTopStaffPanel) { ?><a class="top-account-menu-item top-account-menu-panel" href="staffpanel.php"><?php echo $topAccountMenuIcon('panel') ?><span><?php echo htmlspecialchars($topStaffPanelLabel) ?></span></a><?php } ?>
+				<?php if ($showTopStaff) { ?><a class="top-account-menu-item top-account-menu-staff" href="staff.php"><?php echo $topAccountMenuIcon('staff') ?><span><?php echo htmlspecialchars($topStaffLabel) ?></span></a><?php } ?>
+				<?php if ($showTopSiteSettings) { ?><a class="top-account-menu-item top-account-menu-settings" href="settings.php"><?php echo $topAccountMenuIcon('settings') ?><span><?php echo htmlspecialchars($topSiteSettingsLabel) ?></span></a><?php } ?>
+				<?php if ($showTopManagementSystem) { ?><a class="top-account-menu-item top-account-menu-management" href="<?php echo htmlspecialchars($topManagementSystemUrl) ?>" target="_blank"><?php echo $topAccountMenuIcon('management') ?><span><?php echo htmlspecialchars($topManagementSystemLabel) ?></span></a><?php } ?>
+				<a class="top-account-menu-item top-account-menu-logout" href="logout.php"><?php echo $topAccountMenuIcon('logout') ?><span>退出登录</span></a>
 			</div>
 		</div>
 	</div>
@@ -2877,8 +3104,11 @@ else {
 			<div class="top-message-dropdown">
 				<a href="messages.php"><span><?php echo htmlspecialchars($topInboxLabel) ?></span><b><?php echo (int)$messages ?></b></a>
 				<a href="messages.php?action=viewmailbox&amp;box=-1"><span><?php echo htmlspecialchars($topOutboxLabel) ?></span><b><?php echo (int)$outmessages ?></b></a>
+				<?php if (user_can('cheatmanage')) { ?><a href="cheaterbox.php"><span><?php echo htmlspecialchars($lang_functions['title_cheaterbox'] ?? '作弊者') ?></span><b><?php echo (int)$topCheaterCount ?></b></a><?php } ?>
+				<?php if (user_can('staffmem')) { ?><a href="reports.php"><span><?php echo htmlspecialchars($lang_functions['title_reportbox'] ?? '举报信箱') ?></span><b><?php echo (int)$topReportCount ?></b></a><?php } ?>
 				<?php if ($topStaffMessageCount > 0 || user_can('staffmem')) { ?><a href="staffbox.php"><span><?php echo htmlspecialchars($lang_functions['title_staffbox'] ?? 'Staff Box') ?></span><b><?php echo (int)$topStaffMessageCount ?></b></a><?php } ?>
 				<?php if ($showTopContactStaff) { ?><a href="contactstaff.php" class="top-message-link-full"><span><?php echo htmlspecialchars($topContactStaffLabel) ?></span></a><?php } ?>
+				<a href="getrss.php" class="top-message-link-full"><span><?php echo htmlspecialchars($lang_functions['title_get_rss'] ?? 'RSS订阅') ?></span></a>
 			</div>
 		</div>
 		<a class="top-shortcut-link top-link-bookmarks" href="torrents.php?inclbookmarked=1&amp;allsec=1&amp;incldead=0">
@@ -2889,6 +3119,15 @@ else {
 			</span>
 			<span class="top-link-bookmarks-text"><?php echo $lang_functions['text_bookmarks'] ?></span>
 		</a>
+		<button type="button" class="top-shortcut-link top-link-layout" data-layout-toggle aria-label="切换宽屏/窄屏" aria-pressed="true">
+			<span class="top-link-layout-icon" aria-hidden="true">
+				<svg viewBox="0 0 20 20" class="top-link-layout-icon-svg" focusable="false">
+					<path d="M3.5 7.2V3.5H7.2M16.5 7.2V3.5H12.8M7.2 16.5H3.5V12.8M12.8 16.5H16.5V12.8" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"></path>
+					<path d="M7.1 7.1L3.9 3.9M12.9 7.1L16.1 3.9M7.1 12.9L3.9 16.1M12.9 12.9L16.1 16.1" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round"></path>
+				</svg>
+			</span>
+			<span class="top-link-layout-text">宽屏</span>
+		</button>
 		<?php if ($showTopUpload) { ?>
 		<a class="top-shortcut-link top-link-upload" href="upload.php" aria-label="发布">
 			<span class="top-link-upload-icon" aria-hidden="true">
@@ -2904,9 +3143,184 @@ else {
 	</div>
 </div>
 
+<!-- QD floating side tools: 返回旧版 / 个性化 (injected site-wide via stdhead) -->
+<style>
+.qd-side-tools{position:fixed;right:14px;top:50%;transform:translateY(-50%);z-index:9990;display:flex;flex-direction:column;gap:0;border-radius:14px;overflow:hidden;box-shadow:var(--bili-shadow-md,0 8px 24px rgba(24,25,28,.14));}
+.qd-side-btn{width:58px;height:58px;border:none;border-radius:0;background:var(--bili-surface,#fff);color:var(--bili-primary,#00aeec);box-shadow:none;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;text-decoration:none;line-height:1.05;transition:background .15s ease,color .15s ease;padding:0;}
+.qd-side-btn + .qd-side-btn{border-top:1px solid var(--bili-border,#e6e9ef);}
+.qd-side-btn:hover{background:var(--bili-surface-soft,#f2f3f5);color:var(--bili-primary-hover,#38bff2);}
+.qd-side-btn svg{width:21px;height:21px;margin-bottom:3px;}
+.qd-side-btn .qd-side-text{font-size:10px;white-space:nowrap;}
+@media (max-width:768px){.qd-side-tools{right:8px;}.qd-side-btn{width:50px;height:50px;}.qd-side-btn svg{width:18px;height:18px;}}
+.qd-modal{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;}
+.qd-modal[hidden]{display:none;}
+.qd-modal-mask{position:absolute;inset:0;background:rgba(0,0,0,.45);}
+.qd-modal-card{position:relative;width:340px;max-width:92vw;background:var(--bili-surface,#fff);color:var(--bili-text,#18191c);border-radius:var(--bili-radius-lg,16px);box-shadow:0 20px 60px rgba(0,0,0,.3);padding:20px 22px;}
+.qd-modal-card h3{margin:0 0 6px;font-size:17px;}
+.qd-modal-card .qd-modal-sub{margin:0 0 14px;font-size:12px;color:var(--bili-text-muted,#9499a0);}
+.qd-color-row{display:flex;align-items:center;justify-content:space-between;margin:11px 0;}
+.qd-color-row label{font-size:13px;color:var(--bili-text-secondary,#61666d);}
+.qd-color-row input[type=color]{width:44px;height:28px;border:1px solid var(--bili-border,#e6e9ef);border-radius:6px;background:none;cursor:pointer;padding:0;}
+.qd-presets{display:flex;gap:9px;margin:16px 0 4px;flex-wrap:wrap;align-items:center;}
+.qd-presets .qd-presets-label{font-size:12px;color:var(--bili-text-secondary,#61666d);margin-right:2px;}
+.qd-preset{width:26px;height:26px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--bili-border,#e6e9ef);cursor:pointer;}
+.qd-modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;}
+.qd-modal-actions button{border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer;}
+.qd-btn-reset{background:var(--bili-surface-soft,#f2f3f5);color:var(--bili-text-secondary,#61666d);}
+.qd-btn-apply{background:var(--bili-primary,#00aeec);color:#fff;}
+</style>
+<div class="qd-side-tools" id="qd-side-tools">
+	<a class="qd-side-btn" href="/old/" title="返回旧版">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path></svg>
+		<span class="qd-side-text">返回旧版</span>
+	</a>
+	<button type="button" class="qd-side-btn" data-layout-toggle aria-label="切换宽屏/窄屏" title="切换宽屏/窄屏">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M9 5v14"></path><path d="M15 5v14"></path></svg>
+		<span class="qd-side-text top-link-layout-text">宽屏</span>
+	</button>
+	<a class="qd-side-btn" href="/attendance.php" title="签到">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2.5"></rect><path d="M3 9.5h18"></path><path d="M8 2.5v4"></path><path d="M16 2.5v4"></path><path d="M8.4 14.6l2.3 2.3 4.9-4.9"></path></svg>
+		<span class="qd-side-text">签到</span>
+	</a>
+	<div class="qd-side-msg-wrap">
+	<a class="qd-side-btn" href="messages.php" title="消息">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"></rect><path d="M3.5 6.5l8.5 6 8.5-6"></path></svg>
+		<span class="qd-side-text">消息</span>
+<?php if (isset($topUnreadCount) && $topUnreadCount > 0) { ?>		<span class="qd-side-badge"><?php echo $topUnreadCount > 99 ? '99+' : $topUnreadCount ?></span>
+<?php } ?>	</a>
+		<div class="qd-side-submenu">
+			<a href="messages.php"><span><?php echo htmlspecialchars($topInboxLabel ?? '收件箱') ?></span><b><?php echo (int)($messages ?? 0) ?></b></a>
+			<a href="messages.php?action=viewmailbox&amp;box=-1"><span><?php echo htmlspecialchars($topOutboxLabel ?? '发件箱') ?></span><b><?php echo (int)($outmessages ?? 0) ?></b></a>
+<?php if (function_exists('user_can') && user_can('cheatmanage')) { ?>			<a href="cheaterbox.php"><span><?php echo htmlspecialchars($lang_functions['title_cheaterbox'] ?? '作弊者') ?></span><b><?php echo (int)($topCheaterCount ?? 0) ?></b></a>
+<?php } if (function_exists('user_can') && user_can('staffmem')) { ?>			<a href="reports.php"><span><?php echo htmlspecialchars($lang_functions['title_reportbox'] ?? '举报信箱') ?></span><b><?php echo (int)($topReportCount ?? 0) ?></b></a>
+<?php } if ((isset($topStaffMessageCount) && $topStaffMessageCount > 0) || (function_exists('user_can') && user_can('staffmem'))) { ?>			<a href="staffbox.php"><span><?php echo htmlspecialchars($lang_functions['title_staffbox'] ?? 'Staff Box') ?></span><b><?php echo (int)($topStaffMessageCount ?? 0) ?></b></a>
+<?php } if (!empty($showTopContactStaff)) { ?>			<a href="contactstaff.php"><span><?php echo htmlspecialchars($topContactStaffLabel ?? '联系管理组') ?></span></a>
+<?php } ?>			<a href="getrss.php"><span><?php echo htmlspecialchars($lang_functions['title_get_rss'] ?? 'RSS订阅') ?></span></a>
+		</div>
+	</div>
+	<a class="qd-side-btn" href="torrents.php?inclbookmarked=1&amp;allsec=1&amp;incldead=0" title="收藏">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l2.6 5.3 5.9.86-4.25 4.14 1 5.86L12 17.1l-5.25 2.76 1-5.86L3.5 9.66l5.9-.86L12 3.5z"></path></svg>
+		<span class="qd-side-text">收藏</span>
+	</a>
+	<button type="button" class="qd-side-btn" id="qd-personalize-btn" title="个性化配色">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="1.3"></circle><circle cx="17.5" cy="10.5" r="1.3"></circle><circle cx="8.5" cy="7.5" r="1.3"></circle><circle cx="6.5" cy="12.5" r="1.3"></circle><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c.93 0 1.5-.75 1.5-1.5 0-.4-.18-.74-.42-1-.24-.27-.42-.6-.42-1 0-.83.67-1.5 1.5-1.5H16c3.31 0 6-2.69 6-6 0-4.42-4.48-8-10-8z"></path></svg>
+		<span class="qd-side-text">个性化</span>
+	</button>
+	<a class="qd-side-btn" href="games/" title="游戏大厅">
+		<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6.35 7.9H4.75M5.55 7.1V8.7M13.05 7.9H13.06M15.25 9.55H15.26"></path><path d="M6.05 5.1H13.95C15.3 5.1 16.45 6.08 16.67 7.41L17.25 10.9C17.55 12.69 16.17 14.32 14.35 14.32C13.47 14.32 12.64 13.93 12.08 13.25L11.53 12.58H8.47L7.92 13.25C7.36 13.93 6.53 14.32 5.65 14.32C3.83 14.32 2.45 12.69 2.75 10.9L3.33 7.41C3.55 6.08 4.7 5.1 6.05 5.1Z"></path></svg>
+		<span class="qd-side-text">游戏大厅</span>
+	</a>
+</div>
+<style>
+.qd-swatch{width:48px;height:28px;border:1px solid var(--bili-border,#e6e9ef);border-radius:6px;cursor:pointer;padding:0;box-shadow:inset 0 0 0 1px rgba(255,255,255,.5);}
+.qd-picker{position:absolute;z-index:10002;width:212px;background:var(--bili-surface,#fff);border:1px solid var(--bili-border,#e6e9ef);border-radius:12px;box-shadow:0 14px 44px rgba(0,0,0,.3);padding:12px;}
+.qd-picker[hidden]{display:none;}
+.qd-pk-sv{position:relative;width:100%;height:128px;border-radius:8px;cursor:crosshair;overflow:hidden;}
+.qd-pk-sv-thumb{position:absolute;width:12px;height:12px;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.45);transform:translate(-50%,-50%);pointer-events:none;}
+.qd-pk-hue{position:relative;width:100%;height:14px;margin:12px 0 10px;border-radius:7px;cursor:pointer;background:linear-gradient(to right,#f00 0%,#ff0 17%,#0f0 33%,#0ff 50%,#00f 67%,#f0f 83%,#f00 100%);}
+.qd-pk-hue-thumb{position:absolute;top:50%;width:16px;height:16px;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.45);transform:translate(-50%,-50%);pointer-events:none;}
+.qd-pk-foot{display:flex;gap:8px;align-items:center;}
+.qd-pk-hex{flex:1;min-width:0;border:1px solid var(--bili-border,#e6e9ef);border-radius:6px;padding:6px 8px;font-size:13px;text-transform:uppercase;background:var(--bili-surface,#fff);color:var(--bili-text,#18191c);}
+.qd-pk-ok{background:var(--bili-primary,#00aeec);color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:13px;cursor:pointer;white-space:nowrap;}
+</style>
+<div class="qd-modal" id="qd-personalize-modal" hidden>
+	<div class="qd-modal-mask" data-qd-close></div>
+	<div class="qd-modal-card">
+		<h3>个性化配色</h3>
+		<p class="qd-modal-sub">点色块选颜色，实时预览；应用后保存到账号，换设备登录也生效。</p>
+		<div class="qd-color-row"><label>预设配色</label><select id="qd-preset-select" style="flex:0 0 auto;max-width:140px;border:1px solid var(--bili-border,#e6e9ef);border-radius:6px;padding:6px 8px;font-size:13px;background:var(--bili-surface,#fff);color:var(--bili-text,#18191c);cursor:pointer;"><option value="">— 选择预设 —</option><option value="0">默认</option><option value="1">樱花粉</option><option value="2">抹茶绿</option><option value="3">海洋蓝</option><option value="4">暮光紫</option><option value="5">落日橙</option><option value="6">性感紫</option><option value="7">妖娆紫</option><option value="8">魅惑紫</option><option value="9">清纯粉</option></select></div>
+		<div class="qd-color-row"><label>主色调</label><button type="button" class="qd-swatch" data-var="--bili-primary"></button></div>
+		<div class="qd-color-row"><label>强调色</label><button type="button" class="qd-swatch" data-var="--bili-accent"></button></div>
+		<div class="qd-color-row"><label>页面背景</label><button type="button" class="qd-swatch" data-var="--bili-bg"></button></div>
+		<div class="qd-color-row"><label>卡片背景</label><button type="button" class="qd-swatch" data-var="--bili-surface"></button></div>
+		<div class="qd-color-row"><label>文字颜色</label><button type="button" class="qd-swatch" data-var="--bili-text"></button></div>
+		<div class="qd-modal-actions">
+			<button type="button" class="qd-btn-reset" id="qd-color-reset">恢复默认</button>
+			<button type="button" class="qd-btn-apply" id="qd-color-apply">应用</button>
+		</div>
+		<div class="qd-picker" id="qd-picker" hidden>
+			<div class="qd-pk-sv" id="qd-pk-sv"><div class="qd-pk-sv-thumb" id="qd-pk-sv-thumb"></div></div>
+			<div class="qd-pk-hue" id="qd-pk-hue"><div class="qd-pk-hue-thumb" id="qd-pk-hue-thumb"></div></div>
+			<div class="qd-pk-foot"><input type="text" class="qd-pk-hex" id="qd-pk-hex" maxlength="7" spellcheck="false"><button type="button" class="qd-pk-ok" id="qd-pk-ok">确定</button></div>
+		</div>
+	</div>
+</div>
+<script>
+(function(){
+	var KEY='qd_custom_colors';
+	var VARS=['--bili-primary','--bili-accent','--bili-bg','--bili-surface','--bili-text'];
+	var root=document.documentElement;
+	function getSaved(){if(window.__QD_P__&&typeof window.__QD_P__==='object'){return window.__QD_P__;}try{return JSON.parse(localStorage.getItem(KEY)||'{}')||{};}catch(e){return {};}}
+	function isNight(){return root.getAttribute('data-site-theme')==='night'||(document.body&&document.body.classList.contains('theme-night'));}function applySaved(){var c=getSaved();for(var i=0;i<VARS.length;i++){if(isNight()||!c||!c[VARS[i]]){root.style.removeProperty(VARS[i]);}else{root.style.setProperty(VARS[i],c[VARS[i]]);}}}try{var qdMO=new MutationObserver(function(){applySaved();});qdMO.observe(root,{attributes:true,attributeFilter:['data-site-theme','class']});if(document.body){qdMO.observe(document.body,{attributes:true,attributeFilter:['class']});}}catch(e){}
+	applySaved();
+	function curVal(v){var s=getComputedStyle(root).getPropertyValue(v).trim();return s||'#000000';}
+	function toHex(c){
+		if(/^#([0-9a-f]{6})$/i.test(c)){return c.toLowerCase();}
+		if(/^#([0-9a-f]{3})$/i.test(c)){return ('#'+c[1]+c[1]+c[2]+c[2]+c[3]+c[3]).toLowerCase();}
+		var m=c.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+		if(m){var h='#';for(var i=1;i<=3;i++){h+=('0'+parseInt(m[i],10).toString(16)).slice(-2);}return h;}
+		return '#00aeec';
+	}
+	function hex2rgb(h){h=h.replace('#','');return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];}
+	function rgb2hex(r,g,b){return '#'+[r,g,b].map(function(x){return ('0'+Math.round(Math.max(0,Math.min(255,x))).toString(16)).slice(-2);}).join('');}
+	function rgb2hsv(r,g,b){r/=255;g/=255;b/=255;var mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn,h=0;if(d){if(mx===r)h=(((g-b)/d)%6+6)%6;else if(mx===g)h=(b-r)/d+2;else h=(r-g)/d+4;h*=60;}return [h,mx?d/mx:0,mx];}
+	function hsv2rgb(h,s,v){var c=v*s,x=c*(1-Math.abs((h/60)%2-1)),m=v-c,r=0,g=0,b=0;if(h<60){r=c;g=x;}else if(h<120){r=x;g=c;}else if(h<180){g=c;b=x;}else if(h<240){g=x;b=c;}else if(h<300){r=x;b=c;}else{r=c;b=x;}return [(r+m)*255,(g+m)*255,(b+m)*255];}
+
+	var modal=document.getElementById('qd-personalize-modal');
+	var openBtn=document.getElementById('qd-personalize-btn');
+	function swatches(){return modal.querySelectorAll('.qd-swatch');}
+	function setSwatch(el,hex){el.style.setProperty('background',hex,'important');el.setAttribute('data-color',hex);}
+	function openModal(){var c=getSaved();var sw=swatches();for(var i=0;i<sw.length;i++){var v=sw[i].getAttribute('data-var');setSwatch(sw[i],toHex((c&&c[v])||curVal(v)));}modal.hidden=false;}
+	function closeModal(){modal.hidden=true;picker.hidden=true;}
+	if(openBtn){openBtn.addEventListener('click',openModal);}
+
+	var picker=document.getElementById('qd-picker');
+	var svEl=document.getElementById('qd-pk-sv'),svThumb=document.getElementById('qd-pk-sv-thumb');
+	var hueEl=document.getElementById('qd-pk-hue'),hueThumb=document.getElementById('qd-pk-hue-thumb');
+	var hexInput=document.getElementById('qd-pk-hex'),okBtn=document.getElementById('qd-pk-ok');
+	var curSwatch=null,H=0,S=1,V=1;
+	function paint(live){
+		svEl.style.background='linear-gradient(to top,#000,rgba(0,0,0,0)),linear-gradient(to right,#fff,rgba(255,255,255,0)),'+rgb2hex.apply(null,hsv2rgb(H,1,1));
+		svThumb.style.left=(S*100)+'%';svThumb.style.top=((1-V)*100)+'%';
+		hueThumb.style.left=(H/360*100)+'%';
+		var hex=rgb2hex.apply(null,hsv2rgb(H,S,V));
+		hexInput.value=hex.toUpperCase();
+		if(curSwatch){setSwatch(curSwatch,hex);if(live!==false){root.style.setProperty(curSwatch.getAttribute('data-var'),hex);}}
+		return hex;
+	}
+	function openPicker(sw){
+		curSwatch=sw;
+		var hsv=rgb2hsv.apply(null,hex2rgb(toHex(sw.getAttribute('data-color')||curVal(sw.getAttribute('data-var')))));
+		H=hsv[0];S=hsv[1];V=hsv[2];
+		picker.hidden=false;
+		var card=sw.closest('.qd-modal-card'),cr=card.getBoundingClientRect(),sr=sw.getBoundingClientRect();
+		picker.style.left=Math.min(card.clientWidth-224,sr.left-cr.left)+'px';
+		picker.style.top=(sr.bottom-cr.top+6)+'px';
+		paint(false);
+	}
+	modal.addEventListener('click',function(e){if(e.target&&e.target.hasAttribute&&e.target.hasAttribute('data-qd-close')){applySaved();closeModal();return;}var sw=e.target.closest?e.target.closest('.qd-swatch'):null;if(sw){e.stopPropagation();openPicker(sw);}else if(!e.target.closest('.qd-picker')){picker.hidden=true;}});
+	function dragSV(e){var r=svEl.getBoundingClientRect();var x=((e.touches?e.touches[0].clientX:e.clientX)-r.left)/r.width;var y=((e.touches?e.touches[0].clientY:e.clientY)-r.top)/r.height;S=Math.max(0,Math.min(1,x));V=Math.max(0,Math.min(1,1-y));paint();}
+	function dragHue(e){var r=hueEl.getBoundingClientRect();var x=((e.touches?e.touches[0].clientX:e.clientX)-r.left)/r.width;H=Math.max(0,Math.min(359.99,x*360));paint();}
+	function bindDrag(el,fn){el.addEventListener('mousedown',function(e){e.preventDefault();fn(e);function mv(ev){fn(ev);}function up(){document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up);}document.addEventListener('mousemove',mv);document.addEventListener('mouseup',up);});el.addEventListener('touchstart',function(e){fn(e);function mv(ev){ev.preventDefault();fn(ev);}function up(){document.removeEventListener('touchmove',mv);document.removeEventListener('touchend',up);}document.addEventListener('touchmove',mv,{passive:false});document.addEventListener('touchend',up);},{passive:false});}
+	bindDrag(svEl,dragSV);bindDrag(hueEl,dragHue);
+	hexInput.addEventListener('input',function(){var val=hexInput.value.trim().replace('#','');if(/^[0-9a-fA-F]{6}$/.test(val)){var hsv=rgb2hsv.apply(null,hex2rgb('#'+val));H=hsv[0];S=hsv[1];V=hsv[2];paint();}});
+	okBtn.addEventListener('click',function(){picker.hidden=true;});
+
+	var PRESETS=[['#00aeec','#fb7299','#f6f7fb','#ffffff','#18191c'],['#fb7299','#f8a5c2','#fcdfe9','#fbcfdf','#5a3a44'],['#689f38','#9ccc65','#d3e8bb','#c6e0a8','#2e3d22'],['#1976d2','#4fc3f7','#cfe5f6','#bfddf2','#13314a'],['#7c4dff','#b388ff','#ddd0f5','#cfbef0','#2a2340'],['#f4511e','#ff8a65','#ffdcc9','#ffceb6','#4a2818'],['#9c27b0','#ff4081','#ecd6f4','#ddbbeb','#3b1d49'],['#ba68c8','#f06292','#f2e2f7','#e6cdf0','#45284f'],['#6a1b9a','#c2185b','#e3cbee','#cfaae2','#2f1340'],['#f48fb1','#f8bbd0','#fdf0f5','#fcdde9','#5a3a48']];
+	var psel=document.getElementById('qd-preset-select');
+	if(psel){psel.addEventListener('change',function(){var idx=parseInt(psel.value,10);if(isNaN(idx)||!PRESETS[idx]){return;}var preset=PRESETS[idx];var sw=swatches();for(var i=0;i<sw.length;i++){setSwatch(sw[i],preset[i]);root.style.setProperty(VARS[i],preset[i]);}picker.hidden=true;});}
+
+	document.getElementById('qd-color-apply').addEventListener('click',function(){var c={},sw=swatches();for(var i=0;i<sw.length;i++){var v=sw[i].getAttribute('data-var'),hex=sw[i].getAttribute('data-color');c[v]=hex;root.style.setProperty(v,hex);}try{localStorage.setItem(KEY,JSON.stringify(c));}catch(e){}window.__QD_P__=c;try{fetch('ajax.php',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'action=savePersonalize&params%5Bdata%5D='+encodeURIComponent(JSON.stringify(c))});}catch(e){}closeModal();});
+	document.getElementById('qd-color-reset').addEventListener('click',function(){try{localStorage.removeItem(KEY);}catch(e){}for(var i=0;i<VARS.length;i++){root.style.removeProperty(VARS[i]);}window.__QD_P__=null;var sv=document.getElementById('qd-personalize-vars');if(sv){sv.textContent='';}if(psel){psel.value='';}try{fetch('ajax.php',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'action=clearPersonalize&params%5Bx%5D=1'});}catch(e){}closeModal();});
+})();
+</script>
+
+<!-- /QD floating side tools -->
+
 <script>
 (function () {
 	var THEME_KEY = 'nexus_site_theme';
+	var LAYOUT_KEY = 'nexus_layout_width';
 	var root = document.documentElement;
 	var body = document.body;
 
@@ -2946,6 +3360,35 @@ else {
 		}
 	}
 
+	function updateLayoutButtons(mode) {
+		var buttons = document.querySelectorAll('[data-layout-toggle]');
+		for (var i = 0; i < buttons.length; i++) {
+			var btn = buttons[i];
+			var isWide = mode === 'wide';
+			btn.setAttribute('aria-pressed', isWide ? 'true' : 'false');
+			btn.setAttribute('aria-label', isWide ? '当前宽屏，点击切换窄屏' : '当前窄屏，点击切换宽屏');
+			btn.setAttribute('title', isWide ? '当前宽屏，点击切换窄屏' : '当前窄屏，点击切换宽屏');
+			var text = btn.querySelector('.top-link-layout-text');
+			if (text) {
+				text.textContent = isWide ? '窄屏' : '宽屏';
+			}
+		}
+	}
+
+	function applyLayout(mode, persist) {
+		var resolved = mode === 'narrow' ? 'narrow' : 'wide';
+		if (body) {
+			body.classList.toggle('layout-wide', resolved === 'wide');
+			body.classList.toggle('layout-narrow', resolved === 'narrow');
+		}
+		updateLayoutButtons(resolved);
+		if (persist) {
+			try {
+				localStorage.setItem(LAYOUT_KEY, resolved);
+			} catch (e) {}
+		}
+	}
+
 	var savedTheme = null;
 	try {
 		savedTheme = localStorage.getItem(THEME_KEY);
@@ -2954,6 +3397,12 @@ else {
 	if (body) {
 		body.classList.add('has-top-tools');
 	}
+
+	var savedLayout = null;
+	try {
+		savedLayout = localStorage.getItem(LAYOUT_KEY);
+	} catch (e) {}
+	applyLayout(savedLayout === 'narrow' ? 'narrow' : 'wide', false);
 
 	if (savedTheme === 'day' || savedTheme === 'night') {
 		applyTheme(savedTheme, false);
@@ -2971,14 +3420,71 @@ else {
 			return;
 		}
 		var btn = target.closest ? target.closest('.top-theme-btn[data-theme]') : null;
-		if (!btn) {
+		var layoutBtn = target.closest ? target.closest('[data-layout-toggle]') : null;
+		if (!btn && !layoutBtn) {
 			return;
 		}
 		event.preventDefault();
+		if (layoutBtn) {
+			applyLayout(body && body.classList.contains('layout-wide') ? 'narrow' : 'wide', true);
+			return;
+		}
 		applyTheme(btn.getAttribute('data-theme'), true);
 	});
 })();
 </script>
+
+<?php if ($showTopAttendancePrompt) {
+	$topAttendancePromptKey = sprintf('attendance_prompt_%u_%s', (int)$CURUSER['id'], date('Ymd'));
+?>
+<script>
+(function () {
+	var promptKey = <?php echo json_encode($topAttendancePromptKey) ?>;
+	var attendanceUrl = 'attendance.php?inframe=1';
+
+	function hasPrompted() {
+		try {
+			return window.localStorage && localStorage.getItem(promptKey) === '1';
+		} catch (error) {
+			return false;
+		}
+	}
+
+	function markPrompted() {
+		try {
+			if (window.localStorage) {
+				localStorage.setItem(promptKey, '1');
+			}
+		} catch (error) {}
+	}
+
+	function openAttendancePrompt() {
+		if (hasPrompted()) {
+			return;
+		}
+		markPrompted();
+		if (window.layer && typeof layer.open === 'function') {
+			layer.open({
+				type: 2,
+				title: '每日签到',
+				area: ['760px', '620px'],
+				shadeClose: true,
+				maxmin: true,
+				content: attendanceUrl
+			});
+			return;
+		}
+		window.open(attendanceUrl, 'attendance_checkin', 'width=760,height=620');
+	}
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', openAttendancePrompt);
+	} else {
+		window.setTimeout(openAttendancePrompt, 0);
+	}
+})();
+</script>
+<?php } ?>
 
 <?php
 ?>
@@ -3071,7 +3577,144 @@ print '<br/>';
 
 </td></tr>
 
-<?php if (nexus()->getScript() !== 'upload') { ?>
+<?php if (!in_array(nexus()->getScript(), ['upload', 'details'], true) && empty($GLOBALS['nexus_hide_top_banner']) && get_setting('basic.show_carousel') != 'no') {
+	$nexusTopBannerItems = [];
+	if ($Advertisement && $Advertisement->enable_ad()) {
+		foreach (['header', 'belownav'] as $nexusAdPosition) {
+			$nexusAdRows = $Advertisement->get_ad($nexusAdPosition);
+			if (!$nexusAdRows) {
+				continue;
+			}
+			foreach ($nexusAdRows as $nexusAdCode) {
+				if (!preg_match('/<img\b[^>]*\bsrc=(["\'])(.*?)\1/i', $nexusAdCode, $nexusImgMatch)) {
+					continue;
+				}
+				$nexusAdCover = html_entity_decode($nexusImgMatch[2], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+				if ($nexusAdCover === '' || stripos($nexusAdCover, 'data:image/svg') === 0) {
+					continue;
+				}
+				$nexusAdLink = 'torrents.php';
+				if (preg_match('/<a\b[^>]*\bhref=(["\'])(.*?)\1/i', $nexusAdCode, $nexusLinkMatch)) {
+					$nexusAdLink = html_entity_decode($nexusLinkMatch[2], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+				}
+				$nexusTopBannerItems[] = [
+					'link' => $nexusAdLink,
+					'title' => 'HDVideo',
+					'desc' => '站点海报',
+					'cover' => $nexusAdCover,
+					'kind' => 'ad',
+				];
+			}
+		}
+	}
+	if (!$nexusTopBannerItems) {
+		$nexusPickPoster = function ($chunks) {
+			$rejects = [
+				'default_avatar',
+				'/avatars/',
+				'/avatar/',
+				'/smilies/',
+				'/pic/trans.gif',
+				'/pic/default',
+				'data:image/svg',
+			];
+			foreach ($chunks as $chunk) {
+				$text = html_entity_decode((string)$chunk, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+				if ($text === '') {
+					continue;
+				}
+				$candidates = [];
+				if (preg_match('/^https?:\/\//i', trim($text))) {
+					$candidates[] = trim($text);
+				}
+				if (preg_match('/^(?:\/|\.\/|\.\.\/|[a-z0-9_.-]+\/)[^\s"\'<>\]]+\.(?:jpe?g|png|webp)(?:\?[^\s"\'<>\]]*)?$/i', trim($text))) {
+					$candidates[] = trim($text);
+				}
+				if (preg_match_all('/\[img(?:=[^\]]*)?\]\s*(https?:\/\/[^\[\]\s]+)\s*\[\/img\]/i', $text, $matches)) {
+					$candidates = array_merge($candidates, $matches[1]);
+				}
+				if (preg_match_all('/<img\b[^>]*\bsrc=(["\'])(.*?)\1/i', $text, $matches)) {
+					$candidates = array_merge($candidates, $matches[2]);
+				}
+				if (preg_match_all('/https?:\/\/[^\s"\'<>\]]+\.(?:jpe?g|png|webp)(?:\?[^\s"\'<>\]]*)?/i', $text, $matches)) {
+					$candidates = array_merge($candidates, $matches[0]);
+				}
+				foreach ($candidates as $candidate) {
+					$url = trim(html_entity_decode($candidate, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+					if ($url === '' || stripos($url, 'data:image/svg') === 0) {
+						continue;
+					}
+					$lower = strtolower($url);
+					$skip = false;
+					foreach ($rejects as $reject) {
+						if (strpos($lower, $reject) !== false) {
+							$skip = true;
+							break;
+						}
+					}
+					if ($skip) {
+						continue;
+					}
+					return $url;
+				}
+			}
+			return '';
+		};
+		$nexusBannerDescrField = function_exists('hdvideo_column_exists') && hdvideo_column_exists('torrents', 'descr') ? "COALESCE(NULLIF(torrent_extras.descr, ''), torrents.descr)" : "torrent_extras.descr";
+		$nexusBannerImdb = null;
+		$nexusPickTorrentPoster = function ($nexusTorrentPoster) use ($nexusPickPoster, &$nexusBannerImdb) {
+			$nexusTorrentCover = $nexusPickPoster([
+				$nexusTorrentPoster['imdb_info'] ?? '',
+				$nexusTorrentPoster['cover'] ?? '',
+				$nexusTorrentPoster['poster_descr'] ?? '',
+				$nexusTorrentPoster['extra_pt_gen'] ?? '',
+			]);
+			if ($nexusTorrentCover === '' && !empty($nexusTorrentPoster['url']) && function_exists('parse_imdb_id')) {
+				$imdbId = parse_imdb_id($nexusTorrentPoster['url']);
+				if ($imdbId) {
+					try {
+						if ($nexusBannerImdb === null) {
+							$nexusBannerImdb = new \Nexus\Imdb\Imdb();
+						}
+						$nexusTorrentCover = (string)$nexusBannerImdb->getMovie($imdbId)->photo(true);
+					} catch (\Exception $exception) {
+						do_log($exception->getMessage() . "\n[stacktrace]\n" . $exception->getTraceAsString(), 'error');
+					}
+				}
+			}
+			return $nexusTorrentCover;
+		};
+		$nexusTorrentPosterSqlBase = "SELECT torrents.id, torrents.name, torrents.small_descr, torrents.cover, torrents.url, $nexusBannerDescrField AS poster_descr, torrent_extras.pt_gen AS extra_pt_gen, torrent_extras.imdb_info FROM torrents LEFT JOIN torrent_extras ON torrents.id = torrent_extras.torrent_id";
+		$nexusTorrentPosterQueries = [
+			"$nexusTorrentPosterSqlBase WHERE torrents.visible = 'yes' AND torrents.banned = 'no' AND torrents.seeders > 0 AND torrents.picktype = 'recommended' AND (torrents.cover != '' OR torrents.url != '' OR $nexusBannerDescrField != '' OR torrent_extras.pt_gen != '' OR torrent_extras.imdb_info != '') ORDER BY torrents.id DESC LIMIT 30",
+		];
+		$nexusSeenBannerTorrentIds = [];
+		foreach ($nexusTorrentPosterQueries as $nexusTorrentPosterSql) {
+			$nexusTorrentPosterRes = sql_query($nexusTorrentPosterSql);
+			while ($nexusTorrentPoster = mysql_fetch_assoc($nexusTorrentPosterRes)) {
+				$nexusTorrentId = (int)$nexusTorrentPoster['id'];
+				if (isset($nexusSeenBannerTorrentIds[$nexusTorrentId])) {
+					continue;
+				}
+				$nexusSeenBannerTorrentIds[$nexusTorrentId] = true;
+				$nexusTorrentCover = $nexusPickTorrentPoster($nexusTorrentPoster);
+				if ($nexusTorrentCover === '') {
+					continue;
+				}
+				$nexusTopBannerItems[] = [
+					'link' => 'details.php?id=' . $nexusTorrentId,
+					'title' => $nexusTorrentPoster['name'] ?: 'Torrent Detail',
+					'desc' => $nexusTorrentPoster['small_descr'] ?: 'Open torrent details',
+					'cover' => $nexusTorrentCover,
+					'kind' => 'torrent',
+				];
+				if (count($nexusTopBannerItems) >= 6) {
+					break 2;
+				}
+			}
+		}
+	}
+?>
 <tr><td class="text" align="center">
 	<div id="global-top-banner" class="global-top-banner qd-style" aria-label="Top Banner Carousel">
 		<div class="global-top-banner-shell">
@@ -3107,15 +3750,13 @@ print '<br/>';
 			return;
 		}
 
-		var items = [{
-			link: 'torrents.php',
-			title: 'Trending Torrents',
-			desc: 'Poster carousel is ready.',
-			cover: ''
-		}];
+		var advertisementItems = <?php echo json_encode($nexusTopBannerItems, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>;
+		var fallbackItems = [];
+		var items = [];
 
 		var timer = null;
 		var current = 0;
+		function proxify(u){if(!u)return u;return /doubanio\.com|douban\.com|media-amazon\.com|ssl-images-amazon\.com|tmdb\.org/i.test(u)?('imgproxy.php?u='+encodeURIComponent(u)):u;}
 
 		function normalizeOffset(offset, len) {
 			if (len <= 1) {
@@ -3132,16 +3773,17 @@ print '<br/>';
 
 		function cardMetrics(offset) {
 			var distance = Math.abs(offset);
+			var direction = offset < 0 ? -1 : 1;
 			if (distance === 0) {
-				return { scale: 1, x: 0, y: 0, opacity: 1, z: 9 };
+				return { scale: 1.08, x: 0, y: 0, opacity: 1, z: 12 };
 			}
 			if (distance === 1) {
-				return { scale: 0.82, x: offset * 72, y: 12, opacity: 0.96, z: 8 };
+				return { scale: 0.9, x: direction * 142, y: 12, opacity: 0.92, z: 10 };
 			}
 			if (distance === 2) {
-				return { scale: 0.66, x: offset * 116, y: 24, opacity: 0.65, z: 7 };
+				return { scale: 0.72, x: direction * 280, y: 28, opacity: 0.62, z: 8 };
 			}
-			return { scale: 0.5, x: offset * 152, y: 34, opacity: 0.25, z: 6 };
+			return { scale: 0.58, x: direction * 410, y: 40, opacity: 0.28, z: 6 };
 		}
 
 		function render() {
@@ -3163,6 +3805,9 @@ print '<br/>';
 
 				var card = document.createElement('a');
 				card.className = 'global-top-banner-card' + (offset === 0 ? ' is-active' : '');
+				if (item.kind) {
+					card.className += ' is-' + String(item.kind).replace(/[^a-z0-9_-]+/ig, '');
+				}
 				card.href = item.link;
 				card.setAttribute('data-index', String(i));
 				card.style.transform = 'translate(-50%, -50%) translateX(' + metric.x + 'px) translateY(' + metric.y + 'px) scale(' + metric.scale + ')';
@@ -3175,8 +3820,9 @@ print '<br/>';
 				if (item.cover) {
 					var image = document.createElement('img');
 					image.className = 'global-top-banner-card-image';
-					image.src = item.cover;
 					image.alt = item.title;
+					image.referrerPolicy = 'no-referrer';
+					image.src = proxify(item.cover);
 					if (i !== current) {
 						image.loading = 'lazy';
 					}
@@ -3187,6 +3833,16 @@ print '<br/>';
 					ph.textContent = 'No Poster';
 					card.appendChild(ph);
 				}
+
+				var caption = document.createElement('span');
+				caption.className = 'global-top-banner-card-caption';
+				var captionTitle = document.createElement('strong');
+				captionTitle.textContent = item.title || 'Torrent Detail';
+				var captionDesc = document.createElement('em');
+				captionDesc.textContent = item.desc || 'Open torrent details';
+				caption.appendChild(captionTitle);
+				caption.appendChild(captionDesc);
+				card.appendChild(caption);
 
 				card.addEventListener('click', function (e) {
 					var idx = Number(this.getAttribute('data-index') || '0');
@@ -3241,6 +3897,42 @@ print '<br/>';
 			if (items.length > 1) {
 				timer = window.setInterval(nextSlide, 5000);
 			}
+		}
+
+		function normalizeBannerLink(link) {
+			var value = String(link || 'torrents.php').replace(/#.*$/, '');
+			var detail = value.match(/(?:^|\/)details\.php\?id=(\d+)/i);
+			if (detail && detail[1]) {
+				return 'details:' + detail[1];
+			}
+			return value.replace(/([?&])hit=1\b/i, '$1').replace(/[?&]$/, '');
+		}
+
+		function setBannerItems(nextItems) {
+			var deduped = [];
+			var seenLinks = {};
+			var seenCovers = {};
+			for (var i = 0; i < nextItems.length; i++) {
+				var item = nextItems[i] || {};
+				var key = normalizeBannerLink(item.link);
+				var coverKey = String(item.cover || '');
+				if (seenLinks[key] || (coverKey && seenCovers[coverKey])) {
+					continue;
+				}
+				seenLinks[key] = 1;
+				if (coverKey) {
+					seenCovers[coverKey] = 1;
+				}
+				deduped.push(item);
+			}
+			items = deduped.length ? deduped : fallbackItems.slice();
+			current = 0;
+			render();
+			restartTimer();
+		}
+
+		function useFallbackItems() {
+			banner.style.display = 'none';
 		}
 
 		if (prevBtn) {
@@ -3312,13 +4004,14 @@ print '<br/>';
 			var seen = {};
 			for (var i = 0; i < sourceLinks.length; i++) {
 				var href = sourceLinks[i].getAttribute('href') || '';
-				if (!/(^|\/)details\.php\?id=\d+/i.test(href)) {
+				var detailMatch = href.match(/(?:^|\/)details\.php\?id=(\d+)/i);
+				if (!detailMatch || !detailMatch[1]) {
 					continue;
 				}
-				if (!href || seen[href]) {
+				if (seen[detailMatch[1]]) {
 					continue;
 				}
-				seen[href] = 1;
+				seen[detailMatch[1]] = 1;
 				var rowText = '';
 				var cell = sourceLinks[i].closest('td');
 				if (cell) {
@@ -3339,8 +4032,7 @@ print '<br/>';
 			}
 
 			if (!unique.length) {
-				render();
-				restartTimer();
+				useFallbackItems();
 				return;
 			}
 
@@ -3395,20 +4087,18 @@ print '<br/>';
 						cover: fetchedItems[k].cover
 					});
 				}
-				items = withDesc;
-				current = 0;
-				render();
-				restartTimer();
+				setBannerItems(withDesc);
 			} else {
-				render();
-				restartTimer();
+				useFallbackItems();
 			}
 		}
 
-		render();
-		restartTimer();
 		window.addEventListener('load', function () {
-			window.setTimeout(hydrateFromTorrentDetails, 200);
+			if (advertisementItems && advertisementItems.length) {
+				setBannerItems(advertisementItems);
+				return;
+			}
+			useFallbackItems();
 		});
 	})();
 	</script>
@@ -4114,11 +4804,49 @@ function torrenttable($rows, $variant = "torrent", $searchBoxId = 0) {
 
 	$torrent = new Nexus\Torrent\Torrent();
 	$torrentRep = new \App\Repositories\TorrentRepository();
-    $imdb = new \Nexus\Imdb\Imdb();
-	$imdbCoverCache = [];
-	$imdbRatingCache = [];
 	$torrentDescrCoverCache = [];
-	$torrentDetailsCoverCache = [];
+	$isValidTorrentPosterUrl = static function ($url, $imgTag = '') {
+		$url = trim(html_entity_decode((string)$url, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+		if ($url === '' || stripos($url, 'http') !== 0) {
+			return false;
+		}
+		$haystack = strtolower($url . ' ' . (string)$imgTag);
+		$blocked = [
+			'alt="avatar"', "alt='avatar'", 'check_avatar', 'default_avatar', '/avatar', 'avatar/',
+			'userdetails.php', 'pic/trans.gif', 'pic/cattrans.gif', 'pic/smilies/', 'pic/flag/',
+			'progressbar.gif', 'spinner.svg', 'image.php?action=regimage', 'favicon.ico',
+			'logo', 'donate.gif', 'sprites', 'passkey', 'data:image/svg',
+		];
+		foreach ($blocked as $needle) {
+			if (strpos($haystack, $needle) !== false) {
+				return false;
+			}
+		}
+		return true;
+	};
+	$pickTorrentPosterFromText = static function ($descrText) use ($isValidTorrentPosterUrl) {
+		$descrText = (string)$descrText;
+		if ($descrText === '') {
+			return '';
+		}
+		if (preg_match_all('/<img\b[^>]*\bsrc=[\"\']([^\"\']+)[\"\'][^>]*>/i', $descrText, $matches, PREG_SET_ORDER)) {
+			foreach ($matches as $match) {
+				$candidate = trim((string)($match[1] ?? ''));
+				if ($isValidTorrentPosterUrl($candidate, (string)($match[0] ?? ''))) {
+					return $candidate;
+				}
+			}
+		}
+		if (preg_match_all('/\[img(?:=[^\]]+)?\](https?:\/\/[^\[]+)\[\/img\]/i', $descrText, $matches, PREG_SET_ORDER)) {
+			foreach ($matches as $match) {
+				$candidate = trim((string)($match[1] ?? ''));
+				if ($isValidTorrentPosterUrl($candidate)) {
+					return $candidate;
+				}
+			}
+		}
+		return '';
+	};
 	$torrentIdArr = $ownerIdArr = [];
 	foreach($rows as $row) {
 	    $torrentIdArr[] = $row['id'];
@@ -4127,10 +4855,10 @@ function torrenttable($rows, $variant = "torrent", $searchBoxId = 0) {
 	unset($row);
 
     $enableImdb = get_setting("main.showimdbinfo") == 'yes';
-    $enablePtGen = get_setting('main.enable_pt_gen_systemyes') == 'yes';
+    $enablePtGen = get_setting('main.enable_pt_gen_system') == 'yes';
 
 	$torrentSeedingLeechingStatus = $torrent->listLeechingSeedingStatus($CURUSER['id'], $torrentIdArr);
-    $ptGenInfo = TorrentExtra::query()->whereIn('torrent_id', $torrentIdArr)->pluck('pt_gen', 'torrent_id')->toArray();
+    $torrentExtraInfo = TorrentExtra::query()->whereIn('torrent_id', $torrentIdArr)->get(['torrent_id', 'pt_gen', 'imdb_info'])->keyBy('torrent_id');
     $tagRep = new \App\Repositories\TagRepository();
 	$torrentTagCollection = \App\Models\TorrentTag::query()->whereIn('torrent_id', $torrentIdArr)->get();
 	$torrentTagResult = $torrentTagCollection->groupBy('torrent_id');
@@ -4176,12 +4904,14 @@ function torrenttable($rows, $variant = "torrent", $searchBoxId = 0) {
         if (empty($searchBoxExtra[\App\Models\SearchBox::EXTRA_DISPLAY_SEED_BOX_ICON_ON_TORRENT_LIST])) {
             $showSeedBoxIcon = false;
         }
-    }
+	}
 	if (($showCover || $needCardCover) && !empty($torrentIdArr)) {
-		$torrentExtraDescrMap = \App\Models\TorrentExtra::query()
-			->whereIn('torrent_id', $torrentIdArr)
-			->pluck('descr', 'torrent_id')
-			->toArray();
+		$descrTorrentIds = array_map('intval', $torrentIdArr);
+		$descrField = function_exists('hdvideo_column_exists') && hdvideo_column_exists('torrents', 'descr') ? "COALESCE(NULLIF(torrent_extras.descr, ''), torrents.descr)" : "torrent_extras.descr";
+		$descrRes = sql_query("SELECT torrents.id, $descrField AS poster_descr FROM torrents LEFT JOIN torrent_extras ON torrents.id = torrent_extras.torrent_id WHERE torrents.id IN (" . implode(',', $descrTorrentIds) . ")") or sqlerr(__FILE__, __LINE__);
+		while ($descrRow = mysql_fetch_assoc($descrRes)) {
+			$torrentExtraDescrMap[(int)$descrRow['id']] = (string)($descrRow['poster_descr'] ?? '');
+		}
 	}
 	if ($needCardCover && !empty($torrentIdArr) && !empty($cardStyleMap) && function_exists('hdvideo_table_exists') && hdvideo_table_exists('torrent_style_torrent')) {
 		$styleTorrentIds = array_map('intval', $torrentIdArr);
@@ -4386,101 +5116,41 @@ foreach ($rows as $row)
 	//cover
     $coverSrc = $tdCover = '';
 	$cardRating = '';
+	$rowExtra = $torrentExtraInfo[$row['id']] ?? null;
+	$rowPtGenInfo = $rowExtra ? ($rowExtra->pt_gen ?? []) : [];
+	$rowImdbInfo = $rowExtra ? (string)($rowExtra->imdb_info ?? '') : '';
+	$rowImdbCover = $pickTorrentPosterFromText($rowImdbInfo);
 
     if ($showCover || $needCardCover) {
-		$imdb_id = !empty($row['url']) ? parse_imdb_id($row["url"]) : '';
-		if (!empty($row['cover'])) {
+		$torrentId = (int)$id;
+		if ($torrentId > 0) {
+			if (isset($torrentDescrCoverCache[$torrentId])) {
+				$coverSrc = $torrentDescrCoverCache[$torrentId];
+			} else {
+				$coverFromDescr = $pickTorrentPosterFromText((string)($torrentExtraDescrMap[$torrentId] ?? ''));
+				if ($coverFromDescr !== '' && !$isValidTorrentPosterUrl($coverFromDescr)) {
+					$coverFromDescr = '';
+				}
+				$torrentDescrCoverCache[$torrentId] = $coverFromDescr;
+				$coverSrc = $coverFromDescr;
+			}
+		}
+		if (empty($coverSrc)) {
+			$coverSrc = $rowImdbCover;
+		}
+		if (empty($coverSrc) && !empty($row['cover']) && $isValidTorrentPosterUrl($row['cover'])) {
 			$coverSrc = $row['cover'];
 		}
-        if ($imdb_id) {
-			if (isset($imdbRatingCache[$imdb_id])) {
-				$cardRating = $imdbRatingCache[$imdb_id];
-			} else {
-				$ratingValue = $imdb->getRating($imdb_id);
-				if (!is_numeric($ratingValue)) {
-					try {
-						$ratingValue = $imdb->getMovie($imdb_id)->rating();
-					} catch (\Exception $exception) {
-						do_log(sprintf('torrent: %d imdb_id: %s get rating failed: %s', $id, $imdb_id, $exception->getMessage()), 'error');
-					}
-				}
-				$cardRating = is_numeric($ratingValue) ? number_format((float)$ratingValue, 1) : '';
-				$imdbRatingCache[$imdb_id] = $cardRating;
-			}
-            if (empty($coverSrc)) {
-				if (isset($imdbCoverCache[$imdb_id])) {
-					$coverSrc = $imdbCoverCache[$imdb_id];
-				} else {
-					$coverSrc = $imdb->getMovieCover($imdb_id);
-					if (empty($coverSrc)) {
-						try {
-							$coverSrc = (string)$imdb->getMovie($imdb_id)->photo(true);
-						} catch (\Exception $exception) {
-							do_log(sprintf('torrent: %d imdb_id: %s get cover failed: %s', $id, $imdb_id, $exception->getMessage()), 'error');
-						}
-					}
-					$imdbCoverCache[$imdb_id] = $coverSrc;
-				}
-            }
-        }
 		if (empty($coverSrc)) {
-			$torrentId = (int)$id;
-			if ($torrentId > 0) {
-				if (isset($torrentDescrCoverCache[$torrentId])) {
-					$coverSrc = $torrentDescrCoverCache[$torrentId];
-				} else {
-					$coverFromDescr = '';
-					$descrText = (string)($torrentExtraDescrMap[$torrentId] ?? '');
-					if ($descrText !== '') {
-						if (preg_match('/<img[^>]+src=[\"\']([^\"\']+)[\"\']/i', $descrText, $matches)) {
-							$coverFromDescr = trim((string)($matches[1] ?? ''));
-						} elseif (preg_match('/\[img(?:=[^\]]+)?\](https?:\/\/[^\[]+)\[\/img\]/i', $descrText, $matches)) {
-							$coverFromDescr = trim((string)($matches[1] ?? ''));
-						}
-					}
-					if ($coverFromDescr !== '' && stripos($coverFromDescr, 'http') !== 0) {
-						$coverFromDescr = '';
-					}
-					$torrentDescrCoverCache[$torrentId] = $coverFromDescr;
-					$coverSrc = $coverFromDescr;
-				}
-			}
-		}
-		if (empty($coverSrc)) {
-			$torrentId = (int)$id;
-			if ($torrentId > 0) {
-				if (isset($torrentDetailsCoverCache[$torrentId])) {
-					$coverSrc = $torrentDetailsCoverCache[$torrentId];
-				} else {
-					$coverFromDetails = '';
-					$detailsUrl = sprintf('%s/details.php?id=%d', getSchemeAndHttpHost(), $torrentId);
-					$context = stream_context_create([
-						'http' => [
-							'timeout' => 3,
-							'ignore_errors' => true,
-						],
-					]);
-					$detailsHtml = @file_get_contents($detailsUrl, false, $context);
-					if (is_string($detailsHtml) && $detailsHtml !== '') {
-						if (preg_match('/<img[^>]+src=[\"\'](https?:\/\/m\.media-amazon\.com\/images\/[^\"\']+)[\"\']/i', $detailsHtml, $matches)) {
-							$coverFromDetails = trim((string)($matches[1] ?? ''));
-						} elseif (preg_match('/<img[^>]+src=[\"\'](https?:\/\/[^\"\']+)[\"\']/i', $detailsHtml, $matches)) {
-							$coverFromDetails = trim((string)($matches[1] ?? ''));
-						}
-					}
-					if ($coverFromDetails !== '' && stripos($coverFromDetails, 'http') !== 0) {
-						$coverFromDetails = '';
-					}
-					$torrentDetailsCoverCache[$torrentId] = $coverFromDetails;
-					$coverSrc = $coverFromDetails;
-				}
-			}
+			$ptGenText = is_array($rowPtGenInfo) ? json_encode($rowPtGenInfo, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : (string)$rowPtGenInfo;
+			$coverSrc = $pickTorrentPosterFromText($ptGenText);
 		}
 		if ($showCover) {
 			$tdCover = sprintf('<td class="embedded" style="text-align: center;width: 46px;height: 46px"><img src="pic/misc/spinner.svg" data-src="%s" class="nexus-lazy-load" style="max-height: 46px;max-width: 46px" /></td>', $coverSrc);
 		}
 	}
-	$cardCoverSource = $coverSrc !== '' ? '<span class="torrent-card-cover-source" data-cover="' . htmlspecialchars($coverSrc, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '" hidden></span>' : '';
+	$cardFallbackCover = $rowImdbCover !== '' && $rowImdbCover !== $coverSrc ? $rowImdbCover : '';
+	$cardCoverSource = $coverSrc !== '' ? '<span class="torrent-card-cover-source" data-cover="' . htmlspecialchars($coverSrc, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '" data-fallback-cover="' . htmlspecialchars($cardFallbackCover, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '" hidden></span>' : '';
 	$cardRatingSource = $cardRating !== '' ? '<span class="torrent-card-rating-source" data-rating="' . htmlspecialchars($cardRating, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '" hidden></span>' : '';
 	$cardMetaSource = '';
 	if ($needCardCover) {
@@ -4563,7 +5233,7 @@ foreach ($rows as $row)
 	print("</td>");
 
     if ($enableImdb || $enablePtGen) {
-        echo $torrent->renderTorrentsPageAverageRating($row, $ptGenInfo[$row['id']] ?? []);
+        echo $torrent->renderTorrentsPageAverageRating($row, $rowPtGenInfo, $rowImdbInfo);
     }
 		$act = "";
 		if ($CURUSER["dlicon"] != 'no' && $CURUSER["downloadpos"] != "no")
@@ -5146,6 +5816,7 @@ function quickreply($formname, $taname,$submit){
 	print("<textarea name='".$taname."' cols=\"100\" rows=\"8\" style=\"width: 450px\" onkeydown=\"ctrlenter(event,'compose','qr')\"></textarea>");
 	print(smile_row($formname, $taname));
 	print("<br />");
+	print("<label class=\"forum-anonymous-option\"><input type=\"checkbox\" name=\"anonymous\" value=\"yes\" /> 匿名发表</label><br />");
  	print("<input type=\"submit\" id=\"qr\" class=\"btn\" value=\"".$submit."\" />");
 }
 
@@ -5874,16 +6545,25 @@ function get_user_class_image($class){
 
 function user_can_upload($where = "torrents"){
 	global $CURUSER,$upload_class,$enablespecial,$uploadspecial_class, $lang_functions;
+	static $denyCheckInProgress = false;
 	if ($CURUSER["uploadpos"] != 'yes') {
         return false;
     }
-    $uploadDenyApprovalDenyCount = get_setting('main.upload_deny_approval_deny_count');
-    $approvalDenyCount = \App\Models\Torrent::query()->where('owner', $CURUSER['id'])
-        ->where('approval_status', \App\Models\Torrent::APPROVAL_STATUS_DENY)
-        ->count()
-    ;
-    if ($uploadDenyApprovalDenyCount > 0 && $approvalDenyCount >= $uploadDenyApprovalDenyCount) {
-        stderr($lang_functions['std_sorry'], sprintf($lang_functions['approval_deny_reach_upper_limit'], $uploadDenyApprovalDenyCount),false);
+    // 防止无限递归：本函数被 stdhead() 每页调用来构建顶部导航；当用户"被拒审种子数"
+    // 达上限时这里会 stderr()，而 stderr() 又会调 stdhead() -> user_can_upload()，
+    // 形成 stderr→stdhead→user_can_upload 死循环，导致请求 100 秒超时拖垮 FPM。
+    // 渲染本次错误页期间再次进入时，跳过该检查、按普通权限返回布尔值即可。
+    if (!$denyCheckInProgress) {
+        $uploadDenyApprovalDenyCount = get_setting('main.upload_deny_approval_deny_count');
+        $approvalDenyCount = \App\Models\Torrent::query()->where('owner', $CURUSER['id'])
+            ->where('approval_status', \App\Models\Torrent::APPROVAL_STATUS_DENY)
+            ->count()
+        ;
+        if ($uploadDenyApprovalDenyCount > 0 && $approvalDenyCount >= $uploadDenyApprovalDenyCount) {
+            $denyCheckInProgress = true;
+            stderr($lang_functions['std_sorry'], sprintf($lang_functions['approval_deny_reach_upper_limit'], $uploadDenyApprovalDenyCount),false);
+            $denyCheckInProgress = false;
+        }
     }
 	if ($where == "torrents")
 	{
@@ -6637,7 +7317,11 @@ function resize_image($url, $with = null, $height = null, $fit = "cover")
     if ($scheme === false) {
         return $url;
     }
-    $url = "$scheme://images.weserv.nl/?url=$url";
+    $source = preg_replace('#^https?://#i', '', $url);
+    if ($scheme === 'https') {
+        $source = 'ssl:' . $source;
+    }
+    $url = "$scheme://images.weserv.nl/?url=" . $source;
     if ($with !== null) {
         $url .= "&w=$with";
     }
@@ -7476,18 +8160,87 @@ function hdvideo_ensure_region_style_schema()
 
     hdvideo_run_schema_sql("CREATE TABLE IF NOT EXISTS torrent_style_torrent (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, torrent_id MEDIUMINT UNSIGNED NOT NULL, style_id SMALLINT UNSIGNED NOT NULL, created_at TIMESTAMP NULL DEFAULT NULL, updated_at TIMESTAMP NULL DEFAULT NULL, PRIMARY KEY (id), UNIQUE KEY torrent_style_torrent_torrent_id_style_id_unique (torrent_id, style_id), KEY torrent_style_torrent_torrent_id_index (torrent_id), KEY torrent_style_torrent_style_id_index (style_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
-    hdvideo_seed_filter_options('torrent_styles', ['短片', '喜剧', '动作', '科幻', '惊悚', '剧情', '爱情', '恐怖', '犯罪', '悬疑']);
-    hdvideo_seed_filter_options('torrent_regions', ['中国大陆', '美国', '韩国', '英国', '泰国', '中国港台', '日本', '法国', '德国', '意大利']);
+    hdvideo_seed_filter_options('torrent_styles', hdvideo_region_style_option_names('styles'));
+    hdvideo_seed_filter_options('torrent_regions', hdvideo_region_style_option_names('regions'));
 }
 
 function hdvideo_seed_filter_options($table, array $names)
 {
-    $count = count($names);
     $now = sqlesc(date('Y-m-d H:i:s'));
-    foreach ($names as $index => $name) {
-        $sortIndex = $count - $index;
-        hdvideo_run_schema_sql("INSERT INTO `$table` (name, sort_index, enabled, created_at, updated_at) VALUES (" . sqlesc($name) . ", $sortIndex, 1, $now, $now) ON DUPLICATE KEY UPDATE sort_index = VALUES(sort_index), enabled = VALUES(enabled), updated_at = VALUES(updated_at)");
+    // 先读出已有 name => id，避免用 INSERT ... ON DUPLICATE KEY UPDATE。
+    // 后者即使命中"重复→更新"分支，InnoDB 仍会白白消耗一个自增值，
+    // 列表页每次加载都同步一遍，会很快把 SMALLINT 自增主键烧到 65535 上限，
+    // 导致之后任何新地区/风格都插不进来。这里改成：已存在只 UPDATE，只有新名字才 INSERT。
+    $existing = [];
+    $res = @sql_query("SELECT id, name FROM `$table`");
+    if ($res) {
+        while ($row = mysql_fetch_assoc($res)) {
+            $existing[(string)$row['name']] = (int)$row['id'];
+        }
     }
+    $clean = [];
+    foreach ($names as $name) {
+        $name = trim((string)$name);
+        if ($name !== '' && !in_array($name, $clean, true)) {
+            $clean[] = $name;
+        }
+    }
+    $count = count($clean);
+    $listedNames = [];
+    foreach ($clean as $index => $name) {
+        $listedNames[] = sqlesc($name);
+        $sortIndex = $count - $index;
+        if (isset($existing[$name])) {
+            hdvideo_run_schema_sql("UPDATE `$table` SET sort_index = $sortIndex, enabled = 1, updated_at = $now WHERE id = " . $existing[$name]);
+        } else {
+            hdvideo_run_schema_sql("INSERT INTO `$table` (name, sort_index, enabled, created_at, updated_at) VALUES (" . sqlesc($name) . ", $sortIndex, 1, $now, $now)");
+        }
+    }
+    if ($listedNames) {
+        hdvideo_run_schema_sql("UPDATE `$table` SET enabled = 0, updated_at = $now WHERE name NOT IN (" . implode(',', $listedNames) . ")");
+    }
+}
+
+function hdvideo_region_style_default_options($type)
+{
+    $defaults = [
+        'styles' => ['短片', '喜剧', '动作', '科幻', '惊悚', '剧情', '爱情', '恐怖', '犯罪', '悬疑'],
+        'regions' => ['中国大陆', '美国', '韩国', '英国', '泰国', '中国港台', '日本', '法国', '德国', '意大利'],
+    ];
+    return $defaults[$type] ?? [];
+}
+
+function hdvideo_region_style_option_names($type)
+{
+    // 直接读数据库（不走设置缓存），保证后台改了发布页地区/风格后能立即同步到
+    // torrent_regions / torrent_styles 表，避免 legacy 侧设置缓存未刷新导致一直用默认值。
+    $raw = get_setting_from_db("torrent_region_style.$type", '');
+    if (is_array($raw)) {
+        $raw = implode("\n", $raw);
+    }
+    $raw = trim((string)$raw);
+    if ($raw === '') {
+        return hdvideo_region_style_default_options($type);
+    }
+    $names = preg_split('/[\r\n,，、]+/u', $raw);
+    $result = [];
+    foreach ($names as $name) {
+        $name = trim((string)$name);
+        if ($name !== '') {
+            $result[$name] = $name;
+        }
+    }
+    return array_values($result ?: hdvideo_region_style_default_options($type));
+}
+
+function hdvideo_region_style_enabled()
+{
+    return get_setting_from_db('torrent_region_style.enabled', 'yes') !== 'no';
+}
+
+function hdvideo_region_style_required()
+{
+    return get_setting_from_db('torrent_region_style.required', 'yes') !== 'no';
 }
 
 function hdvideo_table_exists($table)
@@ -7522,6 +8275,9 @@ function hdvideo_column_exists($table, $column)
 
 function hdvideo_torrent_filter_items($table)
 {
+    if (!hdvideo_region_style_enabled()) {
+        return [];
+    }
     hdvideo_ensure_region_style_schema();
     if (!hdvideo_table_exists($table)) {
         return [];
@@ -7594,14 +8350,18 @@ function hdvideo_render_style_checkboxes($mode, array $selected = [])
 
 function hdvideo_render_upload_region_style_rows($mode, $selectedRegion = 0, array $selectedStyles = [])
 {
+    if (!hdvideo_region_style_enabled()) {
+        return;
+    }
     $relation = "mode_" . (int)$mode;
+    $requiredMark = hdvideo_region_style_required() ? '<font color="red">*</font>' : '';
     $regionSelect = hdvideo_render_region_select($mode, $selectedRegion);
     if ($regionSelect !== '') {
-        tr('地区<font color="red">*</font>', $regionSelect, 1, $relation);
+        tr('地区' . $requiredMark, $regionSelect, 1, $relation);
     }
     $styleCheckboxes = hdvideo_render_style_checkboxes($mode, $selectedStyles);
     if ($styleCheckboxes !== '') {
-        tr('风格<font color="red">*</font>', $styleCheckboxes, 1, $relation);
+        tr('风格' . $requiredMark, $styleCheckboxes, 1, $relation);
     }
 }
 
@@ -7617,6 +8377,9 @@ function hdvideo_get_post_styles($mode)
 
 function hdvideo_validate_region_style($mode, $barkCallback)
 {
+    if (!hdvideo_region_style_enabled()) {
+        return [0, []];
+    }
     hdvideo_ensure_region_style_schema();
     if (!hdvideo_column_exists('torrents', 'region') || !hdvideo_table_exists('torrent_style_torrent')) {
         $barkCallback('风格和地区数据表尚未初始化，请联系管理员。');
@@ -7624,14 +8387,14 @@ function hdvideo_validate_region_style($mode, $barkCallback)
     }
     $regionId = hdvideo_get_post_region($mode);
     $validRegionIds = hdvideo_filter_valid_ids([$regionId], hdvideo_torrent_regions());
-    if (!$validRegionIds) {
+    if (!$validRegionIds && hdvideo_region_style_required()) {
         $barkCallback('请选择地区。');
     }
     $styleIds = hdvideo_get_post_styles($mode);
-    if (!$styleIds) {
+    if (!$styleIds && hdvideo_region_style_required()) {
         $barkCallback('请至少选择一个风格。');
     }
-    return [$validRegionIds[0], $styleIds];
+    return [$validRegionIds[0] ?? 0, $styleIds];
 }
 
 function hdvideo_get_torrent_style_ids($torrentId)

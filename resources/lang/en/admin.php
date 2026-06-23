@@ -11,6 +11,7 @@ return [
         'exams_list' => 'Exams & Tasks',
         'medals_list' => 'Medals',
         'settings' => 'Settings',
+        'torrent_region_style_setting' => 'Style settings',
         'users_medals' => 'User medals',
         'claims' => 'User claims',
         'torrent_list' => 'Torrents',

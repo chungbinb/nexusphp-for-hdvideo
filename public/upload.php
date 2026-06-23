@@ -343,4 +343,40 @@ jQuery("#compose").off("click", ".btn-parse-desc").on("click.nexusParseDesc", ".
 });
 JS;
 \Nexus\Nexus::js($customFieldJs, 'footer', false);
+?>
+<link rel="stylesheet" href="/vendor/sceditor/themes/default.min.css?v=3">
+<script src="/vendor/sceditor/sceditor.min.js?v=3"></script>
+<script src="/vendor/sceditor/formats/bbcode.js?v=3"></script>
+<script src="/vendor/sceditor/icons/monocons.js?v=3"></script>
+<script>
+/* SCEditor WYSIWYG for the 简介 editor (upload page only). Toolbar 'source' = 纯文本/源码 toggle. */
+(function(){
+  function boot(){
+    var ta=document.getElementById('descr');
+    if(!ta||typeof sceditor==='undefined'||ta.getAttribute('data-sce')==='1')return;
+    try{
+      sceditor.create(ta,{format:'bbcode',icons:'monocons',style:'/vendor/sceditor/themes/content/default.min.css?v=4',width:'100%',height:240,autoExpand:true,resizeWidth:false,emoticonsEnabled:false,toolbar:'bold,italic,underline,strike,subscript,superscript|left,center,right,justify|font,size,color,removeformat|bulletlist,orderedlist,indent,outdent|table|code,quote|horizontalrule,image,link,unlink,youtube|maximize,source'});
+      var inst=sceditor.instance(ta);
+      if(!inst)return;
+      ta.setAttribute('data-sce','1');
+      window.__sceDescr=inst;
+      function qdEdTheme(){var nb=document.documentElement.getAttribute('data-site-theme')==='night'||(document.body&&document.body.classList.contains('theme-night'));try{if(nb){inst.css('html,body{background:#0b1422 !important;color:#dbe5f3 !important;}a{color:#5fa7ff !important;}');}else{var cs=getComputedStyle(document.documentElement);var s=(cs.getPropertyValue('--bili-surface')||'').trim()||'#ffffff';var t=(cs.getPropertyValue('--bili-text')||'').trim()||'#18191c';inst.css('html,body{background:'+s+' !important;color:'+t+' !important;}');}}catch(e){}}
+      qdEdTheme();
+      try{var qdEtMO=new MutationObserver(qdEdTheme);qdEtMO.observe(document.documentElement,{attributes:true,attributeFilter:['data-site-theme','class','style']});if(document.body){qdEtMO.observe(document.body,{attributes:true,attributeFilter:['class']});}}catch(e){}
+      var TT={bold:'粗体',italic:'斜体',underline:'下划线',strike:'删除线',subscript:'下标',superscript:'上标',left:'左对齐',center:'居中',right:'右对齐',justify:'两端对齐',font:'字体',size:'字号',color:'文字颜色',removeformat:'清除格式',bulletlist:'无序列表',orderedlist:'有序列表',indent:'增加缩进',outdent:'减少缩进',table:'插入表格',code:'代码块',quote:'引用',horizontalrule:'水平分割线',image:'插入图片',link:'插入链接',unlink:'取消链接',email:'邮箱',youtube:'插入视频',emoticon:'表情',date:'日期',time:'时间',print:'打印',maximize:'全屏',source:'源码/纯文本'};setTimeout(function(){var bs=document.querySelectorAll('.sceditor-button');for(var k=0;k<bs.length;k++){var c=bs[k].getAttribute('data-sceditor-command');if(c&&TT[c]){bs[k].setAttribute('title',TT[c]);bs[k].setAttribute('aria-label',TT[c]);}}},0);
+      var wrap=ta.closest('.nexus-bbcode-editor');
+      if(wrap){var tb=wrap.querySelector('.nexus-bbcode-toolbar');if(tb){tb.style.display='none';}var sm=wrap.querySelector('.nexus-bbcode-smilies');if(sm){sm.style.display='none';}}
+      function toTextarea(){try{inst.updateOriginal();}catch(e){try{ta.value=inst.val();}catch(_){}}}
+      function toEditor(){try{inst.val(ta.value);}catch(e){}}
+      if(typeof window.doInsert==='function'){var _di=window.doInsert;window.doInsert=function(o,c,s){toTextarea();var r=_di(o,c,s);toEditor();return r;};}
+      if(typeof window.clearContent==='function'){var _cc=window.clearContent;window.clearContent=function(){_cc();toEditor();};}
+      if(typeof window.textBBCodePreview==='function'){var _pv=window.textBBCodePreview;window.textBBCodePreview=function(){toTextarea();return _pv();};}
+      var form=document.getElementById('compose');
+      if(form&&form.addEventListener){form.addEventListener('submit',toTextarea,true);}
+    }catch(e){if(window.console){console.warn('SCEditor init failed',e);}}
+  }
+  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',boot);}else{boot();}
+})();
+</script>
+<?php
 stdfoot();

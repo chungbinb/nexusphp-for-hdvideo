@@ -79,7 +79,7 @@ class NexusDB
             return null;
         }
         $dbType = self::getConnectionName();
-        $config = nexus_config('nexus.database.connections.' . $dbType);
+        $config = nexus_config('nexus.database.connections.' . $dbType) ?: nexus_config('nexus.mysql');
         return $this->connect($config['host'], $config['username'], $config['password'], $config['database'], $config['port'], $dbType);
     }
 
@@ -464,7 +464,7 @@ class NexusDB
 
     public static function getConnectionName()
     {
-        return nexus_config('nexus.database.default');
+        return nexus_config('nexus.database.default') ?: nexus_env('DB_CONNECTION', 'mysql');
     }
 
     public static function isMysql(): bool

@@ -66,20 +66,20 @@ class Torrent
         }
         $progress = ($progress * 100) . '%';
         $result = sprintf(
-            '<div style="padding: 1px;margin-top: 2px;border: 1px solid #838383" title="%s"><div style="width: %s;background-color: %s;height: 2px"></div></div>',
-            $activeStatus . " $progress", $progress, $color
+            '<div class="qd-dl-progress" data-status="%s" title="%s"><i style="width: %s"></i></div>',
+            $activeStatus, $activeStatus . " $progress", $progress
         );
         return $result;
     }
 
-    public function renderTorrentsPageAverageRating(array $torrentInfo, array|string $ptGenInfo): string
+    public function renderTorrentsPageAverageRating(array $torrentInfo, array|string $ptGenInfo, string $desc = ''): string
     {
         static $ptGen;
         if (is_null($ptGen)) {
             $ptGen = new PTGen();
         }
         $log = "torrent: " . $torrentInfo['id'];
-        $siteIdAndRating = $ptGen->listRatings(is_array($ptGenInfo) && count($ptGenInfo) ? $ptGenInfo : [], $torrentInfo['url']);
+        $siteIdAndRating = $ptGen->listRatings(is_array($ptGenInfo) && count($ptGenInfo) ? $ptGenInfo : [], $torrentInfo['url'], $desc);
         $log .= ", siteIdAndRating: " . json_encode($siteIdAndRating);
         do_log($log);
         return $ptGen->buildRatingSpan($siteIdAndRating);
