@@ -32,6 +32,7 @@ jobs:
             --exclude=".github/" \
             --exclude=".env" \
             --exclude=".ssh-deploy*.json" \
+            --exclude="old/" \
             --exclude="vendor/" \
             --exclude="node_modules/" \
             --exclude="storage/" \
@@ -40,6 +41,7 @@ jobs:
             --exclude="subs/" \
             --exclude="public/attachments/" \
             --exclude="public/bitbucket/" \
+            --exclude="public/.user.ini" \
             --exclude="tmp_audit/" \
             --exclude="scripts/_backup*" \
             --exclude="scripts/_diag*" \
