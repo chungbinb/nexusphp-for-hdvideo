@@ -36,6 +36,14 @@ jobs:
             --exclude="attachments/" \
             --exclude="bitbucket/" \
             --exclude="subs/" \
+            --exclude="torrents/" \
+            --exclude="plugins/" \
+            --exclude="resources/upload/" \
+            --exclude="resources/geoip/" \
+            --exclude="imdb/cache/" \
+            --exclude="imdb/images/" \
+            --exclude="public/hot" \
+            --exclude="public/storage" \
             --exclude="public/attachments/" \
             --exclude="public/bitbucket/" \
             --exclude="tmp_audit/" \
