@@ -30,6 +30,8 @@ jobs:
             --exclude=".ssh-deploy*.json" \
             --exclude="old/" \
             --exclude="public/old" \
+            --exclude="composer.json" \
+            --exclude="composer.lock" \
             --exclude="vendor/" \
             --exclude="node_modules/" \
             --exclude="storage/" \
@@ -59,12 +61,12 @@ jobs:
             --exclude="scripts/_torrents_*.txt" \
             ./ "$SITE_ROOT"/
 
-      - name: Install PHP dependencies
+      - name: Regenerate autoloader (dump-autoload only — never install/remove, preserves manually-managed vendor plugins)
         run: |
           set -euo pipefail
           cd /www/wwwroot/hdvideo.test
           export COMPOSER_ALLOW_SUPERUSER=1
-          composer install --no-dev --optimize-autoloader --no-interaction
+          composer dump-autoload --optimize --no-interaction
 
       - name: Clear cache and fix permissions
         run: |

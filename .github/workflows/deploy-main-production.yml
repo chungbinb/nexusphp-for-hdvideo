@@ -34,6 +34,8 @@ jobs:
             --exclude=".ssh-deploy*.json" \
             --exclude="old/" \
             --exclude="public/old" \
+            --exclude="composer.json" \
+            --exclude="composer.lock" \
             --exclude="vendor/" \
             --exclude="node_modules/" \
             --exclude="storage/" \
@@ -65,11 +67,11 @@ jobs:
             ./ "$SITE_ROOT"/
           echo "Changed/deleted file backup: $BACKUP_DIR"
 
-      - name: Install PHP dependencies
+      - name: Regenerate autoloader (dump-autoload only — never install/remove, so manually-managed vendor plugins like xiaomlove/* are preserved)
         run: |
           set -euo pipefail
           cd /www/wwwroot/hdvideo.top
-          sudo env COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader --no-interaction
+          sudo env COMPOSER_ALLOW_SUPERUSER=1 composer dump-autoload --optimize --no-interaction
 
       - name: Clear cache and fix permissions
         run: |
