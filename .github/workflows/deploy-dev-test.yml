@@ -30,6 +30,8 @@ jobs:
             --exclude=".ssh-deploy*.json" \
             --exclude="old/" \
             --exclude="public/old" \
+            --exclude="composer.json" \
+            --exclude="composer.lock" \
             --exclude="vendor/" \
             --exclude="node_modules/" \
             --exclude="storage/" \
