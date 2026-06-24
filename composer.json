@@ -89,7 +89,11 @@
         ],
         "post-update-cmd": [
             "@php artisan filament:upgrade",
-            "@php artisan livewire:publish --assets"
+            "@php artisan livewire:publish --assets",
+            "@php scripts/patch-hr-dolog.php"
+        ],
+        "post-install-cmd": [
+            "@php scripts/patch-hr-dolog.php"
         ]
     },
     "extra": {
