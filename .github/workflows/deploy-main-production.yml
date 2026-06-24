@@ -33,6 +33,7 @@ jobs:
             --exclude=".env" \
             --exclude=".ssh-deploy*.json" \
             --exclude="old/" \
+            --exclude="public/old" \
             --exclude="vendor/" \
             --exclude="node_modules/" \
             --exclude="storage/" \
