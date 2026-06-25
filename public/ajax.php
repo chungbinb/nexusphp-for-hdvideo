@@ -236,6 +236,37 @@ class AjaxInterface{
         $rep = new \App\Repositories\UserPasskeyRepository();
         return $rep->processGet($params['challengeId'], $params['id'], $params['clientDataJSON'], $params['authenticatorData'], $params['signature'], $params['userHandle']);
     }
+
+    public static function savePersonalize($params)
+    {
+        global $CURUSER;
+        $uid = (int)$CURUSER['id'];
+        $allow = ['--bili-primary', '--bili-accent', '--bili-bg', '--bili-surface', '--bili-text'];
+        $arr = json_decode((string)($params['data'] ?? ''), true);
+        $clean = [];
+        if (is_array($arr)) {
+            foreach ($allow as $k) {
+                if (isset($arr[$k]) && is_string($arr[$k]) && preg_match('/^#[0-9a-fA-F]{6}$/', $arr[$k])) {
+                    $clean[$k] = $arr[$k];
+                }
+            }
+        }
+        \App\Models\UserMeta::query()->updateOrCreate(
+            ['uid' => $uid, 'meta_key' => 'PERSONALIZE'],
+            ['meta_value' => json_encode($clean), 'status' => \App\Models\UserMeta::STATUS_NORMAL, 'deadline' => null]
+        );
+        \Nexus\Database\NexusDB::cache_del("qd_personalize_$uid");
+        return ['saved' => count($clean)];
+    }
+
+    public static function clearPersonalize($params)
+    {
+        global $CURUSER;
+        $uid = (int)$CURUSER['id'];
+        \App\Models\UserMeta::query()->where('uid', $uid)->where('meta_key', 'PERSONALIZE')->delete();
+        \Nexus\Database\NexusDB::cache_del("qd_personalize_$uid");
+        return ['cleared' => true];
+    }
 }
 
 $class = 'AjaxInterface';
