@@ -959,7 +959,9 @@ a:focus-visible {
     flex-wrap: nowrap;
     gap: 8px;
     margin: 22px 0 !important;
-    white-space: nowrap;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
 }
 
 .nexus-pagination a,
@@ -1376,6 +1378,8 @@ body.page-torrents .torrent-view-pager .nexus-pagination {
     margin: 0 !important;
     gap: 6px;
     overflow-x: auto;
+    min-width: 0;
+    max-width: 100%;
     padding: 2px 4px;
 }
 

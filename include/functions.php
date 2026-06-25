@@ -4603,7 +4603,7 @@ function pager($rpp, $count, $href, $opts = array(), $pagename = "page") {
 	if ($count) {
 		$pagerarr = array();
 		$dotted = 0;
-		$dotspace = 3;
+		$dotspace = 2;
 		$dotend = $pages - $dotspace;
 		$curdotend = $page - $dotspace;
 		$curdotstart = $page + $dotspace;
