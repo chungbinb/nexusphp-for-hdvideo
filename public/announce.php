@@ -390,11 +390,11 @@ $leechTimeNoSeeder = "";
 // current peer_id, or you could say session with tracker not found in table peers
 if (!isset($self))
 {
-    $sameIPRecord = mysql_fetch_assoc(sql_query("select id from peers where torrent = $torrentid and userid = $userid and ip = '$ip' limit 1"));
+    $sameIPRecord = mysql_fetch_assoc(sql_query("select id from peers where torrent = $torrentid and userid = $userid and ip = '$ip' and peer_id != UNHEX('" . bin2hex($peer_id) . "') limit 1"));
     if (!empty($sameIPRecord) && $seeder == 'yes') {
         warn("You cannot seed the same torrent in the same location from more than 1 client.", 300);
     }
-	$valid = @mysql_fetch_row(@sql_query("SELECT COUNT(*) FROM peers WHERE torrent=$torrentid AND userid=" . sqlesc($userid)));
+	$valid = @mysql_fetch_row(@sql_query("SELECT COUNT(*) FROM peers WHERE torrent=$torrentid AND userid=" . sqlesc($userid) . " AND peer_id != UNHEX('" . bin2hex($peer_id) . "')"));
 	if ($valid[0] >= 1 && $seeder == 'no') err("You already are downloading the same torrent. You may only leech from one location at a time.", 300);
 	if ($valid[0] >= 3 && $seeder == 'yes') err("You cannot seed the same torrent from more than 3 locations.", 300);
 
