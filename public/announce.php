@@ -134,12 +134,24 @@ $CURUSER = $GLOBALS["CURUSER"] = $az;
 $isDonor = is_donor($az);
 $az['__is_donor'] = $isDonor;
 $log = "user: $userid, isDonor: $isDonor, seeder: $seeder, ip: $ip, ipv4: $ipv4, ipv6: $ipv6";
-//check tracker url
-$trackerUrl = get_tracker_schema_and_host($az['tracker_url_id'], true);
+//check tracker url - accept ANY enabled tracker line (multi-tracker failover), not only the assigned one
 $currentUrl = getSchemeAndHttpHost();
-if (!str_contains($trackerUrl, $currentUrl)) {
-    do_log("announce check tracker url, trackerUrl: $trackerUrl does not contains: $currentUrl");
-    warn("you should announce to: $trackerUrl");
+$qdTrackerMatched = false;
+foreach (\App\Models\TrackerUrl::listAll() as $qdTu) {
+    if ($currentUrl !== '' && str_contains(trim((string)$qdTu->url), $currentUrl)) {
+        $qdTrackerMatched = true;
+        break;
+    }
+}
+if (!$qdTrackerMatched) {
+    // fall back to the assigned/default line (covers sites with no tracker_urls rows)
+    $trackerUrl = get_tracker_schema_and_host($az['tracker_url_id'], true);
+    if (str_contains($trackerUrl, $currentUrl)) {
+        $qdTrackerMatched = true;
+    } else {
+        do_log("announce check tracker url, currentUrl: $currentUrl not in any enabled tracker");
+        warn("you should announce to one of the site tracker addresses");
+    }
 }
 
 //3. CHECK IF CLIENT IS ALLOWED

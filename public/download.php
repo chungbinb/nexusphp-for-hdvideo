@@ -145,7 +145,28 @@ if (strlen($CURUSER['passkey']) != 32) {
 }
 $dict = TorrentFile::load($fn);
 $dict->cleanRootFields();
-$dict->setAnnounce(get_tracker_schema_and_host($CURUSER['tracker_url_id'], true) . "?passkey=" . $CURUSER['passkey']);
+$qdPasskeyQuery = "?passkey=" . $CURUSER['passkey'];
+$qdPrimaryAnnounce = trim((string)get_tracker_schema_and_host($CURUSER['tracker_url_id'], true));
+$dict->setAnnounce($qdPrimaryAnnounce . $qdPasskeyQuery);
+// Multi-tracker failover (BEP-12): the user's line first, then every other enabled tracker as its
+// own tier, so a client uses whichever line connects and falls back automatically.
+$qdTrackerTiers = [];
+$qdSeenTracker = [];
+$qdAddTrackerTier = function ($rawUrl) use (&$qdTrackerTiers, &$qdSeenTracker, $qdPasskeyQuery) {
+    $u = trim((string)$rawUrl);
+    if ($u === '') { return; }
+    $full = $u . $qdPasskeyQuery;
+    if (isset($qdSeenTracker[$full])) { return; }
+    $qdSeenTracker[$full] = true;
+    $qdTrackerTiers[] = [$full];
+};
+$qdAddTrackerTier($qdPrimaryAnnounce);
+foreach (\App\Models\TrackerUrl::listAll() as $qdTu) {
+    $qdAddTrackerTier($qdTu->url);
+}
+if (count($qdTrackerTiers) > 1) {
+    $dict->setAnnounceList($qdTrackerTiers);
+}
 $dict->setComment(getSchemeAndHttpHost(true) . "/details.php?id=" . $id);
 $dict->setCreatedBy($SITENAME);
 $dict->setCreationDate(strtotime($row['added']));
