@@ -433,6 +433,15 @@ tr($lang_usercp['row_school'], "<select name=school>$schools</select>", 1);
 					]
 				);
 				\Nexus\Database\NexusDB::cache_del("qd_show_carousel_" . (int)$CURUSER['id']);
+				$qdWideW = isset($_POST['qd_wide_width']) ? (int)$_POST['qd_wide_width'] : 90;
+				$qdNarrowW = isset($_POST['qd_narrow_width']) ? (int)$_POST['qd_narrow_width'] : 1200;
+				$qdWideW = max(30, min(100, $qdWideW));
+				$qdNarrowW = max(600, min(3840, $qdNarrowW));
+				\App\Models\UserMeta::query()->updateOrCreate(
+					['uid' => (int)$CURUSER['id'], 'meta_key' => 'QD_LAYOUT_WIDTH'],
+					['meta_value' => $qdWideW . '|' . $qdNarrowW, 'status' => \App\Models\UserMeta::STATUS_NORMAL, 'deadline' => null]
+				);
+				\Nexus\Database\NexusDB::cache_del("qd_layout_width_" . (int)$CURUSER['id']);
 
 				$query = "UPDATE users SET " . implode(",", $updateset) . " WHERE id =".sqlesc($CURUSER["id"]);
 				//stderr("",$query);
@@ -495,6 +504,11 @@ if ($showaudiocodec) $audiocodecs = searchbox_item_list("audiocodecs");
 }
 */
 			print ("<table border=0 cellspacing=0 cellpadding=5 width=".CONTENT_WIDTH.">");
+				$qdLwMeta = (string)(\App\Models\UserMeta::query()->where('uid', (int)$CURUSER['id'])->where('meta_key', 'QD_LAYOUT_WIDTH')->where('status', 0)->value('meta_value') ?: '');
+				$qdCurWide = 90; $qdCurNarrow = 1200;
+				if (strpos($qdLwMeta, '|') !== false) { $qdLwP = explode('|', $qdLwMeta, 2); $qdA = (int)$qdLwP[0]; $qdB = (int)$qdLwP[1]; if ($qdA >= 30 && $qdA <= 100) $qdCurWide = $qdA; if ($qdB >= 600 && $qdB <= 3840) $qdCurNarrow = $qdB; }
+				tr_small('宽屏宽度', "<input type='number' min='30' max='100' name='qd_wide_width' value='$qdCurWide' style='width:80px'> %&nbsp;&nbsp;<font class=small>宽屏模式下内容占浏览器宽度的百分比（默认 90；填 100 = 铺满整屏）</font>", 1);
+				tr_small('窄屏宽度', "<input type='number' min='600' max='3840' name='qd_narrow_width' value='$qdCurNarrow' style='width:90px'> px&nbsp;&nbsp;<font class=small>窄屏模式下内容最大宽度（默认 1200）</font>", 1);
 			if ($type == 'saved')
 				print("<tr><td colspan=2 class=\"heading\" valign=\"top\" align=\"center\"><font color=red>".$lang_usercp['text_saved']."</font></td></tr>\n");
 			if ($emailnotify_smtp=='yes' && $smtptype != 'none')

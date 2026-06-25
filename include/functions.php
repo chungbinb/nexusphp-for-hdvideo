@@ -2723,6 +2723,22 @@ if (!empty($GLOBALS['CURUSER']['id'])) {
 }
 echo '<style id="qd-personalize-vars">' . ($qdPV !== '' ? (':root[data-site-theme="day"],html:not([data-site-theme]){' . $qdPV . '}') : '') . '</style>';
 echo '<script>window.__QD_P__=' . $qdPJ . ';</script>';
+$qdLW = 90; $qdLN = 1200;
+if (!empty($GLOBALS['CURUSER']['id'])) {
+    $qdUidW = (int)$GLOBALS['CURUSER']['id'];
+    try {
+        $qdWM = \Nexus\Database\NexusDB::remember("qd_layout_width_$qdUidW", 3600, function () use ($qdUidW) {
+            return (string)(\App\Models\UserMeta::query()->where('uid', $qdUidW)->where('meta_key', 'QD_LAYOUT_WIDTH')->where('status', 0)->value('meta_value') ?: '');
+        });
+        if (strpos($qdWM, '|') !== false) {
+            $qdWNa = explode('|', $qdWM, 2);
+            $qdWp = (int)$qdWNa[0]; $qdNp = (int)$qdWNa[1];
+            if ($qdWp >= 30 && $qdWp <= 100) { $qdLW = $qdWp; }
+            if ($qdNp >= 600 && $qdNp <= 3840) { $qdLN = $qdNp; }
+        }
+    } catch (\Throwable $qdWE) {}
+}
+echo '<style id="qd-layout-width">@media (min-width:1100px){body.layout-wide:not(.inframe){padding-left:0!important;padding-right:0!important;}}body.layout-wide:not(.inframe) #outer.outer,body.layout-wide:not(.inframe) table.mainouter{width:' . $qdLW . '%!important;max-width:' . $qdLW . '%!important;margin-left:auto!important;margin-right:auto!important;}body.layout-narrow:not(.inframe) #outer.outer,body.layout-narrow:not(.inframe) table.mainouter,body.layout-narrow.page-torrents:not(.inframe) #outer.outer{width:min(' . $qdLN . 'px,100vw)!important;max-width:' . $qdLN . 'px!important;margin-left:auto!important;margin-right:auto!important;}</style>';
 ?>
 
 <?php
