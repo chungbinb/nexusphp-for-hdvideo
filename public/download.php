@@ -148,24 +148,25 @@ $dict->cleanRootFields();
 $qdPasskeyQuery = "?passkey=" . $CURUSER['passkey'];
 $qdPrimaryAnnounce = trim((string)get_tracker_schema_and_host($CURUSER['tracker_url_id'], true));
 $dict->setAnnounce($qdPrimaryAnnounce . $qdPasskeyQuery);
-// Multi-tracker failover (BEP-12): the user's line first, then every other enabled tracker as its
-// own tier, so a client uses whichever line connects and falls back automatically.
-$qdTrackerTiers = [];
+// Multi-tracker failover (BEP-12): put every enabled tracker in ONE tier (user's line first) so the
+// client announces to a single working line and keeps the rest as silent backups - it only switches
+// to another line if the active one fails (no simultaneous announce to every line).
+$qdTrackerTier = [];
 $qdSeenTracker = [];
-$qdAddTrackerTier = function ($rawUrl) use (&$qdTrackerTiers, &$qdSeenTracker, $qdPasskeyQuery) {
+$qdAddTracker = function ($rawUrl) use (&$qdTrackerTier, &$qdSeenTracker, $qdPasskeyQuery) {
     $u = trim((string)$rawUrl);
     if ($u === '') { return; }
     $full = $u . $qdPasskeyQuery;
     if (isset($qdSeenTracker[$full])) { return; }
     $qdSeenTracker[$full] = true;
-    $qdTrackerTiers[] = [$full];
+    $qdTrackerTier[] = $full;
 };
-$qdAddTrackerTier($qdPrimaryAnnounce);
+$qdAddTracker($qdPrimaryAnnounce);
 foreach (\App\Models\TrackerUrl::listAll() as $qdTu) {
-    $qdAddTrackerTier($qdTu->url);
+    $qdAddTracker($qdTu->url);
 }
-if (count($qdTrackerTiers) > 1) {
-    $dict->setAnnounceList($qdTrackerTiers);
+if (count($qdTrackerTier) > 1) {
+    $dict->setAnnounceList([$qdTrackerTier]);
 }
 $dict->setComment(getSchemeAndHttpHost(true) . "/details.php?id=" . $id);
 $dict->setCreatedBy($SITENAME);
