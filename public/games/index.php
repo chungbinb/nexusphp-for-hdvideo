@@ -153,8 +153,8 @@ body.page-games-php:not(.inframe) {
 
 .steam-game-row {
     display: grid;
-    grid-template-columns: 320px minmax(0, 1fr) 148px;
-    min-height: 104px;
+    grid-template-columns: 379px minmax(0, 1fr) 148px;
+    min-height: 99px;
     background: #1b2b3a;
     border: 1px solid rgba(91, 129, 166, 0.18);
     text-decoration: none !important;
@@ -172,7 +172,7 @@ body.page-games-php:not(.inframe) {
 .steam-shot {
     position: relative;
     overflow: hidden;
-    min-height: 104px;
+    min-height: 99px;
     background:
         radial-gradient(circle at 22% 24%, rgba(255,255,255,.26), transparent 20%),
         linear-gradient(135deg, var(--game-a), var(--game-b));
