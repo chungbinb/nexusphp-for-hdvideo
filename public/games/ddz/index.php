@@ -7,41 +7,32 @@ $GLOBALS['nexus_base_href'] = get_protocol_prefix() . $BASEURL . '/';
 $GLOBALS['nexus_hide_top_banner'] = true;
 
 /**
- * 斗地主 — MVP step 2: lobby + tables + invite + wait-for-3 + deal + bidding (叫地主).
- * Card play / scoring / turn-timer come in later steps.
- * Live room state in Redis (polled every ~1.5s). Mutations are lock-guarded.
+ * 斗地主 — MVP step 3: full play.
+ * lobby + tables + invite + wait-for-3 + deal + 叫地主 + 出牌(牌型校验) + 判胜负 + 电影票结算 + 再来一局.
+ * Turn timer / leaderboards come later. Live state in Redis (polled), lock-guarded mutations.
  */
 const DDZ_SEATS = 3;
 const DDZ_BASE_OPTIONS = [100, 500, 1000, 5000];
 const DDZ_JOIN_BALANCE_FACTOR = 16;
 const DDZ_ROOM_TTL = 7200;
+const DDZ_MULT_CAP = 1024;
+const DDZ_BUSINESS_TYPE = 13;
 
 function ddz_redis()
 {
     return \Nexus\Database\NexusDB::redis();
 }
-
-function ddz_room_key($id)
-{
-    return "ddz:room:" . (int)$id;
-}
-
-function ddz_lobby_key()
-{
-    return "ddz:lobby";
-}
-
+function ddz_room_key($id) { return "ddz:room:" . (int)$id; }
+function ddz_lobby_key() { return "ddz:lobby"; }
 function ddz_room_get($id)
 {
     $j = ddz_redis()->get(ddz_room_key($id));
     return $j ? json_decode($j, true) : null;
 }
-
 function ddz_room_put($room)
 {
     ddz_redis()->setex(ddz_room_key($room['id']), DDZ_ROOM_TTL, json_encode($room, JSON_UNESCAPED_UNICODE));
 }
-
 function ddz_lock($id, $ttl = 5)
 {
     $token = bin2hex(random_bytes(8));
@@ -53,7 +44,6 @@ function ddz_lock($id, $ttl = 5)
     }
     return false;
 }
-
 function ddz_unlock($id, $token)
 {
     $r = ddz_redis();
@@ -61,7 +51,6 @@ function ddz_unlock($id, $token)
         $r->del("ddz:lock:" . (int)$id);
     }
 }
-
 function ddz_seat_of($room, $uid)
 {
     foreach ($room['seats'] as $i => $s) {
@@ -71,7 +60,6 @@ function ddz_seat_of($room, $uid)
     }
     return -1;
 }
-
 function ddz_player_count($room)
 {
     $n = 0;
@@ -84,53 +72,37 @@ function ddz_player_count($room)
 }
 
 // ---------- card engine ----------
-// card id 0..51 = standard 52 (rank = id%13 over [3,4,..,K,A,2], suit = id/13);
-// 52 = 小王, 53 = 大王.
 function ddz_card_rank($c)
 {
     if ($c >= 52) {
         return $c - 52 + 13; // 13=小王, 14=大王
     }
-    return $c % 13; // 0..12  (12 = '2')
+    return $c % 13; // 0..12 (0='3' ... 11='A', 12='2')
 }
-
 function ddz_card_red($c)
 {
-    if ($c == 53) {
-        return true;   // 大王 red
-    }
-    if ($c == 52) {
-        return false;  // 小王 black
-    }
+    if ($c == 53) return true;
+    if ($c == 52) return false;
     $suit = intdiv($c, 13);
-    return $suit === 1 || $suit === 3; // ♥ ♦
+    return $suit === 1 || $suit === 3;
 }
-
 function ddz_card_label($c)
 {
-    if ($c == 52) {
-        return '小王';
-    }
-    if ($c == 53) {
-        return '大王';
-    }
+    if ($c == 52) return '小王';
+    if ($c == 53) return '大王';
     $ranks = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
     $suits = ['♠', '♥', '♣', '♦'];
     return $suits[intdiv($c, 13)] . $ranks[$c % 13];
 }
-
 function ddz_sort_hand(&$hand)
 {
     usort($hand, function ($a, $b) {
         $ra = ddz_card_rank($a);
         $rb = ddz_card_rank($b);
-        if ($ra !== $rb) {
-            return $rb - $ra; // high to low
-        }
+        if ($ra !== $rb) return $rb - $ra;
         return $a - $b;
     });
 }
-
 function ddz_deal()
 {
     $deck = range(0, 53);
@@ -144,6 +116,127 @@ function ddz_deal()
     return [$hands, $bottom];
 }
 
+/**
+ * Classify a set of card ids into a play. Returns ['type','n','main'] or null.
+ * main = comparison rank (higher beats lower for the same type+n).
+ */
+function ddz_classify($cards)
+{
+    $n = count($cards);
+    if ($n === 0) return null;
+    $ranks = array_map('ddz_card_rank', $cards);
+    $counts = array_count_values($ranks);
+    if ($n === 2 && isset($counts[13]) && isset($counts[14])) {
+        return ['type' => 'rocket', 'n' => 2, 'main' => 100];
+    }
+    if ($n === 1) return ['type' => 'single', 'n' => 1, 'main' => $ranks[0]];
+    if ($n === 2 && count($counts) === 1) return ['type' => 'pair', 'n' => 2, 'main' => $ranks[0]];
+    if ($n === 3 && count($counts) === 1) return ['type' => 'triple', 'n' => 3, 'main' => $ranks[0]];
+    if ($n === 4 && count($counts) === 1) return ['type' => 'bomb', 'n' => 4, 'main' => $ranks[0]];
+    if ($n === 4) {
+        $vals = array_values($counts);
+        if (in_array(3, $vals, true) && in_array(1, $vals, true)) {
+            return ['type' => 'triple1', 'n' => 4, 'main' => array_search(3, $counts)];
+        }
+    }
+    if ($n === 5) {
+        if (count($counts) === 2 && in_array(3, array_values($counts), true) && in_array(2, array_values($counts), true)) {
+            return ['type' => 'triple2', 'n' => 5, 'main' => array_search(3, $counts)];
+        }
+    }
+    $hasJoker = isset($counts[13]) || isset($counts[14]);
+    $distinct = array_keys($counts);
+    sort($distinct);
+    $maxRank = $distinct ? max($distinct) : -1;
+    $consecutive = function ($arr) {
+        for ($i = 1; $i < count($arr); $i++) {
+            if ($arr[$i] !== $arr[$i - 1] + 1) return false;
+        }
+        return $arr && $arr[count($arr) - 1] <= 11; // no '2'(12)/jokers
+    };
+
+    if (!$hasJoker && $n >= 5 && count($counts) === $n) {
+        return ($consecutive($distinct)) ? ['type' => 'straight', 'n' => $n, 'main' => $maxRank] : null;
+    }
+    if (!$hasJoker && $n >= 6 && $n % 2 === 0) {
+        $allPairs = true;
+        foreach ($counts as $c) {
+            if ($c !== 2) { $allPairs = false; break; }
+        }
+        if ($allPairs && $consecutive($distinct)) {
+            return ['type' => 'pairs', 'n' => $n, 'main' => $maxRank];
+        }
+    }
+    // airplane (consecutive triples) +/- wings
+    if (!$hasJoker) {
+        $tripleRanks = [];
+        foreach ($counts as $r => $c) {
+            if ($c >= 3) $tripleRanks[] = $r;
+        }
+        sort($tripleRanks);
+        if (count($tripleRanks) >= 2) {
+            $allThree = true;
+            foreach ($tripleRanks as $r) {
+                if ($counts[$r] !== 3) { $allThree = false; break; }
+            }
+            if ($allThree && $consecutive($tripleRanks)) {
+                $k = count($tripleRanks);
+                $maxTriple = max($tripleRanks);
+                $wing = $n - 3 * $k;
+                if ($wing === 0) return ['type' => 'plane', 'n' => $n, 'main' => $maxTriple];
+                if ($wing === $k) {
+                    foreach ($counts as $r => $c) {
+                        if (!in_array($r, $tripleRanks, true) && $c >= 3) return null;
+                    }
+                    return ['type' => 'plane1', 'n' => $n, 'main' => $maxTriple];
+                }
+                if ($wing === 2 * $k) {
+                    $pairs = 0;
+                    foreach ($counts as $r => $c) {
+                        if (in_array($r, $tripleRanks, true)) continue;
+                        if ($c !== 2) return null;
+                        $pairs++;
+                    }
+                    if ($pairs === $k) return ['type' => 'plane2', 'n' => $n, 'main' => $maxTriple];
+                }
+                return null;
+            }
+        }
+    }
+    // four + two
+    $quad = null;
+    foreach ($counts as $r => $c) {
+        if ($c === 4) { $quad = $r; break; }
+    }
+    if ($quad !== null) {
+        if ($n === 6) return ['type' => 'four2', 'n' => 6, 'main' => $quad];
+        if ($n === 8) {
+            $pairs = 0;
+            foreach ($counts as $r => $c) {
+                if ($r === $quad) continue;
+                if ($c !== 2) return null;
+                $pairs++;
+            }
+            if ($pairs === 2) return ['type' => 'four2p', 'n' => 8, 'main' => $quad];
+        }
+    }
+    return null;
+}
+
+function ddz_can_beat($play, $last)
+{
+    if (!$play) return false;
+    if ($play['type'] === 'rocket') return true;
+    if ($last === null) return true;
+    if ($play['type'] === 'bomb') {
+        if ($last['type'] === 'rocket') return false;
+        if ($last['type'] === 'bomb') return $play['main'] > $last['main'];
+        return true;
+    }
+    if ($last['type'] === 'bomb' || $last['type'] === 'rocket') return false;
+    return $play['type'] === $last['type'] && $play['n'] === $last['n'] && $play['main'] > $last['main'];
+}
+
 function ddz_start_game(&$room)
 {
     [$hands, $bottom] = ddz_deal();
@@ -154,6 +247,11 @@ function ddz_start_game(&$room)
     $room['landlord'] = -1;
     $room['multiplier'] = 1;
     $room['turn'] = -1;
+    $room['lastPlay'] = null;
+    $room['lastSeat'] = -1;
+    $room['plays'] = [0, 0, 0];
+    $room['bombs'] = 0;
+    $room['winner'] = -1;
     $room['status'] = 'bidding';
     $room['updated_at'] = TIMENOW;
 }
@@ -165,35 +263,117 @@ function ddz_set_landlord(&$room, $seat)
     $room['hands'][$seat] = array_merge($room['hands'][$seat], $room['bottom']);
     ddz_sort_hand($room['hands'][$seat]);
     $room['status'] = 'playing';
-    $room['turn'] = $seat; // landlord leads
+    $room['turn'] = $seat;
     $room['lastPlay'] = null;
+    $room['lastSeat'] = -1;
     $room['updated_at'] = TIMENOW;
+}
+
+function ddz_settle($room, $landlordWon, $mult)
+{
+    $base = (int)$room['base'];
+    $landlord = (int)$room['landlord'];
+    $amt = $base * $mult;
+    $uids = [];
+    foreach ($room['seats'] as $i => $s) {
+        $uids[$i] = $s ? (int)$s['uid'] : 0;
+    }
+    $now = date('Y-m-d H:i:s');
+    $deltas = [0, 0, 0];
+    sql_query("START TRANSACTION") or sqlerr(__FILE__, __LINE__);
+    try {
+        $order = [0, 1, 2];
+        usort($order, fn($a, $b) => $uids[$a] <=> $uids[$b]);
+        $bal = [];
+        foreach ($order as $seat) {
+            $res = sql_query("SELECT `seedbonus` FROM `users` WHERE `id` = " . $uids[$seat] . " FOR UPDATE") or sqlerr(__FILE__, __LINE__);
+            $row = mysql_fetch_assoc($res);
+            $bal[$seat] = $row ? (float)$row['seedbonus'] : 0;
+        }
+        if ($landlordWon) {
+            $collected = 0;
+            for ($i = 0; $i < 3; $i++) {
+                if ($i === $landlord) continue;
+                $loss = min($amt, $bal[$i]);
+                $deltas[$i] = -$loss;
+                $collected += $loss;
+            }
+            $deltas[$landlord] = $collected;
+        } else {
+            $pay = min(2 * $amt, $bal[$landlord]);
+            $deltas[$landlord] = -$pay;
+            $half = $pay / 2;
+            for ($i = 0; $i < 3; $i++) {
+                if ($i !== $landlord) $deltas[$i] = $half;
+            }
+        }
+        for ($i = 0; $i < 3; $i++) {
+            $d = round($deltas[$i], 1);
+            $deltas[$i] = $d;
+            if ($d == 0) continue;
+            $uid = $uids[$i];
+            sql_query("UPDATE `users` SET `seedbonus` = `seedbonus` + " . sqlesc(number_format($d, 1, '.', '')) . " WHERE `id` = $uid") or sqlerr(__FILE__, __LINE__);
+            $role = ($i === $landlord) ? '地主' : '农民';
+            $comment = "[斗地主] 桌#{$room['id']} {$role} " . ($d > 0 ? '赢' : '输') . " " . abs($d) . "（倍数{$mult}）";
+            sql_query(sprintf(
+                "INSERT INTO bonus_logs (`business_type`,`uid`,`old_total_value`,`value`,`new_total_value`,`comment`,`created_at`,`updated_at`) VALUES (%d,%d,%s,%s,%s,%s,%s,%s)",
+                DDZ_BUSINESS_TYPE, $uid,
+                sqlesc(number_format($bal[$i], 1, '.', '')),
+                sqlesc(number_format($d, 1, '.', '')),
+                sqlesc(number_format($bal[$i] + $d, 1, '.', '')),
+                sqlesc($comment), sqlesc($now), sqlesc($now)
+            )) or sqlerr(__FILE__, __LINE__);
+            clear_user_cache($uid);
+        }
+        sql_query("COMMIT") or sqlerr(__FILE__, __LINE__);
+    } catch (Throwable $e) {
+        sql_query("ROLLBACK");
+        throw $e;
+    }
+    return ['deltas' => $deltas, 'amt' => $amt];
+}
+
+function ddz_finish(&$room, $winnerSeat)
+{
+    $landlord = (int)$room['landlord'];
+    $landlordWon = ($winnerSeat === $landlord);
+    $mult = max(1, (int)$room['multiplier']);
+    $bombs = (int)($room['bombs'] ?? 0);
+    $mult *= (1 << min($bombs, 16));
+    $plays = $room['plays'] ?? [0, 0, 0];
+    $spring = false;
+    if ($landlordWon) {
+        $allZero = true;
+        for ($i = 0; $i < 3; $i++) {
+            if ($i !== $landlord && (int)($plays[$i] ?? 0) > 0) $allZero = false;
+        }
+        if ($allZero) { $spring = true; $mult *= 2; }
+    } else {
+        if ((int)($plays[$landlord] ?? 0) <= 1) { $spring = true; $mult *= 2; }
+    }
+    $mult = min($mult, DDZ_MULT_CAP);
+    $room['status'] = 'finished';
+    $room['winner'] = $winnerSeat;
+    $room['landlordWon'] = $landlordWon;
+    $room['finalMult'] = $mult;
+    $room['spring'] = $spring;
+    $room['settled'] = ddz_settle($room, $landlordWon, $mult);
+    $room['updated_at'] = TIMENOW;
+    ddz_redis()->sRem(ddz_lobby_key(), $room['id']);
 }
 
 function ddz_create_table($base)
 {
     global $CURUSER;
     $base = (int)$base;
-    if (!in_array($base, DDZ_BASE_OPTIONS, true)) {
-        return [null, "底分无效。"];
-    }
+    if (!in_array($base, DDZ_BASE_OPTIONS, true)) return [null, "底分无效。"];
     $need = $base * DDZ_JOIN_BALANCE_FACTOR;
-    if ((float)$CURUSER['seedbonus'] < $need) {
-        return [null, "余额不足，该底分桌需至少 {$need} 张电影票。"];
-    }
+    if ((float)$CURUSER['seedbonus'] < $need) return [null, "余额不足，该底分桌需至少 {$need} 张电影票。"];
     $id = (int)ddz_redis()->incr("ddz:next_id");
     $room = [
-        'id' => $id,
-        'base' => $base,
-        'status' => 'waiting',
-        'owner' => (int)$CURUSER['id'],
-        'seats' => [
-            ['uid' => (int)$CURUSER['id'], 'username' => $CURUSER['username']],
-            null,
-            null,
-        ],
-        'created_at' => TIMENOW,
-        'updated_at' => TIMENOW,
+        'id' => $id, 'base' => $base, 'status' => 'waiting', 'owner' => (int)$CURUSER['id'],
+        'seats' => [['uid' => (int)$CURUSER['id'], 'username' => $CURUSER['username']], null, null],
+        'created_at' => TIMENOW, 'updated_at' => TIMENOW,
     ];
     ddz_room_put($room);
     ddz_redis()->sAdd(ddz_lobby_key(), $id);
@@ -205,37 +385,22 @@ function ddz_join_table($id)
     global $CURUSER;
     $id = (int)$id;
     $token = ddz_lock($id);
-    if (!$token) {
-        return [null, "操作繁忙，请重试。"];
-    }
+    if (!$token) return [null, "操作繁忙，请重试。"];
     try {
         $room = ddz_room_get($id);
-        if (!$room) {
-            return [null, "桌子不存在或已解散。"];
-        }
-        if (ddz_seat_of($room, $CURUSER['id']) >= 0) {
-            return [$id, ""];
-        }
-        if ($room['status'] !== 'waiting') {
-            return [null, "该桌已开始，无法加入。"];
-        }
-        if (ddz_player_count($room) >= DDZ_SEATS) {
-            return [null, "该桌已满。"];
-        }
+        if (!$room) return [null, "桌子不存在或已解散。"];
+        if (ddz_seat_of($room, $CURUSER['id']) >= 0) return [$id, ""];
+        if ($room['status'] !== 'waiting') return [null, "该桌已开始，无法加入。"];
+        if (ddz_player_count($room) >= DDZ_SEATS) return [null, "该桌已满。"];
         $need = $room['base'] * DDZ_JOIN_BALANCE_FACTOR;
-        if ((float)$CURUSER['seedbonus'] < $need) {
-            return [null, "余额不足，该底分桌需至少 {$need} 张电影票。"];
-        }
+        if ((float)$CURUSER['seedbonus'] < $need) return [null, "余额不足，该底分桌需至少 {$need} 张电影票。"];
         foreach ($room['seats'] as $i => $s) {
-            if (!$s) {
-                $room['seats'][$i] = ['uid' => (int)$CURUSER['id'], 'username' => $CURUSER['username']];
-                break;
-            }
+            if (!$s) { $room['seats'][$i] = ['uid' => (int)$CURUSER['id'], 'username' => $CURUSER['username']]; break; }
         }
         $room['updated_at'] = TIMENOW;
         if (ddz_player_count($room) >= DDZ_SEATS) {
             ddz_redis()->sRem(ddz_lobby_key(), $id);
-            ddz_start_game($room); // 满 3 人：发牌 + 进入叫地主
+            ddz_start_game($room);
         }
         ddz_room_put($room);
         return [$id, ""];
@@ -249,20 +414,13 @@ function ddz_leave_table($id)
     global $CURUSER;
     $id = (int)$id;
     $token = ddz_lock($id);
-    if (!$token) {
-        return "操作繁忙，请重试。";
-    }
+    if (!$token) return "操作繁忙，请重试。";
     try {
         $room = ddz_room_get($id);
-        if (!$room) {
-            return "";
-        }
+        if (!$room) return "";
         $seat = ddz_seat_of($room, $CURUSER['id']);
-        if ($seat < 0) {
-            return "";
-        }
-        // 游戏已开始（叫地主/出牌）时，一人离开则整桌解散（暂无机器人托管）。
-        if ($room['status'] !== 'waiting') {
+        if ($seat < 0) return "";
+        if ($room['status'] === 'playing' || $room['status'] === 'bidding') {
             ddz_redis()->del(ddz_room_key($id));
             ddz_redis()->sRem(ddz_lobby_key(), $id);
             return "";
@@ -274,6 +432,8 @@ function ddz_leave_table($id)
             ddz_redis()->sRem(ddz_lobby_key(), $id);
             return "";
         }
+        // finished or waiting -> back to waiting
+        $room['status'] = 'waiting';
         ddz_redis()->sAdd(ddz_lobby_key(), $id);
         ddz_room_put($room);
         return "";
@@ -287,44 +447,120 @@ function ddz_bid($id, $score)
     global $CURUSER;
     $id = (int)$id;
     $score = (int)$score;
-    if ($score < 0 || $score > 3) {
-        return "无效叫分。";
-    }
+    if ($score < 0 || $score > 3) return "无效叫分。";
     $token = ddz_lock($id);
-    if (!$token) {
-        return "操作繁忙，请重试。";
-    }
+    if (!$token) return "操作繁忙，请重试。";
     try {
         $room = ddz_room_get($id);
-        if (!$room || $room['status'] !== 'bidding') {
-            return "现在不能叫分。";
-        }
+        if (!$room || $room['status'] !== 'bidding') return "现在不能叫分。";
         $seat = ddz_seat_of($room, $CURUSER['id']);
-        if ($seat < 0) {
-            return "你不在这桌。";
-        }
-        if ($seat !== (int)$room['bid']['turn']) {
-            return "还没轮到你叫分。";
-        }
-        if ($score > 0 && $score <= (int)$room['bid']['high']) {
-            return "叫分必须高于当前最高分。";
-        }
+        if ($seat < 0) return "你不在这桌。";
+        if ($seat !== (int)$room['bid']['turn']) return "还没轮到你叫分。";
+        if ($score > 0 && $score <= (int)$room['bid']['high']) return "叫分必须高于当前最高分。";
         $room['bid']['bids'][$seat] = $score;
-        if ($score > 0) {
-            $room['bid']['high'] = $score;
-            $room['bid']['highSeat'] = $seat;
-        }
+        if ($score > 0) { $room['bid']['high'] = $score; $room['bid']['highSeat'] = $seat; }
         $room['bid']['acted']++;
         $room['updated_at'] = TIMENOW;
         if ($score === 3 || $room['bid']['acted'] >= 3) {
             if ((int)$room['bid']['highSeat'] >= 0) {
                 ddz_set_landlord($room, (int)$room['bid']['highSeat']);
             } else {
-                ddz_start_game($room); // 全部不叫 -> 重新发牌
+                ddz_start_game($room);
             }
         } else {
             $room['bid']['turn'] = ((int)$room['bid']['turn'] + 1) % 3;
         }
+        ddz_room_put($room);
+        return "";
+    } finally {
+        ddz_unlock($id, $token);
+    }
+}
+
+function ddz_play($id, $cardIds)
+{
+    global $CURUSER;
+    $id = (int)$id;
+    if (!is_array($cardIds)) $cardIds = [];
+    $cardIds = array_values(array_unique(array_map('intval', $cardIds)));
+    $token = ddz_lock($id);
+    if (!$token) return "操作繁忙，请重试。";
+    try {
+        $room = ddz_room_get($id);
+        if (!$room || $room['status'] !== 'playing') return "现在不能出牌。";
+        $seat = ddz_seat_of($room, $CURUSER['id']);
+        if ($seat < 0) return "你不在这桌。";
+        if ($seat !== (int)$room['turn']) return "还没轮到你。";
+        if (!$cardIds) return "请选择要出的牌。";
+        $handCopy = $room['hands'][$seat];
+        foreach ($cardIds as $c) {
+            $k = array_search($c, $handCopy, true);
+            if ($k === false) return "选牌不在你手里。";
+            unset($handCopy[$k]);
+        }
+        $play = ddz_classify($cardIds);
+        if (!$play) return "牌型不合法。";
+        $last = $room['lastPlay'] ?? null;
+        $lastSeat = (int)($room['lastSeat'] ?? -1);
+        $leading = ($last === null) || ($lastSeat === $seat);
+        if (!$leading && !ddz_can_beat($play, $last)) return "管不上，请换牌或过牌。";
+        $room['hands'][$seat] = array_values($handCopy);
+        $play['cards'] = $cardIds;
+        $room['lastPlay'] = $play;
+        $room['lastSeat'] = $seat;
+        $room['plays'][$seat] = (int)($room['plays'][$seat] ?? 0) + 1;
+        if ($play['type'] === 'bomb' || $play['type'] === 'rocket') {
+            $room['bombs'] = (int)($room['bombs'] ?? 0) + 1;
+        }
+        $room['updated_at'] = TIMENOW;
+        if (count($room['hands'][$seat]) === 0) {
+            ddz_finish($room, $seat);
+        } else {
+            $room['turn'] = ((int)$room['turn'] + 1) % 3;
+        }
+        ddz_room_put($room);
+        return "";
+    } finally {
+        ddz_unlock($id, $token);
+    }
+}
+
+function ddz_pass($id)
+{
+    global $CURUSER;
+    $id = (int)$id;
+    $token = ddz_lock($id);
+    if (!$token) return "操作繁忙，请重试。";
+    try {
+        $room = ddz_room_get($id);
+        if (!$room || $room['status'] !== 'playing') return "现在不能过牌。";
+        $seat = ddz_seat_of($room, $CURUSER['id']);
+        if ($seat < 0) return "你不在这桌。";
+        if ($seat !== (int)$room['turn']) return "还没轮到你。";
+        $lastSeat = (int)($room['lastSeat'] ?? -1);
+        if (($room['lastPlay'] ?? null) === null || $lastSeat === $seat) return "你是首出/上家无人压，必须出牌。";
+        $room['turn'] = ((int)$room['turn'] + 1) % 3;
+        $room['updated_at'] = TIMENOW;
+        ddz_room_put($room);
+        return "";
+    } finally {
+        ddz_unlock($id, $token);
+    }
+}
+
+function ddz_replay($id)
+{
+    global $CURUSER;
+    $id = (int)$id;
+    $token = ddz_lock($id);
+    if (!$token) return "操作繁忙，请重试。";
+    try {
+        $room = ddz_room_get($id);
+        if (!$room) return "桌子不存在。";
+        if (ddz_seat_of($room, $CURUSER['id']) < 0) return "你不在这桌。";
+        if ($room['status'] !== 'finished') return "本局未结束。";
+        if (ddz_player_count($room) < DDZ_SEATS) return "人数不足，无法再来一局。";
+        ddz_start_game($room);
         ddz_room_put($room);
         return "";
     } finally {
@@ -359,29 +595,35 @@ if (($_GET['ajax'] ?? '') === 'poll') {
     }
     $mySeat = ddz_seat_of($room, $CURUSER['id']);
     $out = [
-        'ok' => true,
-        'status' => $room['status'],
-        'base' => (int)$room['base'],
-        'mySeat' => $mySeat,
-        'count' => ddz_player_count($room),
-        'seats' => [],
+        'ok' => true, 'status' => $room['status'], 'base' => (int)$room['base'],
+        'mySeat' => $mySeat, 'count' => ddz_player_count($room), 'seats' => [],
     ];
     foreach ($room['seats'] as $i => $s) {
-        $out['seats'][$i] = $s ? [
-            'username' => $s['username'],
-            'cards' => isset($room['hands'][$i]) ? count($room['hands'][$i]) : 0,
-        ] : null;
+        $out['seats'][$i] = $s ? ['username' => $s['username'], 'cards' => isset($room['hands'][$i]) ? count($room['hands'][$i]) : 0] : null;
     }
-    if (in_array($room['status'], ['bidding', 'playing'], true)) {
+    if (in_array($room['status'], ['bidding', 'playing', 'finished'], true)) {
         $out['bid'] = $room['bid'] ?? null;
         $out['landlord'] = (int)($room['landlord'] ?? -1);
         $out['multiplier'] = (int)($room['multiplier'] ?? 1);
         $out['turn'] = (int)($room['turn'] ?? -1);
+        $out['lastSeat'] = (int)($room['lastSeat'] ?? -1);
         if ($mySeat >= 0 && isset($room['hands'][$mySeat])) {
             $out['myHand'] = array_map(fn($c) => ['id' => $c, 'label' => ddz_card_label($c), 'red' => ddz_card_red($c)], $room['hands'][$mySeat]);
         }
-        if ($room['status'] === 'playing' && isset($room['bottom'])) {
+        $lp = $room['lastPlay'] ?? null;
+        $out['lastPlay'] = ($lp && isset($lp['cards'])) ? [
+            'seat' => (int)($room['lastSeat'] ?? -1),
+            'cards' => array_map(fn($c) => ['label' => ddz_card_label($c), 'red' => ddz_card_red($c)], $lp['cards']),
+        ] : null;
+        if ($room['status'] !== 'bidding' && isset($room['bottom'])) {
             $out['bottom'] = array_map(fn($c) => ['label' => ddz_card_label($c), 'red' => ddz_card_red($c)], $room['bottom']);
+        }
+        if ($room['status'] === 'finished') {
+            $out['winner'] = (int)($room['winner'] ?? -1);
+            $out['landlordWon'] = (bool)($room['landlordWon'] ?? false);
+            $out['finalMult'] = (int)($room['finalMult'] ?? 1);
+            $out['spring'] = (bool)($room['spring'] ?? false);
+            $out['deltas'] = $room['settled']['deltas'] ?? [0, 0, 0];
         }
     }
     echo json_encode($out, JSON_UNESCAPED_UNICODE);
@@ -391,9 +633,20 @@ if (($_GET['ajax'] ?? '') === 'poll') {
 // ---- POST actions ----
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
-    if ($action === 'bid') { // AJAX
+    $ajaxActions = ['bid', 'play', 'pass', 'replay'];
+    if (in_array($action, $ajaxActions, true)) {
         header('Content-Type: application/json');
-        $err = ddz_bid($_POST['table'] ?? 0, $_POST['score'] ?? -1);
+        if ($action === 'bid') {
+            $err = ddz_bid($_POST['table'] ?? 0, $_POST['score'] ?? -1);
+        } elseif ($action === 'play') {
+            $cards = $_POST['cards'] ?? '';
+            $cardIds = $cards === '' ? [] : array_map('intval', explode(',', $cards));
+            $err = ddz_play($_POST['table'] ?? 0, $cardIds);
+        } elseif ($action === 'pass') {
+            $err = ddz_pass($_POST['table'] ?? 0);
+        } else {
+            $err = ddz_replay($_POST['table'] ?? 0);
+        }
         echo json_encode(['ok' => $err === '', 'error' => $err], JSON_UNESCAPED_UNICODE);
         exit;
     }
@@ -401,14 +654,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $goTable = 0;
     if ($action === 'create') {
         [$id, $error] = ddz_create_table($_POST['base'] ?? 0);
-        if ($id) {
-            $goTable = $id;
-        }
+        if ($id) $goTable = $id;
     } elseif ($action === 'join') {
         [$id, $error] = ddz_join_table($_POST['table'] ?? 0);
-        if ($id) {
-            $goTable = $id;
-        }
+        if ($id) $goTable = $id;
     } elseif ($action === 'leave') {
         $error = ddz_leave_table($_POST['table'] ?? 0);
     }
@@ -429,7 +678,7 @@ $inRoom = $mySeat >= 0;
 stdhead("斗地主");
 ?>
 <style>
-.ddz-wrap { max-width: 920px; margin: 0 auto; }
+.ddz-wrap { max-width: 940px; margin: 0 auto; }
 .ddz-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
 .ddz-title { font-size: 24px; font-weight: 800; }
 .ddz-badge { font-size: 12px; font-weight: 700; color: #e67e22; background: rgba(230,126,34,.12); padding: 2px 8px; border-radius: 999px; vertical-align: middle; }
@@ -453,11 +702,14 @@ stdhead("斗地主");
 .ddz-seat .meta { font-size: 12px; color: #6f7f95; margin-top: 4px; }
 .ddz-seat .lord { color: #c0392b; font-weight: 800; }
 .ddz-status { font-weight: 800; margin: 8px 0; }
-.ddz-bottom { display: inline-flex; gap: 4px; margin-left: 8px; vertical-align: middle; }
+.ddz-center { min-height: 56px; padding: 8px; margin: 8px 0; border-radius: 8px; background: rgba(0,0,0,.04); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .ddz-card { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 40px; padding: 0 4px; border: 1px solid #c9ced6; border-radius: 5px; background: #fff; color: #222; font-weight: 800; font-size: 14px; box-shadow: 0 1px 2px rgba(0,0,0,.12); }
 .ddz-card.red { color: #d62828; }
 .ddz-hand { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
-.ddz-bid-area { margin: 12px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ddz-hand .ddz-card { cursor: pointer; transition: transform .08s ease; }
+.ddz-hand .ddz-card.sel { transform: translateY(-10px); border-color: #2ecc71; box-shadow: 0 4px 8px rgba(46,204,113,.4); }
+.ddz-actions { margin: 12px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ddz-result { font-size: 17px; font-weight: 800; padding: 10px 12px; border-radius: 8px; background: rgba(46,204,113,.14); margin: 10px 0; }
 .ddz-invite { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
 .ddz-invite input { padding: 8px; width: 320px; max-width: 100%; }
 </style>
@@ -465,7 +717,7 @@ stdhead("斗地主");
     <div class="ddz-head">
         <div>
             <div class="ddz-title">斗地主 <span class="ddz-badge">开发中 v0.1</span></div>
-            <div class="ddz-muted">三人真人对战，满 3 人开局，不加机器人。用电影票计分。</div>
+            <div class="ddz-muted">三人真人对战，满 3 人开局，不加机器人。用电影票计分（结算时扣）。</div>
         </div>
         <div class="ddz-balance">我的电影票：<?php echo number_format((float)$CURUSER['seedbonus'], 1) ?> 张</div>
     </div>
@@ -477,9 +729,11 @@ stdhead("斗地主");
             <div class="ddz-section-title">桌 #<?php echo (int)$room['id'] ?>　底分 <?php echo (int)$room['base'] ?> 电影票　<span id="ddzMult" class="ddz-muted"></span></div>
             <div class="ddz-status" id="ddzStatus">加载中…</div>
             <div class="ddz-seats" id="ddzSeats"></div>
-            <div id="ddzBidArea" class="ddz-bid-area" style="display:none"></div>
+            <div class="ddz-center" id="ddzCenter" style="display:none"></div>
+            <div id="ddzResult"></div>
+            <div id="ddzActions" class="ddz-actions" style="display:none"></div>
             <div id="ddzMyHandWrap" style="display:none">
-                <div class="ddz-muted">我的手牌（<span id="ddzMyCount">0</span> 张）</div>
+                <div class="ddz-muted">我的手牌（<span id="ddzMyCount">0</span> 张）— 点牌选择</div>
                 <div class="ddz-hand" id="ddzMyHand"></div>
             </div>
             <div style="margin-top:14px">
@@ -513,18 +767,47 @@ stdhead("斗地主");
             var tableId = <?php echo (int)$room['id'] ?>;
             var seatsEl = document.getElementById('ddzSeats');
             var statusEl = document.getElementById('ddzStatus');
-            var bidEl = document.getElementById('ddzBidArea');
+            var centerEl = document.getElementById('ddzCenter');
+            var resultEl = document.getElementById('ddzResult');
+            var actEl = document.getElementById('ddzActions');
             var handWrap = document.getElementById('ddzMyHandWrap');
             var handEl = document.getElementById('ddzMyHand');
             var myCountEl = document.getElementById('ddzMyCount');
             var multEl = document.getElementById('ddzMult');
-            var busy = false;
+            var busy = false, handKey = '', selected = {};
             function esc(s) { return (s || '').replace(/[&<>"]/g, function (c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]); }); }
             function cardHtml(c) { return '<span class="ddz-card' + (c.red ? ' red' : '') + '">' + esc(c.label) + '</span>'; }
             function bidLabel(v) { return v === null ? '' : (v === 0 ? '不叫' : (v + '分')); }
+            function post(action, extra) {
+                if (busy) { return; }
+                busy = true;
+                var body = 'action=' + action + '&table=' + tableId + (extra || '');
+                fetch('/games/ddz/', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
+                    .then(function (r) { return r.json(); })
+                    .then(function (j) { if (!j.ok && j.error) { alert(j.error); } poll(); })
+                    .catch(function () {}).finally(function () { busy = false; });
+            }
+            function renderHand(d) {
+                var key = (d.myHand || []).map(function (c) { return c.id; }).join(',');
+                if (key === handKey) { return; } // unchanged -> keep selection
+                handKey = key;
+                selected = {};
+                if (!d.myHand || !d.myHand.length) { handWrap.style.display = 'none'; handEl.innerHTML = ''; return; }
+                handEl.innerHTML = d.myHand.map(function (c) {
+                    return '<span class="ddz-card' + (c.red ? ' red' : '') + '" data-id="' + c.id + '">' + esc(c.label) + '</span>';
+                }).join('');
+                myCountEl.textContent = d.myHand.length;
+                handWrap.style.display = '';
+                handEl.querySelectorAll('.ddz-card').forEach(function (el) {
+                    el.addEventListener('click', function () {
+                        var id = el.getAttribute('data-id');
+                        if (selected[id]) { delete selected[id]; el.classList.remove('sel'); }
+                        else { selected[id] = 1; el.classList.add('sel'); }
+                    });
+                });
+            }
             function render(d) {
-                var lord = (typeof d.landlord !== 'undefined') ? d.landlord : -1;
-                var turn = (typeof d.turn !== 'undefined') ? d.turn : -1;
+                var lord = d.landlord != null ? d.landlord : -1, turn = d.turn != null ? d.turn : -1;
                 var bidTurn = d.bid ? d.bid.turn : -1;
                 var html = '';
                 for (var i = 0; i < 3; i++) {
@@ -535,73 +818,77 @@ stdhead("斗地主");
                     if (s) {
                         var meta = '剩 ' + s.cards + ' 张';
                         if (d.status === 'bidding' && d.bid && d.bid.bids[i] !== null) { meta = bidLabel(d.bid.bids[i]); }
+                        if (d.status === 'finished' && d.deltas) { meta = (d.deltas[i] >= 0 ? '+' : '') + d.deltas[i]; }
                         html += '<div class="meta">' + meta + '</div>';
-                    } else {
-                        html += '<div class="meta">等待加入…</div>';
-                    }
+                    } else { html += '<div class="meta">等待加入…</div>'; }
                     html += '</div>';
                 }
                 seatsEl.innerHTML = html;
 
-                if (d.status === 'waiting') {
-                    statusEl.textContent = '⏳ 等待玩家加入… ' + d.count + ' / 3';
-                    multEl.textContent = '';
-                } else if (d.status === 'bidding') {
-                    var name = (d.bid && d.seats[d.bid.turn]) ? d.seats[d.bid.turn].username : '';
-                    statusEl.textContent = '🎯 叫地主中…当前轮到 ' + esc(name) + '（最高 ' + (d.bid ? d.bid.high : 0) + ' 分）';
-                    multEl.textContent = '';
+                multEl.textContent = (d.status === 'playing' || d.status === 'finished') ? ('倍数 ' + (d.finalMult || d.multiplier || 1)) : '';
+
+                // center (last play / bottom)
+                if (d.status === 'playing' || d.status === 'finished') {
+                    var c = '';
+                    if (d.lastPlay && d.lastPlay.cards) {
+                        var who = d.seats[d.lastPlay.seat] ? d.seats[d.lastPlay.seat].username : '';
+                        c = '<span class="ddz-muted">' + esc(who) + ' 出：</span>' + d.lastPlay.cards.map(cardHtml).join('');
+                    } else if (d.bottom) {
+                        c = '<span class="ddz-muted">地主底牌：</span>' + d.bottom.map(cardHtml).join('');
+                    }
+                    centerEl.innerHTML = c; centerEl.style.display = c ? '' : 'none';
+                } else { centerEl.style.display = 'none'; }
+
+                // status line
+                if (d.status === 'waiting') { statusEl.textContent = '⏳ 等待玩家加入… ' + d.count + ' / 3'; }
+                else if (d.status === 'bidding') {
+                    var nm = (d.bid && d.seats[d.bid.turn]) ? d.seats[d.bid.turn].username : '';
+                    statusEl.textContent = '🎯 叫地主中…轮到 ' + esc(nm) + '（最高 ' + (d.bid ? d.bid.high : 0) + ' 分）';
                 } else if (d.status === 'playing') {
-                    var bottom = (d.bottom || []).map(cardHtml).join('');
                     var tn = d.seats[turn] ? d.seats[turn].username : '';
-                    statusEl.innerHTML = '🃏 地主底牌：<span class="ddz-bottom">' + bottom + '</span>　轮到 <b>' + esc(tn) + '</b> 出牌（出牌功能开发中）';
-                    multEl.textContent = '倍数 ' + (d.multiplier || 1);
+                    statusEl.textContent = '🃏 轮到 ' + esc(tn) + ' 出牌';
+                } else if (d.status === 'finished') { statusEl.textContent = '本局结束'; }
+
+                // result banner
+                if (d.status === 'finished') {
+                    resultEl.innerHTML = '<div class="ddz-result">🎉 ' + (d.landlordWon ? '地主赢' : '农民赢') + (d.spring ? '（春天）' : '') + ' · 倍数 ' + d.finalMult + '</div>';
+                } else { resultEl.innerHTML = ''; }
+
+                // action area
+                actEl.innerHTML = ''; actEl.style.display = 'none';
+                if (d.mySeat >= 0) {
+                    if (d.status === 'bidding' && d.mySeat === bidTurn) {
+                        var high = d.bid.high, h = '<span class="ddz-muted">轮到你叫分：</span><button class="ddz-btn ghost" data-bid="0">不叫</button>';
+                        [1, 2, 3].forEach(function (v) { h += '<button class="ddz-btn" data-bid="' + v + '"' + (v <= high ? ' disabled' : '') + '>' + v + ' 分</button>'; });
+                        actEl.innerHTML = h; actEl.style.display = '';
+                        actEl.querySelectorAll('button[data-bid]').forEach(function (b) { b.addEventListener('click', function () { post('bid', '&score=' + b.getAttribute('data-bid')); }); });
+                    } else if (d.status === 'playing' && d.mySeat === turn) {
+                        var leading = (!d.lastPlay) || (d.lastPlay.seat === d.mySeat);
+                        actEl.innerHTML = '<button class="ddz-btn" id="ddzPlay">出牌</button><button class="ddz-btn ghost" id="ddzPass"' + (leading ? ' disabled' : '') + '>过牌（不出）</button>';
+                        actEl.style.display = '';
+                        document.getElementById('ddzPlay').addEventListener('click', function () {
+                            var ids = Object.keys(selected);
+                            if (!ids.length) { alert('请先点选要出的牌。'); return; }
+                            post('play', '&cards=' + ids.join(','));
+                        });
+                        var pb = document.getElementById('ddzPass');
+                        if (!leading) { pb.addEventListener('click', function () { post('pass', ''); }); }
+                    } else if (d.status === 'finished') {
+                        actEl.innerHTML = '<button class="ddz-btn" id="ddzReplay">再来一局</button>';
+                        actEl.style.display = '';
+                        document.getElementById('ddzReplay').addEventListener('click', function () { post('replay', ''); });
+                    }
                 }
 
-                // bid buttons (only when it's my turn during bidding)
-                if (d.status === 'bidding' && d.mySeat >= 0 && d.mySeat === bidTurn) {
-                    var high = d.bid.high;
-                    var btns = '<span class="ddz-muted">轮到你叫分：</span>';
-                    btns += '<button class="ddz-btn ghost" data-bid="0">不叫</button>';
-                    [1, 2, 3].forEach(function (v) {
-                        btns += '<button class="ddz-btn" data-bid="' + v + '"' + (v <= high ? ' disabled' : '') + '>' + v + ' 分</button>';
-                    });
-                    bidEl.innerHTML = btns;
-                    bidEl.style.display = '';
-                    bidEl.querySelectorAll('button[data-bid]').forEach(function (b) {
-                        b.addEventListener('click', function () { sendBid(b.getAttribute('data-bid')); });
-                    });
-                } else {
-                    bidEl.style.display = 'none';
-                    bidEl.innerHTML = '';
-                }
-
-                // my hand
-                if (d.myHand && d.myHand.length) {
-                    handEl.innerHTML = d.myHand.map(cardHtml).join('');
-                    myCountEl.textContent = d.myHand.length;
-                    handWrap.style.display = '';
-                } else {
-                    handWrap.style.display = 'none';
-                }
-            }
-            function sendBid(score) {
-                if (busy) { return; }
-                busy = true;
-                var body = 'action=bid&table=' + tableId + '&score=' + encodeURIComponent(score);
-                fetch('/games/ddz/', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
-                    .then(function (r) { return r.json(); })
-                    .then(function (j) { if (!j.ok && j.error) { alert(j.error); } poll(); })
-                    .catch(function () {})
-                    .finally(function () { busy = false; });
+                renderHand(d);
             }
             function poll() {
                 fetch('/games/ddz/?ajax=poll&table=' + tableId, { credentials: 'same-origin' })
                     .then(function (r) { return r.json(); })
                     .then(function (d) {
-                        if (!d.ok) { statusEl.textContent = '该桌已解散。'; seatsEl.innerHTML = ''; bidEl.style.display = 'none'; handWrap.style.display = 'none'; return; }
+                        if (!d.ok) { statusEl.textContent = '该桌已解散。'; seatsEl.innerHTML = ''; actEl.style.display = 'none'; handWrap.style.display = 'none'; centerEl.style.display = 'none'; return; }
                         render(d);
-                    })
-                    .catch(function () {});
+                    }).catch(function () {});
             }
             poll();
             setInterval(poll, 1500);
