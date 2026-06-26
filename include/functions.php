@@ -3067,7 +3067,7 @@ else {
 		</a>
 		<div class="top-account-dropdown">
 			<div class="top-account-header">
-				<div class="top-account-name top-account-name--<?php echo htmlspecialchars($topUserTone) ?> <?php echo htmlspecialchars($topUserClassColor) ?>"><?php echo htmlspecialchars($CURUSER['username']) ?></div>
+				<a class="top-account-name top-account-name--<?php echo htmlspecialchars($topUserTone) ?> <?php echo htmlspecialchars($topUserClassColor) ?>" href="userdetails.php?id=<?php echo (int)$CURUSER['id'] ?>" style="text-decoration:none" title="<?php echo htmlspecialchars($lang_functions['text_user_cp']) ?>"><?php echo htmlspecialchars($CURUSER['username']) ?></a>
 				<div class="top-theme-switch" role="group" aria-label="Theme switch">
 					<button type="button" class="top-theme-btn" data-theme-toggle data-theme="night" aria-label="Switch theme" title="Switch theme">&#9790;</button>
 				</div>
