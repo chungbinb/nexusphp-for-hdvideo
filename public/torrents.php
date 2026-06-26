@@ -189,7 +189,10 @@ if (isset($_GET['sort']) && $_GET['sort'] && isset($_GET['type']) && $_GET['type
 
 } else {
 
-	$orderby = "ORDER BY pos_state DESC, torrents.id DESC";
+	// Gently float 急需求种 torrents (0 seeders but people still downloading) up so
+	// members notice them and seed. Stays below sticky; normal newest-first otherwise.
+	$urgentSeedOrder = "CASE WHEN torrents.seeders = 0 AND torrents.leechers > 0 THEN 1 ELSE 0 END DESC, ";
+	$orderby = "ORDER BY pos_state DESC, " . $urgentSeedOrder . "torrents.id DESC";
 	$pagerlink = "";
 
 }
@@ -289,9 +292,12 @@ elseif ($include_dead == 2)		//dead
     $whereothera[] = "visible = 'no'";
 }
 
-// In active/dead views, prioritize torrents tagged as official.
+// In active/dead views, prioritize torrents tagged as official — but only while an
+// official-group promotion (官组优惠) is actually running. Outside a promotion the
+// list stays newest-first, matching the stock ordering.
 $officialTag = intval(get_setting('bonus.official_tag', 0));
-if ($officialTag > 0 && in_array($include_dead, [1, 2], true)) {
+$officialPromoActive = get_official_sp_state() != \App\Models\Torrent::PROMOTION_NORMAL;
+if ($officialTag > 0 && $officialPromoActive && in_array($include_dead, [1, 2], true)) {
 	$officialOrder = "CASE WHEN EXISTS (SELECT 1 FROM torrent_tags tt WHERE tt.torrent_id = torrents.id AND tt.tag_id = {$officialTag}) THEN 1 ELSE 0 END DESC, ";
 	$orderby = preg_replace('/^ORDER BY\s+/i', 'ORDER BY ' . $officialOrder, $orderby);
 }
