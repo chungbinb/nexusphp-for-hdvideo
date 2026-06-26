@@ -7,6 +7,7 @@ $GLOBALS['nexus_base_href'] = get_protocol_prefix() . $BASEURL . '/';
 $GLOBALS['nexus_hide_top_banner'] = true;
 require_once "../../../include/game_control.php";
 game_guard('scratch');
+require_once "../../../include/game_leaderboard.php";
 
 /**
  * 刮刮乐 — instant scratch card. Pay a cost in 电影票, reveal a payout = cost ×
@@ -202,6 +203,28 @@ stdhead("刮刮乐");
             <?php } ?>
             </tbody>
         </table>
+    </div>
+
+    <?php
+    $scNet = game_lb_run("SELECT `s`.`uid` AS uid, `u`.`username` AS username, SUM(`s`.`delta`) AS amt FROM `" . SC_TABLE . "` `s` INNER JOIN `users` `u` ON `u`.`id` = `s`.`uid` GROUP BY `s`.`uid`, `u`.`username` ORDER BY amt DESC LIMIT 10");
+    $scCnt = game_lb_run("SELECT `s`.`uid` AS uid, `u`.`username` AS username, COUNT(*) AS amt FROM `" . SC_TABLE . "` `s` INNER JOIN `users` `u` ON `u`.`id` = `s`.`uid` GROUP BY `s`.`uid`, `u`.`username` ORDER BY amt DESC LIMIT 10");
+    $scLuck = game_lb_run("SELECT `s`.`uid` AS uid, `u`.`username` AS username, MAX(`s`.`multiplier`) AS amt, COUNT(*) AS cnt FROM `" . SC_TABLE . "` `s` INNER JOIN `users` `u` ON `u`.`id` = `s`.`uid` GROUP BY `s`.`uid`, `u`.`username` ORDER BY amt DESC, cnt DESC LIMIT 10");
+    echo game_lb_css();
+    ?>
+    <div class="sc-panel">
+        <h3 style="margin:0 0 12px">🏆 刮刮乐榜单</h3>
+        <div class="glb-grid">
+            <?php
+            echo game_lb_table('💰 盈亏榜', $scNet, '净盈亏',
+                function ($r) { return ((float)$r['amt'] >= 0 ? '+' : '') . game_lb_money($r['amt']); },
+                function ($r) { return (float)$r['amt'] >= 0 ? 'glb-pos' : 'glb-neg'; });
+            echo game_lb_table('🔥 活跃榜', $scCnt, '刮奖次数',
+                function ($r) { return number_format((int)$r['amt']) . ' 次'; });
+            echo game_lb_table('🍀 手气榜', $scLuck, '最高倍数',
+                function ($r) { return (int)$r['amt'] . ' 倍'; },
+                function ($r) { return (int)$r['amt'] >= 2 ? 'glb-pos' : ''; });
+            ?>
+        </div>
     </div>
 </div>
 <script>

@@ -6,6 +6,7 @@ parked();
 $GLOBALS['nexus_base_href'] = get_protocol_prefix() . $BASEURL . '/';
 $GLOBALS['nexus_hide_top_banner'] = true;
 require_once "../../include/game_control.php";
+require_once "../../include/game_leaderboard.php";
 
 $games = [
     [
@@ -376,6 +377,33 @@ body.page-games-php:not(.inframe) {
     font-weight: 700;
 }
 
+.steam-board {
+    margin-top: 26px;
+}
+
+.steam-board-title {
+    margin: 0 0 14px;
+    color: #fff;
+    font-size: 20px;
+    font-weight: 800;
+}
+
+.steam-board-sub {
+    font-size: 13px;
+    font-weight: 600;
+    color: #8ea6bd;
+}
+
+.steam-board .glb-card {
+    background: #1b2b3a;
+    border-color: rgba(91, 129, 166, 0.22);
+}
+
+.steam-board .glb-card-title {
+    background: rgba(53, 184, 241, 0.14);
+    color: #fff;
+}
+
 @media (max-width: 980px) {
     .steam-layout {
         grid-template-columns: 1fr;
@@ -458,6 +486,28 @@ body.page-games-php:not(.inframe) {
             <?php } ?>
         </section>
     </div>
+
+    <?php
+    $hallProfit = game_lb_bonus('profit', null, 10);
+    $hallActive = game_lb_bonus('active', null, 10);
+    $hallWin    = game_lb_bonus('win', null, 10);
+    echo game_lb_css();
+    ?>
+    <section class="steam-board" aria-label="游戏大厅总榜">
+        <h2 class="steam-board-title">🏆 游戏大厅总榜 <span class="steam-board-sub">汇总全部游戏（电影票）</span></h2>
+        <div class="glb-grid">
+            <?php
+            echo game_lb_table('💰 盈亏榜', $hallProfit, '净盈亏',
+                function ($r) { return ((float)$r['amt'] >= 0 ? '+' : '') . game_lb_money($r['amt']); },
+                function ($r) { return (float)$r['amt'] >= 0 ? 'glb-pos' : 'glb-neg'; });
+            echo game_lb_table('🔥 活跃榜', $hallActive, '参与次数',
+                function ($r) { return number_format((int)$r['amt']) . ' 次'; });
+            echo game_lb_table('🎉 中奖榜', $hallWin, '累计赢得',
+                function ($r) { return game_lb_money($r['amt']); },
+                function ($r) { return 'glb-pos'; });
+            ?>
+        </div>
+    </section>
 
     <div class="steam-more">
         <span>查看更多：</span>

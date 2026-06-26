@@ -7,6 +7,7 @@ $GLOBALS['nexus_base_href'] = get_protocol_prefix() . $BASEURL . '/';
 $GLOBALS['nexus_hide_top_banner'] = true;
 require_once "../../../include/game_control.php";
 game_guard('chest');
+require_once "../../../include/game_leaderboard.php";
 
 /**
  * 签到宝箱 — milestone chests tied to the existing 签到 (attendance.days = current
@@ -218,6 +219,27 @@ stdhead("签到宝箱");
             <?php $i++; } ?>
         </div>
         <div class="cb-msg" id="cbMsg"></div>
+    </div>
+
+    <?php
+    $chStreak = game_lb_run("SELECT `a`.`uid` AS uid, `u`.`username` AS username, `a`.`days` AS amt FROM `attendance` `a` INNER JOIN `users` `u` ON `u`.`id` = `a`.`uid` WHERE `a`.`days` > 0 ORDER BY `a`.`days` DESC LIMIT 10");
+    $chTotal = game_lb_run("SELECT `a`.`uid` AS uid, `u`.`username` AS username, `a`.`total_days` AS amt FROM `attendance` `a` INNER JOIN `users` `u` ON `u`.`id` = `a`.`uid` WHERE `a`.`total_days` > 0 ORDER BY `a`.`total_days` DESC LIMIT 10");
+    $chBonus = game_lb_bonus('profit', '[签到宝箱]', 10);
+    echo game_lb_css();
+    ?>
+    <div class="cb-panel">
+        <h3 style="margin:0 0 12px">🏆 签到榜单</h3>
+        <div class="glb-grid">
+            <?php
+            echo game_lb_table('🔥 连续签到榜', $chStreak, '连续天数',
+                function ($r) { return number_format((int)$r['amt']) . ' 天'; });
+            echo game_lb_table('🏅 累计签到榜', $chTotal, '累计天数',
+                function ($r) { return number_format((int)$r['amt']) . ' 天'; });
+            echo game_lb_table('🎁 宝箱收益榜', $chBonus, '累计电影票',
+                function ($r) { return game_lb_money($r['amt']); },
+                function ($r) { return 'glb-pos'; });
+            ?>
+        </div>
     </div>
 </div>
 <script>
