@@ -468,8 +468,13 @@ body.page-games-php:not(.inframe) {
                 $gBlocked = $gClosed && !$gCanAccess;
                 $disabled = $game['href'] === '#' || $gBlocked;
                 $rowHref = $disabled ? '#' : $game['href'];
-                $priceText = $gBlocked ? '未开放' : $game['price'];
-                $dateText = $gBlocked ? '管理员维护中' : $game['date'];
+                if ($gClosed) {
+                    $priceText = $gCanAccess ? '进入预览' : '未开放';
+                    $dateText = $gCanAccess ? '未开放（管理员可进）' : '未开放';
+                } else {
+                    $priceText = $game['price'];
+                    $dateText = $game['date'];
+                }
                 $hasIcon = is_file(__DIR__ . '/icons/' . $game['theme'] . '.png');
                 ?>
                 <a class="steam-game-row theme-<?php echo htmlspecialchars($game['theme']) ?> <?php echo $index === 0 ? 'is-active' : '' ?> <?php echo $disabled ? 'is-disabled' : '' ?>"
