@@ -15,10 +15,12 @@ require_once "../../../include/game_leaderboard.php";
  */
 const SC_BUSINESS_TYPE = 13;
 const SC_TABLE = 'hdvideo_scratch_records';
+const SC_PRIZE_TABLE = 'hdvideo_scratch_prizes';
 const SC_COST_OPTIONS = [100, 500, 1000, 5000];
 const SC_MAX_COST = 10000000000;
-// [multiplier(total return), weight]; weights sum = 1000
-const SC_PRIZES = [
+// Default [multiplier(total return), weight]; seeded into SC_PRIZE_TABLE on first
+// use, then fully managed from the backend (后台「刮刮乐奖品设置」).
+const SC_PRIZES_DEFAULT = [
     [0, 600],   // 谢谢惠顾
     [1, 220],   // 回本
     [2, 100],
@@ -27,6 +29,55 @@ const SC_PRIZES = [
     [10, 8],
     [88, 2],    // 大奖
 ];
+
+function sc_ensure_prizes_table()
+{
+    static $done = false;
+    if ($done) return;
+    @sql_query("
+        CREATE TABLE IF NOT EXISTS `" . SC_PRIZE_TABLE . "` (
+            `id` int unsigned NOT NULL AUTO_INCREMENT,
+            `multiplier` int unsigned NOT NULL DEFAULT 0,
+            `weight` int unsigned NOT NULL DEFAULT 1,
+            `is_enabled` tinyint(1) NOT NULL DEFAULT 1,
+            `sort` int NOT NULL DEFAULT 0,
+            `created_at` datetime DEFAULT NULL,
+            `updated_at` datetime DEFAULT NULL,
+            PRIMARY KEY (`id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $res = @sql_query("SELECT COUNT(*) AS c FROM `" . SC_PRIZE_TABLE . "`");
+    $cnt = $res ? (int)mysql_fetch_assoc($res)['c'] : 0;
+    if ($cnt === 0) {
+        $now = date('Y-m-d H:i:s');
+        $i = 0;
+        foreach (SC_PRIZES_DEFAULT as $p) {
+            $i++;
+            @sql_query(sprintf(
+                "INSERT INTO `" . SC_PRIZE_TABLE . "` (`multiplier`,`weight`,`is_enabled`,`sort`,`created_at`,`updated_at`) VALUES (%d,%d,1,%d,%s,%s)",
+                (int)$p[0], (int)$p[1], $i, sqlesc($now), sqlesc($now)
+            ));
+        }
+    }
+    $done = true;
+}
+
+/** Enabled prize table as [[multiplier, weight], ...]; falls back to defaults. */
+function sc_prizes()
+{
+    static $cache = null;
+    if ($cache !== null) return $cache;
+    sc_ensure_prizes_table();
+    $rows = [];
+    $res = @sql_query("SELECT `multiplier`,`weight` FROM `" . SC_PRIZE_TABLE . "` WHERE `is_enabled` = 1 AND `weight` > 0 ORDER BY `sort` ASC, `id` ASC");
+    if ($res) {
+        while ($r = mysql_fetch_assoc($res)) {
+            $rows[] = [(int)$r['multiplier'], (int)$r['weight']];
+        }
+    }
+    $cache = $rows ?: SC_PRIZES_DEFAULT;
+    return $cache;
+}
 
 function sc_ensure_table()
 {
@@ -55,10 +106,12 @@ function sc_money($v)
 
 function sc_pick_multiplier()
 {
+    $prizes = sc_prizes();
     $total = 0;
-    foreach (SC_PRIZES as $p) $total += $p[1];
+    foreach ($prizes as $p) $total += $p[1];
+    if ($total <= 0) return 0;
     $r = mt_rand(1, $total);
-    foreach (SC_PRIZES as $p) {
+    foreach ($prizes as $p) {
         if ($r <= $p[1]) return (int)$p[0];
         $r -= $p[1];
     }
@@ -180,9 +233,10 @@ stdhead("刮刮乐");
         </div>
         <div class="sc-msg" id="scMsg"></div>
         <div class="sc-odds" style="margin-top:12px">
-            <?php foreach (SC_PRIZES as $p) {
+            <?php $scPrizes = sc_prizes(); $scTotal = 0; foreach ($scPrizes as $p) $scTotal += $p[1];
+            foreach ($scPrizes as $p) {
                 $label = $p[0] == 0 ? '谢谢惠顾' : ($p[0] == 1 ? '回本(1倍)' : $p[0] . '倍');
-                $pct = round($p[1] / 10, 1);
+                $pct = $scTotal > 0 ? round($p[1] / $scTotal * 100, 1) : 0;
             ?><span><?php echo $label ?>：<?php echo $pct ?>%</span><?php } ?>
         </div>
     </div>
