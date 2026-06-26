@@ -347,8 +347,24 @@ function game_bs_place_bet($choice, $amount, $betNumber = null)
     }
 }
 
+function game_bs_format_my_bet($bet)
+{
+    if ($bet['choice'] === 'big') {
+        $choice = '押大';
+    } elseif ($bet['choice'] === 'small') {
+        $choice = '押小';
+    } else {
+        $choice = '押数字 ' . (int)$bet['bet_number'];
+    }
+    $statusMap = ['pending' => '待开奖', 'won' => '中', 'lost' => '未中', 'refunded' => '退回'];
+    $st = $statusMap[$bet['status']] ?? $bet['status'];
+    return htmlspecialchars($choice . ' ' . game_bs_money($bet['amount']) . '（' . $st . '）');
+}
+
 function game_bs_render_history()
 {
+    global $CURUSER;
+    $uid = (int)$CURUSER['id'];
     $perPage = 50;
     $countRes = sql_query("SELECT COUNT(*) AS c FROM `" . GAME_BS_ROUND_TABLE . "` WHERE `status` = 'closed'") or sqlerr(__FILE__, __LINE__);
     $total = (int)mysql_fetch_assoc($countRes)['c'];
@@ -378,7 +394,7 @@ function game_bs_render_history()
         </div>
         <div class="bsh-panel">
             <table class="bsh-table">
-                <tr><th>期号</th><th>截止时间</th><th>数字</th><th>结果</th></tr>
+                <tr><th>期号</th><th>截止时间</th><th>数字</th><th>结果</th><th>我的押注</th></tr>
                 <?php while ($item = mysql_fetch_assoc($res)) { ?>
                     <tr>
                         <td><?php echo game_bs_issue_no($item['id']) ?></td>
@@ -389,6 +405,12 @@ function game_bs_render_history()
                             if ($item['result_number'] !== null && game_bs_number_type((int)$item['result_number']) !== 'normal') {
                                 echo '（' . game_bs_type_label((int)$item['result_number']) . '）';
                             }
+                        ?></td>
+                        <td><?php
+                            $myRes = sql_query("SELECT * FROM `" . GAME_BS_BET_TABLE . "` WHERE `uid` = $uid AND `round_id` = " . (int)$item['id'] . " ORDER BY `id` ASC") or sqlerr(__FILE__, __LINE__);
+                            $myParts = [];
+                            while ($mb = mysql_fetch_assoc($myRes)) { $myParts[] = game_bs_format_my_bet($mb); }
+                            echo $myParts ? implode('<br>', $myParts) : '-';
                         ?></td>
                     </tr>
                 <?php } ?>
@@ -404,11 +426,70 @@ function game_bs_render_history()
     stdfoot();
 }
 
+function game_bs_render_my_bets()
+{
+    global $CURUSER;
+    $uid = (int)$CURUSER['id'];
+    $perPage = 50;
+    $countRes = sql_query("SELECT COUNT(*) AS c FROM `" . GAME_BS_BET_TABLE . "` WHERE `uid` = $uid") or sqlerr(__FILE__, __LINE__);
+    $total = (int)mysql_fetch_assoc($countRes)['c'];
+    $pages = max(1, (int)ceil($total / $perPage));
+    $page = (int)($_GET['page'] ?? 1);
+    if ($page < 1) { $page = 1; }
+    if ($page > $pages) { $page = $pages; }
+    $offset = ($page - 1) * $perPage;
+    $res = sql_query("SELECT * FROM `" . GAME_BS_BET_TABLE . "` WHERE `uid` = $uid ORDER BY `id` DESC LIMIT $perPage OFFSET $offset") or sqlerr(__FILE__, __LINE__);
+    $statusMap = ['pending' => '待开奖', 'won' => '中奖', 'lost' => '未中', 'refunded' => '已退回'];
+    stdhead("我的历史押注");
+    ?>
+    <style>
+    .bsh-wrap { max-width: 760px; margin: 0 auto; }
+    .bsh-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .bsh-title { font-size: 22px; font-weight: 800; }
+    .bsh-panel { border: 1px solid rgba(120,150,190,.34); border-radius: 8px; padding: 16px; background: rgba(30,60,100,.06); }
+    .bsh-table { width: 100%; border-collapse: collapse; }
+    .bsh-table th, .bsh-table td { padding: 8px; border: 1px solid rgba(120,150,190,.26); text-align: center; }
+    .bsh-pager { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 14px; }
+    .bsh-pager .muted { color: #9aa7b5; }
+    </style>
+    <div class="bsh-wrap">
+        <div class="bsh-head">
+            <div class="bsh-title">我的历史押注</div>
+            <div><a href="/games/big-small/">&laquo; 返回压大小</a></div>
+        </div>
+        <div class="bsh-panel">
+            <table class="bsh-table">
+                <tr><th>期号</th><th>选择</th><th>押注</th><th>状态</th><th>返还</th></tr>
+                <?php while ($bet = mysql_fetch_assoc($res)) { ?>
+                    <tr>
+                        <td><?php echo game_bs_issue_no($bet['round_id']) ?></td>
+                        <td><?php echo $bet['choice'] === 'big' ? '大' : ($bet['choice'] === 'small' ? '小' : '数字 ' . (int)$bet['bet_number']) ?></td>
+                        <td><?php echo game_bs_money($bet['amount']) ?></td>
+                        <td><?php echo $statusMap[$bet['status']] ?? htmlspecialchars($bet['status']) ?></td>
+                        <td><?php echo game_bs_money($bet['payout']) ?></td>
+                    </tr>
+                <?php } ?>
+            </table>
+            <div class="bsh-pager">
+                <?php if ($page > 1) { ?><a href="/games/big-small/?view=mybets&page=<?php echo $page - 1 ?>">&laquo; 上一页</a><?php } else { ?><span class="muted">&laquo; 上一页</span><?php } ?>
+                <span>第 <?php echo $page ?> / <?php echo $pages ?> 页（共 <?php echo $total ?> 注）</span>
+                <?php if ($page < $pages) { ?><a href="/games/big-small/?view=mybets&page=<?php echo $page + 1 ?>">下一页 &raquo;</a><?php } else { ?><span class="muted">下一页 &raquo;</span><?php } ?>
+            </div>
+        </div>
+    </div>
+    <?php
+    stdfoot();
+}
+
 game_bs_ensure_tables();
 game_bs_settle_due_rounds();
 
 if (($_GET['view'] ?? '') === 'history') {
     game_bs_render_history();
+    exit;
+}
+if (($_GET['view'] ?? '') === 'mybets') {
+    game_bs_render_my_bets();
     exit;
 }
 
@@ -527,7 +608,7 @@ stdhead("压大小");
 
     <div class="bs-tables">
         <div class="bs-panel">
-            <h3>我的最近押注</h3>
+            <h3 style="display:flex;align-items:center;justify-content:space-between;">我的最近押注 <a href="/games/big-small/?view=mybets" style="font-size:13px;font-weight:600;">我的历史押注 &raquo;</a></h3>
             <table class="bs-table">
                 <tr><th>期号</th><th>选择</th><th>押注</th><th>状态</th><th>返还</th></tr>
                 <?php while ($bet = mysql_fetch_assoc($myBetsRes)) { ?>
