@@ -5,6 +5,8 @@ loggedinorreturn();
 parked();
 $GLOBALS['nexus_base_href'] = get_protocol_prefix() . $BASEURL . '/';
 $GLOBALS['nexus_hide_top_banner'] = true;
+require_once "../../include/game_control.php";
+require_once "../../include/game_leaderboard.php";
 
 $games = [
     [
@@ -45,11 +47,12 @@ $games = [
     ],
     [
         'title' => '刮刮乐',
-        'subtitle' => '使用电影票刮出奖励组合，适合快速消耗和回收小额电影票。',
-        'date' => '筹备中',
-        'price' => '即将开放',
-        'href' => '#',
-        'status' => '筹备中',
+        'badge' => '内测中 v0.1',
+        'subtitle' => '花电影票刮一张即时开奖，刮中倍数 × 面额返还，适合快速试手气。',
+        'date' => '已开放',
+        'price' => '立即进入',
+        'href' => '/games/scratch/',
+        'status' => '可玩',
         'tags' => ['电影票', '概率', '休闲'],
         'theme' => 'scratch',
         'shots' => ['scratch-a', 'scratch-b', 'scratch-c'],
@@ -67,22 +70,24 @@ $games = [
     ],
     [
         'title' => '答题挑战',
-        'subtitle' => '围绕电影、剧集和站点规则出题，连续答对可获得额外奖励。',
-        'date' => '计划中',
-        'price' => '即将开放',
-        'href' => '#',
-        'status' => '计划中',
+        'badge' => '内测中 v0.1',
+        'subtitle' => '免费答题，答对得电影票，连对越多奖励越高；管理员可在题库里加题。',
+        'date' => '已开放',
+        'price' => '立即进入',
+        'href' => '/games/quiz/',
+        'status' => '可玩',
         'tags' => ['知识', '电影', '挑战'],
         'theme' => 'quiz',
         'shots' => ['quiz-a', 'quiz-b', 'quiz-c'],
     ],
     [
         'title' => '签到宝箱',
-        'subtitle' => '连续签到积累宝箱进度，周期结束自动结算奖励。',
-        'date' => '计划中',
-        'price' => '即将开放',
-        'href' => '#',
-        'status' => '计划中',
+        'badge' => '内测中 v0.1',
+        'subtitle' => '连续签到 7/15/30 天解锁宝箱，开出随机电影票，断签后重新累计可再领。',
+        'date' => '已开放',
+        'price' => '立即进入',
+        'href' => '/games/chest/',
+        'status' => '可玩',
         'tags' => ['签到', '宝箱', '连续奖励'],
         'theme' => 'chest',
         'shots' => ['chest-a', 'chest-b', 'chest-c'],
@@ -372,6 +377,33 @@ body.page-games-php:not(.inframe) {
     font-weight: 700;
 }
 
+.steam-board {
+    margin-top: 26px;
+}
+
+.steam-board-title {
+    margin: 0 0 14px;
+    color: #fff;
+    font-size: 20px;
+    font-weight: 800;
+}
+
+.steam-board-sub {
+    font-size: 13px;
+    font-weight: 600;
+    color: #8ea6bd;
+}
+
+.steam-board .glb-card {
+    background: #1b2b3a;
+    border-color: rgba(91, 129, 166, 0.22);
+}
+
+.steam-board .glb-card-title {
+    background: rgba(53, 184, 241, 0.14);
+    color: #fff;
+}
+
 @media (max-width: 980px) {
     .steam-layout {
         grid-template-columns: 1fr;
@@ -429,22 +461,58 @@ body.page-games-php:not(.inframe) {
     <div class="steam-layout">
         <section class="steam-list" aria-label="游戏列表">
             <?php foreach ($games as $index => $game) { ?>
-                <?php $disabled = $game['href'] === '#'; ?>
-                <?php $hasIcon = is_file(__DIR__ . '/icons/' . $game['theme'] . '.png'); ?>
+                <?php
+                $ctrlKey = preg_match('#^/games/([^/]+)/#', $game['href'], $m) ? $m[1] : null;
+                $gClosed = $ctrlKey ? !game_is_open($ctrlKey) : false;
+                $gCanAccess = $ctrlKey ? game_user_can_access($ctrlKey) : true;
+                $gBlocked = $gClosed && !$gCanAccess;
+                $disabled = $game['href'] === '#' || $gBlocked;
+                $rowHref = $disabled ? '#' : $game['href'];
+                if ($gClosed) {
+                    $priceText = $gCanAccess ? '进入预览' : '未开放';
+                    $dateText = $gCanAccess ? '未开放（管理员可进）' : '未开放';
+                } else {
+                    $priceText = $game['price'];
+                    $dateText = $game['date'];
+                }
+                $hasIcon = is_file(__DIR__ . '/icons/' . $game['theme'] . '.png');
+                ?>
                 <a class="steam-game-row theme-<?php echo htmlspecialchars($game['theme']) ?> <?php echo $index === 0 ? 'is-active' : '' ?> <?php echo $disabled ? 'is-disabled' : '' ?>"
-                   href="<?php echo htmlspecialchars($game['href']) ?>"
+                   href="<?php echo htmlspecialchars($rowHref) ?>"
                    <?php echo $disabled ? 'onclick="return false;"' : '' ?>>
                     <div class="steam-capsule<?php echo $hasIcon ? ' has-icon' : '' ?>" data-title="<?php echo htmlspecialchars($game['title']) ?>"<?php if ($hasIcon) { echo ' style="background-image:url(\'/games/icons/' . htmlspecialchars($game['theme']) . '.png?v=1\')"'; } ?>></div>
                     <div class="steam-game-main">
-                        <div class="steam-game-title"><?php echo htmlspecialchars($game['title']) ?><?php if (!empty($game['badge'])) { ?> <span class="steam-badge"><?php echo htmlspecialchars($game['badge']) ?></span><?php } ?></div>
+                        <div class="steam-game-title"><?php echo htmlspecialchars($game['title']) ?><?php if (!empty($game['badge'])) { ?> <span class="steam-badge"><?php echo htmlspecialchars($game['badge']) ?></span><?php } ?><?php if ($gClosed) { ?> <span class="steam-badge" style="color:#ff9d9d;background:rgba(120,0,0,.32)"><?php echo $gCanAccess ? '未开放·管理员可见' : '未开放' ?></span><?php } ?></div>
                         <div class="steam-game-subtitle"><?php echo htmlspecialchars($game['subtitle']) ?></div>
-                        <div class="steam-game-date"><?php echo htmlspecialchars($game['date']) ?></div>
+                        <div class="steam-game-date"><?php echo htmlspecialchars($dateText) ?></div>
                     </div>
-                    <div class="steam-game-price"><span class="steam-price-pill"><?php echo htmlspecialchars($game['price']) ?></span></div>
+                    <div class="steam-game-price"><span class="steam-price-pill"><?php echo htmlspecialchars($priceText) ?></span></div>
                 </a>
             <?php } ?>
         </section>
     </div>
+
+    <?php
+    $hallProfit = game_lb_bonus('profit', null, 10);
+    $hallActive = game_lb_bonus('active', null, 10);
+    $hallWin    = game_lb_bonus('wincount', null, 10);
+    echo game_lb_css();
+    ?>
+    <section class="steam-board" aria-label="游戏大厅总榜">
+        <h2 class="steam-board-title">🏆 游戏大厅总榜 <span class="steam-board-sub">汇总全部游戏（电影票）</span></h2>
+        <div class="glb-grid">
+            <?php
+            echo game_lb_table('💰 盈亏榜', $hallProfit, '净盈亏',
+                function ($r) { return ((float)$r['amt'] >= 0 ? '+' : '') . game_lb_money($r['amt']); },
+                function ($r) { return (float)$r['amt'] >= 0 ? 'glb-pos' : 'glb-neg'; });
+            echo game_lb_table('🔥 活跃榜', $hallActive, '参与次数',
+                function ($r) { return number_format((int)$r['amt']) . ' 次'; });
+            echo game_lb_table('🎉 中奖榜', $hallWin, '中奖次数',
+                function ($r) { return number_format((int)$r['amt']) . ' 次'; },
+                function ($r) { return 'glb-pos'; });
+            ?>
+        </div>
+    </section>
 
     <div class="steam-more">
         <span>查看更多：</span>
