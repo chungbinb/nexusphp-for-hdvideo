@@ -5,6 +5,8 @@ loggedinorreturn();
 parked();
 $GLOBALS['nexus_base_href'] = get_protocol_prefix() . $BASEURL . '/';
 $GLOBALS['nexus_hide_top_banner'] = true;
+require_once "../../../include/game_control.php";
+game_guard('scratch');
 
 /**
  * 刮刮乐 — instant scratch card. Pay a cost in 电影票, reveal a payout = cost ×

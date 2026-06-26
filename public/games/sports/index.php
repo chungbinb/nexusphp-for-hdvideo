@@ -5,6 +5,8 @@ loggedinorreturn();
 parked();
 $GLOBALS['nexus_base_href'] = get_protocol_prefix() . $BASEURL . '/';
 $GLOBALS['nexus_hide_top_banner'] = true;
+require_once "../../../include/game_control.php";
+game_guard('sports');
 
 const GAME_SP_BUSINESS_TYPE = 13; // reuse the lucky-draw / game bonus category
 const GAME_SP_MATCH_TABLE = 'hdvideo_sports_matches';

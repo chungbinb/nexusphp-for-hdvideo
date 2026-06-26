@@ -5,6 +5,8 @@ loggedinorreturn();
 parked();
 $GLOBALS['nexus_base_href'] = get_protocol_prefix() . $BASEURL . '/';
 $GLOBALS['nexus_hide_top_banner'] = true;
+require_once "../../../include/game_control.php";
+game_guard('chest');
 
 /**
  * 签到宝箱 — milestone chests tied to the existing 签到 (attendance.days = current

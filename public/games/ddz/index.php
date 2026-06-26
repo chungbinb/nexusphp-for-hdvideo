@@ -5,6 +5,8 @@ loggedinorreturn();
 parked();
 $GLOBALS['nexus_base_href'] = get_protocol_prefix() . $BASEURL . '/';
 $GLOBALS['nexus_hide_top_banner'] = true;
+require_once "../../../include/game_control.php";
+game_guard('ddz');
 
 /**
  * 斗地主 — MVP step 3: full play.

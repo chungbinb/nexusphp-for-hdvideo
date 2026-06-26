@@ -5,6 +5,8 @@ loggedinorreturn();
 parked();
 $GLOBALS['nexus_base_href'] = get_protocol_prefix() . $BASEURL . '/';
 $GLOBALS['nexus_hide_top_banner'] = true;
+require_once "../../../include/game_control.php";
+game_guard('big-small');
 
 const GAME_BS_INTERVAL = 60;
 const GAME_BS_BUSINESS_TYPE = 13;

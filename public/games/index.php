@@ -5,6 +5,7 @@ loggedinorreturn();
 parked();
 $GLOBALS['nexus_base_href'] = get_protocol_prefix() . $BASEURL . '/';
 $GLOBALS['nexus_hide_top_banner'] = true;
+require_once "../../include/game_control.php";
 
 $games = [
     [
@@ -432,18 +433,27 @@ body.page-games-php:not(.inframe) {
     <div class="steam-layout">
         <section class="steam-list" aria-label="游戏列表">
             <?php foreach ($games as $index => $game) { ?>
-                <?php $disabled = $game['href'] === '#'; ?>
-                <?php $hasIcon = is_file(__DIR__ . '/icons/' . $game['theme'] . '.png'); ?>
+                <?php
+                $ctrlKey = preg_match('#^/games/([^/]+)/#', $game['href'], $m) ? $m[1] : null;
+                $gClosed = $ctrlKey ? !game_is_open($ctrlKey) : false;
+                $gCanAccess = $ctrlKey ? game_user_can_access($ctrlKey) : true;
+                $gBlocked = $gClosed && !$gCanAccess;
+                $disabled = $game['href'] === '#' || $gBlocked;
+                $rowHref = $disabled ? '#' : $game['href'];
+                $priceText = $gBlocked ? '未开放' : $game['price'];
+                $dateText = $gBlocked ? '管理员维护中' : $game['date'];
+                $hasIcon = is_file(__DIR__ . '/icons/' . $game['theme'] . '.png');
+                ?>
                 <a class="steam-game-row theme-<?php echo htmlspecialchars($game['theme']) ?> <?php echo $index === 0 ? 'is-active' : '' ?> <?php echo $disabled ? 'is-disabled' : '' ?>"
-                   href="<?php echo htmlspecialchars($game['href']) ?>"
+                   href="<?php echo htmlspecialchars($rowHref) ?>"
                    <?php echo $disabled ? 'onclick="return false;"' : '' ?>>
                     <div class="steam-capsule<?php echo $hasIcon ? ' has-icon' : '' ?>" data-title="<?php echo htmlspecialchars($game['title']) ?>"<?php if ($hasIcon) { echo ' style="background-image:url(\'/games/icons/' . htmlspecialchars($game['theme']) . '.png?v=1\')"'; } ?>></div>
                     <div class="steam-game-main">
-                        <div class="steam-game-title"><?php echo htmlspecialchars($game['title']) ?><?php if (!empty($game['badge'])) { ?> <span class="steam-badge"><?php echo htmlspecialchars($game['badge']) ?></span><?php } ?></div>
+                        <div class="steam-game-title"><?php echo htmlspecialchars($game['title']) ?><?php if (!empty($game['badge'])) { ?> <span class="steam-badge"><?php echo htmlspecialchars($game['badge']) ?></span><?php } ?><?php if ($gClosed) { ?> <span class="steam-badge" style="color:#ff9d9d;background:rgba(120,0,0,.32)"><?php echo $gCanAccess ? '未开放·管理员可见' : '未开放' ?></span><?php } ?></div>
                         <div class="steam-game-subtitle"><?php echo htmlspecialchars($game['subtitle']) ?></div>
-                        <div class="steam-game-date"><?php echo htmlspecialchars($game['date']) ?></div>
+                        <div class="steam-game-date"><?php echo htmlspecialchars($dateText) ?></div>
                     </div>
-                    <div class="steam-game-price"><span class="steam-price-pill"><?php echo htmlspecialchars($game['price']) ?></span></div>
+                    <div class="steam-game-price"><span class="steam-price-pill"><?php echo htmlspecialchars($priceText) ?></span></div>
                 </a>
             <?php } ?>
         </section>
