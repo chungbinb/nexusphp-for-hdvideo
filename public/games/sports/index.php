@@ -850,6 +850,8 @@ stdhead("菠菜系统");
                     <input type="number" name="amount" min="1" step="1" placeholder="电影票数量" required>
                     <button type="submit">押注</button>
                     <span class="sp-quick">
+                        <span class="sp-chip" data-amt="100">100</span>
+                        <span class="sp-chip" data-amt="500">500</span>
                         <span class="sp-chip" data-amt="1000">1000</span>
                         <span class="sp-chip" data-amt="5000">5000</span>
                         <span class="sp-chip" data-amt="10000">10000</span>
