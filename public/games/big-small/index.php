@@ -394,9 +394,9 @@ function game_bs_render_history()
                 <?php } ?>
             </table>
             <div class="bsh-pager">
-                <?php if ($page > 1) { ?><a href="?view=history&page=<?php echo $page - 1 ?>">&laquo; 上一页</a><?php } else { ?><span class="muted">&laquo; 上一页</span><?php } ?>
+                <?php if ($page > 1) { ?><a href="/games/big-small/?view=history&page=<?php echo $page - 1 ?>">&laquo; 上一页</a><?php } else { ?><span class="muted">&laquo; 上一页</span><?php } ?>
                 <span>第 <?php echo $page ?> / <?php echo $pages ?> 页（共 <?php echo $total ?> 期）</span>
-                <?php if ($page < $pages) { ?><a href="?view=history&page=<?php echo $page + 1 ?>">下一页 &raquo;</a><?php } else { ?><span class="muted">下一页 &raquo;</span><?php } ?>
+                <?php if ($page < $pages) { ?><a href="/games/big-small/?view=history&page=<?php echo $page + 1 ?>">下一页 &raquo;</a><?php } else { ?><span class="muted">下一页 &raquo;</span><?php } ?>
             </div>
         </div>
     </div>
@@ -542,7 +542,7 @@ stdhead("压大小");
             </table>
         </div>
         <div class="bs-panel">
-            <h3 style="display:flex;align-items:center;justify-content:space-between;">最近开奖 <a href="?view=history" style="font-size:13px;font-weight:600;">历史开奖 &raquo;</a></h3>
+            <h3 style="display:flex;align-items:center;justify-content:space-between;">最近开奖 <a href="/games/big-small/?view=history" style="font-size:13px;font-weight:600;">历史开奖 &raquo;</a></h3>
             <table class="bs-table">
                 <tr><th>期号</th><th>截止时间</th><th>数字</th><th>结果</th></tr>
                 <?php while ($item = mysql_fetch_assoc($historyRes)) { ?>
