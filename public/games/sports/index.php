@@ -9,6 +9,8 @@ $GLOBALS['nexus_hide_top_banner'] = true;
 const GAME_SP_BUSINESS_TYPE = 13; // reuse the lucky-draw / game bonus category
 const GAME_SP_MATCH_TABLE = 'hdvideo_sports_matches';
 const GAME_SP_BET_TABLE = 'hdvideo_sports_bets';
+const GAME_SP_CONFIG_TABLE = 'hdvideo_sports_config';
+const GAME_SP_API_BASE = 'https://v3.football.api-sports.io/';
 
 function game_sp_run_schema_sql($sql)
 {
@@ -17,6 +19,12 @@ function game_sp_run_schema_sql($sql)
         do_log('[GAME_SPORTS_SCHEMA_ERROR] ' . $sql . ' :: ' . mysql_error(), 'error');
     }
     return $res;
+}
+
+function game_sp_column_exists($table, $column)
+{
+    $res = @sql_query("SHOW COLUMNS FROM `$table` LIKE " . sqlesc($column));
+    return $res && mysql_num_rows($res) > 0;
 }
 
 function game_sp_ensure_tables()
@@ -28,6 +36,7 @@ function game_sp_ensure_tables()
     game_sp_run_schema_sql("
         CREATE TABLE IF NOT EXISTS `" . GAME_SP_MATCH_TABLE . "` (
             `id` int unsigned NOT NULL AUTO_INCREMENT,
+            `external_id` varchar(40) NOT NULL DEFAULT '',
             `league` varchar(80) NOT NULL DEFAULT '',
             `home_team` varchar(80) NOT NULL DEFAULT '',
             `away_team` varchar(80) NOT NULL DEFAULT '',
@@ -36,14 +45,15 @@ function game_sp_ensure_tables()
             `odds_home` decimal(6,2) NOT NULL DEFAULT '0.00',
             `odds_draw` decimal(6,2) NOT NULL DEFAULT '0.00',
             `odds_away` decimal(6,2) NOT NULL DEFAULT '0.00',
-            `status` enum('open','settled','cancelled') NOT NULL DEFAULT 'open',
+            `status` enum('draft','open','settled','cancelled') NOT NULL DEFAULT 'open',
             `result` enum('home','draw','away') DEFAULT NULL,
             `home_score` smallint unsigned DEFAULT NULL,
             `away_score` smallint unsigned DEFAULT NULL,
             `created_at` datetime NOT NULL,
             `updated_at` datetime NOT NULL,
             PRIMARY KEY (`id`),
-            KEY `idx_status_deadline` (`status`, `bet_deadline`)
+            KEY `idx_status_deadline` (`status`, `bet_deadline`),
+            KEY `idx_external` (`external_id`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
     game_sp_run_schema_sql("
@@ -63,7 +73,34 @@ function game_sp_ensure_tables()
             KEY `idx_uid_created` (`uid`, `created_at`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
+    game_sp_run_schema_sql("
+        CREATE TABLE IF NOT EXISTS `" . GAME_SP_CONFIG_TABLE . "` (
+            `k` varchar(50) NOT NULL,
+            `v` text,
+            `updated_at` datetime NOT NULL,
+            PRIMARY KEY (`k`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    // In-place upgrade for tables created before fixture-import support.
+    if (!game_sp_column_exists(GAME_SP_MATCH_TABLE, 'external_id')) {
+        game_sp_run_schema_sql("ALTER TABLE `" . GAME_SP_MATCH_TABLE . "` MODIFY `status` enum('draft','open','settled','cancelled') NOT NULL DEFAULT 'open'");
+        game_sp_run_schema_sql("ALTER TABLE `" . GAME_SP_MATCH_TABLE . "` ADD COLUMN `external_id` varchar(40) NOT NULL DEFAULT '' AFTER `id`");
+        game_sp_run_schema_sql("ALTER TABLE `" . GAME_SP_MATCH_TABLE . "` ADD KEY `idx_external` (`external_id`)");
+    }
     $done = true;
+}
+
+function game_sp_config_get($k, $default = '')
+{
+    $res = sql_query("SELECT `v` FROM `" . GAME_SP_CONFIG_TABLE . "` WHERE `k` = " . sqlesc($k) . " LIMIT 1") or sqlerr(__FILE__, __LINE__);
+    $row = mysql_fetch_assoc($res);
+    return $row ? $row['v'] : $default;
+}
+
+function game_sp_config_set($k, $v)
+{
+    $now = date('Y-m-d H:i:s');
+    sql_query("INSERT INTO `" . GAME_SP_CONFIG_TABLE . "` (`k`, `v`, `updated_at`) VALUES (" . sqlesc($k) . ", " . sqlesc($v) . ", " . sqlesc($now) . ") ON DUPLICATE KEY UPDATE `v` = VALUES(`v`), `updated_at` = VALUES(`updated_at`)") or sqlerr(__FILE__, __LINE__);
 }
 
 function game_sp_money($value)
@@ -110,6 +147,110 @@ function game_sp_parse_datetime($value)
     }
     $ts -= $ts % 60; // ignore seconds, normalize to :00
     return date('Y-m-d H:i:s', $ts);
+}
+
+/**
+ * Call API-Football (api-sports.io). Returns [decodedArray|null, errorString].
+ */
+function game_sp_api_request($path, array $params = [])
+{
+    $key = trim((string)game_sp_config_get('api_key', ''));
+    if ($key === '') {
+        return [null, '尚未设置 API key（在下方管理区填写）。'];
+    }
+    if (!function_exists('curl_init')) {
+        return [null, '服务器未启用 cURL。'];
+    }
+    $url = GAME_SP_API_BASE . ltrim($path, '/');
+    if ($params) {
+        $url .= '?' . http_build_query($params);
+    }
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => ['x-apisports-key: ' . $key],
+        CURLOPT_TIMEOUT => 25,
+        CURLOPT_SSL_VERIFYPEER => true,
+    ]);
+    $body = curl_exec($ch);
+    $errno = curl_errno($ch);
+    $err = curl_error($ch);
+    $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    if ($errno) {
+        return [null, "请求失败：$err"];
+    }
+    $data = json_decode((string)$body, true);
+    if (!is_array($data)) {
+        return [null, "返回解析失败（HTTP $code）。"];
+    }
+    if (!empty($data['errors'])) {
+        $errors = $data['errors'];
+        if (is_array($errors)) {
+            $parts = [];
+            foreach ($errors as $k => $v) {
+                $parts[] = is_scalar($v) ? (string)$v : json_encode($v, JSON_UNESCAPED_UNICODE);
+            }
+            $msg = implode('；', $parts);
+        } else {
+            $msg = (string)$errors;
+        }
+        if ($msg !== '' && $msg !== '[]') {
+            return [null, "API 错误：$msg"];
+        }
+    }
+    return [$data, ''];
+}
+
+function game_sp_import_fixtures($leagueId, $season, $from, $to)
+{
+    [$data, $err] = game_sp_api_request('fixtures', [
+        'league' => (int)$leagueId,
+        'season' => (int)$season,
+        'from' => $from,
+        'to' => $to,
+    ]);
+    if ($err) {
+        return [0, $err];
+    }
+    $now = date('Y-m-d H:i:s');
+    $imported = 0;
+    $finished = ['FT', 'AET', 'PEN', 'CANC', 'ABD', 'AWD', 'WO', 'PST'];
+    foreach (($data['response'] ?? []) as $fx) {
+        $extId = (string)($fx['fixture']['id'] ?? '');
+        if ($extId === '') {
+            continue;
+        }
+        $statusShort = (string)($fx['fixture']['status']['short'] ?? '');
+        if (in_array($statusShort, $finished, true)) {
+            continue;
+        }
+        $home = trim((string)($fx['teams']['home']['name'] ?? ''));
+        $away = trim((string)($fx['teams']['away']['name'] ?? ''));
+        $league = trim((string)($fx['league']['name'] ?? ''));
+        $ts = strtotime((string)($fx['fixture']['date'] ?? ''));
+        if ($home === '' || $away === '' || !$ts) {
+            continue;
+        }
+        $existsRes = sql_query("SELECT `id` FROM `" . GAME_SP_MATCH_TABLE . "` WHERE `external_id` = " . sqlesc($extId) . " LIMIT 1") or sqlerr(__FILE__, __LINE__);
+        if (mysql_fetch_assoc($existsRes)) {
+            continue;
+        }
+        $matchTime = date('Y-m-d H:i:s', $ts - ($ts % 60));
+        sql_query(sprintf(
+            "INSERT INTO `" . GAME_SP_MATCH_TABLE . "` (`external_id`, `league`, `home_team`, `away_team`, `match_time`, `bet_deadline`, `status`, `created_at`, `updated_at`) VALUES (%s, %s, %s, %s, %s, %s, 'draft', %s, %s)",
+            sqlesc($extId),
+            sqlesc(mb_substr($league, 0, 80)),
+            sqlesc(mb_substr($home, 0, 80)),
+            sqlesc(mb_substr($away, 0, 80)),
+            sqlesc($matchTime),
+            sqlesc($matchTime),
+            sqlesc($now),
+            sqlesc($now)
+        )) or sqlerr(__FILE__, __LINE__);
+        $imported++;
+    }
+    return [$imported, ''];
 }
 
 function game_sp_place_bet($matchId, $choice, $amount)
@@ -186,11 +327,10 @@ function game_sp_settle_match($matchId, $result, $homeScore, $awayScore)
         }
         if ($match['status'] !== 'open') {
             sql_query("ROLLBACK");
-            return "该比赛已结算或已取消。";
+            return "只有已开盘的比赛才能结算。";
         }
         sql_query("UPDATE `" . GAME_SP_MATCH_TABLE . "` SET `status` = 'settled', `result` = " . sqlesc($result) . ", `home_score` = $homeScoreSql, `away_score` = $awayScoreSql, `updated_at` = " . sqlesc($now) . " WHERE `id` = $matchId") or sqlerr(__FILE__, __LINE__);
 
-        // Winners: choice == result, payout = amount * locked odds.
         $winRes = sql_query("
             SELECT b.`id`, b.`uid`, b.`amount`, b.`odds`, u.`seedbonus`
             FROM `" . GAME_SP_BET_TABLE . "` b
@@ -236,9 +376,8 @@ function game_sp_cancel_match($matchId)
         }
         if ($match['status'] !== 'open') {
             sql_query("ROLLBACK");
-            return "只有未结算的比赛才能取消。";
+            return "只有已开盘的比赛才能取消。";
         }
-        // Refund all pending bets.
         $betRes = sql_query("
             SELECT b.`id`, b.`uid`, b.`amount`, u.`seedbonus`
             FROM `" . GAME_SP_BET_TABLE . "` b
@@ -267,48 +406,71 @@ function game_sp_cancel_match($matchId)
     }
 }
 
-function game_sp_create_match($data)
+/**
+ * Validate + persist the three odds and (optional) deadline, then publish a match
+ * (draft -> open). Also used to create a fully-manual match when $isNew is true.
+ */
+function game_sp_save_match($data, $isNew)
 {
     $now = date('Y-m-d H:i:s');
-    $league = trim((string)($data['league'] ?? ''));
-    $home = trim((string)($data['home_team'] ?? ''));
-    $away = trim((string)($data['away_team'] ?? ''));
-    $matchTime = game_sp_parse_datetime($data['match_time'] ?? '');
-    $deadline = game_sp_parse_datetime($data['bet_deadline'] ?? '');
     $oddsHome = (float)($data['odds_home'] ?? 0);
     $oddsDraw = (float)($data['odds_draw'] ?? 0);
     $oddsAway = (float)($data['odds_away'] ?? 0);
-
-    if ($home === '' || $away === '') {
-        return "主队和客队不能为空。";
-    }
-    if (mb_strlen($league) > 80 || mb_strlen($home) > 80 || mb_strlen($away) > 80) {
-        return "队名或联赛名过长。";
-    }
-    if (!$matchTime || !$deadline) {
-        return "比赛时间和截止时间必须填写且格式正确。";
-    }
-    if ($deadline > $matchTime) {
-        return "押注截止时间不能晚于比赛开始时间。";
-    }
     foreach (['主胜' => $oddsHome, '平局' => $oddsDraw, '客胜' => $oddsAway] as $name => $o) {
         if ($o <= 1 || $o > 1000) {
             return "{$name}赔率必须大于 1 且不超过 1000。";
         }
     }
-    sql_query(sprintf(
-        "INSERT INTO `" . GAME_SP_MATCH_TABLE . "` (`league`, `home_team`, `away_team`, `match_time`, `bet_deadline`, `odds_home`, `odds_draw`, `odds_away`, `status`, `created_at`, `updated_at`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'open', %s, %s)",
-        sqlesc($league),
-        sqlesc($home),
-        sqlesc($away),
-        sqlesc($matchTime),
-        sqlesc($deadline),
-        sqlesc(number_format($oddsHome, 2, '.', '')),
-        sqlesc(number_format($oddsDraw, 2, '.', '')),
-        sqlesc(number_format($oddsAway, 2, '.', '')),
-        sqlesc($now),
-        sqlesc($now)
-    )) or sqlerr(__FILE__, __LINE__);
+
+    if ($isNew) {
+        $league = trim((string)($data['league'] ?? ''));
+        $home = trim((string)($data['home_team'] ?? ''));
+        $away = trim((string)($data['away_team'] ?? ''));
+        $matchTime = game_sp_parse_datetime($data['match_time'] ?? '');
+        $deadline = game_sp_parse_datetime($data['bet_deadline'] ?? '');
+        if ($home === '' || $away === '') {
+            return "主队和客队不能为空。";
+        }
+        if (mb_strlen($league) > 80 || mb_strlen($home) > 80 || mb_strlen($away) > 80) {
+            return "队名或联赛名过长。";
+        }
+        if (!$matchTime || !$deadline) {
+            return "比赛时间和截止时间必须填写且格式正确。";
+        }
+        if ($deadline > $matchTime) {
+            return "押注截止时间不能晚于比赛开始时间。";
+        }
+        sql_query(sprintf(
+            "INSERT INTO `" . GAME_SP_MATCH_TABLE . "` (`league`, `home_team`, `away_team`, `match_time`, `bet_deadline`, `odds_home`, `odds_draw`, `odds_away`, `status`, `created_at`, `updated_at`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'open', %s, %s)",
+            sqlesc($league), sqlesc($home), sqlesc($away), sqlesc($matchTime), sqlesc($deadline),
+            sqlesc(number_format($oddsHome, 2, '.', '')), sqlesc(number_format($oddsDraw, 2, '.', '')), sqlesc(number_format($oddsAway, 2, '.', '')),
+            sqlesc($now), sqlesc($now)
+        )) or sqlerr(__FILE__, __LINE__);
+        return "";
+    }
+
+    // Publish an imported draft.
+    $matchId = (int)($data['match_id'] ?? 0);
+    $matchRes = sql_query("SELECT * FROM `" . GAME_SP_MATCH_TABLE . "` WHERE `id` = $matchId LIMIT 1") or sqlerr(__FILE__, __LINE__);
+    $match = mysql_fetch_assoc($matchRes);
+    if (!$match || $match['status'] !== 'draft') {
+        return "草稿赛事不存在或已发布。";
+    }
+    $deadline = game_sp_parse_datetime($data['bet_deadline'] ?? '');
+    if (!$deadline) {
+        $deadline = $match['bet_deadline'];
+    }
+    if ($deadline > $match['match_time']) {
+        return "押注截止时间不能晚于比赛开始时间。";
+    }
+    sql_query("UPDATE `" . GAME_SP_MATCH_TABLE . "` SET `odds_home` = " . sqlesc(number_format($oddsHome, 2, '.', '')) . ", `odds_draw` = " . sqlesc(number_format($oddsDraw, 2, '.', '')) . ", `odds_away` = " . sqlesc(number_format($oddsAway, 2, '.', '')) . ", `bet_deadline` = " . sqlesc($deadline) . ", `status` = 'open', `updated_at` = " . sqlesc($now) . " WHERE `id` = $matchId") or sqlerr(__FILE__, __LINE__);
+    return "";
+}
+
+function game_sp_delete_draft($matchId)
+{
+    $matchId = (int)$matchId;
+    sql_query("DELETE FROM `" . GAME_SP_MATCH_TABLE . "` WHERE `id` = $matchId AND `status` = 'draft'") or sqlerr(__FILE__, __LINE__);
     return "";
 }
 
@@ -335,9 +497,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     } elseif ($action === 'create_match' && game_sp_is_admin()) {
-        $error = game_sp_create_match($_POST);
+        $error = game_sp_save_match($_POST, true);
         if ($error === "") {
-            $message = "比赛已创建。";
+            $message = "比赛已创建并开盘。";
+        }
+    } elseif ($action === 'publish_match' && game_sp_is_admin()) {
+        $error = game_sp_save_match($_POST, false);
+        if ($error === "") {
+            $message = "赔率已设置，比赛已开盘。";
+        }
+    } elseif ($action === 'delete_draft' && game_sp_is_admin()) {
+        $error = game_sp_delete_draft((int)($_POST['match_id'] ?? 0));
+        if ($error === "") {
+            $message = "草稿赛事已删除。";
         }
     } elseif ($action === 'settle_match' && game_sp_is_admin()) {
         $result = $_POST['result'] ?? '';
@@ -354,6 +526,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($error === "") {
             $message = "比赛已取消，押注已退回。";
         }
+    } elseif ($action === 'save_api_key' && game_sp_is_admin()) {
+        game_sp_config_set('api_key', trim((string)($_POST['api_key'] ?? '')));
+        $message = "API key 已保存。";
+    } elseif ($action === 'import_fixtures' && game_sp_is_admin()) {
+        $leagueId = (int)($_POST['league_id'] ?? 0);
+        $season = (int)($_POST['season'] ?? 0);
+        $from = game_sp_parse_datetime(($_POST['from'] ?? '') . ' 00:00:00');
+        $to = game_sp_parse_datetime(($_POST['to'] ?? '') . ' 00:00:00');
+        if ($leagueId <= 0 || $season <= 0 || !$from || !$to) {
+            $error = "请填写联赛 ID、赛季年份和起止日期。";
+        } else {
+            [$count, $err] = game_sp_import_fixtures($leagueId, $season, substr($from, 0, 10), substr($to, 0, 10));
+            $error = $err;
+            if ($error === "") {
+                $message = "导入完成，新增 {$count} 场草稿赛事（在下方“草稿赛事”里设赔率后开盘）。";
+            }
+        }
     } else {
         $error = "无效操作。";
     }
@@ -369,22 +558,31 @@ $now = date('Y-m-d H:i:s');
 
 $openRes = sql_query("SELECT * FROM `" . GAME_SP_MATCH_TABLE . "` WHERE `status` = 'open' AND `bet_deadline` > " . sqlesc($now) . " ORDER BY `match_time` ASC, `id` ASC") or sqlerr(__FILE__, __LINE__);
 $openMatches = [];
+$leagues = [];
 while ($m = mysql_fetch_assoc($openRes)) {
     $openMatches[] = $m;
+    $lg = $m['league'] !== '' ? $m['league'] : '其他';
+    $leagues[$lg] = true;
 }
+$leagueList = array_keys($leagues);
 $resultRes = sql_query("SELECT * FROM `" . GAME_SP_MATCH_TABLE . "` WHERE `status` IN ('settled','cancelled') ORDER BY `updated_at` DESC, `id` DESC LIMIT 15") or sqlerr(__FILE__, __LINE__);
 $myBetsRes = sql_query("
-    SELECT b.*, m.`home_team`, m.`away_team`, m.`league`, m.`status` AS match_status, m.`result` AS match_result
+    SELECT b.*, m.`home_team`, m.`away_team`, m.`league`
     FROM `" . GAME_SP_BET_TABLE . "` b
     INNER JOIN `" . GAME_SP_MATCH_TABLE . "` m ON m.`id` = b.`match_id`
     WHERE b.`uid` = " . (int)$CURUSER['id'] . " ORDER BY b.`id` DESC LIMIT 12
 ") or sqlerr(__FILE__, __LINE__);
 
+$draftMatches = [];
 $adminMatches = [];
 if ($isAdmin) {
+    $draftRes = sql_query("SELECT * FROM `" . GAME_SP_MATCH_TABLE . "` WHERE `status` = 'draft' ORDER BY `match_time` ASC, `id` ASC") or sqlerr(__FILE__, __LINE__);
+    while ($m = mysql_fetch_assoc($draftRes)) {
+        $draftMatches[] = $m;
+    }
     $adminRes = sql_query("SELECT * FROM `" . GAME_SP_MATCH_TABLE . "` WHERE `status` = 'open' ORDER BY `match_time` ASC, `id` ASC") or sqlerr(__FILE__, __LINE__);
     while ($m = mysql_fetch_assoc($adminRes)) {
-        $totRes = sql_query("SELECT `choice`, SUM(`amount`) AS total, COUNT(*) AS cnt FROM `" . GAME_SP_BET_TABLE . "` WHERE `match_id` = " . (int)$m['id'] . " AND `status` = 'pending' GROUP BY `choice`") or sqlerr(__FILE__, __LINE__);
+        $totRes = sql_query("SELECT `choice`, SUM(`amount`) AS total FROM `" . GAME_SP_BET_TABLE . "` WHERE `match_id` = " . (int)$m['id'] . " AND `status` = 'pending' GROUP BY `choice`") or sqlerr(__FILE__, __LINE__);
         $tot = ['home' => 0, 'draw' => 0, 'away' => 0];
         while ($t = mysql_fetch_assoc($totRes)) {
             $tot[$t['choice']] = (float)$t['total'];
@@ -408,6 +606,9 @@ stdhead("菠菜系统");
 .sp-message.ok { background: rgba(34,150,90,.14); color: #16834d; }
 .sp-message.err { background: rgba(220,60,70,.14); color: #c02432; }
 .sp-section-title { font-size: 18px; font-weight: 800; margin: 18px 0 10px; }
+.sp-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.sp-tab { padding: 6px 14px; border: 1px solid rgba(120,150,190,.45); border-radius: 999px; cursor: pointer; font-weight: 700; background: rgba(0,0,0,.03); }
+.sp-tab.is-active { background: #2ecc71; color: #fff; border-color: #2ecc71; }
 .sp-match { border: 1px solid rgba(120,150,190,.34); border-radius: 8px; padding: 14px; margin-bottom: 12px; background: rgba(30,60,100,.06); }
 .sp-match-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin-bottom: 6px; }
 .sp-league { font-size: 12px; color: #2f80b5; font-weight: 700; }
@@ -441,11 +642,19 @@ stdhead("菠菜系统");
     <?php if ($error) { ?><div class="sp-message err"><?php echo htmlspecialchars($error) ?></div><?php } ?>
 
     <div class="sp-section-title">进行中的赛事</div>
+    <?php if ($leagueList) { ?>
+        <div class="sp-tabs" id="spTabs">
+            <span class="sp-tab is-active" data-league="__all">全部</span>
+            <?php foreach ($leagueList as $lg) { ?>
+                <span class="sp-tab" data-league="<?php echo htmlspecialchars($lg) ?>"><?php echo htmlspecialchars($lg) ?></span>
+            <?php } ?>
+        </div>
+    <?php } ?>
     <?php if (!$openMatches) { ?>
         <div class="sp-match sp-muted">暂无可押注的赛事，敬请期待。</div>
     <?php } ?>
-    <?php foreach ($openMatches as $m) { ?>
-        <div class="sp-match">
+    <?php foreach ($openMatches as $m) { $lg = $m['league'] !== '' ? $m['league'] : '其他'; ?>
+        <div class="sp-match" data-league="<?php echo htmlspecialchars($lg) ?>">
             <div class="sp-match-top">
                 <?php if ($m['league'] !== '') { ?><span class="sp-league"><?php echo htmlspecialchars($m['league']) ?></span><?php } ?>
                 <span class="sp-teams"><?php echo htmlspecialchars($m['home_team']) ?> <span class="sp-muted">vs</span> <?php echo htmlspecialchars($m['away_team']) ?></span>
@@ -482,7 +691,7 @@ stdhead("菠菜系统");
 
     <div class="sp-section-title">最近开奖</div>
     <table class="sp-table">
-        <tr><th>赛事</th><th>比分</th><th>结果</th><th>状态</th></tr>
+        <tr><th>赛事</th><th>比分</th><th>结果</th><th>时间</th></tr>
         <?php while ($m = mysql_fetch_assoc($resultRes)) { ?>
             <tr>
                 <td><?php echo htmlspecialchars(($m['league'] !== '' ? '[' . $m['league'] . '] ' : '') . $m['home_team'] . ' vs ' . $m['away_team']) ?></td>
@@ -493,9 +702,65 @@ stdhead("菠菜系统");
         <?php } ?>
     </table>
 
-    <?php if ($isAdmin) { ?>
+    <?php if ($isAdmin) {
+        $apiKeySet = trim((string)game_sp_config_get('api_key', '')) !== '';
+    ?>
         <div class="sp-admin">
-            <h3>🛠 管理员：创建比赛</h3>
+            <h3>🛠 管理员：赛事数据 API（API-Football / api-sports.io）</h3>
+            <div class="sp-muted" style="margin-bottom:8px;">
+                到 api-football.com 注册免费账号（免费档 100 次/天），拿到 <b>x-apisports-key</b> 填入此处。当前状态：<b><?php echo $apiKeySet ? '已设置' : '未设置' ?></b>
+            </div>
+            <form method="post" action="/games/sports/" class="sp-inline" style="margin-bottom:14px;">
+                <input type="hidden" name="action" value="save_api_key">
+                <input type="password" name="api_key" placeholder="粘贴 API key" style="width:280px;padding:7px" autocomplete="off">
+                <button type="submit">保存 API key</button>
+            </form>
+
+            <h3>🛠 管理员：从 API 导入赛程</h3>
+            <div class="sp-muted" style="margin-bottom:8px;">联赛 ID 与赛季年份在 api-football 后台/文档查（例：世界杯 league=1，中超 league=169；赛季填年份如 2026）。导入的赛事为“草稿”，需设赔率后才开盘。</div>
+            <form method="post" action="/games/sports/">
+                <input type="hidden" name="action" value="import_fixtures">
+                <div class="sp-admin-form">
+                    <label>联赛 ID<input type="number" name="league_id" min="1" required></label>
+                    <label>赛季年份<input type="number" name="season" min="2000" max="2100" value="<?php echo (int)date('Y') ?>" required></label>
+                    <label>起始日期<input type="date" name="from" value="<?php echo date('Y-m-d') ?>" required></label>
+                    <label>结束日期<input type="date" name="to" value="<?php echo date('Y-m-d', TIMENOW + 14 * 86400) ?>" required></label>
+                    <label>&nbsp;<button type="submit">导入赛程</button></label>
+                </div>
+            </form>
+
+            <?php if ($draftMatches) { ?>
+                <h3 style="margin-top:18px;">🛠 草稿赛事（设赔率后开盘）</h3>
+                <table class="sp-table">
+                    <tr><th>赛事</th><th>开赛</th><th>设赔率(主/平/客) + 截止 → 开盘</th><th>操作</th></tr>
+                    <?php foreach ($draftMatches as $m) { ?>
+                        <tr>
+                            <td><?php echo htmlspecialchars($m['home_team'] . ' vs ' . $m['away_team']) ?><br><span class="sp-muted"><?php echo htmlspecialchars($m['league']) ?></span></td>
+                            <td><?php echo htmlspecialchars($m['match_time']) ?></td>
+                            <td>
+                                <form method="post" action="/games/sports/" class="sp-inline">
+                                    <input type="hidden" name="action" value="publish_match">
+                                    <input type="hidden" name="match_id" value="<?php echo (int)$m['id'] ?>">
+                                    <input type="number" name="odds_home" min="1.01" max="1000" step="0.01" placeholder="主" style="width:60px" required>
+                                    <input type="number" name="odds_draw" min="1.01" max="1000" step="0.01" placeholder="平" style="width:60px" required>
+                                    <input type="number" name="odds_away" min="1.01" max="1000" step="0.01" placeholder="客" style="width:60px" required>
+                                    <input type="text" name="bet_deadline" value="<?php echo htmlspecialchars($m['bet_deadline']) ?>" style="width:140px" title="押注截止">
+                                    <button type="submit">开盘</button>
+                                </form>
+                            </td>
+                            <td>
+                                <form method="post" action="/games/sports/" onsubmit="return confirm('删除该草稿赛事？');">
+                                    <input type="hidden" name="action" value="delete_draft">
+                                    <input type="hidden" name="match_id" value="<?php echo (int)$m['id'] ?>">
+                                    <button type="submit">删除</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <?php } ?>
+                </table>
+            <?php } ?>
+
+            <h3 style="margin-top:18px;">🛠 手动创建比赛</h3>
             <form method="post" action="/games/sports/">
                 <input type="hidden" name="action" value="create_match">
                 <div class="sp-admin-form">
@@ -511,7 +776,7 @@ stdhead("菠菜系统");
                 </div>
             </form>
 
-            <h3 style="margin-top:18px;">🛠 管理员：未结算比赛</h3>
+            <h3 style="margin-top:18px;">🛠 已开盘比赛：录结果 / 取消</h3>
             <table class="sp-table">
                 <tr><th>赛事</th><th>截止</th><th>押注(主/平/客)</th><th>录结果</th><th>操作</th></tr>
                 <?php foreach ($adminMatches as $m) { ?>
@@ -542,10 +807,27 @@ stdhead("菠菜系统");
                         </td>
                     </tr>
                 <?php } ?>
-                <?php if (!$adminMatches) { ?><tr><td colspan="5" class="sp-muted">暂无未结算比赛。</td></tr><?php } ?>
+                <?php if (!$adminMatches) { ?><tr><td colspan="5" class="sp-muted">暂无已开盘比赛。</td></tr><?php } ?>
             </table>
         </div>
     <?php } ?>
 </div>
+<script>
+(function () {
+    var tabs = document.getElementById('spTabs');
+    if (!tabs) { return; }
+    var matches = document.querySelectorAll('.sp-match[data-league]');
+    tabs.addEventListener('click', function (e) {
+        var tab = e.target.closest('.sp-tab');
+        if (!tab) { return; }
+        tabs.querySelectorAll('.sp-tab').forEach(function (t) { t.classList.remove('is-active'); });
+        tab.classList.add('is-active');
+        var lg = tab.getAttribute('data-league');
+        matches.forEach(function (row) {
+            row.style.display = (lg === '__all' || row.getAttribute('data-league') === lg) ? '' : 'none';
+        });
+    });
+})();
+</script>
 <?php
 stdfoot();
