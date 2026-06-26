@@ -19,7 +19,7 @@ class TorrentState extends NexusModel
     public const NOTICE_NONE = 0;
     public const NOTICE_UNLIMITED = -1;
 
-    protected $fillable = ['global_sp_state', 'deadline', 'begin', 'remark', 'notice_days'];
+    protected $fillable = ['global_sp_state', 'official_sp_state', 'deadline', 'begin', 'remark', 'notice_days'];
 
     protected $table = 'torrents_state';
 
@@ -34,6 +34,7 @@ class TorrentState extends NexusModel
         parent::booted();
 
         static::saving(function (TorrentState $state) {
+            $state->validateAtLeastOnePromotion();
             $state->validateTimeRange();
             $state->ensureNoOverlap();
         });
@@ -52,6 +53,58 @@ class TorrentState extends NexusModel
         return Torrent::$promotionTypes[$this->global_sp_state]['text'] ?? '';
     }
 
+    public function getOfficialSpStateTextAttribute()
+    {
+        $state = $this->official_sp_state ?? Torrent::PROMOTION_NORMAL;
+        if ((int)$state === Torrent::PROMOTION_NORMAL) {
+            return '';
+        }
+        return Torrent::$promotionTypes[$state]['text'] ?? '';
+    }
+
+    /**
+     * A promotion row is meaningful when either the site-wide (global) or the
+     * official-group promotion is set; reject rows where both are "normal".
+     */
+    public static function applyActivePromotionScope(Builder $query): Builder
+    {
+        // Defensive: the deploy pipeline ships code before running migrations, so
+        // tolerate the official_sp_state column not existing yet (fall back to the
+        // original global-only behaviour instead of throwing a SQL error on the
+        // torrent list / announce hot paths).
+        if (!self::hasOfficialSpStateColumn()) {
+            return $query->where('global_sp_state', '!=', Torrent::PROMOTION_NORMAL);
+        }
+        return $query->where(function (Builder $q) {
+            $q->where('global_sp_state', '!=', Torrent::PROMOTION_NORMAL)
+                ->orWhere('official_sp_state', '!=', Torrent::PROMOTION_NORMAL);
+        });
+    }
+
+    public static function hasOfficialSpStateColumn(): bool
+    {
+        static $has = null;
+        if ($has === null) {
+            try {
+                $has = \Illuminate\Support\Facades\Schema::hasColumn('torrents_state', 'official_sp_state');
+            } catch (\Throwable $e) {
+                $has = false;
+            }
+        }
+        return $has;
+    }
+
+    protected function validateAtLeastOnePromotion(): void
+    {
+        $global = (int)($this->global_sp_state ?? Torrent::PROMOTION_NORMAL);
+        $official = (int)($this->official_sp_state ?? Torrent::PROMOTION_NORMAL);
+        if ($global === Torrent::PROMOTION_NORMAL && $official === Torrent::PROMOTION_NORMAL) {
+            throw ValidationException::withMessages([
+                self::errorFieldKey('global_sp_state') => __('label.torrent_state.promotion_required'),
+            ]);
+        }
+    }
+
     public function getNoticeDaysTextAttribute(): string
     {
         return self::noticeOptions()[$this->notice_days] ?? '';
@@ -61,8 +114,9 @@ class TorrentState extends NexusModel
     {
         $moment = $moment ?? Carbon::now();
 
+        self::applyActivePromotionScope($query);
+
         return $query
-            ->where('global_sp_state', '!=', Torrent::PROMOTION_NORMAL)
             ->where(function (Builder $query) use ($moment) {
                 $query->whereNull('begin')->orWhere('begin', '<=', $moment);
             })
@@ -77,8 +131,9 @@ class TorrentState extends NexusModel
     {
         $moment = $moment ?? Carbon::now();
 
+        self::applyActivePromotionScope($query);
+
         return $query
-            ->where('global_sp_state', '!=', Torrent::PROMOTION_NORMAL)
             ->whereNotNull('begin')
             ->where('begin', '>', $moment)
             ->orderBy('begin')
@@ -98,8 +153,7 @@ class TorrentState extends NexusModel
     public static function cachedStates(): array
     {
         return NexusDB::remember(Setting::TORRENT_GLOBAL_STATE_CACHE_KEY, 600, function () {
-            return self::query()
-                ->where('global_sp_state', '!=', Torrent::PROMOTION_NORMAL)
+            return self::applyActivePromotionScope(self::query())
                 ->orderByRaw('begin is null')
                 ->orderBy('begin')
                 ->orderBy('id')
@@ -207,14 +261,14 @@ class TorrentState extends NexusModel
     public static function validateNoOverlap(array $attributes, ?int $ignoreId = null): void
     {
         $globalState = (int) Arr::get($attributes, 'global_sp_state', Torrent::PROMOTION_NORMAL);
-        if ($globalState === Torrent::PROMOTION_NORMAL) {
+        $officialState = (int) Arr::get($attributes, 'official_sp_state', Torrent::PROMOTION_NORMAL);
+        if ($globalState === Torrent::PROMOTION_NORMAL && $officialState === Torrent::PROMOTION_NORMAL) {
             return;
         }
 
         $range = self::getRangeForArray($attributes);
 
-        $conflicts = self::query()
-            ->where('global_sp_state', '!=', Torrent::PROMOTION_NORMAL)
+        $conflicts = self::applyActivePromotionScope(self::query())
             ->when($ignoreId, fn (Builder $query) => $query->whereKeyNot($ignoreId))
             ->get(['id', 'begin', 'deadline']);
 

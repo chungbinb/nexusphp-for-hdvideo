@@ -4136,8 +4136,7 @@ if ($msgalert)
     $remarkTpl = $lang_functions['full_site_promotion_remark'] ?? 'Remark: %s';
 
     if ($currentPromotion) {
-        $promotionText = \App\Models\Torrent::$promotionTypes[$currentPromotion['global_sp_state']]['text'] ?? '';
-        $msg = sprintf($lang_functions['full_site_promotion_in_effect'], $promotionText);
+        $msg = build_full_site_promotion_subject($currentPromotion, $lang_functions['full_site_promotion_in_effect_combined'] ?? '%s生效中！');
         if (!empty($currentPromotion['begin']) || !empty($currentPromotion['deadline'])) {
 			$timeRange = sprintf($lang_functions['full_site_promotion_time_range'], $currentPromotion['begin'] ?? '-INF', $currentPromotion['deadline'] ?? 'INF');
             $msg .= '<br/>' . $timeRange;
@@ -4148,8 +4147,7 @@ if ($msgalert)
         msgalert("torrents.php", $msg, "green");
     }
     if ($upcomingPromotion) {
-        $promotionText = \App\Models\Torrent::$promotionTypes[$upcomingPromotion['global_sp_state']]['text'] ?? '';
-        $msg = sprintf($lang_functions['full_site_promotion_upcoming'] ?? 'Upcoming full site [%s]', $promotionText);
+        $msg = build_full_site_promotion_subject($upcomingPromotion, $lang_functions['full_site_promotion_upcoming_combined'] ?? '即将生效：%s');
         if (!empty($upcomingPromotion['begin']) || !empty($upcomingPromotion['deadline'])) {
 			$timeRange = sprintf($lang_functions['full_site_promotion_time_range'], $upcomingPromotion['begin'] ?? '-INF', $upcomingPromotion['deadline'] ?? 'INF');
             $msg .= '<br/>' . $timeRange;
@@ -5126,7 +5124,7 @@ foreach ($rows as $row)
         $stickyicon = "";
     }
 	$stickyicon = apply_filter('sticky_icon', $stickyicon, $row);
-    $sp_torrent = get_torrent_promotion_append($row['sp_state'],"",true,$row["added"], $row['promotion_time_type'], $row['promotion_until'], $row['__ignore_global_sp_state'] ?? false);
+    $sp_torrent = get_torrent_promotion_append($row['sp_state'],"",true,$row["added"], $row['promotion_time_type'], $row['promotion_until'], $row['__ignore_global_sp_state'] ?? false, $row['id'] ?? 0);
 	$hrImg = get_hr_img($row, $row['search_box_id']);
 
 	//cover
@@ -5207,7 +5205,7 @@ foreach ($rows as $row)
 		print("<b> (<font class='new'>".$lang_functions['text_new_uppercase']."</font>)</b>");
 
 	$banned_torrent = ($row["banned"] == 'yes' ? " <b>(<font class=\"striking\">".$lang_functions['text_banned']."</font>)</b>" : "");
-	$sp_torrent_sub = get_torrent_promotion_append_sub($row['sp_state'],"",true,$row['added'], $row['promotion_time_type'], $row['promotion_until'], $row['__ignore_global_sp_state'] ?? false);
+	$sp_torrent_sub = get_torrent_promotion_append_sub($row['sp_state'],"",true,$row['added'], $row['promotion_time_type'], $row['promotion_until'], $row['__ignore_global_sp_state'] ?? false, $row['id'] ?? 0);
     $approvalStatusIcon = $torrentRep->renderApprovalStatus($row['approval_status']);
     if ($showSeedBoxIcon && $seedBoxPeerInfo->has($row['id'])) {
         $seedBoxIcon = $seedBoxRep->getSeedBoxIcon();
@@ -5982,12 +5980,74 @@ function get_second_icon($row) //for CHDBits
 	}
 }
 
+/**
+ * Build the "in effect / upcoming" promotion banner subject, combining the
+ * site-wide (global) and official-group promotions of a torrents_state row.
+ * e.g. "全站 [Free] /官组[2x]" -> wrapped by $wrapTpl (a sprintf "%s" template).
+ */
+function build_full_site_promotion_subject(array $promotion, string $wrapTpl): string
+{
+    global $lang_functions;
+    $normal = \App\Models\Torrent::PROMOTION_NORMAL;
+    $globalState = (int)($promotion['global_sp_state'] ?? $normal);
+    $officialState = (int)($promotion['official_sp_state'] ?? $normal);
+    $segGlobalTpl = $lang_functions['full_site_promotion_segment_global'] ?? '全站 [%s]';
+    $segOfficialTpl = $lang_functions['full_site_promotion_segment_official'] ?? '官组[%s]';
+    $segments = [];
+    if ($globalState != $normal) {
+        $segments[] = sprintf($segGlobalTpl, \App\Models\Torrent::$promotionTypes[$globalState]['text'] ?? '');
+    }
+    if ($officialState != $normal) {
+        $segments[] = sprintf($segOfficialTpl, \App\Models\Torrent::$promotionTypes[$officialState]['text'] ?? '');
+    }
+    return sprintf($wrapTpl, implode(' /', $segments));
+}
+
+/**
+ * SQL WHERE fragment selecting torrents whose *effective* promotion (taking the
+ * active site-wide + official-group promotions into account) equals $n. Used by
+ * the torrents browse "filter by promotion type".
+ */
+function get_promotion_filter_where_clause($n)
+{
+    $normal = \App\Models\Torrent::PROMOTION_NORMAL;
+    $n = (int)$n;
+    $global = (int)get_global_sp_state();
+    $official = (int)get_official_sp_state();
+    $officialTag = (int)get_setting('bonus.official_tag', 0);
+
+    // For a bucket whose active promo is $activePromo:
+    //  - promo active -> every torrent takes it (match iff it equals $n)
+    //  - no promo     -> the torrent's own sp_state decides
+    $cond = function ($activePromo) use ($n, $normal) {
+        if ($activePromo != $normal) {
+            return ($activePromo == $n) ? "1=1" : "1=0";
+        }
+        return "torrents.sp_state = $n";
+    };
+
+    $nonOfficialCond = $cond($global);
+
+    // No official promotion in play -> classic global-only behaviour for everyone.
+    if ($officialTag <= 0 || $official == $normal) {
+        return "(" . $nonOfficialCond . ")";
+    }
+
+    $officialCond = $cond($official);
+    $isOfficial = "EXISTS (SELECT 1 FROM torrent_tags tt WHERE tt.torrent_id = torrents.id AND tt.tag_id = $officialTag)";
+    return "( ($isOfficial AND ($officialCond)) OR (NOT $isOfficial AND ($nonOfficialCond)) )";
+}
+
 function get_torrent_bg_color($promotion = 1, $posState = "", array $torrent = [])
 {
 	global $CURUSER;
     $sphighlight = null;
 	if ($CURUSER['appendpromotion'] == 'highlight'){
 		$global_promotion_state = get_global_sp_state();
+		$official_promotion_state = get_official_sp_state();
+		if ($official_promotion_state != \App\Models\Torrent::PROMOTION_NORMAL && !empty($torrent['id']) && torrent_has_official_tag($torrent['id'])) {
+			$global_promotion_state = $official_promotion_state;
+		}
 		if ($global_promotion_state == 1){
 			if($promotion==1)
 				$sphighlight = "";
@@ -6028,11 +6088,17 @@ function get_torrent_bg_color($promotion = 1, $posState = "", array $torrent = [
 	return apply_filter('torrent_background_color', (string)$sphighlight, $torrent);
 }
 
-function get_torrent_promotion_append($promotion = 1,$forcemode = "",$showtimeleft = false, $added = "", $promotionTimeType = 0, $promotionUntil = '', $ignoreGlobal = false){
+function get_torrent_promotion_append($promotion = 1,$forcemode = "",$showtimeleft = false, $added = "", $promotionTimeType = 0, $promotionUntil = '', $ignoreGlobal = false, $torrentId = null){
 	global $CURUSER,$lang_functions;
 	global $expirehalfleech_torrent, $expirefree_torrent, $expiretwoup_torrent, $expiretwoupfree_torrent, $expiretwouphalfleech_torrent, $expirethirtypercentleech_torrent;
 
 	$globalSpState = get_global_sp_state();
+	if (!$ignoreGlobal) {
+		$officialSpState = get_official_sp_state();
+		if ($officialSpState != \App\Models\Torrent::PROMOTION_NORMAL && $torrentId && torrent_has_official_tag($torrentId)) {
+			$globalSpState = $officialSpState;
+		}
+	}
 	$sp_torrent = "";
 	$onmouseover = "";
 	$log = "[GET_PROMOTION], promotion: $promotion, forcemode: $forcemode, showtimeleft: $showtimeleft, added: $added, promotionTimeType: $promotionTimeType, promotionUntil: $promotionUntil";
@@ -6199,11 +6265,17 @@ function get_torrent_promotion_append($promotion = 1,$forcemode = "",$showtimele
 	return $sp_torrent;
 }
 
-function get_torrent_promotion_append_sub($promotion = 1,$forcemode = "",$showtimeleft = false, $added = "", $promotionTimeType = 0, $promotionUntil = '', $ignoreGlobal = false){
+function get_torrent_promotion_append_sub($promotion = 1,$forcemode = "",$showtimeleft = false, $added = "", $promotionTimeType = 0, $promotionUntil = '', $ignoreGlobal = false, $torrentId = null){
 	global $CURUSER,$lang_functions;
 	global $expirehalfleech_torrent, $expirefree_torrent, $expiretwoup_torrent, $expiretwoupfree_torrent, $expiretwouphalfleech_torrent, $expirethirtypercentleech_torrent;
 
     $globalSpState = get_global_sp_state();
+	if (!$ignoreGlobal) {
+		$officialSpState = get_official_sp_state();
+		if ($officialSpState != \App\Models\Torrent::PROMOTION_NORMAL && $torrentId && torrent_has_official_tag($torrentId)) {
+			$globalSpState = $officialSpState;
+		}
+	}
 	$sp_torrent = "";
 	$onmouseover = "";
 	$log = "[GET_PROMOTION], promotion: $promotion, forcemode: $forcemode, showtimeleft: $showtimeleft, added: $added, promotionTimeType: $promotionTimeType, promotionUntil: $promotionUntil";
@@ -7044,7 +7116,7 @@ function displayHotAndClassic()
                         $height = 140;
                         while($array = mysql_fetch_array($res))
                         {
-                            $pro_torrent = get_torrent_promotion_append($array['sp_state'],'word', false, '', 0, '', $array['__ignore_global_sp_state'] ?? false);
+                            $pro_torrent = get_torrent_promotion_append($array['sp_state'],'word', false, '', 0, '', $array['__ignore_global_sp_state'] ?? false, $array['id'] ?? 0);
                             $photo_url = '';
                             if ($imdb_id = parse_imdb_id($array["url"])) {
                                 if (array_search($imdb_id, $allImdb) !== false) { //a torrent with the same IMDb url already exists

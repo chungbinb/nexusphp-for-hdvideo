@@ -380,6 +380,9 @@ return [
     'torrent_state' => [
         'label' => '全站优惠',
         'global_sp_state' => '全站优惠',
+        'official_sp_state' => '官组优惠',
+        'official_sp_state_help' => '仅对带「官方」标签的种子生效；设为「普通」则官组种子跟随全站优惠。',
+        'promotion_required' => '全站优惠和官组优惠至少要设置一个。',
         'deadline_after_begin' => '结束时间必须晚于开始时间。',
         'status' => '状态',
         'status_expired' => '已过期',
