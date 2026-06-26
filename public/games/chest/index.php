@@ -13,12 +13,24 @@ $GLOBALS['nexus_hide_top_banner'] = true;
  */
 const CH_BUSINESS_TYPE = 13;
 const CH_STATE_TABLE = 'hdvideo_chest_state';
-// milestone days => [min reward, max reward]
+// milestone days => per reward-type range. bonus=电影票; upload/download in GB.
 const CH_MILESTONES = [
-    7  => [100, 300],
-    15 => [300, 800],
-    30 => [800, 2000],
+    7  => ['bonus' => [100, 300],  'upload' => [1, 5],   'download' => [1, 5]],
+    15 => ['bonus' => [300, 800],  'upload' => [5, 15],  'download' => [5, 15]],
+    30 => ['bonus' => [800, 2000], 'upload' => [15, 50], 'download' => [15, 50]],
 ];
+const CH_TYPE_WEIGHTS = ['bonus' => 50, 'upload' => 30, 'download' => 20];
+
+function ch_weighted_type()
+{
+    $total = array_sum(CH_TYPE_WEIGHTS);
+    $r = mt_rand(1, $total);
+    foreach (CH_TYPE_WEIGHTS as $t => $w) {
+        if ($r <= $w) return $t;
+        $r -= $w;
+    }
+    return 'bonus';
+}
 
 function ch_ensure_table()
 {
@@ -73,7 +85,7 @@ function ch_claim($uid, $idx)
     $days_keys = array_keys(CH_MILESTONES);
     if (!isset($days_keys[$idx])) return [null, '无效宝箱。'];
     $milestone = $days_keys[$idx];
-    $range = CH_MILESTONES[$milestone];
+    $tier = CH_MILESTONES[$milestone];
     [$days, $streakStart] = ch_attendance($uid);
     if ($days < $milestone) return [null, "连续签到不足 {$milestone} 天。"];
     ch_ensure_table();
@@ -91,23 +103,40 @@ function ch_claim($uid, $idx)
             sql_query("ROLLBACK");
             return [null, '这个宝箱本轮已领取。'];
         }
-        $reward = mt_rand($range[0], $range[1]);
-        $ures = sql_query("SELECT `seedbonus` FROM `users` WHERE `id` = " . (int)$uid . " FOR UPDATE") or sqlerr(__FILE__, __LINE__);
+        $type = ch_weighted_type();
+        $range = $tier[$type];
+        $amt = mt_rand((int)$range[0], (int)$range[1]);
+        $ures = sql_query("SELECT `seedbonus`,`uploaded`,`downloaded` FROM `users` WHERE `id` = " . (int)$uid . " FOR UPDATE") or sqlerr(__FILE__, __LINE__);
         $u = mysql_fetch_assoc($ures);
-        $oldB = (float)$u['seedbonus'];
-        $newB = $oldB + $reward;
-        sql_query("UPDATE `users` SET `seedbonus` = `seedbonus` + " . sqlesc(number_format($reward, 1, '.', '')) . " WHERE `id` = " . (int)$uid) or sqlerr(__FILE__, __LINE__);
-        sql_query(sprintf(
-            "INSERT INTO bonus_logs (`business_type`,`uid`,`old_total_value`,`value`,`new_total_value`,`comment`,`created_at`,`updated_at`) VALUES (%d,%d,%s,%s,%s,%s,%s,%s)",
-            CH_BUSINESS_TYPE, (int)$uid, sqlesc(number_format($oldB, 1, '.', '')), sqlesc(number_format($reward, 1, '.', '')), sqlesc(number_format($newB, 1, '.', '')),
-            sqlesc("[签到宝箱] 连续签到{$milestone}天宝箱，奖励{$reward}"), sqlesc($now), sqlesc($now)
-        )) or sqlerr(__FILE__, __LINE__);
+        $newSeed = (float)$u['seedbonus'];
+        if ($type === 'bonus') {
+            $oldB = (float)$u['seedbonus'];
+            $newSeed = $oldB + $amt;
+            sql_query("UPDATE `users` SET `seedbonus` = `seedbonus` + " . sqlesc(number_format($amt, 1, '.', '')) . " WHERE `id` = " . (int)$uid) or sqlerr(__FILE__, __LINE__);
+            sql_query(sprintf(
+                "INSERT INTO bonus_logs (`business_type`,`uid`,`old_total_value`,`value`,`new_total_value`,`comment`,`created_at`,`updated_at`) VALUES (%d,%d,%s,%s,%s,%s,%s,%s)",
+                CH_BUSINESS_TYPE, (int)$uid, sqlesc(number_format($oldB, 1, '.', '')), sqlesc(number_format($amt, 1, '.', '')), sqlesc(number_format($newSeed, 1, '.', '')),
+                sqlesc("[签到宝箱] 连续{$milestone}天 电影票+{$amt}"), sqlesc($now), sqlesc($now)
+            )) or sqlerr(__FILE__, __LINE__);
+            $label = "电影票 +" . $amt;
+        } elseif ($type === 'upload') {
+            $bytes = (int)($amt * 1073741824);
+            sql_query("UPDATE `users` SET `uploaded` = `uploaded` + $bytes WHERE `id` = " . (int)$uid) or sqlerr(__FILE__, __LINE__);
+            $label = "上传量 +" . mksize($bytes);
+            do_log("[签到宝箱] uid=$uid 连续{$milestone}天 上传量+$bytes");
+        } else { // download 减免
+            $down = (float)$u['downloaded'];
+            $bytes = (int)min($down, $amt * 1073741824);
+            sql_query("UPDATE `users` SET `downloaded` = `downloaded` - $bytes WHERE `id` = " . (int)$uid) or sqlerr(__FILE__, __LINE__);
+            $label = "下载量减免 -" . mksize($bytes);
+            do_log("[签到宝箱] uid=$uid 连续{$milestone}天 下载量减免-$bytes");
+        }
         $newMask = $mask | (1 << $idx);
         sql_query("UPDATE `" . CH_STATE_TABLE . "` SET `streak_start` = " . ($streakStart ? sqlesc($streakStart) : 'NULL') . ", `claimed_mask` = $newMask, `updated_at` = " . sqlesc($now) . " WHERE `uid` = " . (int)$uid) or sqlerr(__FILE__, __LINE__);
         sql_query("COMMIT") or sqlerr(__FILE__, __LINE__);
         clear_user_cache($uid);
-        $GLOBALS['CURUSER']['seedbonus'] = $newB;
-        return [['reward' => $reward, 'balance' => $newB], ""];
+        $GLOBALS['CURUSER']['seedbonus'] = $newSeed;
+        return [['label' => $label, 'balance' => $newSeed], ""];
     } catch (Throwable $e) {
         sql_query("ROLLBACK");
         throw $e;
@@ -167,7 +196,7 @@ stdhead("签到宝箱");
             <div class="cb-muted">你还没有连续签到记录，先去 <a href="/attendance.php">签到</a> 吧。</div>
         <?php } ?>
         <div class="cb-chests">
-            <?php $i = 0; foreach (CH_MILESTONES as $ms => $range) {
+            <?php $i = 0; foreach (CH_MILESTONES as $ms => $tier) {
                 $claimed = (bool)($mask & (1 << $i));
                 $unlocked = $days >= $ms;
                 $cls = $claimed ? 'done' : ($unlocked ? 'open' : '');
@@ -175,7 +204,7 @@ stdhead("签到宝箱");
                 <div class="cb-chest <?php echo $cls ?>">
                     <div class="ico"><?php echo $claimed ? '✅' : ($unlocked ? '🎁' : '🔒') ?></div>
                     <div class="ms">连续 <?php echo $ms ?> 天</div>
-                    <div class="rg"><?php echo $range[0] ?>~<?php echo $range[1] ?> 电影票</div>
+                    <div class="rg">随机：电影票 / 上传量 / 下载减免</div>
                     <?php if ($claimed) { ?>
                         <div class="cb-muted" style="margin-top:8px">本轮已领</div>
                     <?php } elseif ($unlocked) { ?>
@@ -200,7 +229,7 @@ stdhead("签到宝箱");
                 .then(function (r) { return r.json(); }).then(function (d) {
                     var msg = document.getElementById('cbMsg');
                     if (!d.ok) { msg.textContent = d.error || '出错了'; b.disabled = false; busy = false; return; }
-                    msg.innerHTML = '<span style="color:#16a34a">🎉 开出 ' + d.reward + ' 电影票！</span>';
+                    msg.innerHTML = '<span style="color:#16a34a">🎉 开出 ' + d.label + '！</span>';
                     document.getElementById('cbBal').textContent = (Math.round(d.balance * 10) / 10).toFixed(1);
                     var chest = b.closest('.cb-chest');
                     chest.classList.remove('open'); chest.classList.add('done');
