@@ -502,8 +502,8 @@ stdhead("菠菜系统");
                     <label>联赛<input type="text" name="league" maxlength="80" placeholder="如 世界杯"></label>
                     <label>主队<input type="text" name="home_team" maxlength="80" required></label>
                     <label>客队<input type="text" name="away_team" maxlength="80" required></label>
-                    <label>比赛时间<input type="datetime-local" name="match_time" step="60" required></label>
-                    <label>押注截止<input type="datetime-local" name="bet_deadline" step="60" required></label>
+                    <label>比赛时间<?php echo datetimepicker_input('match_time', '', '', ['require_files' => true, 'style' => 'padding:7px']) ?></label>
+                    <label>押注截止<?php echo datetimepicker_input('bet_deadline', '', '', ['style' => 'padding:7px']) ?></label>
                     <label>主胜赔率<input type="number" name="odds_home" min="1.01" max="1000" step="0.01" required></label>
                     <label>平局赔率<input type="number" name="odds_draw" min="1.01" max="1000" step="0.01" required></label>
                     <label>客胜赔率<input type="number" name="odds_away" min="1.01" max="1000" step="0.01" required></label>
