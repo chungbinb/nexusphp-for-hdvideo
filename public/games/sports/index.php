@@ -751,6 +751,7 @@ stdhead("菠菜系统");
 .sp-wrap { max-width: 1000px; margin: 0 auto; }
 .sp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
 .sp-title { font-size: 24px; font-weight: 800; }
+.sp-badge { font-size: 12px; font-weight: 700; color: #e67e22; background: rgba(230,126,34,.12); padding: 2px 8px; border-radius: 999px; vertical-align: middle; }
 .sp-balance { font-size: 14px; font-weight: 700; }
 .sp-muted { color: #6f7f95; }
 .sp-message { padding: 10px 12px; border-radius: 6px; margin-bottom: 14px; font-weight: 700; }
@@ -797,7 +798,7 @@ stdhead("菠菜系统");
 </style>
 <div class="sp-wrap">
     <div class="sp-head">
-        <div class="sp-title">菠菜系统</div>
+        <div class="sp-title">菠菜系统 <span class="sp-badge">内测中 v0.1</span></div>
         <div class="sp-balance">我的电影票：<?php echo game_sp_money($CURUSER['seedbonus']) ?> 张</div>
     </div>
 

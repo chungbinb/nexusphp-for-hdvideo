@@ -20,6 +20,7 @@ $games = [
     ],
     [
         'title' => '菠菜系统',
+        'badge' => '内测中 v0.1',
         'subtitle' => '体育赛事竞猜，固定赔率押注主胜/平局/客胜，押中按赔率派彩，比如当前的世界杯。',
         'date' => '已开放',
         'price' => '立即进入',
@@ -212,6 +213,17 @@ body.page-games-php:not(.inframe) {
     white-space: nowrap;
 }
 
+.steam-badge {
+    font-size: 11px;
+    font-weight: 700;
+    color: #ffcf6b;
+    background: rgba(0, 0, 0, 0.28);
+    padding: 1px 6px;
+    border-radius: 4px;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
 .steam-game-subtitle {
     margin-top: 6px;
     color: #c8d8e8;
@@ -397,7 +409,7 @@ body.page-games-php:not(.inframe) {
                    <?php echo $disabled ? 'onclick="return false;"' : '' ?>>
                     <div class="steam-capsule" data-title="<?php echo htmlspecialchars($game['title']) ?>"></div>
                     <div class="steam-game-main">
-                        <div class="steam-game-title"><?php echo htmlspecialchars($game['title']) ?></div>
+                        <div class="steam-game-title"><?php echo htmlspecialchars($game['title']) ?><?php if (!empty($game['badge'])) { ?> <span class="steam-badge"><?php echo htmlspecialchars($game['badge']) ?></span><?php } ?></div>
                         <div class="steam-game-subtitle"><?php echo htmlspecialchars($game['subtitle']) ?></div>
                         <div class="steam-game-date"><?php echo htmlspecialchars($game['date']) ?></div>
                     </div>
