@@ -261,26 +261,20 @@ function game_bs_settle_due_rounds()
             } elseif ($sum >= 16) {
                 $size = 'big';
             } else {
-                $size = 'push';            // sum == 15: big & small refunded
+                $size = 'push';            // sum == 15: big & small both lose (house collects)
             }
 
             sql_query("UPDATE `" . GAME_BS_ROUND_TABLE . "` SET `status` = 'closed', `result` = " . sqlesc($size) . ", `result_number` = $number, `updated_at` = " . sqlesc($now) . " WHERE `id` = $roundId") or sqlerr(__FILE__, __LINE__);
 
             $issueNo = game_bs_issue_no($roundId);
 
-            // 1) Big/small bets.
-            if ($size === 'push') {
-                game_bs_pay_winners($roundId, "b.`choice` IN ('big','small')", 1, $now, 'refunded',
-                    function ($bet, $payout) use ($issueNo, $number) {
-                        return "压大小第 {$issueNo} 期开 {$number}（和15平局），押" . ($bet['choice'] === 'big' ? '大' : '小') . "退还本金 {$payout}";
-                    });
-            } elseif ($size === 'big' || $size === 'small') {
+            // 1) Big/small bets. (triple or sum==15 -> both lose, fall through to "lost".)
+            if ($size === 'big' || $size === 'small') {
                 game_bs_pay_winners($roundId, "b.`choice` = " . sqlesc($size), 2, $now, 'won',
                     function ($bet, $payout) use ($issueNo, $number, $size) {
                         return "压大小第 {$issueNo} 期开 {$number}（" . ($size === 'big' ? '大' : '小') . "），押中派彩 {$payout}";
                     });
             }
-            // $size === 'triple' -> no big/small winners; they fall through to "lost" below.
 
             // 2) Exact number bets: win iff bet_number == drawn number; tier by number type.
             $multiplier = game_bs_number_multiplier($number);
@@ -408,7 +402,7 @@ function game_bs_render_history()
     if ($page > $pages) { $page = $pages; }
     $offset = ($page - 1) * $perPage;
     $res = sql_query("SELECT * FROM `" . GAME_BS_ROUND_TABLE . "` WHERE `status` = 'closed' ORDER BY `id` DESC LIMIT $perPage OFFSET $offset") or sqlerr(__FILE__, __LINE__);
-    $resultSizeLabel = ['big' => '大', 'small' => '小', 'triple' => '豹子(通杀)', 'push' => '和15平局'];
+    $resultSizeLabel = ['big' => '大', 'small' => '小', 'triple' => '豹子(通杀)', 'push' => '和15(通杀)'];
     stdhead("历史开奖");
     ?>
     <style>
@@ -575,7 +569,7 @@ while ($stat = mysql_fetch_assoc($betsRes)) {
 $myBetsRes = sql_query("SELECT * FROM `" . GAME_BS_BET_TABLE . "` WHERE `uid` = " . (int)$CURUSER['id'] . " ORDER BY `id` DESC LIMIT 10") or sqlerr(__FILE__, __LINE__);
 $historyRes = sql_query("SELECT * FROM `" . GAME_BS_ROUND_TABLE . "` WHERE `status` IN ('closed','cancelled') ORDER BY `id` DESC LIMIT 10") or sqlerr(__FILE__, __LINE__);
 
-$resultSizeLabel = ['big' => '大', 'small' => '小', 'triple' => '豹子(通杀)', 'push' => '和15平局'];
+$resultSizeLabel = ['big' => '大', 'small' => '小', 'triple' => '豹子(通杀)', 'push' => '和15(通杀)'];
 
 stdhead("压大小");
 ?>
@@ -629,7 +623,7 @@ stdhead("压大小");
         </div>
         <div class="bs-rules">
             玩法：开奖三位数字各 1-9（如 5 3 1）。<br>
-            · <b>押大 / 押小</b>：按三位之和判定，和 ≤ 14 为小、≥ 16 为大，押中得 <b>2 倍</b>；三位相同（豹子，如 555）押大小都输；和正好 15 平局退回本金。<br>
+            · <b>押大 / 押小</b>：按三位之和判定，和 ≤ 14 为小、≥ 16 为大，押中得 <b>2 倍</b>；三位相同（豹子，如 555）或三位之和正好 15 时，押大小都输（庄家通杀）。<br>
             · <b>押数字</b>：押中开奖的精确数字，豹子<b>10 倍</b>、顺子<b>7 倍</b>、其它<b>6 倍</b>。<br>
             · <b>押豹子</b>：开出任意豹子（三位相同）即中，<b><?php echo GAME_BS_TRIPLE_MULT ?> 倍</b>。<b>押顺子</b>：开出任意顺子即中，<b><?php echo GAME_BS_STRAIGHT_MULT ?> 倍</b>。<br>
             · 顺子＝三位是连续数字（不分顺序），如 123 / 321 / 231 / 132 都算。<br>
