@@ -325,6 +325,63 @@ function game_sp_fetch_result($externalId)
     ], ''];
 }
 
+/**
+ * Per-user aggregate stats over settled bets, for the leaderboards.
+ *   invested    = staked on resolved (won/lost) bets
+ *   win_points  = net gain from won bets  (Σ payout-amount on wins)
+ *   lose_points = staked lost on lost bets (Σ amount on losses)
+ *   net = win_points - lose_points
+ * $orderBy and $havingExtra are code-controlled (not user input).
+ */
+function game_sp_leaderboard($orderBy, $limit, $minInvested, $havingExtra = '')
+{
+    $extra = $havingExtra !== '' ? " AND ($havingExtra)" : '';
+    $sql = "SELECT b.`uid`, u.`username`,
+            SUM(CASE WHEN b.`status` IN ('won','lost') THEN b.`amount` ELSE 0 END) AS invested,
+            SUM(CASE WHEN b.`status` = 'won' THEN 1 ELSE 0 END) AS won_cnt,
+            SUM(CASE WHEN b.`status` = 'lost' THEN 1 ELSE 0 END) AS lost_cnt,
+            SUM(CASE WHEN b.`status` = 'won' THEN b.`payout` - b.`amount` ELSE 0 END) AS win_points,
+            SUM(CASE WHEN b.`status` = 'lost' THEN b.`amount` ELSE 0 END) AS lose_points
+        FROM `" . GAME_SP_BET_TABLE . "` b
+        INNER JOIN `users` u ON u.`id` = b.`uid`
+        GROUP BY b.`uid`, u.`username`
+        HAVING invested > " . (int)$minInvested . $extra . "
+        ORDER BY $orderBy
+        LIMIT " . (int)$limit;
+    $res = sql_query($sql) or sqlerr(__FILE__, __LINE__);
+    $rows = [];
+    while ($r = mysql_fetch_assoc($res)) {
+        $rows[] = $r;
+    }
+    return $rows;
+}
+
+function game_sp_my_stats($uid)
+{
+    $res = sql_query("SELECT
+            SUM(CASE WHEN `status` IN ('won','lost') THEN 1 ELSE 0 END) AS total,
+            SUM(CASE WHEN `status` = 'won' THEN 1 ELSE 0 END) AS won_cnt,
+            SUM(CASE WHEN `status` = 'lost' THEN 1 ELSE 0 END) AS lost_cnt,
+            SUM(CASE WHEN `status` = 'won' THEN `payout` - `amount` ELSE 0 END) AS win_points,
+            SUM(CASE WHEN `status` = 'lost' THEN `amount` ELSE 0 END) AS lose_points
+        FROM `" . GAME_SP_BET_TABLE . "` WHERE `uid` = " . (int)$uid) or sqlerr(__FILE__, __LINE__);
+    $r = mysql_fetch_assoc($res);
+    return [
+        'total' => (int)($r['total'] ?? 0),
+        'won' => (int)($r['won_cnt'] ?? 0),
+        'lost' => (int)($r['lost_cnt'] ?? 0),
+        'win_points' => (float)($r['win_points'] ?? 0),
+        'lose_points' => (float)($r['lose_points'] ?? 0),
+    ];
+}
+
+function game_sp_points($v, $signed = false)
+{
+    $v = (float)$v;
+    $s = ($signed && $v > 0) ? '+' : '';
+    return $s . number_format(round($v), 0);
+}
+
 function game_sp_place_bet($matchId, $choice, $amount)
 {
     global $CURUSER;
@@ -657,7 +714,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $error = "无效操作。";
     }
+    $adminActions = ['create_match', 'publish_match', 'delete_draft', 'settle_match', 'cancel_match', 'save_api_key', 'import_fixtures', 'auto_settle', 'auto_settle_all'];
     $redirectParams = $error !== '' ? ['error' => $error] : ['message' => $message];
+    $redirectParams['view'] = in_array($action, $adminActions, true) ? 'admin' : 'current';
     header('Location: /games/sports/?' . http_build_query($redirectParams));
     exit;
 }
@@ -666,57 +725,42 @@ $message = trim((string)($_GET['message'] ?? ''));
 $error = trim((string)($_GET['error'] ?? ''));
 $isAdmin = game_sp_is_admin();
 $now = date('Y-m-d H:i:s');
-
-$openRes = sql_query("SELECT * FROM `" . GAME_SP_MATCH_TABLE . "` WHERE `status` = 'open' AND `bet_deadline` > " . sqlesc($now) . " ORDER BY `match_time` ASC, `id` ASC") or sqlerr(__FILE__, __LINE__);
-$openMatches = [];
-$leagues = [];
-while ($m = mysql_fetch_assoc($openRes)) {
-    $openMatches[] = $m;
-    $lg = $m['league'] !== '' ? $m['league'] : '其他';
-    $leagues[$lg] = true;
-}
-$leagueList = array_keys($leagues);
-$resultRes = sql_query("SELECT * FROM `" . GAME_SP_MATCH_TABLE . "` WHERE `status` IN ('settled','cancelled') ORDER BY `updated_at` DESC, `id` DESC LIMIT 15") or sqlerr(__FILE__, __LINE__);
-$myBetsRes = sql_query("
-    SELECT b.*, m.`home_team`, m.`away_team`, m.`league`
-    FROM `" . GAME_SP_BET_TABLE . "` b
-    INNER JOIN `" . GAME_SP_MATCH_TABLE . "` m ON m.`id` = b.`match_id`
-    WHERE b.`uid` = " . (int)$CURUSER['id'] . " ORDER BY b.`id` DESC LIMIT 12
-") or sqlerr(__FILE__, __LINE__);
-
-$draftMatches = [];
-$adminMatches = [];
-if ($isAdmin) {
-    $draftRes = sql_query("SELECT * FROM `" . GAME_SP_MATCH_TABLE . "` WHERE `status` = 'draft' ORDER BY `match_time` ASC, `id` ASC") or sqlerr(__FILE__, __LINE__);
-    while ($m = mysql_fetch_assoc($draftRes)) {
-        $draftMatches[] = $m;
-    }
-    $adminRes = sql_query("SELECT * FROM `" . GAME_SP_MATCH_TABLE . "` WHERE `status` = 'open' ORDER BY `match_time` ASC, `id` ASC") or sqlerr(__FILE__, __LINE__);
-    while ($m = mysql_fetch_assoc($adminRes)) {
-        $totRes = sql_query("SELECT `choice`, SUM(`amount`) AS total FROM `" . GAME_SP_BET_TABLE . "` WHERE `match_id` = " . (int)$m['id'] . " AND `status` = 'pending' GROUP BY `choice`") or sqlerr(__FILE__, __LINE__);
-        $tot = ['home' => 0, 'draw' => 0, 'away' => 0];
-        while ($t = mysql_fetch_assoc($totRes)) {
-            $tot[$t['choice']] = (float)$t['total'];
-        }
-        $m['_totals'] = $tot;
-        $adminMatches[] = $m;
-    }
-}
-
 $betStatusLabel = ['pending' => '待开奖', 'won' => '中奖', 'lost' => '未中', 'refunded' => '已退回'];
+$RANK_MIN_INVEST = 1000;
+
+$navItems = [
+    'current' => '当前竞猜',
+    'history' => '历史开奖',
+    'mybets' => '我的押注',
+    'ranking' => '用户排名',
+    'pnl' => '盈亏榜',
+    'help' => '系统帮助',
+];
+if ($isAdmin) {
+    $navItems['admin'] = '管理';
+}
+$view = (string)($_GET['view'] ?? 'current');
+if (!isset($navItems[$view])) {
+    $view = 'current';
+}
+$page = max(1, (int)($_GET['page'] ?? 1));
 
 stdhead("菠菜系统");
 ?>
 <style>
 .sp-wrap { max-width: 1000px; margin: 0 auto; }
-.sp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.sp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
 .sp-title { font-size: 24px; font-weight: 800; }
 .sp-balance { font-size: 14px; font-weight: 700; }
 .sp-muted { color: #6f7f95; }
 .sp-message { padding: 10px 12px; border-radius: 6px; margin-bottom: 14px; font-weight: 700; }
 .sp-message.ok { background: rgba(34,150,90,.14); color: #16834d; }
 .sp-message.err { background: rgba(220,60,70,.14); color: #c02432; }
-.sp-section-title { font-size: 18px; font-weight: 800; margin: 18px 0 10px; }
+.sp-nav { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 18px; border-bottom: 1px solid rgba(120,150,190,.3); }
+.sp-navitem { padding: 10px 16px; font-weight: 700; color: #6f7f95 !important; text-decoration: none !important; border-bottom: 3px solid transparent; }
+.sp-navitem:hover { color: #2ecc71 !important; }
+.sp-navitem.is-active { color: #2ecc71 !important; border-bottom-color: #2ecc71; }
+.sp-section-title { font-size: 18px; font-weight: 800; margin: 4px 0 12px; }
 .sp-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .sp-tab { padding: 6px 14px; border: 1px solid rgba(120,150,190,.45); border-radius: 999px; cursor: pointer; font-weight: 700; background: rgba(0,0,0,.03); }
 .sp-tab.is-active { background: #2ecc71; color: #fff; border-color: #2ecc71; }
@@ -733,7 +777,13 @@ stdhead("菠菜系统");
 .sp-form button { padding: 8px 16px; font-weight: 700; cursor: pointer; }
 .sp-table { width: 100%; border-collapse: collapse; }
 .sp-table th, .sp-table td { padding: 8px; border: 1px solid rgba(120,150,190,.26); text-align: center; }
-.sp-admin { border: 1px dashed rgba(200,120,40,.6); border-radius: 8px; padding: 14px; margin-top: 22px; background: rgba(200,120,40,.06); }
+.sp-pager { display: flex; justify-content: center; align-items: center; gap: 16px; margin-top: 14px; }
+.sp-pager .muted { color: #9aa7b5; }
+.sp-rank-num { font-weight: 800; color: #2f80b5; }
+.sp-pos { color: #16a34a; font-weight: 700; }
+.sp-neg { color: #dc2626; font-weight: 700; }
+.sp-mystat { display: flex; gap: 16px; flex-wrap: wrap; padding: 10px 14px; background: rgba(0,0,0,.04); border-radius: 6px; margin-bottom: 14px; font-weight: 700; }
+.sp-admin { border: 1px dashed rgba(200,120,40,.6); border-radius: 8px; padding: 14px; background: rgba(200,120,40,.06); }
 .sp-admin h3 { margin: 0 0 10px; }
 .sp-admin-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; align-items: end; }
 .sp-admin-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #6f7f95; }
@@ -742,82 +792,229 @@ stdhead("菠菜系统");
 </style>
 <div class="sp-wrap">
     <div class="sp-head">
-        <div>
-            <div class="sp-title">菠菜系统</div>
-            <div class="sp-muted">体育赛事竞猜，固定赔率。用电影票押 主胜 / 平局 / 客胜，押中得「押注 × 赔率」。</div>
-        </div>
+        <div class="sp-title">菠菜系统</div>
         <div class="sp-balance">我的电影票：<?php echo game_sp_money($CURUSER['seedbonus']) ?> 张</div>
+    </div>
+
+    <div class="sp-nav">
+        <?php foreach ($navItems as $k => $label) { ?>
+            <a class="sp-navitem <?php echo $view === $k ? 'is-active' : '' ?>" href="/games/sports/?view=<?php echo $k ?>"><?php echo $label ?></a>
+        <?php } ?>
     </div>
 
     <?php if ($message) { ?><div class="sp-message ok"><?php echo htmlspecialchars($message) ?></div><?php } ?>
     <?php if ($error) { ?><div class="sp-message err"><?php echo htmlspecialchars($error) ?></div><?php } ?>
 
-    <div class="sp-section-title">进行中的赛事</div>
-    <?php if ($leagueList) { ?>
-        <div class="sp-tabs" id="spTabs">
-            <span class="sp-tab is-active" data-league="__all">全部</span>
-            <?php foreach ($leagueList as $lg) { ?>
-                <span class="sp-tab" data-league="<?php echo htmlspecialchars($lg) ?>"><?php echo htmlspecialchars($lg) ?></span>
-            <?php } ?>
-        </div>
-    <?php } ?>
-    <?php if (!$openMatches) { ?>
-        <div class="sp-match sp-muted">暂无可押注的赛事，敬请期待。</div>
-    <?php } ?>
-    <?php foreach ($openMatches as $m) { $lg = $m['league'] !== '' ? $m['league'] : '其他'; ?>
-        <div class="sp-match" data-league="<?php echo htmlspecialchars($lg) ?>">
-            <div class="sp-match-top">
-                <?php if ($m['league'] !== '') { ?><span class="sp-league"><?php echo htmlspecialchars(game_sp_tr($m['league'])) ?></span><?php } ?>
-                <span class="sp-teams"><?php echo htmlspecialchars(game_sp_tr($m['home_team'])) ?> <span class="sp-muted">vs</span> <?php echo htmlspecialchars(game_sp_tr($m['away_team'])) ?></span>
+    <?php if ($view === 'current') {
+        $openRes = sql_query("SELECT * FROM `" . GAME_SP_MATCH_TABLE . "` WHERE `status` = 'open' AND `bet_deadline` > " . sqlesc($now) . " ORDER BY `match_time` ASC, `id` ASC") or sqlerr(__FILE__, __LINE__);
+        $openMatches = []; $leagues = [];
+        while ($m = mysql_fetch_assoc($openRes)) {
+            $m['_lg'] = game_sp_tr($m['league'] !== '' ? $m['league'] : '其他');
+            $openMatches[] = $m;
+            $leagues[$m['_lg']] = true;
+        }
+        $leagueList = array_keys($leagues);
+    ?>
+        <div class="sp-section-title">进行中的赛事</div>
+        <?php if ($leagueList) { ?>
+            <div class="sp-tabs" id="spTabs">
+                <span class="sp-tab is-active" data-league="__all">全部</span>
+                <?php foreach ($leagueList as $lg) { ?>
+                    <span class="sp-tab" data-league="<?php echo htmlspecialchars($lg) ?>"><?php echo htmlspecialchars($lg) ?></span>
+                <?php } ?>
             </div>
-            <div class="sp-time">开赛：<?php echo htmlspecialchars($m['match_time']) ?>　·　截止：<?php echo htmlspecialchars($m['bet_deadline']) ?></div>
-            <form class="sp-form" method="post" action="/games/sports/">
-                <input type="hidden" name="action" value="bet">
-                <input type="hidden" name="match_id" value="<?php echo (int)$m['id'] ?>">
-                <div class="sp-odds">
-                    <label><input type="radio" name="choice" value="home" checked> 主胜 <b><?php echo number_format($m['odds_home'], 2) ?></b></label>
-                    <label><input type="radio" name="choice" value="draw"> 平局 <b><?php echo number_format($m['odds_draw'], 2) ?></b></label>
-                    <label><input type="radio" name="choice" value="away"> 客胜 <b><?php echo number_format($m['odds_away'], 2) ?></b></label>
+        <?php } ?>
+        <?php if (!$openMatches) { ?>
+            <div class="sp-match sp-muted">暂无可押注的赛事，敬请期待。</div>
+        <?php } ?>
+        <?php foreach ($openMatches as $m) { ?>
+            <div class="sp-match" data-league="<?php echo htmlspecialchars($m['_lg']) ?>">
+                <div class="sp-match-top">
+                    <?php if ($m['league'] !== '') { ?><span class="sp-league"><?php echo htmlspecialchars(game_sp_tr($m['league'])) ?></span><?php } ?>
+                    <span class="sp-teams"><?php echo htmlspecialchars(game_sp_tr($m['home_team'])) ?> <span class="sp-muted">vs</span> <?php echo htmlspecialchars(game_sp_tr($m['away_team'])) ?></span>
                 </div>
-                <input type="number" name="amount" min="1" step="1" placeholder="电影票数量" required>
-                <button type="submit">押注</button>
-            </form>
+                <div class="sp-time">开赛：<?php echo htmlspecialchars($m['match_time']) ?>　·　截止：<?php echo htmlspecialchars($m['bet_deadline']) ?></div>
+                <form class="sp-form" method="post" action="/games/sports/">
+                    <input type="hidden" name="action" value="bet">
+                    <input type="hidden" name="match_id" value="<?php echo (int)$m['id'] ?>">
+                    <div class="sp-odds">
+                        <label><input type="radio" name="choice" value="home" checked> 主胜 <b><?php echo number_format($m['odds_home'], 2) ?></b></label>
+                        <label><input type="radio" name="choice" value="draw"> 平局 <b><?php echo number_format($m['odds_draw'], 2) ?></b></label>
+                        <label><input type="radio" name="choice" value="away"> 客胜 <b><?php echo number_format($m['odds_away'], 2) ?></b></label>
+                    </div>
+                    <input type="number" name="amount" min="1" step="1" placeholder="电影票数量" required>
+                    <button type="submit">押注</button>
+                </form>
+            </div>
+        <?php } ?>
+
+    <?php } elseif ($view === 'history') {
+        $perPage = 30;
+        $cntRes = sql_query("SELECT COUNT(*) AS c FROM `" . GAME_SP_MATCH_TABLE . "` WHERE `status` IN ('settled','cancelled')") or sqlerr(__FILE__, __LINE__);
+        $total = (int)mysql_fetch_assoc($cntRes)['c'];
+        $pages = max(1, (int)ceil($total / $perPage));
+        if ($page > $pages) { $page = $pages; }
+        $offset = ($page - 1) * $perPage;
+        $res = sql_query("SELECT * FROM `" . GAME_SP_MATCH_TABLE . "` WHERE `status` IN ('settled','cancelled') ORDER BY `updated_at` DESC, `id` DESC LIMIT $perPage OFFSET $offset") or sqlerr(__FILE__, __LINE__);
+    ?>
+        <div class="sp-section-title">历史开奖</div>
+        <table class="sp-table">
+            <tr><th>赛事</th><th>比分</th><th>结果</th><th>时间</th></tr>
+            <?php while ($m = mysql_fetch_assoc($res)) { ?>
+                <tr>
+                    <td><?php echo htmlspecialchars(($m['league'] !== '' ? '[' . game_sp_tr($m['league']) . '] ' : '') . game_sp_tr($m['home_team']) . ' vs ' . game_sp_tr($m['away_team'])) ?></td>
+                    <td><?php echo ($m['home_score'] === null || $m['away_score'] === null) ? '-' : ((int)$m['home_score'] . ' : ' . (int)$m['away_score']) ?></td>
+                    <td><?php echo $m['status'] === 'cancelled' ? '已取消(退款)' : game_sp_choice_label($m['result']) ?></td>
+                    <td><?php echo htmlspecialchars($m['updated_at']) ?></td>
+                </tr>
+            <?php } ?>
+            <?php if (!$total) { ?><tr><td colspan="4" class="sp-muted">暂无开奖记录。</td></tr><?php } ?>
+        </table>
+        <?php if ($pages > 1) { ?>
+            <div class="sp-pager">
+                <?php if ($page > 1) { ?><a href="/games/sports/?view=history&page=<?php echo $page - 1 ?>">&laquo; 上一页</a><?php } else { ?><span class="muted">&laquo; 上一页</span><?php } ?>
+                <span>第 <?php echo $page ?> / <?php echo $pages ?> 页</span>
+                <?php if ($page < $pages) { ?><a href="/games/sports/?view=history&page=<?php echo $page + 1 ?>">下一页 &raquo;</a><?php } else { ?><span class="muted">下一页 &raquo;</span><?php } ?>
+            </div>
+        <?php } ?>
+
+    <?php } elseif ($view === 'mybets') {
+        $perPage = 30;
+        $uid = (int)$CURUSER['id'];
+        $cntRes = sql_query("SELECT COUNT(*) AS c FROM `" . GAME_SP_BET_TABLE . "` WHERE `uid` = $uid") or sqlerr(__FILE__, __LINE__);
+        $total = (int)mysql_fetch_assoc($cntRes)['c'];
+        $pages = max(1, (int)ceil($total / $perPage));
+        if ($page > $pages) { $page = $pages; }
+        $offset = ($page - 1) * $perPage;
+        $res = sql_query("
+            SELECT b.*, m.`home_team`, m.`away_team`, m.`league`
+            FROM `" . GAME_SP_BET_TABLE . "` b
+            INNER JOIN `" . GAME_SP_MATCH_TABLE . "` m ON m.`id` = b.`match_id`
+            WHERE b.`uid` = $uid ORDER BY b.`id` DESC LIMIT $perPage OFFSET $offset
+        ") or sqlerr(__FILE__, __LINE__);
+    ?>
+        <div class="sp-section-title">我的押注</div>
+        <table class="sp-table">
+            <tr><th>赛事</th><th>选择</th><th>赔率</th><th>押注</th><th>状态</th><th>返还</th></tr>
+            <?php while ($bet = mysql_fetch_assoc($res)) { ?>
+                <tr>
+                    <td><?php echo htmlspecialchars(game_sp_tr($bet['home_team']) . ' vs ' . game_sp_tr($bet['away_team'])) ?></td>
+                    <td><?php echo game_sp_choice_label($bet['choice']) ?></td>
+                    <td><?php echo number_format($bet['odds'], 2) ?></td>
+                    <td><?php echo game_sp_money($bet['amount']) ?></td>
+                    <td><?php echo $betStatusLabel[$bet['status']] ?? htmlspecialchars($bet['status']) ?></td>
+                    <td><?php echo game_sp_money($bet['payout']) ?></td>
+                </tr>
+            <?php } ?>
+            <?php if (!$total) { ?><tr><td colspan="6" class="sp-muted">你还没有押注记录。</td></tr><?php } ?>
+        </table>
+        <?php if ($pages > 1) { ?>
+            <div class="sp-pager">
+                <?php if ($page > 1) { ?><a href="/games/sports/?view=mybets&page=<?php echo $page - 1 ?>">&laquo; 上一页</a><?php } else { ?><span class="muted">&laquo; 上一页</span><?php } ?>
+                <span>第 <?php echo $page ?> / <?php echo $pages ?> 页</span>
+                <?php if ($page < $pages) { ?><a href="/games/sports/?view=mybets&page=<?php echo $page + 1 ?>">下一页 &raquo;</a><?php } else { ?><span class="muted">下一页 &raquo;</span><?php } ?>
+            </div>
+        <?php } ?>
+
+    <?php } elseif ($view === 'ranking') {
+        $rows = game_sp_leaderboard('invested DESC', 100, $RANK_MIN_INVEST);
+    ?>
+        <div class="sp-section-title">用户排名（总投入大于 <?php echo $RANK_MIN_INVEST ?> 才计入）</div>
+        <table class="sp-table">
+            <tr><th>排名</th><th>用户名</th><th>积分变化</th><th>赢盘积分</th><th>输盘积分</th><th>赢盘次数</th><th>输盘次数</th><th>获胜比例</th><th>总投入</th></tr>
+            <?php foreach ($rows as $i => $r) {
+                $net = (float)$r['win_points'] - (float)$r['lose_points'];
+                $ratio = (int)$r['lost_cnt'] > 0 ? number_format((int)$r['won_cnt'] / (int)$r['lost_cnt'], 2) : ((int)$r['won_cnt'] > 0 ? '∞' : '-');
+            ?>
+                <tr>
+                    <td class="sp-rank-num">#<?php echo $i + 1 ?></td>
+                    <td><a href="userdetails.php?id=<?php echo (int)$r['uid'] ?>"><?php echo htmlspecialchars($r['username']) ?></a></td>
+                    <td class="<?php echo $net >= 0 ? 'sp-pos' : 'sp-neg' ?>"><?php echo game_sp_points($net, true) ?></td>
+                    <td><?php echo game_sp_points($r['win_points']) ?></td>
+                    <td><?php echo game_sp_points($r['lose_points']) ?></td>
+                    <td><?php echo (int)$r['won_cnt'] ?></td>
+                    <td><?php echo (int)$r['lost_cnt'] ?></td>
+                    <td><?php echo $ratio ?></td>
+                    <td><?php echo game_sp_points($r['invested']) ?></td>
+                </tr>
+            <?php } ?>
+            <?php if (!$rows) { ?><tr><td colspan="9" class="sp-muted">暂无上榜用户。</td></tr><?php } ?>
+        </table>
+
+    <?php } elseif ($view === 'pnl') {
+        $winRows = game_sp_leaderboard('(win_points - lose_points) DESC', 50, $RANK_MIN_INVEST, '(win_points - lose_points) > 0');
+        $loseRows = game_sp_leaderboard('(win_points - lose_points) ASC', 50, $RANK_MIN_INVEST, '(win_points - lose_points) < 0');
+        $my = game_sp_my_stats((int)$CURUSER['id']);
+        $myNet = $my['win_points'] - $my['lose_points'];
+    ?>
+        <div class="sp-section-title">盈亏榜</div>
+        <div class="sp-mystat">
+            <span>我的胜负</span>
+            <span>总：<?php echo $my['total'] ?></span>
+            <span class="sp-pos">盈：<?php echo game_sp_points($my['win_points']) ?></span>
+            <span class="sp-neg">亏：<?php echo game_sp_points($my['lose_points']) ?></span>
+            <span>胜：<?php echo $my['won'] ?></span>
+            <span>负：<?php echo $my['lost'] ?></span>
+            <span>净：<span class="<?php echo $myNet >= 0 ? 'sp-pos' : 'sp-neg' ?>"><?php echo game_sp_points($myNet, true) ?></span></span>
         </div>
-    <?php } ?>
+        <div class="sp-tabs" id="pnlTabs">
+            <span class="sp-tab is-active" data-pnl="win">🏆 胜榜·总盈利</span>
+            <span class="sp-tab" data-pnl="lose">💸 负榜·总亏损</span>
+        </div>
+        <table class="sp-table" id="pnlWin">
+            <tr><th>排名</th><th>用户名</th><th>胜场</th><th>总盈利</th></tr>
+            <?php foreach ($winRows as $i => $r) { ?>
+                <tr>
+                    <td class="sp-rank-num"><?php echo $i + 1 ?></td>
+                    <td><a href="userdetails.php?id=<?php echo (int)$r['uid'] ?>"><?php echo htmlspecialchars($r['username']) ?></a></td>
+                    <td><?php echo (int)$r['won_cnt'] ?>胜</td>
+                    <td class="sp-pos"><?php echo game_sp_points((float)$r['win_points'] - (float)$r['lose_points'], true) ?></td>
+                </tr>
+            <?php } ?>
+            <?php if (!$winRows) { ?><tr><td colspan="4" class="sp-muted">暂无盈利用户。</td></tr><?php } ?>
+        </table>
+        <table class="sp-table" id="pnlLose" style="display:none;">
+            <tr><th>排名</th><th>用户名</th><th>负场</th><th>总亏损</th></tr>
+            <?php foreach ($loseRows as $i => $r) { ?>
+                <tr>
+                    <td class="sp-rank-num"><?php echo $i + 1 ?></td>
+                    <td><a href="userdetails.php?id=<?php echo (int)$r['uid'] ?>"><?php echo htmlspecialchars($r['username']) ?></a></td>
+                    <td><?php echo (int)$r['lost_cnt'] ?>负</td>
+                    <td class="sp-neg"><?php echo game_sp_points((float)$r['win_points'] - (float)$r['lose_points'], true) ?></td>
+                </tr>
+            <?php } ?>
+            <?php if (!$loseRows) { ?><tr><td colspan="4" class="sp-muted">暂无亏损用户。</td></tr><?php } ?>
+        </table>
 
-    <div class="sp-section-title">我的最近押注</div>
-    <table class="sp-table">
-        <tr><th>赛事</th><th>选择</th><th>赔率</th><th>押注</th><th>状态</th><th>返还</th></tr>
-        <?php while ($bet = mysql_fetch_assoc($myBetsRes)) { ?>
-            <tr>
-                <td><?php echo htmlspecialchars(game_sp_tr($bet['home_team']) . ' vs ' . game_sp_tr($bet['away_team'])) ?></td>
-                <td><?php echo game_sp_choice_label($bet['choice']) ?></td>
-                <td><?php echo number_format($bet['odds'], 2) ?></td>
-                <td><?php echo game_sp_money($bet['amount']) ?></td>
-                <td><?php echo $betStatusLabel[$bet['status']] ?? htmlspecialchars($bet['status']) ?></td>
-                <td><?php echo game_sp_money($bet['payout']) ?></td>
-            </tr>
-        <?php } ?>
-    </table>
+    <?php } elseif ($view === 'help') { ?>
+        <div class="sp-section-title">系统帮助</div>
+        <div class="sp-match" style="line-height:1.9;">
+            · <b>玩法</b>：用电影票（魔力）押体育赛事的 <b>主胜 / 平局 / 客胜</b>，固定赔率，押中得「押注 × 赔率」。<br>
+            · <b>截止</b>：每场比赛有押注截止时间，过点不能再押。<br>
+            · <b>开奖</b>：比赛结束后，由系统自动获取结果或管理员录入结果后结算派彩。<br>
+            · <b>取消</b>：比赛因故取消时，本场所有押注退还本金。<br>
+            · <b>用户排名</b>：按「总投入」排序（总投入大于 <?php echo $RANK_MIN_INVEST ?> 才上榜）。<br>
+            · <b>盈亏榜</b>：胜榜按净盈利从高到低，负榜按净亏损从高到低。<br>
+            · 理性娱乐，量力而行。
+        </div>
 
-    <div class="sp-section-title">最近开奖</div>
-    <table class="sp-table">
-        <tr><th>赛事</th><th>比分</th><th>结果</th><th>时间</th></tr>
-        <?php while ($m = mysql_fetch_assoc($resultRes)) { ?>
-            <tr>
-                <td><?php echo htmlspecialchars(($m['league'] !== '' ? '[' . game_sp_tr($m['league']) . '] ' : '') . game_sp_tr($m['home_team']) . ' vs ' . game_sp_tr($m['away_team'])) ?></td>
-                <td><?php echo ($m['home_score'] === null || $m['away_score'] === null) ? '-' : ((int)$m['home_score'] . ' : ' . (int)$m['away_score']) ?></td>
-                <td><?php echo $m['status'] === 'cancelled' ? '已取消(退款)' : game_sp_choice_label($m['result']) ?></td>
-                <td><?php echo htmlspecialchars($m['updated_at']) ?></td>
-            </tr>
-        <?php } ?>
-    </table>
-
-    <?php if ($isAdmin) {
+    <?php } elseif ($view === 'admin' && $isAdmin) {
         $apiKeySet = trim((string)game_sp_config_get('api_key', '')) !== '';
+        $draftMatches = [];
+        $draftRes = sql_query("SELECT * FROM `" . GAME_SP_MATCH_TABLE . "` WHERE `status` = 'draft' ORDER BY `match_time` ASC, `id` ASC") or sqlerr(__FILE__, __LINE__);
+        while ($m = mysql_fetch_assoc($draftRes)) { $draftMatches[] = $m; }
+        $adminMatches = [];
+        $adminRes = sql_query("SELECT * FROM `" . GAME_SP_MATCH_TABLE . "` WHERE `status` = 'open' ORDER BY `match_time` ASC, `id` ASC") or sqlerr(__FILE__, __LINE__);
+        while ($m = mysql_fetch_assoc($adminRes)) {
+            $totRes = sql_query("SELECT `choice`, SUM(`amount`) AS total FROM `" . GAME_SP_BET_TABLE . "` WHERE `match_id` = " . (int)$m['id'] . " AND `status` = 'pending' GROUP BY `choice`") or sqlerr(__FILE__, __LINE__);
+            $tot = ['home' => 0, 'draw' => 0, 'away' => 0];
+            while ($t = mysql_fetch_assoc($totRes)) { $tot[$t['choice']] = (float)$t['total']; }
+            $m['_totals'] = $tot;
+            $adminMatches[] = $m;
+        }
     ?>
         <div class="sp-admin">
-            <h3>🛠 管理员：赛事数据 API（football-data.org，免费档）</h3>
+            <h3>🛠 赛事数据 API（football-data.org，免费档）</h3>
             <div class="sp-muted" style="margin-bottom:8px;">
                 到 football-data.org 注册免费账号，拿到 <b>X-Auth-Token</b> 填入此处（免费档约 10 次/分钟）。当前状态：<b><?php echo $apiKeySet ? '已设置' : '未设置' ?></b>
             </div>
@@ -827,7 +1024,7 @@ stdhead("菠菜系统");
                 <button type="submit">保存 token</button>
             </form>
 
-            <h3>🛠 管理员：从 API 导入赛程</h3>
+            <h3>🛠 从 API 导入赛程</h3>
             <div class="sp-muted" style="margin-bottom:8px;">填联赛代码 + 日期范围。免费档常用代码：世界杯 <b>WC</b>、欧冠 <b>CL</b>、英超 <b>PL</b>、西甲 <b>PD</b>、意甲 <b>SA</b>、德甲 <b>BL1</b>、法甲 <b>FL1</b>、欧洲杯 <b>EC</b>、巴甲 <b>BSA</b>（<b>中超不在免费覆盖</b>，请用下方“手动创建比赛”）。导入的赛事为“草稿”，需设赔率后才开盘。</div>
             <form method="post" action="/games/sports/">
                 <input type="hidden" name="action" value="import_fixtures">
@@ -937,18 +1134,31 @@ stdhead("菠菜系统");
 <script>
 (function () {
     var tabs = document.getElementById('spTabs');
-    if (!tabs) { return; }
-    var matches = document.querySelectorAll('.sp-match[data-league]');
-    tabs.addEventListener('click', function (e) {
-        var tab = e.target.closest('.sp-tab');
-        if (!tab) { return; }
-        tabs.querySelectorAll('.sp-tab').forEach(function (t) { t.classList.remove('is-active'); });
-        tab.classList.add('is-active');
-        var lg = tab.getAttribute('data-league');
-        matches.forEach(function (row) {
-            row.style.display = (lg === '__all' || row.getAttribute('data-league') === lg) ? '' : 'none';
+    if (tabs) {
+        var matches = document.querySelectorAll('.sp-match[data-league]');
+        tabs.addEventListener('click', function (e) {
+            var tab = e.target.closest('.sp-tab');
+            if (!tab) { return; }
+            tabs.querySelectorAll('.sp-tab').forEach(function (t) { t.classList.remove('is-active'); });
+            tab.classList.add('is-active');
+            var lg = tab.getAttribute('data-league');
+            matches.forEach(function (row) {
+                row.style.display = (lg === '__all' || row.getAttribute('data-league') === lg) ? '' : 'none';
+            });
         });
-    });
+    }
+    var pnlTabs = document.getElementById('pnlTabs');
+    if (pnlTabs) {
+        pnlTabs.addEventListener('click', function (e) {
+            var tab = e.target.closest('.sp-tab');
+            if (!tab) { return; }
+            pnlTabs.querySelectorAll('.sp-tab').forEach(function (t) { t.classList.remove('is-active'); });
+            tab.classList.add('is-active');
+            var which = tab.getAttribute('data-pnl');
+            document.getElementById('pnlWin').style.display = which === 'win' ? '' : 'none';
+            document.getElementById('pnlLose').style.display = which === 'lose' ? '' : 'none';
+        });
+    }
 })();
 </script>
 <?php
