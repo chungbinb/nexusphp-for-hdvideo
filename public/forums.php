@@ -719,7 +719,25 @@ if ($action == "viewtopic")
 		$where = "WHERE topicid=".sqlesc($topicid);
 		$addparam = "action=viewtopic&topicid=".$topicid;
 	}
-	$psort = (($_GET['psort'] ?? '') === 'asc') ? 'asc' : 'desc';
+	// Per-user remembered floor sort (default desc). An explicit ?psort in the URL
+	// (clicking the toggle) overrides and is persisted back to the user's preference,
+	// so a refresh or opening another topic keeps the chosen order.
+	$qdSortSaved = \App\Models\UserMeta::query()
+		->where('uid', $CURUSER['id'])
+		->where('meta_key', 'FORUM_POST_SORT')
+		->value('meta_value');
+	$qdSortSaved = ($qdSortSaved === 'asc') ? 'asc' : 'desc';
+	if (isset($_GET['psort'])) {
+		$psort = ($_GET['psort'] === 'asc') ? 'asc' : 'desc';
+		if ($psort !== $qdSortSaved) {
+			\App\Models\UserMeta::query()->updateOrCreate(
+				['uid' => $CURUSER['id'], 'meta_key' => 'FORUM_POST_SORT'],
+				['meta_value' => $psort, 'status' => \App\Models\UserMeta::STATUS_NORMAL, 'deadline' => null]
+			);
+		}
+	} else {
+		$psort = $qdSortSaved;
+	}
 	$psortSql = $psort === 'asc' ? 'ASC' : 'DESC';
 	$addparam .= '&psort=' . $psort;
 	$firstPostId = (int)get_single_value("posts", "MIN(id)", "WHERE topicid=".sqlesc($topicid));
