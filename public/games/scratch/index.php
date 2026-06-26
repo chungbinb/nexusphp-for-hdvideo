@@ -57,8 +57,17 @@ function sc_ensure_tables()
             KEY `idx_uid` (`uid`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
-    // legacy records table may predate the note column
-    @sql_query("ALTER TABLE `" . SC_TABLE . "` ADD COLUMN `note` varchar(80) NOT NULL DEFAULT ''");
+    // legacy records table may predate the note column. NexusDB::query() throws on
+    // SQL errors (and @ does NOT suppress exceptions), so add the column only when it
+    // is actually missing — a blind ALTER would throw "Duplicate column" on later loads.
+    $hasNote = false;
+    $colRes = sql_query("SHOW COLUMNS FROM `" . SC_TABLE . "` LIKE 'note'");
+    if ($colRes && mysql_fetch_assoc($colRes)) {
+        $hasNote = true;
+    }
+    if (!$hasNote) {
+        sql_query("ALTER TABLE `" . SC_TABLE . "` ADD COLUMN `note` varchar(80) NOT NULL DEFAULT ''");
+    }
     // configurable prize roster
     @sql_query("
         CREATE TABLE IF NOT EXISTS `" . SC_ITEM_TABLE . "` (
