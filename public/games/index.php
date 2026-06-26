@@ -153,8 +153,8 @@ body.page-games-php:not(.inframe) {
 
 .steam-game-row {
     display: grid;
-    grid-template-columns: 230px minmax(0, 1fr) 148px;
-    min-height: 86px;
+    grid-template-columns: 379px minmax(0, 1fr) 148px;
+    min-height: 99px;
     background: #1b2b3a;
     border: 1px solid rgba(91, 129, 166, 0.18);
     text-decoration: none !important;
@@ -172,7 +172,7 @@ body.page-games-php:not(.inframe) {
 .steam-shot {
     position: relative;
     overflow: hidden;
-    min-height: 86px;
+    min-height: 99px;
     background:
         radial-gradient(circle at 22% 24%, rgba(255,255,255,.26), transparent 20%),
         linear-gradient(135deg, var(--game-a), var(--game-b));
@@ -207,6 +207,18 @@ body.page-games-php:not(.inframe) {
 .theme-dice { --game-a: #1e88e5; --game-b: #07182d; }
 .theme-sports { --game-a: #2ecc71; --game-b: #0b3d1f; }
 .theme-ddz { --game-a: #e74c3c; --game-b: #2c1a0c; }
+
+.steam-capsule.has-icon {
+    background-color: #0b1728;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+}
+.steam-capsule.has-icon::before,
+.steam-capsule.has-icon::after {
+    content: none;
+    display: none;
+}
 .theme-scratch { --game-a: #f1c232; --game-b: #6b3f00; }
 .theme-wheel { --game-a: #b84cff; --game-b: #18224f; }
 .theme-quiz { --game-a: #13b58a; --game-b: #092c38; }
@@ -418,10 +430,11 @@ body.page-games-php:not(.inframe) {
         <section class="steam-list" aria-label="游戏列表">
             <?php foreach ($games as $index => $game) { ?>
                 <?php $disabled = $game['href'] === '#'; ?>
+                <?php $hasIcon = is_file(__DIR__ . '/icons/' . $game['theme'] . '.png'); ?>
                 <a class="steam-game-row theme-<?php echo htmlspecialchars($game['theme']) ?> <?php echo $index === 0 ? 'is-active' : '' ?> <?php echo $disabled ? 'is-disabled' : '' ?>"
                    href="<?php echo htmlspecialchars($game['href']) ?>"
                    <?php echo $disabled ? 'onclick="return false;"' : '' ?>>
-                    <div class="steam-capsule" data-title="<?php echo htmlspecialchars($game['title']) ?>"></div>
+                    <div class="steam-capsule<?php echo $hasIcon ? ' has-icon' : '' ?>" data-title="<?php echo htmlspecialchars($game['title']) ?>"<?php if ($hasIcon) { echo ' style="background-image:url(\'/games/icons/' . htmlspecialchars($game['theme']) . '.png?v=1\')"'; } ?>></div>
                     <div class="steam-game-main">
                         <div class="steam-game-title"><?php echo htmlspecialchars($game['title']) ?><?php if (!empty($game['badge'])) { ?> <span class="steam-badge"><?php echo htmlspecialchars($game['badge']) ?></span><?php } ?></div>
                         <div class="steam-game-subtitle"><?php echo htmlspecialchars($game['subtitle']) ?></div>
