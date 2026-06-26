@@ -10,7 +10,7 @@ const GAME_SP_BUSINESS_TYPE = 13; // reuse the lucky-draw / game bonus category
 const GAME_SP_MATCH_TABLE = 'hdvideo_sports_matches';
 const GAME_SP_BET_TABLE = 'hdvideo_sports_bets';
 const GAME_SP_CONFIG_TABLE = 'hdvideo_sports_config';
-const GAME_SP_API_BASE = 'https://v3.football.api-sports.io/';
+const GAME_SP_API_BASE = 'https://api.football-data.org/v4/';
 
 function game_sp_run_schema_sql($sql)
 {
@@ -156,7 +156,7 @@ function game_sp_api_request($path, array $params = [])
 {
     $key = trim((string)game_sp_config_get('api_key', ''));
     if ($key === '') {
-        return [null, '尚未设置 API key（在下方管理区填写）。'];
+        return [null, '尚未设置 API token（在下方管理区填写）。'];
     }
     if (!function_exists('curl_init')) {
         return [null, '服务器未启用 cURL。'];
@@ -168,7 +168,7 @@ function game_sp_api_request($path, array $params = [])
     $ch = curl_init($url);
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_HTTPHEADER => ['x-apisports-key: ' . $key],
+        CURLOPT_HTTPHEADER => ['X-Auth-Token: ' . $key],
         CURLOPT_TIMEOUT => 25,
         CURLOPT_SSL_VERIFYPEER => true,
     ]);
@@ -184,51 +184,43 @@ function game_sp_api_request($path, array $params = [])
     if (!is_array($data)) {
         return [null, "返回解析失败（HTTP $code）。"];
     }
-    if (!empty($data['errors'])) {
-        $errors = $data['errors'];
-        if (is_array($errors)) {
-            $parts = [];
-            foreach ($errors as $k => $v) {
-                $parts[] = is_scalar($v) ? (string)$v : json_encode($v, JSON_UNESCAPED_UNICODE);
-            }
-            $msg = implode('；', $parts);
-        } else {
-            $msg = (string)$errors;
-        }
-        if ($msg !== '' && $msg !== '[]') {
-            return [null, "API 错误：$msg"];
-        }
+    // football-data.org returns {"message": "...", "errorCode": N} on errors.
+    if ($code >= 400 || isset($data['errorCode'])) {
+        $msg = $data['message'] ?? "HTTP $code";
+        return [null, "API 错误（HTTP $code）：$msg"];
     }
     return [$data, ''];
 }
 
-function game_sp_import_fixtures($leagueId, $season, $from, $to)
+function game_sp_import_fixtures($competition, $from, $to)
 {
-    [$data, $err] = game_sp_api_request('fixtures', [
-        'league' => (int)$leagueId,
-        'season' => (int)$season,
-        'from' => $from,
-        'to' => $to,
+    $code = preg_replace('/[^A-Za-z0-9]/', '', (string)$competition);
+    if ($code === '') {
+        return [0, '联赛代码无效。'];
+    }
+    [$data, $err] = game_sp_api_request("competitions/$code/matches", [
+        'dateFrom' => $from,
+        'dateTo' => $to,
     ]);
     if ($err) {
         return [0, $err];
     }
     $now = date('Y-m-d H:i:s');
     $imported = 0;
-    $finished = ['FT', 'AET', 'PEN', 'CANC', 'ABD', 'AWD', 'WO', 'PST'];
-    foreach (($data['response'] ?? []) as $fx) {
-        $extId = (string)($fx['fixture']['id'] ?? '');
+    $finished = ['FINISHED', 'AWARDED', 'CANCELLED', 'POSTPONED', 'SUSPENDED'];
+    foreach (($data['matches'] ?? []) as $fx) {
+        $extId = (string)($fx['id'] ?? '');
         if ($extId === '') {
             continue;
         }
-        $statusShort = (string)($fx['fixture']['status']['short'] ?? '');
-        if (in_array($statusShort, $finished, true)) {
+        $status = (string)($fx['status'] ?? '');
+        if (in_array($status, $finished, true)) {
             continue;
         }
-        $home = trim((string)($fx['teams']['home']['name'] ?? ''));
-        $away = trim((string)($fx['teams']['away']['name'] ?? ''));
-        $league = trim((string)($fx['league']['name'] ?? ''));
-        $ts = strtotime((string)($fx['fixture']['date'] ?? ''));
+        $home = trim((string)($fx['homeTeam']['name'] ?? ''));
+        $away = trim((string)($fx['awayTeam']['name'] ?? ''));
+        $league = trim((string)($fx['competition']['name'] ?? ''));
+        $ts = strtotime((string)($fx['utcDate'] ?? ''));
         if ($home === '' || $away === '' || !$ts) {
             continue;
         }
@@ -530,14 +522,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         game_sp_config_set('api_key', trim((string)($_POST['api_key'] ?? '')));
         $message = "API key 已保存。";
     } elseif ($action === 'import_fixtures' && game_sp_is_admin()) {
-        $leagueId = (int)($_POST['league_id'] ?? 0);
-        $season = (int)($_POST['season'] ?? 0);
+        $competition = trim((string)($_POST['competition'] ?? ''));
         $from = game_sp_parse_datetime(($_POST['from'] ?? '') . ' 00:00:00');
         $to = game_sp_parse_datetime(($_POST['to'] ?? '') . ' 00:00:00');
-        if ($leagueId <= 0 || $season <= 0 || !$from || !$to) {
-            $error = "请填写联赛 ID、赛季年份和起止日期。";
+        if ($competition === '' || !$from || !$to) {
+            $error = "请填写联赛代码和起止日期。";
         } else {
-            [$count, $err] = game_sp_import_fixtures($leagueId, $season, substr($from, 0, 10), substr($to, 0, 10));
+            [$count, $err] = game_sp_import_fixtures($competition, substr($from, 0, 10), substr($to, 0, 10));
             $error = $err;
             if ($error === "") {
                 $message = "导入完成，新增 {$count} 场草稿赛事（在下方“草稿赛事”里设赔率后开盘）。";
@@ -706,23 +697,22 @@ stdhead("菠菜系统");
         $apiKeySet = trim((string)game_sp_config_get('api_key', '')) !== '';
     ?>
         <div class="sp-admin">
-            <h3>🛠 管理员：赛事数据 API（API-Football / api-sports.io）</h3>
+            <h3>🛠 管理员：赛事数据 API（football-data.org，免费档）</h3>
             <div class="sp-muted" style="margin-bottom:8px;">
-                到 api-football.com 注册免费账号（免费档 100 次/天），拿到 <b>x-apisports-key</b> 填入此处。当前状态：<b><?php echo $apiKeySet ? '已设置' : '未设置' ?></b>
+                到 football-data.org 注册免费账号，拿到 <b>X-Auth-Token</b> 填入此处（免费档约 10 次/分钟）。当前状态：<b><?php echo $apiKeySet ? '已设置' : '未设置' ?></b>
             </div>
             <form method="post" action="/games/sports/" class="sp-inline" style="margin-bottom:14px;">
                 <input type="hidden" name="action" value="save_api_key">
-                <input type="password" name="api_key" placeholder="粘贴 API key" style="width:280px;padding:7px" autocomplete="off">
-                <button type="submit">保存 API key</button>
+                <input type="password" name="api_key" placeholder="粘贴 X-Auth-Token" style="width:280px;padding:7px" autocomplete="off">
+                <button type="submit">保存 token</button>
             </form>
 
             <h3>🛠 管理员：从 API 导入赛程</h3>
-            <div class="sp-muted" style="margin-bottom:8px;">联赛 ID 与赛季年份在 api-football 后台/文档查（例：世界杯 league=1，中超 league=169；赛季填年份如 2026）。导入的赛事为“草稿”，需设赔率后才开盘。</div>
+            <div class="sp-muted" style="margin-bottom:8px;">填联赛代码 + 日期范围。免费档常用代码：世界杯 <b>WC</b>、欧冠 <b>CL</b>、英超 <b>PL</b>、西甲 <b>PD</b>、意甲 <b>SA</b>、德甲 <b>BL1</b>、法甲 <b>FL1</b>、欧洲杯 <b>EC</b>、巴甲 <b>BSA</b>（<b>中超不在免费覆盖</b>，请用下方“手动创建比赛”）。导入的赛事为“草稿”，需设赔率后才开盘。</div>
             <form method="post" action="/games/sports/">
                 <input type="hidden" name="action" value="import_fixtures">
                 <div class="sp-admin-form">
-                    <label>联赛 ID<input type="number" name="league_id" min="1" required></label>
-                    <label>赛季年份<input type="number" name="season" min="2000" max="2100" value="<?php echo (int)date('Y') ?>" required></label>
+                    <label>联赛代码<input type="text" name="competition" maxlength="10" placeholder="如 WC / PL" required></label>
                     <label>起始日期<input type="date" name="from" value="<?php echo date('Y-m-d') ?>" required></label>
                     <label>结束日期<input type="date" name="to" value="<?php echo date('Y-m-d', TIMENOW + 14 * 86400) ?>" required></label>
                     <label>&nbsp;<button type="submit">导入赛程</button></label>
