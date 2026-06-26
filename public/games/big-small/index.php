@@ -758,6 +758,7 @@ stdhead("压大小");
 .bs-wrap { max-width: 980px; margin: 0 auto; }
 .bs-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
 .bs-title { font-size: 24px; font-weight: 800; }
+.bs-badge { font-size: 12px; font-weight: 700; color: #e67e22; background: rgba(230,126,34,.12); padding: 2px 8px; border-radius: 999px; vertical-align: middle; }
 .bs-balance { font-size: 14px; font-weight: 700; }
 .bs-panel { border: 1px solid rgba(120,150,190,.34); border-radius: 8px; padding: 16px; margin-bottom: 14px; background: rgba(30,60,100,.06); }
 .bs-round { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 14px; }
@@ -786,7 +787,7 @@ stdhead("压大小");
 <div class="bs-wrap">
     <div class="bs-head">
         <div>
-            <div class="bs-title">压大小</div>
+            <div class="bs-title">压大小 <span class="bs-badge">公测中 v1.1</span></div>
             <div class="bs-muted">每 10 分钟一期。开奖三个骰子，每个 1-6（111-666）。</div>
         </div>
         <div class="bs-balance">我的电影票：<?php echo game_bs_money($CURUSER['seedbonus']) ?> 张</div>

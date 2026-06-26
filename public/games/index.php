@@ -9,6 +9,7 @@ $GLOBALS['nexus_hide_top_banner'] = true;
 $games = [
     [
         'title' => '压大小',
+        'badge' => '公测中 v1.1',
         'subtitle' => '每 10 分钟开奖一次，使用电影票押注，押中返还本金并获得等额奖励。',
         'date' => '已开放',
         'price' => '立即进入',
