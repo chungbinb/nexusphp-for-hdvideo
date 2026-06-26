@@ -898,7 +898,7 @@ stdhead("菠菜系统");
             <tr><th>赛事</th><th>选择</th><th>赔率</th><th>押注</th><th>状态</th><th>返还</th></tr>
             <?php while ($bet = mysql_fetch_assoc($res)) { ?>
                 <tr>
-                    <td><?php echo htmlspecialchars(game_sp_tr($bet['home_team']) . ' vs ' . game_sp_tr($bet['away_team'])) ?></td>
+                    <td><?php echo htmlspecialchars(($bet['league'] !== '' ? '[' . game_sp_tr($bet['league']) . '] ' : '') . game_sp_tr($bet['home_team']) . ' vs ' . game_sp_tr($bet['away_team'])) ?></td>
                     <td><?php echo game_sp_choice_label($bet['choice']) ?></td>
                     <td><?php echo number_format($bet['odds'], 2) ?></td>
                     <td><?php echo game_sp_money($bet['amount']) ?></td>
