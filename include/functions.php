@@ -4136,8 +4136,7 @@ if ($msgalert)
     $remarkTpl = $lang_functions['full_site_promotion_remark'] ?? 'Remark: %s';
 
     if ($currentPromotion) {
-        $promotionText = \App\Models\Torrent::$promotionTypes[$currentPromotion['global_sp_state']]['text'] ?? '';
-        $msg = sprintf($lang_functions['full_site_promotion_in_effect'], $promotionText);
+        $msg = build_full_site_promotion_subject($currentPromotion, $lang_functions['full_site_promotion_in_effect_combined'] ?? '%s生效中！');
         if (!empty($currentPromotion['begin']) || !empty($currentPromotion['deadline'])) {
 			$timeRange = sprintf($lang_functions['full_site_promotion_time_range'], $currentPromotion['begin'] ?? '-INF', $currentPromotion['deadline'] ?? 'INF');
             $msg .= '<br/>' . $timeRange;
@@ -4148,8 +4147,7 @@ if ($msgalert)
         msgalert("torrents.php", $msg, "green");
     }
     if ($upcomingPromotion) {
-        $promotionText = \App\Models\Torrent::$promotionTypes[$upcomingPromotion['global_sp_state']]['text'] ?? '';
-        $msg = sprintf($lang_functions['full_site_promotion_upcoming'] ?? 'Upcoming full site [%s]', $promotionText);
+        $msg = build_full_site_promotion_subject($upcomingPromotion, $lang_functions['full_site_promotion_upcoming_combined'] ?? '即将生效：%s');
         if (!empty($upcomingPromotion['begin']) || !empty($upcomingPromotion['deadline'])) {
 			$timeRange = sprintf($lang_functions['full_site_promotion_time_range'], $upcomingPromotion['begin'] ?? '-INF', $upcomingPromotion['deadline'] ?? 'INF');
             $msg .= '<br/>' . $timeRange;
@@ -5980,6 +5978,29 @@ function get_second_icon($row) //for CHDBits
 	else {
 		return "<img".($sirow['class_name'] ? " class=\"".$sirow['class_name']."\"" : "")." src=\"pic/cattrans.gif\" style=\"background-image: url(pic/". $catimgurl. "/additional/". $sirow['image'].");\" alt=\"" . $sirow["name"] . "\" title=\"".$sirow['name']."\" />";
 	}
+}
+
+/**
+ * Build the "in effect / upcoming" promotion banner subject, combining the
+ * site-wide (global) and official-group promotions of a torrents_state row.
+ * e.g. "全站 [Free] /官组[2x]" -> wrapped by $wrapTpl (a sprintf "%s" template).
+ */
+function build_full_site_promotion_subject(array $promotion, string $wrapTpl): string
+{
+    global $lang_functions;
+    $normal = \App\Models\Torrent::PROMOTION_NORMAL;
+    $globalState = (int)($promotion['global_sp_state'] ?? $normal);
+    $officialState = (int)($promotion['official_sp_state'] ?? $normal);
+    $segGlobalTpl = $lang_functions['full_site_promotion_segment_global'] ?? '全站 [%s]';
+    $segOfficialTpl = $lang_functions['full_site_promotion_segment_official'] ?? '官组[%s]';
+    $segments = [];
+    if ($globalState != $normal) {
+        $segments[] = sprintf($segGlobalTpl, \App\Models\Torrent::$promotionTypes[$globalState]['text'] ?? '');
+    }
+    if ($officialState != $normal) {
+        $segments[] = sprintf($segOfficialTpl, \App\Models\Torrent::$promotionTypes[$officialState]['text'] ?? '');
+    }
+    return sprintf($wrapTpl, implode(' /', $segments));
 }
 
 function get_torrent_bg_color($promotion = 1, $posState = "", array $torrent = [])
