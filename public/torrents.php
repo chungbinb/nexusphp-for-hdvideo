@@ -189,7 +189,10 @@ if (isset($_GET['sort']) && $_GET['sort'] && isset($_GET['type']) && $_GET['type
 
 } else {
 
-	$orderby = "ORDER BY pos_state DESC, torrents.id DESC";
+	// Gently float 急需求种 torrents (0 seeders but people still downloading) up so
+	// members notice them and seed. Stays below sticky; normal newest-first otherwise.
+	$urgentSeedOrder = "CASE WHEN torrents.seeders = 0 AND torrents.leechers > 0 THEN 1 ELSE 0 END DESC, ";
+	$orderby = "ORDER BY pos_state DESC, " . $urgentSeedOrder . "torrents.id DESC";
 	$pagerlink = "";
 
 }
