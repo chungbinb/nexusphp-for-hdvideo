@@ -245,23 +245,21 @@ function game_bs_settle_due_rounds()
                 continue;
             }
 
-            // Draw a 3-digit number, each digit 1-9.
-            $d1 = game_bs_rand(1, 9);
-            $d2 = game_bs_rand(1, 9);
-            $d3 = game_bs_rand(1, 9);
+            // Roll three dice, each 1-6.
+            $d1 = game_bs_rand(1, 6);
+            $d2 = game_bs_rand(1, 6);
+            $d3 = game_bs_rand(1, 6);
             $number = $d1 * 100 + $d2 * 10 + $d3;
             $sum = $d1 + $d2 + $d3;
             $type = game_bs_number_type($number);
 
-            // Big/small outcome from the digit sum.
+            // Sic-bo style big/small from the dice sum (3-18), triples lose.
             if ($type === 'triple') {
                 $size = 'triple';          // 豹子: big & small both lose
-            } elseif ($sum <= 14) {
+            } elseif ($sum <= 10) {
                 $size = 'small';
-            } elseif ($sum >= 16) {
-                $size = 'big';
             } else {
-                $size = 'push';            // sum == 15: big & small both lose (house collects)
+                $size = 'big';             // sum 11-17
             }
 
             sql_query("UPDATE `" . GAME_BS_ROUND_TABLE . "` SET `status` = 'closed', `result` = " . sqlesc($size) . ", `result_number` = $number, `updated_at` = " . sqlesc($now) . " WHERE `id` = $roundId") or sqlerr(__FILE__, __LINE__);
@@ -529,8 +527,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $betNumber = null;
     if (!in_array($choice, ['big', 'small', 'number', 'triple', 'straight'], true)) {
         $error = "请选择有效的押注选项。";
-    } elseif ($choice === 'number' && !preg_match('/^[1-9][1-9][1-9]$/', trim((string)($_POST['bet_number'] ?? '')))) {
-        $error = "押注数字必须是 111 到 999，且每一位都是 1-9（不含 0）。";
+    } elseif ($choice === 'number' && !preg_match('/^[1-6][1-6][1-6]$/', trim((string)($_POST['bet_number'] ?? '')))) {
+        $error = "押注数字必须是 111 到 666，且每一位都是 1-6。";
     } elseif (!preg_match('/^[1-9][0-9]*$/', $amountRaw)) {
         $error = "押注电影票必须是正整数。";
     } else {
@@ -606,7 +604,7 @@ stdhead("压大小");
     <div class="bs-head">
         <div>
             <div class="bs-title">压大小</div>
-            <div class="bs-muted">每 10 分钟一期。开奖三位数字，每位 1-9。</div>
+            <div class="bs-muted">每 10 分钟一期。开奖三个骰子，每个 1-6（111-666）。</div>
         </div>
         <div class="bs-balance">我的电影票：<?php echo game_bs_money($CURUSER['seedbonus']) ?> 张</div>
     </div>
@@ -622,8 +620,8 @@ stdhead("压大小");
             <div class="bs-stat"><span>押大 / 押小 / 押数字</span><b><?php echo game_bs_money($betStats['big']['total']) ?> / <?php echo game_bs_money($betStats['small']['total']) ?> / <?php echo game_bs_money($betStats['number']['total']) ?></b></div>
         </div>
         <div class="bs-rules">
-            玩法：开奖三位数字各 1-9（如 5 3 1）。<br>
-            · <b>押大 / 押小</b>：按三位之和判定，和 ≤ 14 为小、≥ 16 为大，押中得 <b>2 倍</b>；三位相同（豹子，如 555）或三位之和正好 15 时，押大小都输（庄家通杀）。<br>
+            玩法：开奖三个骰子各 1-6（如 5 3 1）。<br>
+            · <b>押大 / 押小</b>：按三个骰子之和判定，和 4-10 为小、11-17 为大，押中得 <b>2 倍</b>；三个相同（豹子，如 555）押大小都输（庄家通杀）。<br>
             · <b>押数字</b>：押中开奖的精确数字，豹子<b>10 倍</b>、顺子<b>7 倍</b>、其它<b>6 倍</b>。<br>
             · <b>押豹子</b>：开出任意豹子（三位相同）即中，<b><?php echo GAME_BS_TRIPLE_MULT ?> 倍</b>。<b>押顺子</b>：开出任意顺子即中，<b><?php echo GAME_BS_STRAIGHT_MULT ?> 倍</b>。<br>
             · 顺子＝三位是连续数字（不分顺序），如 123 / 321 / 231 / 132 都算。<br>
@@ -637,7 +635,7 @@ stdhead("压大小");
                 <label><input type="radio" name="choice" value="straight"> 押顺子</label>
                 <label><input type="radio" name="choice" value="number"> 押数字</label>
             </div>
-            <input type="text" name="bet_number" id="bsBetNumber" inputmode="numeric" maxlength="3" pattern="[1-9]{3}" placeholder="数字 111-999" disabled>
+            <input type="text" name="bet_number" id="bsBetNumber" inputmode="numeric" maxlength="3" pattern="[1-6]{3}" placeholder="数字 111-666" disabled>
             <input type="number" name="amount" min="1" step="1" placeholder="电影票数量" required>
             <button type="submit">立即押注</button>
             <span class="bs-quick">
