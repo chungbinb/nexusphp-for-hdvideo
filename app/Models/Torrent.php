@@ -245,8 +245,12 @@ class Torrent extends NexusModel
         }
         $spState = $this->sp_state;
         $global = get_global_sp_state();
-        $log = sprintf('torrent: %s sp_state: %s, global sp state: %s', $this->id, $spState, $global);
-        if ($global != self::PROMOTION_NORMAL) {
+        $official = get_official_sp_state();
+        $log = sprintf('torrent: %s sp_state: %s, global sp state: %s, official sp state: %s', $this->id, $spState, $global, $official);
+        if ($official != self::PROMOTION_NORMAL && torrent_has_official_tag($this->id)) {
+            $spState = $official;
+            $log .= sprintf(", official != %s && is official torrent, set sp_state to official: %s", self::PROMOTION_NORMAL, $official);
+        } elseif ($global != self::PROMOTION_NORMAL) {
             $spState = $global;
             $log .= sprintf(", global != %s, set sp_state to global: %s", self::PROMOTION_NORMAL, $global);
         }

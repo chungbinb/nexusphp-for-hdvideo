@@ -43,13 +43,18 @@ class TorrentStateResource extends Resource
         return $schema
             ->components([
                 Select::make('global_sp_state')
-                    ->options(function () {
-                        $options = Torrent::listPromotionTypes(true);
-                        unset($options[Torrent::PROMOTION_NORMAL]);
-                        return $options;
-                    })
+                    ->options(Torrent::listPromotionTypes(true))
                     ->label(__('label.torrent_state.global_sp_state'))
-                    ->required(),
+                    ->default(Torrent::PROMOTION_NORMAL)
+                    ->required()
+                    ->native(false),
+                Select::make('official_sp_state')
+                    ->options(Torrent::listPromotionTypes(true))
+                    ->label(__('label.torrent_state.official_sp_state'))
+                    ->helperText(__('label.torrent_state.official_sp_state_help'))
+                    ->default(Torrent::PROMOTION_NORMAL)
+                    ->required()
+                    ->native(false),
                 DateTimePicker::make('begin')
                     ->label(__('label.begin'))
                     ->required(),
@@ -80,6 +85,7 @@ class TorrentStateResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('global_sp_state_text')->label(__('label.torrent_state.global_sp_state')),
+                TextColumn::make('official_sp_state_text')->label(__('label.torrent_state.official_sp_state'))->placeholder('-'),
                 TextColumn::make('begin')->label(__('label.begin')),
                 TextColumn::make('deadline')->label(__('label.deadline')),
                 TextColumn::make('promotion_status')

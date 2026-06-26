@@ -5126,7 +5126,7 @@ foreach ($rows as $row)
         $stickyicon = "";
     }
 	$stickyicon = apply_filter('sticky_icon', $stickyicon, $row);
-    $sp_torrent = get_torrent_promotion_append($row['sp_state'],"",true,$row["added"], $row['promotion_time_type'], $row['promotion_until'], $row['__ignore_global_sp_state'] ?? false);
+    $sp_torrent = get_torrent_promotion_append($row['sp_state'],"",true,$row["added"], $row['promotion_time_type'], $row['promotion_until'], $row['__ignore_global_sp_state'] ?? false, $row['id'] ?? 0);
 	$hrImg = get_hr_img($row, $row['search_box_id']);
 
 	//cover
@@ -5207,7 +5207,7 @@ foreach ($rows as $row)
 		print("<b> (<font class='new'>".$lang_functions['text_new_uppercase']."</font>)</b>");
 
 	$banned_torrent = ($row["banned"] == 'yes' ? " <b>(<font class=\"striking\">".$lang_functions['text_banned']."</font>)</b>" : "");
-	$sp_torrent_sub = get_torrent_promotion_append_sub($row['sp_state'],"",true,$row['added'], $row['promotion_time_type'], $row['promotion_until'], $row['__ignore_global_sp_state'] ?? false);
+	$sp_torrent_sub = get_torrent_promotion_append_sub($row['sp_state'],"",true,$row['added'], $row['promotion_time_type'], $row['promotion_until'], $row['__ignore_global_sp_state'] ?? false, $row['id'] ?? 0);
     $approvalStatusIcon = $torrentRep->renderApprovalStatus($row['approval_status']);
     if ($showSeedBoxIcon && $seedBoxPeerInfo->has($row['id'])) {
         $seedBoxIcon = $seedBoxRep->getSeedBoxIcon();
@@ -5988,6 +5988,10 @@ function get_torrent_bg_color($promotion = 1, $posState = "", array $torrent = [
     $sphighlight = null;
 	if ($CURUSER['appendpromotion'] == 'highlight'){
 		$global_promotion_state = get_global_sp_state();
+		$official_promotion_state = get_official_sp_state();
+		if ($official_promotion_state != \App\Models\Torrent::PROMOTION_NORMAL && !empty($torrent['id']) && torrent_has_official_tag($torrent['id'])) {
+			$global_promotion_state = $official_promotion_state;
+		}
 		if ($global_promotion_state == 1){
 			if($promotion==1)
 				$sphighlight = "";
@@ -6028,11 +6032,17 @@ function get_torrent_bg_color($promotion = 1, $posState = "", array $torrent = [
 	return apply_filter('torrent_background_color', (string)$sphighlight, $torrent);
 }
 
-function get_torrent_promotion_append($promotion = 1,$forcemode = "",$showtimeleft = false, $added = "", $promotionTimeType = 0, $promotionUntil = '', $ignoreGlobal = false){
+function get_torrent_promotion_append($promotion = 1,$forcemode = "",$showtimeleft = false, $added = "", $promotionTimeType = 0, $promotionUntil = '', $ignoreGlobal = false, $torrentId = null){
 	global $CURUSER,$lang_functions;
 	global $expirehalfleech_torrent, $expirefree_torrent, $expiretwoup_torrent, $expiretwoupfree_torrent, $expiretwouphalfleech_torrent, $expirethirtypercentleech_torrent;
 
 	$globalSpState = get_global_sp_state();
+	if (!$ignoreGlobal) {
+		$officialSpState = get_official_sp_state();
+		if ($officialSpState != \App\Models\Torrent::PROMOTION_NORMAL && $torrentId && torrent_has_official_tag($torrentId)) {
+			$globalSpState = $officialSpState;
+		}
+	}
 	$sp_torrent = "";
 	$onmouseover = "";
 	$log = "[GET_PROMOTION], promotion: $promotion, forcemode: $forcemode, showtimeleft: $showtimeleft, added: $added, promotionTimeType: $promotionTimeType, promotionUntil: $promotionUntil";
@@ -6199,11 +6209,17 @@ function get_torrent_promotion_append($promotion = 1,$forcemode = "",$showtimele
 	return $sp_torrent;
 }
 
-function get_torrent_promotion_append_sub($promotion = 1,$forcemode = "",$showtimeleft = false, $added = "", $promotionTimeType = 0, $promotionUntil = '', $ignoreGlobal = false){
+function get_torrent_promotion_append_sub($promotion = 1,$forcemode = "",$showtimeleft = false, $added = "", $promotionTimeType = 0, $promotionUntil = '', $ignoreGlobal = false, $torrentId = null){
 	global $CURUSER,$lang_functions;
 	global $expirehalfleech_torrent, $expirefree_torrent, $expiretwoup_torrent, $expiretwoupfree_torrent, $expiretwouphalfleech_torrent, $expirethirtypercentleech_torrent;
 
     $globalSpState = get_global_sp_state();
+	if (!$ignoreGlobal) {
+		$officialSpState = get_official_sp_state();
+		if ($officialSpState != \App\Models\Torrent::PROMOTION_NORMAL && $torrentId && torrent_has_official_tag($torrentId)) {
+			$globalSpState = $officialSpState;
+		}
+	}
 	$sp_torrent = "";
 	$onmouseover = "";
 	$log = "[GET_PROMOTION], promotion: $promotion, forcemode: $forcemode, showtimeleft: $showtimeleft, added: $added, promotionTimeType: $promotionTimeType, promotionUntil: $promotionUntil";
@@ -7044,7 +7060,7 @@ function displayHotAndClassic()
                         $height = 140;
                         while($array = mysql_fetch_array($res))
                         {
-                            $pro_torrent = get_torrent_promotion_append($array['sp_state'],'word', false, '', 0, '', $array['__ignore_global_sp_state'] ?? false);
+                            $pro_torrent = get_torrent_promotion_append($array['sp_state'],'word', false, '', 0, '', $array['__ignore_global_sp_state'] ?? false, $array['id'] ?? 0);
                             $photo_url = '';
                             if ($imdb_id = parse_imdb_id($array["url"])) {
                                 if (array_search($imdb_id, $allImdb) !== false) { //a torrent with the same IMDb url already exists

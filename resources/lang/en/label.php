@@ -338,6 +338,9 @@ return [
     'torrent_state' => [
         'label' => 'Global promotion',
         'global_sp_state' => 'Global promotion state',
+        'official_sp_state' => 'Official group promotion',
+        'official_sp_state_help' => 'Applies only to torrents carrying the official tag; set to normal to let official torrents follow the global promotion.',
+        'promotion_required' => 'Set at least one of the global or official-group promotions.',
         'deadline_after_begin' => 'End time must be later than start time.',
         'status' => 'Status',
         'status_expired' => 'Expired',

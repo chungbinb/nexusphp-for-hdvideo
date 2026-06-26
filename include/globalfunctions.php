@@ -16,6 +16,77 @@ function get_global_sp_state()
 	return $global_promotion_state;
 }
 
+/**
+ * The official-group promotion of the currently active promotion window.
+ * Applies only to torrents carrying the official tag (Setting bonus.official_tag).
+ * Shares the same active row/time window as get_global_sp_state().
+ */
+function get_official_sp_state()
+{
+    static $official_promotion_state;
+    if (is_null($official_promotion_state)) {
+        $timeline = \App\Models\TorrentState::resolveTimeline();
+        $current = $timeline['current'] ?? null;
+        if (is_array($current) && isset($current['official_sp_state'])) {
+            $official_promotion_state = $current['official_sp_state'];
+        } else {
+            $official_promotion_state = \App\Models\Torrent::PROMOTION_NORMAL;
+        }
+    }
+    return $official_promotion_state;
+}
+
+/**
+ * Whether a torrent belongs to the "official group", i.e. it carries the
+ * configured official tag. Result is memoized per request.
+ */
+function torrent_has_official_tag($torrentId): bool
+{
+    static $cache = [];
+    $torrentId = (int)$torrentId;
+    if ($torrentId <= 0) {
+        return false;
+    }
+    if (array_key_exists($torrentId, $cache)) {
+        return $cache[$torrentId];
+    }
+    $officialTag = (int)\App\Models\Setting::get('bonus.official_tag');
+    if ($officialTag <= 0) {
+        return $cache[$torrentId] = false;
+    }
+    $row = \Nexus\Database\NexusDB::select(
+        "select 1 from torrent_tags where torrent_id = $torrentId and tag_id = $officialTag limit 1"
+    );
+    return $cache[$torrentId] = !empty($row);
+}
+
+/**
+ * Resolve the effective promotion (sp_state) for a torrent, taking the active
+ * site-wide and official-group promotions into account.
+ *   - official torrent + official promotion set -> official promotion (overrides global)
+ *   - otherwise, if a global promotion is set    -> global promotion
+ *   - otherwise                                  -> the torrent's own sp_state
+ * Pass $isOfficial explicitly when already known to avoid a tag lookup.
+ */
+function get_effective_sp_state($ownSpState, $torrentId = null, $isOfficial = null)
+{
+    $normal = \App\Models\Torrent::PROMOTION_NORMAL;
+    $official = get_official_sp_state();
+    if ($official != $normal) {
+        if ($isOfficial === null) {
+            $isOfficial = torrent_has_official_tag($torrentId);
+        }
+        if ($isOfficial) {
+            return $official;
+        }
+    }
+    $global = get_global_sp_state();
+    if ($global != $normal) {
+        return $global;
+    }
+    return $ownSpState;
+}
+
 // IP Validation
 function validip($ip)
 {
@@ -1073,10 +1144,15 @@ function getDataTraffic(array $torrent, array $queries, array $user, $peer, $sna
         $realDownloaded = max(bcsub($queries['downloaded'], $peer['downloaded']), 0);
         $log .= ", [PEER_EXISTS], realUploaded: $realUploaded, realDownloaded: $realDownloaded, [SP_STATE]";
         $spStateGlobal = get_global_sp_state();
+        $spStateOfficial = get_official_sp_state();
         $spStateNormal = \App\Models\Torrent::PROMOTION_NORMAL;
+        $isOfficialTorrent = ($spStateOfficial != $spStateNormal) && torrent_has_official_tag($torrent['id']);
         if (!empty($promotionInfo) && isset($promotionInfo['__ignore_global_sp_state'])) {
             $log .= ', use promotionInfo';
             $spStateReal = $promotionInfo['sp_state'];
+        } elseif ($isOfficialTorrent) {
+            $log .= ", use official";
+            $spStateReal = $spStateOfficial;
         } elseif ($spStateGlobal != $spStateNormal) {
             $log .= ", use global";
             $spStateReal = $spStateGlobal;
