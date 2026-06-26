@@ -40,6 +40,7 @@ function game_sp_ensure_tables()
             `league` varchar(80) NOT NULL DEFAULT '',
             `home_team` varchar(80) NOT NULL DEFAULT '',
             `away_team` varchar(80) NOT NULL DEFAULT '',
+            `watch_url` varchar(255) NOT NULL DEFAULT '',
             `match_time` datetime NOT NULL,
             `bet_deadline` datetime NOT NULL,
             `odds_home` decimal(6,2) NOT NULL DEFAULT '0.00',
@@ -87,7 +88,24 @@ function game_sp_ensure_tables()
         game_sp_run_schema_sql("ALTER TABLE `" . GAME_SP_MATCH_TABLE . "` ADD COLUMN `external_id` varchar(40) NOT NULL DEFAULT '' AFTER `id`");
         game_sp_run_schema_sql("ALTER TABLE `" . GAME_SP_MATCH_TABLE . "` ADD KEY `idx_external` (`external_id`)");
     }
+    if (!game_sp_column_exists(GAME_SP_MATCH_TABLE, 'watch_url')) {
+        game_sp_run_schema_sql("ALTER TABLE `" . GAME_SP_MATCH_TABLE . "` ADD COLUMN `watch_url` varchar(255) NOT NULL DEFAULT '' AFTER `away_team`");
+    }
     $done = true;
+}
+
+function game_sp_default_watch_url()
+{
+    return 'https://tv.cctv.com/live/cctv5/';
+}
+
+function game_sp_clean_url($url)
+{
+    $url = trim((string)$url);
+    if ($url === '' || !preg_match('#^https?://#i', $url)) {
+        return '';
+    }
+    return mb_substr($url, 0, 255);
 }
 
 function game_sp_config_get($k, $default = '')
@@ -569,9 +587,10 @@ function game_sp_save_match($data, $isNew)
         if ($deadline > $matchTime) {
             return "押注截止时间不能晚于比赛开始时间。";
         }
+        $watchUrl = game_sp_clean_url($data['watch_url'] ?? '');
         sql_query(sprintf(
-            "INSERT INTO `" . GAME_SP_MATCH_TABLE . "` (`league`, `home_team`, `away_team`, `match_time`, `bet_deadline`, `odds_home`, `odds_draw`, `odds_away`, `status`, `created_at`, `updated_at`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'open', %s, %s)",
-            sqlesc($league), sqlesc($home), sqlesc($away), sqlesc($matchTime), sqlesc($deadline),
+            "INSERT INTO `" . GAME_SP_MATCH_TABLE . "` (`league`, `home_team`, `away_team`, `watch_url`, `match_time`, `bet_deadline`, `odds_home`, `odds_draw`, `odds_away`, `status`, `created_at`, `updated_at`) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'open', %s, %s)",
+            sqlesc($league), sqlesc($home), sqlesc($away), sqlesc($watchUrl), sqlesc($matchTime), sqlesc($deadline),
             sqlesc(number_format($oddsHome, 2, '.', '')), sqlesc(number_format($oddsDraw, 2, '.', '')), sqlesc(number_format($oddsAway, 2, '.', '')),
             sqlesc($now), sqlesc($now)
         )) or sqlerr(__FILE__, __LINE__);
@@ -592,7 +611,8 @@ function game_sp_save_match($data, $isNew)
     if ($deadline > $match['match_time']) {
         return "押注截止时间不能晚于比赛开始时间。";
     }
-    sql_query("UPDATE `" . GAME_SP_MATCH_TABLE . "` SET `odds_home` = " . sqlesc(number_format($oddsHome, 2, '.', '')) . ", `odds_draw` = " . sqlesc(number_format($oddsDraw, 2, '.', '')) . ", `odds_away` = " . sqlesc(number_format($oddsAway, 2, '.', '')) . ", `bet_deadline` = " . sqlesc($deadline) . ", `status` = 'open', `updated_at` = " . sqlesc($now) . " WHERE `id` = $matchId") or sqlerr(__FILE__, __LINE__);
+    $watchUrl = game_sp_clean_url($data['watch_url'] ?? '');
+    sql_query("UPDATE `" . GAME_SP_MATCH_TABLE . "` SET `odds_home` = " . sqlesc(number_format($oddsHome, 2, '.', '')) . ", `odds_draw` = " . sqlesc(number_format($oddsDraw, 2, '.', '')) . ", `odds_away` = " . sqlesc(number_format($oddsAway, 2, '.', '')) . ", `watch_url` = " . sqlesc($watchUrl) . ", `bet_deadline` = " . sqlesc($deadline) . ", `status` = 'open', `updated_at` = " . sqlesc($now) . " WHERE `id` = $matchId") or sqlerr(__FILE__, __LINE__);
     return "";
 }
 
@@ -769,6 +789,8 @@ stdhead("菠菜系统");
 .sp-match-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin-bottom: 6px; }
 .sp-league { font-size: 12px; color: #2f80b5; font-weight: 700; }
 .sp-teams { font-size: 17px; font-weight: 800; }
+.sp-watch { margin-left: auto; padding: 6px 12px; border: 1px solid #2ecc71; border-radius: 6px; color: #2ecc71 !important; font-weight: 700; text-decoration: none !important; white-space: nowrap; }
+.sp-watch:hover { background: #2ecc71; color: #fff !important; }
 .sp-time { color: #6f7f95; font-size: 13px; }
 .sp-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
 .sp-odds { display: inline-flex; gap: 8px; flex-wrap: wrap; }
@@ -838,6 +860,7 @@ stdhead("菠菜系统");
                 <div class="sp-match-top">
                     <?php if ($m['league'] !== '') { ?><span class="sp-league"><?php echo htmlspecialchars(game_sp_tr($m['league'])) ?></span><?php } ?>
                     <span class="sp-teams"><?php echo htmlspecialchars(game_sp_tr($m['home_team'])) ?> <span class="sp-muted">vs</span> <?php echo htmlspecialchars(game_sp_tr($m['away_team'])) ?></span>
+                    <a class="sp-watch" href="<?php echo htmlspecialchars(($m['watch_url'] ?? '') !== '' ? $m['watch_url'] : game_sp_default_watch_url()) ?>" target="_blank" rel="noopener noreferrer">📺 去看赛事</a>
                 </div>
                 <div class="sp-time">开赛：<?php echo htmlspecialchars($m['match_time']) ?>　·　截止：<?php echo htmlspecialchars($m['bet_deadline']) ?></div>
                 <form class="sp-form" method="post" action="/games/sports/">
@@ -1066,6 +1089,7 @@ stdhead("菠菜系统");
                                     <input type="number" name="odds_draw" min="1.01" max="1000" step="0.01" placeholder="平" style="width:60px" required>
                                     <input type="number" name="odds_away" min="1.01" max="1000" step="0.01" placeholder="客" style="width:60px" required>
                                     <input type="text" name="bet_deadline" value="<?php echo htmlspecialchars($m['bet_deadline']) ?>" style="width:140px" title="押注截止">
+                                    <input type="text" name="watch_url" placeholder="观赛链接(留空=CCTV5)" style="width:160px" title="观赛链接，留空默认 CCTV5">
                                     <button type="submit">开盘</button>
                                 </form>
                             </td>
@@ -1093,6 +1117,7 @@ stdhead("菠菜系统");
                     <label>主胜赔率<input type="number" name="odds_home" min="1.01" max="1000" step="0.01" required></label>
                     <label>平局赔率<input type="number" name="odds_draw" min="1.01" max="1000" step="0.01" required></label>
                     <label>客胜赔率<input type="number" name="odds_away" min="1.01" max="1000" step="0.01" required></label>
+                    <label>观赛链接<input type="text" name="watch_url" placeholder="留空默认 CCTV5"></label>
                     <label>&nbsp;<button type="submit">创建比赛</button></label>
                 </div>
             </form>
