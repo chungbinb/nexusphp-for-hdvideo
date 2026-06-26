@@ -347,8 +347,70 @@ function game_bs_place_bet($choice, $amount, $betNumber = null)
     }
 }
 
+function game_bs_render_history()
+{
+    $perPage = 50;
+    $countRes = sql_query("SELECT COUNT(*) AS c FROM `" . GAME_BS_ROUND_TABLE . "` WHERE `status` = 'closed'") or sqlerr(__FILE__, __LINE__);
+    $total = (int)mysql_fetch_assoc($countRes)['c'];
+    $pages = max(1, (int)ceil($total / $perPage));
+    $page = (int)($_GET['page'] ?? 1);
+    if ($page < 1) { $page = 1; }
+    if ($page > $pages) { $page = $pages; }
+    $offset = ($page - 1) * $perPage;
+    $res = sql_query("SELECT * FROM `" . GAME_BS_ROUND_TABLE . "` WHERE `status` = 'closed' ORDER BY `id` DESC LIMIT $perPage OFFSET $offset") or sqlerr(__FILE__, __LINE__);
+    $resultSizeLabel = ['big' => '大', 'small' => '小', 'triple' => '豹子(通杀)', 'push' => '和15平局'];
+    stdhead("历史开奖");
+    ?>
+    <style>
+    .bsh-wrap { max-width: 760px; margin: 0 auto; }
+    .bsh-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .bsh-title { font-size: 22px; font-weight: 800; }
+    .bsh-panel { border: 1px solid rgba(120,150,190,.34); border-radius: 8px; padding: 16px; background: rgba(30,60,100,.06); }
+    .bsh-table { width: 100%; border-collapse: collapse; }
+    .bsh-table th, .bsh-table td { padding: 8px; border: 1px solid rgba(120,150,190,.26); text-align: center; }
+    .bsh-pager { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 14px; }
+    .bsh-pager .muted { color: #9aa7b5; }
+    </style>
+    <div class="bsh-wrap">
+        <div class="bsh-head">
+            <div class="bsh-title">历史开奖</div>
+            <div><a href="/games/big-small/">&laquo; 返回压大小</a></div>
+        </div>
+        <div class="bsh-panel">
+            <table class="bsh-table">
+                <tr><th>期号</th><th>截止时间</th><th>数字</th><th>结果</th></tr>
+                <?php while ($item = mysql_fetch_assoc($res)) { ?>
+                    <tr>
+                        <td><?php echo game_bs_issue_no($item['id']) ?></td>
+                        <td><?php echo htmlspecialchars($item['round_end']) ?></td>
+                        <td><?php echo (int)$item['result_number'] ?></td>
+                        <td><?php
+                            echo $resultSizeLabel[$item['result']] ?? htmlspecialchars((string)$item['result']);
+                            if ($item['result_number'] !== null && game_bs_number_type((int)$item['result_number']) !== 'normal') {
+                                echo '（' . game_bs_type_label((int)$item['result_number']) . '）';
+                            }
+                        ?></td>
+                    </tr>
+                <?php } ?>
+            </table>
+            <div class="bsh-pager">
+                <?php if ($page > 1) { ?><a href="?view=history&page=<?php echo $page - 1 ?>">&laquo; 上一页</a><?php } else { ?><span class="muted">&laquo; 上一页</span><?php } ?>
+                <span>第 <?php echo $page ?> / <?php echo $pages ?> 页（共 <?php echo $total ?> 期）</span>
+                <?php if ($page < $pages) { ?><a href="?view=history&page=<?php echo $page + 1 ?>">下一页 &raquo;</a><?php } else { ?><span class="muted">下一页 &raquo;</span><?php } ?>
+            </div>
+        </div>
+    </div>
+    <?php
+    stdfoot();
+}
+
 game_bs_ensure_tables();
 game_bs_settle_due_rounds();
+
+if (($_GET['view'] ?? '') === 'history') {
+    game_bs_render_history();
+    exit;
+}
 
 $message = "";
 $error = "";
@@ -480,7 +542,7 @@ stdhead("压大小");
             </table>
         </div>
         <div class="bs-panel">
-            <h3>最近开奖</h3>
+            <h3 style="display:flex;align-items:center;justify-content:space-between;">最近开奖 <a href="?view=history" style="font-size:13px;font-weight:600;">历史开奖 &raquo;</a></h3>
             <table class="bs-table">
                 <tr><th>期号</th><th>截止时间</th><th>数字</th><th>结果</th></tr>
                 <?php while ($item = mysql_fetch_assoc($historyRes)) { ?>
