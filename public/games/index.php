@@ -32,6 +32,18 @@ $games = [
         'shots' => ['dice-a', 'dice-b', 'dice-c'],
     ],
     [
+        'title' => '斗地主',
+        'badge' => '开发中 v0.1',
+        'subtitle' => '三人真人对战，满 3 人开局（不加机器人），可邀请好友进桌，用电影票计分。',
+        'date' => '开发中',
+        'price' => '进入大厅',
+        'href' => '/games/ddz/',
+        'status' => '开发中',
+        'tags' => ['真人对战', '斗地主', '电影票', '组队'],
+        'theme' => 'ddz',
+        'shots' => ['dice-a', 'dice-b', 'dice-c'],
+    ],
+    [
         'title' => '刮刮乐',
         'subtitle' => '使用电影票刮出奖励组合，适合快速消耗和回收小额电影票。',
         'date' => '筹备中',
@@ -194,6 +206,7 @@ body.page-games-php:not(.inframe) {
 
 .theme-dice { --game-a: #1e88e5; --game-b: #07182d; }
 .theme-sports { --game-a: #2ecc71; --game-b: #0b3d1f; }
+.theme-ddz { --game-a: #e74c3c; --game-b: #2c1a0c; }
 .theme-scratch { --game-a: #f1c232; --game-b: #6b3f00; }
 .theme-wheel { --game-a: #b84cff; --game-b: #18224f; }
 .theme-quiz { --game-a: #13b58a; --game-b: #092c38; }
