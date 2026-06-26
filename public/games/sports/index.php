@@ -118,6 +118,55 @@ function game_sp_choice_label($choice)
     return ['home' => '主胜', 'draw' => '平局', 'away' => '客胜'][$choice] ?? $choice;
 }
 
+/**
+ * Best-effort English -> Chinese for league / national-team / common club names.
+ * Unknown names are returned unchanged.
+ */
+function game_sp_tr($name)
+{
+    static $map = null;
+    if ($map === null) {
+        $map = [
+            // competitions
+            'FIFA World Cup' => '世界杯', 'World Cup' => '世界杯', 'UEFA Champions League' => '欧冠',
+            'Premier League' => '英超', 'Primera Division' => '西甲', 'La Liga' => '西甲',
+            'Serie A' => '意甲', 'Bundesliga' => '德甲', 'Ligue 1' => '法甲', 'Eredivisie' => '荷甲',
+            'Primeira Liga' => '葡超', 'Championship' => '英冠', 'Campeonato Brasileiro Série A' => '巴甲',
+            'European Championship' => '欧洲杯', 'UEFA Europa League' => '欧联杯',
+            // national teams
+            'France' => '法国', 'Norway' => '挪威', 'Spain' => '西班牙', 'Uruguay' => '乌拉圭',
+            'Senegal' => '塞内加尔', 'Iraq' => '伊拉克', 'Cape Verde Islands' => '佛得角', 'Cape Verde' => '佛得角',
+            'Saudi Arabia' => '沙特阿拉伯', 'New Zealand' => '新西兰', 'Belgium' => '比利时',
+            'Egypt' => '埃及', 'Iran' => '伊朗', 'Panama' => '巴拿马', 'England' => '英格兰',
+            'Croatia' => '克罗地亚', 'Ghana' => '加纳', 'Colombia' => '哥伦比亚', 'Portugal' => '葡萄牙',
+            'Argentina' => '阿根廷', 'Brazil' => '巴西', 'Germany' => '德国', 'Netherlands' => '荷兰',
+            'Italy' => '意大利', 'Mexico' => '墨西哥', 'United States' => '美国', 'USA' => '美国',
+            'Canada' => '加拿大', 'Japan' => '日本', 'South Korea' => '韩国', 'Korea Republic' => '韩国',
+            'Australia' => '澳大利亚', 'Morocco' => '摩洛哥', 'Switzerland' => '瑞士', 'Denmark' => '丹麦',
+            'Poland' => '波兰', 'Serbia' => '塞尔维亚', 'Wales' => '威尔士', 'Ecuador' => '厄瓜多尔',
+            'Qatar' => '卡塔尔', 'Tunisia' => '突尼斯', 'Costa Rica' => '哥斯达黎加', 'Cameroon' => '喀麦隆',
+            'Nigeria' => '尼日利亚', 'Algeria' => '阿尔及利亚', 'Ivory Coast' => '科特迪瓦',
+            'Chile' => '智利', 'Peru' => '秘鲁', 'Paraguay' => '巴拉圭', 'Sweden' => '瑞典',
+            'Austria' => '奥地利', 'Turkey' => '土耳其', 'Türkiye' => '土耳其', 'Ukraine' => '乌克兰',
+            'Czech Republic' => '捷克', 'Greece' => '希腊', 'Russia' => '俄罗斯', 'Scotland' => '苏格兰',
+            'Ireland' => '爱尔兰', 'Republic of Ireland' => '爱尔兰', 'China' => '中国', 'China PR' => '中国',
+            'South Africa' => '南非', 'Jamaica' => '牙买加', 'Honduras' => '洪都拉斯', 'Venezuela' => '委内瑞拉',
+            'Bolivia' => '玻利维亚', 'Slovakia' => '斯洛伐克', 'Slovenia' => '斯洛文尼亚', 'Hungary' => '匈牙利',
+            'Romania' => '罗马尼亚', 'Uzbekistan' => '乌兹别克斯坦', 'Jordan' => '约旦', 'Mali' => '马里',
+            'Burkina Faso' => '布基纳法索', 'DR Congo' => '刚果(金)', 'Angola' => '安哥拉', 'Zambia' => '赞比亚',
+            // common clubs
+            'Real Madrid' => '皇家马德里', 'Barcelona' => '巴塞罗那', 'Atletico Madrid' => '马德里竞技',
+            'Manchester City' => '曼城', 'Manchester United' => '曼联', 'Liverpool' => '利物浦',
+            'Chelsea' => '切尔西', 'Arsenal' => '阿森纳', 'Tottenham Hotspur' => '热刺',
+            'Bayern Munich' => '拜仁慕尼黑', 'Borussia Dortmund' => '多特蒙德', 'Juventus' => '尤文图斯',
+            'AC Milan' => 'AC米兰', 'Inter' => '国际米兰', 'Internazionale' => '国际米兰', 'Napoli' => '那不勒斯',
+            'Paris Saint-Germain' => '巴黎圣日耳曼', 'PSG' => '巴黎圣日耳曼',
+        ];
+    }
+    $n = trim((string)$name);
+    return $n === '' ? $n : ($map[$n] ?? $n);
+}
+
 function game_sp_bonus_log($uid, $old, $delta, $new, $comment)
 {
     $now = date('Y-m-d H:i:s');
@@ -243,6 +292,37 @@ function game_sp_import_fixtures($competition, $from, $to)
         $imported++;
     }
     return [$imported, ''];
+}
+
+/**
+ * Fetch the final result of an API-imported match. Returns
+ * [['result'=>home|draw|away,'home'=>score,'away'=>score], ''] or [null, errorMsg].
+ */
+function game_sp_fetch_result($externalId)
+{
+    $externalId = preg_replace('/[^0-9]/', '', (string)$externalId);
+    if ($externalId === '') {
+        return [null, '该比赛非 API 导入，请手动录入结果。'];
+    }
+    [$data, $err] = game_sp_api_request("matches/$externalId");
+    if ($err) {
+        return [null, $err];
+    }
+    $match = $data['match'] ?? $data;
+    $status = (string)($match['status'] ?? '');
+    if ($status !== 'FINISHED') {
+        return [null, "比赛尚未结束（状态：$status），暂无法自动结算。"];
+    }
+    $winner = (string)($match['score']['winner'] ?? '');
+    $map = ['HOME_TEAM' => 'home', 'AWAY_TEAM' => 'away', 'DRAW' => 'draw'];
+    if (!isset($map[$winner])) {
+        return [null, '结果数据缺失，请手动录入。'];
+    }
+    return [[
+        'result' => $map[$winner],
+        'home' => $match['score']['fullTime']['home'] ?? '',
+        'away' => $match['score']['fullTime']['away'] ?? '',
+    ], ''];
 }
 
 function game_sp_place_bet($matchId, $choice, $amount)
@@ -534,6 +614,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $message = "导入完成，新增 {$count} 场草稿赛事（在下方“草稿赛事”里设赔率后开盘）。";
             }
         }
+    } elseif ($action === 'auto_settle' && game_sp_is_admin()) {
+        $matchId = (int)($_POST['match_id'] ?? 0);
+        $mres = sql_query("SELECT `external_id`, `status` FROM `" . GAME_SP_MATCH_TABLE . "` WHERE `id` = $matchId LIMIT 1") or sqlerr(__FILE__, __LINE__);
+        $mrow = mysql_fetch_assoc($mres);
+        if (!$mrow || $mrow['status'] !== 'open') {
+            $error = "比赛不存在或不可结算。";
+        } else {
+            [$r, $err] = game_sp_fetch_result($mrow['external_id']);
+            if ($err) {
+                $error = $err;
+            } else {
+                $error = game_sp_settle_match($matchId, $r['result'], $r['home'], $r['away']);
+                if ($error === "") {
+                    $message = "已自动获取结果并结算派彩。";
+                }
+            }
+        }
+    } elseif ($action === 'auto_settle_all' && game_sp_is_admin()) {
+        $nowStr = date('Y-m-d H:i:s');
+        $listRes = sql_query("SELECT `id`, `external_id` FROM `" . GAME_SP_MATCH_TABLE . "` WHERE `status` = 'open' AND `external_id` <> '' AND `match_time` <= " . sqlesc($nowStr) . " ORDER BY `match_time` ASC LIMIT 10") or sqlerr(__FILE__, __LINE__);
+        $rows = [];
+        while ($lrow = mysql_fetch_assoc($listRes)) {
+            $rows[] = $lrow;
+        }
+        $settled = 0;
+        $skipped = 0;
+        foreach ($rows as $lrow) {
+            [$r, $err] = game_sp_fetch_result($lrow['external_id']);
+            if ($err) {
+                $skipped++;
+                continue;
+            }
+            $e = game_sp_settle_match((int)$lrow['id'], $r['result'], $r['home'], $r['away']);
+            if ($e === "") {
+                $settled++;
+            } else {
+                $skipped++;
+            }
+        }
+        $message = "自动结算完成：成功 {$settled} 场，跳过 {$skipped} 场（未结束/暂无结果的稍后再试或手动录入）。每次最多处理 10 场（API 限速）。";
     } else {
         $error = "无效操作。";
     }
@@ -647,8 +767,8 @@ stdhead("菠菜系统");
     <?php foreach ($openMatches as $m) { $lg = $m['league'] !== '' ? $m['league'] : '其他'; ?>
         <div class="sp-match" data-league="<?php echo htmlspecialchars($lg) ?>">
             <div class="sp-match-top">
-                <?php if ($m['league'] !== '') { ?><span class="sp-league"><?php echo htmlspecialchars($m['league']) ?></span><?php } ?>
-                <span class="sp-teams"><?php echo htmlspecialchars($m['home_team']) ?> <span class="sp-muted">vs</span> <?php echo htmlspecialchars($m['away_team']) ?></span>
+                <?php if ($m['league'] !== '') { ?><span class="sp-league"><?php echo htmlspecialchars(game_sp_tr($m['league'])) ?></span><?php } ?>
+                <span class="sp-teams"><?php echo htmlspecialchars(game_sp_tr($m['home_team'])) ?> <span class="sp-muted">vs</span> <?php echo htmlspecialchars(game_sp_tr($m['away_team'])) ?></span>
             </div>
             <div class="sp-time">开赛：<?php echo htmlspecialchars($m['match_time']) ?>　·　截止：<?php echo htmlspecialchars($m['bet_deadline']) ?></div>
             <form class="sp-form" method="post" action="/games/sports/">
@@ -670,7 +790,7 @@ stdhead("菠菜系统");
         <tr><th>赛事</th><th>选择</th><th>赔率</th><th>押注</th><th>状态</th><th>返还</th></tr>
         <?php while ($bet = mysql_fetch_assoc($myBetsRes)) { ?>
             <tr>
-                <td><?php echo htmlspecialchars($bet['home_team'] . ' vs ' . $bet['away_team']) ?></td>
+                <td><?php echo htmlspecialchars(game_sp_tr($bet['home_team']) . ' vs ' . game_sp_tr($bet['away_team'])) ?></td>
                 <td><?php echo game_sp_choice_label($bet['choice']) ?></td>
                 <td><?php echo number_format($bet['odds'], 2) ?></td>
                 <td><?php echo game_sp_money($bet['amount']) ?></td>
@@ -685,7 +805,7 @@ stdhead("菠菜系统");
         <tr><th>赛事</th><th>比分</th><th>结果</th><th>时间</th></tr>
         <?php while ($m = mysql_fetch_assoc($resultRes)) { ?>
             <tr>
-                <td><?php echo htmlspecialchars(($m['league'] !== '' ? '[' . $m['league'] . '] ' : '') . $m['home_team'] . ' vs ' . $m['away_team']) ?></td>
+                <td><?php echo htmlspecialchars(($m['league'] !== '' ? '[' . game_sp_tr($m['league']) . '] ' : '') . game_sp_tr($m['home_team']) . ' vs ' . game_sp_tr($m['away_team'])) ?></td>
                 <td><?php echo ($m['home_score'] === null || $m['away_score'] === null) ? '-' : ((int)$m['home_score'] . ' : ' . (int)$m['away_score']) ?></td>
                 <td><?php echo $m['status'] === 'cancelled' ? '已取消(退款)' : game_sp_choice_label($m['result']) ?></td>
                 <td><?php echo htmlspecialchars($m['updated_at']) ?></td>
@@ -725,7 +845,7 @@ stdhead("菠菜系统");
                     <tr><th>赛事</th><th>开赛</th><th>设赔率(主/平/客) + 截止 → 开盘</th><th>操作</th></tr>
                     <?php foreach ($draftMatches as $m) { ?>
                         <tr>
-                            <td><?php echo htmlspecialchars($m['home_team'] . ' vs ' . $m['away_team']) ?><br><span class="sp-muted"><?php echo htmlspecialchars($m['league']) ?></span></td>
+                            <td><?php echo htmlspecialchars(game_sp_tr($m['home_team']) . ' vs ' . game_sp_tr($m['away_team'])) ?><br><span class="sp-muted"><?php echo htmlspecialchars(game_sp_tr($m['league'])) ?></span></td>
                             <td><?php echo htmlspecialchars($m['match_time']) ?></td>
                             <td>
                                 <form method="post" action="/games/sports/" class="sp-inline">
@@ -767,11 +887,16 @@ stdhead("菠菜系统");
             </form>
 
             <h3 style="margin-top:18px;">🛠 已开盘比赛：录结果 / 取消</h3>
+            <div class="sp-muted" style="margin-bottom:8px;">API 导入的比赛结束后可自动获取比分结算；手动创建的、或暂无结果的请用“结算”手动录入。</div>
+            <form method="post" action="/games/sports/" style="margin-bottom:8px;">
+                <input type="hidden" name="action" value="auto_settle_all">
+                <button type="submit">⚡ 一键自动结算（已结束的，每次最多 10 场）</button>
+            </form>
             <table class="sp-table">
                 <tr><th>赛事</th><th>截止</th><th>押注(主/平/客)</th><th>录结果</th><th>操作</th></tr>
                 <?php foreach ($adminMatches as $m) { ?>
                     <tr>
-                        <td><?php echo htmlspecialchars($m['home_team'] . ' vs ' . $m['away_team']) ?><br><span class="sp-muted"><?php echo htmlspecialchars($m['league']) ?></span></td>
+                        <td><?php echo htmlspecialchars(game_sp_tr($m['home_team']) . ' vs ' . game_sp_tr($m['away_team'])) ?><br><span class="sp-muted"><?php echo htmlspecialchars(game_sp_tr($m['league'])) ?></span></td>
                         <td><?php echo htmlspecialchars($m['bet_deadline']) ?></td>
                         <td><?php echo game_sp_money($m['_totals']['home']) ?> / <?php echo game_sp_money($m['_totals']['draw']) ?> / <?php echo game_sp_money($m['_totals']['away']) ?></td>
                         <td>
@@ -789,6 +914,13 @@ stdhead("菠菜系统");
                             </form>
                         </td>
                         <td>
+                            <?php if ($m['external_id'] !== '') { ?>
+                            <form method="post" action="/games/sports/" style="margin-bottom:4px;">
+                                <input type="hidden" name="action" value="auto_settle">
+                                <input type="hidden" name="match_id" value="<?php echo (int)$m['id'] ?>">
+                                <button type="submit">自动结算</button>
+                            </form>
+                            <?php } ?>
                             <form method="post" action="/games/sports/" onsubmit="return confirm('确认取消该比赛并退还所有押注？');">
                                 <input type="hidden" name="action" value="cancel_match">
                                 <input type="hidden" name="match_id" value="<?php echo (int)$m['id'] ?>">
