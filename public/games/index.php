@@ -490,7 +490,7 @@ body.page-games-php:not(.inframe) {
     <?php
     $hallProfit = game_lb_bonus('profit', null, 10);
     $hallActive = game_lb_bonus('active', null, 10);
-    $hallWin    = game_lb_bonus('win', null, 10);
+    $hallWin    = game_lb_bonus('wincount', null, 10);
     echo game_lb_css();
     ?>
     <section class="steam-board" aria-label="游戏大厅总榜">
@@ -502,8 +502,8 @@ body.page-games-php:not(.inframe) {
                 function ($r) { return (float)$r['amt'] >= 0 ? 'glb-pos' : 'glb-neg'; });
             echo game_lb_table('🔥 活跃榜', $hallActive, '参与次数',
                 function ($r) { return number_format((int)$r['amt']) . ' 次'; });
-            echo game_lb_table('🎉 中奖榜', $hallWin, '累计赢得',
-                function ($r) { return game_lb_money($r['amt']); },
+            echo game_lb_table('🎉 中奖榜', $hallWin, '中奖次数',
+                function ($r) { return number_format((int)$r['amt']) . ' 次'; },
                 function ($r) { return 'glb-pos'; });
             ?>
         </div>

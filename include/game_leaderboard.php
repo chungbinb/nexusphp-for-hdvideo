@@ -33,6 +33,8 @@ function game_lb_bonus($mode, $commentLike = null, $limit = 10)
     }
     if ($mode === 'active') {
         $metric = 'COUNT(*)';
+    } elseif ($mode === 'wincount') {
+        $metric = 'SUM(CASE WHEN `bl`.`value` > 0 THEN 1 ELSE 0 END)';
     } elseif ($mode === 'win') {
         $metric = 'SUM(CASE WHEN `bl`.`value` > 0 THEN `bl`.`value` ELSE 0 END)';
     } else {
