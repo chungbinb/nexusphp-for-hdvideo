@@ -19,6 +19,17 @@ $games = [
         'shots' => ['dice-a', 'dice-b', 'dice-c'],
     ],
     [
+        'title' => '菠菜系统',
+        'subtitle' => '体育赛事竞猜，固定赔率押注主胜/平局/客胜，押中按赔率派彩，比如当前的世界杯。',
+        'date' => '已开放',
+        'price' => '立即进入',
+        'href' => '/games/sports/',
+        'status' => '可玩',
+        'tags' => ['体育', '世界杯', '竞猜', '赔率'],
+        'theme' => 'sports',
+        'shots' => ['dice-a', 'dice-b', 'dice-c'],
+    ],
+    [
         'title' => '刮刮乐',
         'subtitle' => '使用电影票刮出奖励组合，适合快速消耗和回收小额电影票。',
         'date' => '筹备中',
@@ -180,6 +191,7 @@ body.page-games-php:not(.inframe) {
 }
 
 .theme-dice { --game-a: #1e88e5; --game-b: #07182d; }
+.theme-sports { --game-a: #2ecc71; --game-b: #0b3d1f; }
 .theme-scratch { --game-a: #f1c232; --game-b: #6b3f00; }
 .theme-wheel { --game-a: #b84cff; --game-b: #18224f; }
 .theme-quiz { --game-a: #13b58a; --game-b: #092c38; }
