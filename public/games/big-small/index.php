@@ -787,7 +787,7 @@ stdhead("压大小");
 <div class="bs-wrap">
     <div class="bs-head">
         <div>
-            <div class="bs-title">压大小 <span class="bs-badge">公测中 v1.1</span></div>
+            <div class="bs-title">压大小 <span class="bs-badge">公测中 v1.2</span></div>
             <div class="bs-muted">每 1 分钟一期。开奖三个骰子，每个 1-6（111-666）。</div>
         </div>
         <div class="bs-balance">我的电影票：<?php echo game_bs_money($CURUSER['seedbonus']) ?> 张</div>
