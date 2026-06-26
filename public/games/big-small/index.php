@@ -414,10 +414,8 @@ function game_bs_render_history()
     .bsh-pager .muted { color: #9aa7b5; }
     </style>
     <div class="bsh-wrap">
-        <div class="bsh-head">
-            <div class="bsh-title">历史开奖</div>
-            <div><a href="/games/big-small/">&laquo; 返回压大小</a></div>
-        </div>
+        <?php echo game_bs_subnav('history'); ?>
+        <h3 style="margin:0 0 12px">历史开奖</h3>
         <div class="bsh-panel">
             <table class="bsh-table">
                 <tr><th>期号</th><th>截止时间</th><th>数字</th><th>结果</th><th>我的押注</th></tr>
@@ -479,10 +477,8 @@ function game_bs_render_my_bets()
     .bsh-pager .muted { color: #9aa7b5; }
     </style>
     <div class="bsh-wrap">
-        <div class="bsh-head">
-            <div class="bsh-title">我的历史押注</div>
-            <div><a href="/games/big-small/">&laquo; 返回压大小</a></div>
-        </div>
+        <?php echo game_bs_subnav('mybets'); ?>
+        <h3 style="margin:0 0 12px">我的历史押注</h3>
         <div class="bsh-panel">
             <table class="bsh-table">
                 <tr><th>期号</th><th>选择</th><th>押注</th><th>状态</th><th>返还</th></tr>
@@ -507,6 +503,185 @@ function game_bs_render_my_bets()
     stdfoot();
 }
 
+function game_bs_subnav($active = '')
+{
+    $items = ['' => '压大小', 'history' => '历史开奖', 'mybets' => '我的押注', 'ranking' => '用户排名', 'pnl' => '盈亏榜'];
+    $out = '<div style="display:flex;flex-wrap:wrap;gap:2px;margin-bottom:16px;border-bottom:1px solid rgba(120,150,190,.3)">';
+    foreach ($items as $k => $label) {
+        $url = $k === '' ? '/games/big-small/' : '/games/big-small/?view=' . $k;
+        $color = $k === $active ? '#2ecc71' : '#6f7f95';
+        $border = $k === $active ? '3px solid #2ecc71' : '3px solid transparent';
+        $out .= '<a href="' . $url . '" style="padding:9px 14px;font-weight:700;text-decoration:none;color:' . $color . ';border-bottom:' . $border . '">' . $label . '</a>';
+    }
+    return $out . '</div>';
+}
+
+function game_bs_leaderboard($orderBy, $limit, $minInvested, $havingExtra = '')
+{
+    $extra = $havingExtra !== '' ? " AND ($havingExtra)" : '';
+    $sql = "SELECT b.`uid`, u.`username`,
+            SUM(CASE WHEN b.`status` IN ('won','lost') THEN b.`amount` ELSE 0 END) AS invested,
+            SUM(CASE WHEN b.`status` = 'won' THEN 1 ELSE 0 END) AS won_cnt,
+            SUM(CASE WHEN b.`status` = 'lost' THEN 1 ELSE 0 END) AS lost_cnt,
+            SUM(CASE WHEN b.`status` = 'won' THEN b.`payout` - b.`amount` ELSE 0 END) AS win_points,
+            SUM(CASE WHEN b.`status` = 'lost' THEN b.`amount` ELSE 0 END) AS lose_points
+        FROM `" . GAME_BS_BET_TABLE . "` b
+        INNER JOIN `users` u ON u.`id` = b.`uid`
+        GROUP BY b.`uid`, u.`username`
+        HAVING invested > " . (int)$minInvested . $extra . "
+        ORDER BY $orderBy
+        LIMIT " . (int)$limit;
+    $res = sql_query($sql) or sqlerr(__FILE__, __LINE__);
+    $rows = [];
+    while ($r = mysql_fetch_assoc($res)) {
+        $rows[] = $r;
+    }
+    return $rows;
+}
+
+function game_bs_my_stats($uid)
+{
+    $res = sql_query("SELECT
+            SUM(CASE WHEN `status` IN ('won','lost') THEN 1 ELSE 0 END) AS total,
+            SUM(CASE WHEN `status` = 'won' THEN 1 ELSE 0 END) AS won_cnt,
+            SUM(CASE WHEN `status` = 'lost' THEN 1 ELSE 0 END) AS lost_cnt,
+            SUM(CASE WHEN `status` = 'won' THEN `payout` - `amount` ELSE 0 END) AS win_points,
+            SUM(CASE WHEN `status` = 'lost' THEN `amount` ELSE 0 END) AS lose_points
+        FROM `" . GAME_BS_BET_TABLE . "` WHERE `uid` = " . (int)$uid) or sqlerr(__FILE__, __LINE__);
+    $r = mysql_fetch_assoc($res);
+    return [
+        'total' => (int)($r['total'] ?? 0), 'won' => (int)($r['won_cnt'] ?? 0), 'lost' => (int)($r['lost_cnt'] ?? 0),
+        'win_points' => (float)($r['win_points'] ?? 0), 'lose_points' => (float)($r['lose_points'] ?? 0),
+    ];
+}
+
+function game_bs_points($v, $signed = false)
+{
+    $v = (float)$v;
+    $s = ($signed && $v > 0) ? '+' : '';
+    return $s . number_format(round($v), 0);
+}
+
+function game_bs_lb_styles()
+{
+    echo '<style>
+    .bsh-wrap { max-width: 980px; margin: 0 auto; }
+    .bsh-panel { border: 1px solid rgba(120,150,190,.34); border-radius: 8px; padding: 16px; background: rgba(30,60,100,.06); }
+    .bsh-table { width: 100%; border-collapse: collapse; }
+    .bsh-table th, .bsh-table td { padding: 8px; border: 1px solid rgba(120,150,190,.26); text-align: center; }
+    .bs-pos { color: #16a34a; font-weight: 700; }
+    .bs-neg { color: #dc2626; font-weight: 700; }
+    .bs-ranknum { font-weight: 800; color: #2f80b5; }
+    .bs-mystat { display: flex; gap: 16px; flex-wrap: wrap; padding: 10px 14px; background: rgba(0,0,0,.04); border-radius: 6px; margin-bottom: 14px; font-weight: 700; }
+    .bs-tab2 { display: inline-block; padding: 6px 14px; border: 1px solid rgba(120,150,190,.45); border-radius: 999px; cursor: pointer; font-weight: 700; background: rgba(0,0,0,.03); margin-right: 8px; }
+    .bs-tab2.is-active { background: #2ecc71; color: #fff; border-color: #2ecc71; }
+    </style>';
+}
+
+function game_bs_render_ranking()
+{
+    $rows = game_bs_leaderboard('invested DESC', 100, 1000);
+    stdhead("用户排名");
+    game_bs_lb_styles();
+    ?>
+    <div class="bsh-wrap">
+        <?php echo game_bs_subnav('ranking'); ?>
+        <h3 style="margin:0 0 12px">用户排名（总投入大于 1000 才计入）</h3>
+        <div class="bsh-panel">
+            <table class="bsh-table">
+                <tr><th>排名</th><th>用户名</th><th>积分变化</th><th>赢盘积分</th><th>输盘积分</th><th>赢盘次数</th><th>输盘次数</th><th>获胜比例</th><th>总投入</th></tr>
+                <?php foreach ($rows as $i => $r) {
+                    $net = (float)$r['win_points'] - (float)$r['lose_points'];
+                    $ratio = (int)$r['lost_cnt'] > 0 ? number_format((int)$r['won_cnt'] / (int)$r['lost_cnt'], 2) : ((int)$r['won_cnt'] > 0 ? '∞' : '-');
+                ?>
+                    <tr>
+                        <td class="bs-ranknum">#<?php echo $i + 1 ?></td>
+                        <td><a href="userdetails.php?id=<?php echo (int)$r['uid'] ?>"><?php echo htmlspecialchars($r['username']) ?></a></td>
+                        <td class="<?php echo $net >= 0 ? 'bs-pos' : 'bs-neg' ?>"><?php echo game_bs_points($net, true) ?></td>
+                        <td><?php echo game_bs_points($r['win_points']) ?></td>
+                        <td><?php echo game_bs_points($r['lose_points']) ?></td>
+                        <td><?php echo (int)$r['won_cnt'] ?></td>
+                        <td><?php echo (int)$r['lost_cnt'] ?></td>
+                        <td><?php echo $ratio ?></td>
+                        <td><?php echo game_bs_points($r['invested']) ?></td>
+                    </tr>
+                <?php } ?>
+                <?php if (!$rows) { ?><tr><td colspan="9" style="color:#6f7f95">暂无上榜用户。</td></tr><?php } ?>
+            </table>
+        </div>
+    </div>
+    <?php
+    stdfoot();
+}
+
+function game_bs_render_pnl()
+{
+    global $CURUSER;
+    $winRows = game_bs_leaderboard('(win_points - lose_points) DESC', 50, 1000, '(win_points - lose_points) > 0');
+    $loseRows = game_bs_leaderboard('(win_points - lose_points) ASC', 50, 1000, '(win_points - lose_points) < 0');
+    $my = game_bs_my_stats((int)$CURUSER['id']);
+    $myNet = $my['win_points'] - $my['lose_points'];
+    stdhead("盈亏榜");
+    game_bs_lb_styles();
+    ?>
+    <div class="bsh-wrap" style="max-width:760px">
+        <?php echo game_bs_subnav('pnl'); ?>
+        <div class="bs-mystat">
+            <span>我的胜负</span>
+            <span>总：<?php echo $my['total'] ?></span>
+            <span class="bs-pos">盈：<?php echo game_bs_points($my['win_points']) ?></span>
+            <span class="bs-neg">亏：<?php echo game_bs_points($my['lose_points']) ?></span>
+            <span>胜：<?php echo $my['won'] ?></span>
+            <span>负：<?php echo $my['lost'] ?></span>
+            <span>净：<span class="<?php echo $myNet >= 0 ? 'bs-pos' : 'bs-neg' ?>"><?php echo game_bs_points($myNet, true) ?></span></span>
+        </div>
+        <div id="bsPnlTabs" style="margin-bottom:12px">
+            <span class="bs-tab2 is-active" data-pnl="win">🏆 胜榜·总盈利</span>
+            <span class="bs-tab2" data-pnl="lose">💸 负榜·总亏损</span>
+        </div>
+        <table class="bsh-table" id="bsPnlWin">
+            <tr><th>排名</th><th>用户名</th><th>胜场</th><th>总盈利</th></tr>
+            <?php foreach ($winRows as $i => $r) { ?>
+                <tr>
+                    <td class="bs-ranknum"><?php echo $i + 1 ?></td>
+                    <td><a href="userdetails.php?id=<?php echo (int)$r['uid'] ?>"><?php echo htmlspecialchars($r['username']) ?></a></td>
+                    <td><?php echo (int)$r['won_cnt'] ?>胜</td>
+                    <td class="bs-pos"><?php echo game_bs_points((float)$r['win_points'] - (float)$r['lose_points'], true) ?></td>
+                </tr>
+            <?php } ?>
+            <?php if (!$winRows) { ?><tr><td colspan="4" style="color:#6f7f95">暂无盈利用户。</td></tr><?php } ?>
+        </table>
+        <table class="bsh-table" id="bsPnlLose" style="display:none">
+            <tr><th>排名</th><th>用户名</th><th>负场</th><th>总亏损</th></tr>
+            <?php foreach ($loseRows as $i => $r) { ?>
+                <tr>
+                    <td class="bs-ranknum"><?php echo $i + 1 ?></td>
+                    <td><a href="userdetails.php?id=<?php echo (int)$r['uid'] ?>"><?php echo htmlspecialchars($r['username']) ?></a></td>
+                    <td><?php echo (int)$r['lost_cnt'] ?>负</td>
+                    <td class="bs-neg"><?php echo game_bs_points((float)$r['win_points'] - (float)$r['lose_points'], true) ?></td>
+                </tr>
+            <?php } ?>
+            <?php if (!$loseRows) { ?><tr><td colspan="4" style="color:#6f7f95">暂无亏损用户。</td></tr><?php } ?>
+        </table>
+    </div>
+    <script>
+    (function () {
+        var tabs = document.getElementById('bsPnlTabs');
+        tabs.addEventListener('click', function (e) {
+            var tab = e.target.closest('.bs-tab2');
+            if (!tab) { return; }
+            tabs.querySelectorAll('.bs-tab2').forEach(function (t) { t.classList.remove('is-active'); });
+            tab.classList.add('is-active');
+            var w = tab.getAttribute('data-pnl');
+            document.getElementById('bsPnlWin').style.display = w === 'win' ? '' : 'none';
+            document.getElementById('bsPnlLose').style.display = w === 'lose' ? '' : 'none';
+        });
+    })();
+    </script>
+    <?php
+    stdfoot();
+}
+
 game_bs_ensure_tables();
 game_bs_settle_due_rounds();
 
@@ -516,6 +691,14 @@ if (($_GET['view'] ?? '') === 'history') {
 }
 if (($_GET['view'] ?? '') === 'mybets') {
     game_bs_render_my_bets();
+    exit;
+}
+if (($_GET['view'] ?? '') === 'ranking') {
+    game_bs_render_ranking();
+    exit;
+}
+if (($_GET['view'] ?? '') === 'pnl') {
+    game_bs_render_pnl();
     exit;
 }
 
@@ -611,6 +794,8 @@ stdhead("压大小");
 
     <?php if ($message) { ?><div class="bs-message ok"><?php echo htmlspecialchars($message) ?></div><?php } ?>
     <?php if ($error) { ?><div class="bs-message err"><?php echo htmlspecialchars($error) ?></div><?php } ?>
+
+    <?php echo game_bs_subnav(''); ?>
 
     <div class="bs-panel">
         <div class="bs-round">
