@@ -6,7 +6,7 @@ parked();
 $GLOBALS['nexus_base_href'] = get_protocol_prefix() . $BASEURL . '/';
 $GLOBALS['nexus_hide_top_banner'] = true;
 
-const GAME_BS_INTERVAL = 600;
+const GAME_BS_INTERVAL = 60;
 const GAME_BS_BUSINESS_TYPE = 13;
 const GAME_BS_ROUND_TABLE = 'hdvideo_game_big_small_rounds';
 const GAME_BS_BET_TABLE = 'hdvideo_game_big_small_bets';
@@ -788,7 +788,7 @@ stdhead("压大小");
     <div class="bs-head">
         <div>
             <div class="bs-title">压大小 <span class="bs-badge">公测中 v1.1</span></div>
-            <div class="bs-muted">每 10 分钟一期。开奖三个骰子，每个 1-6（111-666）。</div>
+            <div class="bs-muted">每 1 分钟一期。开奖三个骰子，每个 1-6（111-666）。</div>
         </div>
         <div class="bs-balance">我的电影票：<?php echo game_bs_money($CURUSER['seedbonus']) ?> 张</div>
     </div>
