@@ -5,6 +5,7 @@ namespace App\Filament\Resources\System;
 use Filament\Schemas\Schema;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Forms\Components\Select;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Actions\EditAction;
 use Filament\Actions\DeleteAction;
@@ -34,28 +35,26 @@ class ScratchPrizeResource extends Resource
         return '刮刮乐奖品设置';
     }
 
-    public static function multiplierLabel($state): string
-    {
-        $m = (int) $state;
-        if ($m === 0) {
-            return '谢谢惠顾';
-        }
-        if ($m === 1) {
-            return '回本（1倍）';
-        }
-        return $m . ' 倍';
-    }
-
     public static function form(Schema $schema): Schema
     {
         return $schema
             ->components([
-                TextInput::make('multiplier')
-                    ->label('返还倍数（0=谢谢惠顾，1=回本，2=刮中得2倍面额…）')
+                TextInput::make('name')
+                    ->label('奖项名称（如：1000电影票、50G上传量、改名卡、彩色昵称）')
+                    ->required()
+                    ->maxLength(60),
+                Select::make('reward_type')
+                    ->label('奖励类型')
+                    ->options(ScratchPrize::rewardTypes())
+                    ->default('none')
+                    ->required()
+                    ->native(false),
+                TextInput::make('amount')
+                    ->label('数量（电影票=张数；上传/下载=GB；谢谢惠顾/实物卡类填 0）')
                     ->numeric()
                     ->minValue(0)
-                    ->required()
-                    ->default(0),
+                    ->default(0)
+                    ->required(),
                 TextInput::make('weight')
                     ->label('权重（数值越大越容易刮中；概率=本项权重÷所有启用项权重之和）')
                     ->numeric()
@@ -77,9 +76,13 @@ class ScratchPrizeResource extends Resource
         return $table
             ->defaultSort('sort')
             ->columns([
-                TextColumn::make('multiplier')
-                    ->label('奖项')
-                    ->formatStateUsing(fn ($state) => self::multiplierLabel($state)),
+                TextColumn::make('name')->label('奖项'),
+                TextColumn::make('reward_type')
+                    ->label('类型')
+                    ->formatStateUsing(fn ($state) => ScratchPrize::rewardTypes()[$state] ?? $state),
+                TextColumn::make('amount')
+                    ->label('数量')
+                    ->formatStateUsing(fn ($state, ScratchPrize $record) => ScratchPrize::amountLabel($record)),
                 TextColumn::make('weight')->label('权重'),
                 TextColumn::make('probability')
                     ->label('概率')
