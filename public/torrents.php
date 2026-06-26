@@ -334,93 +334,13 @@ if($special_state == 0)	//all
 {
 	$addparam .= "spstate=0&";
 }
-elseif ($special_state == 1)	//normal
+elseif (in_array($special_state, array(1,2,3,4,5,6,7), true))
 {
-	$addparam .= "spstate=1&";
-
-	$wherea[] = "sp_state = 1";
-
-	if(get_global_sp_state() == 1)
-	{
-		$wherea[] = "sp_state = 1";
-	}
-}
-elseif ($special_state == 2)	//free
-{
-	$addparam .= "spstate=2&";
-
-	if(get_global_sp_state() == 1)
-	{
-		$wherea[] = "sp_state = 2";
-	}
-	else if(get_global_sp_state() == 2)
-	{
-		;
-	}
-}
-elseif ($special_state == 3)	//2x up
-{
-	$addparam .= "spstate=3&";
-	if(get_global_sp_state() == 1)	//only sp state
-	{
-		$wherea[] = "sp_state = 3";
-	}
-	else if(get_global_sp_state() == 3)	//all
-	{
-		;
-	}
-}
-elseif ($special_state == 4)	//2x up and free
-{
-	$addparam .= "spstate=4&";
-
-	if(get_global_sp_state() == 1)	//only sp state
-	{
-		$wherea[] = "sp_state = 4";
-	}
-	else if(get_global_sp_state() == 4)	//all
-	{
-		;
-	}
-}
-elseif ($special_state == 5)	//half down
-{
-	$addparam .= "spstate=5&";
-
-	if(get_global_sp_state() == 1)	//only sp state
-	{
-		$wherea[] = "sp_state = 5";
-	}
-	else if(get_global_sp_state() == 5)	//all
-	{
-		;
-	}
-}
-elseif ($special_state == 6)	//half down
-{
-	$addparam .= "spstate=6&";
-
-	if(get_global_sp_state() == 1)	//only sp state
-	{
-		$wherea[] = "sp_state = 6";
-	}
-	else if(get_global_sp_state() == 6)	//all
-	{
-		;
-	}
-}
-elseif ($special_state == 7)	//30% down
-{
-	$addparam .= "spstate=7&";
-
-	if(get_global_sp_state() == 1)	//only sp state
-	{
-		$wherea[] = "sp_state = 7";
-	}
-	else if(get_global_sp_state() == 7)	//all
-	{
-		;
-	}
+	// Filter by *effective* promotion: a global promotion applies to all torrents,
+	// an official-group promotion applies to official-tagged torrents (overriding
+	// global for them). See get_promotion_filter_where_clause().
+	$addparam .= "spstate={$special_state}&";
+	$wherea[] = get_promotion_filter_where_clause($special_state);
 }
 
 $category_get = intval($_GET["cat"] ?? 0);

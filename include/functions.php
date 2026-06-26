@@ -6003,6 +6003,41 @@ function build_full_site_promotion_subject(array $promotion, string $wrapTpl): s
     return sprintf($wrapTpl, implode(' /', $segments));
 }
 
+/**
+ * SQL WHERE fragment selecting torrents whose *effective* promotion (taking the
+ * active site-wide + official-group promotions into account) equals $n. Used by
+ * the torrents browse "filter by promotion type".
+ */
+function get_promotion_filter_where_clause($n)
+{
+    $normal = \App\Models\Torrent::PROMOTION_NORMAL;
+    $n = (int)$n;
+    $global = (int)get_global_sp_state();
+    $official = (int)get_official_sp_state();
+    $officialTag = (int)get_setting('bonus.official_tag', 0);
+
+    // For a bucket whose active promo is $activePromo:
+    //  - promo active -> every torrent takes it (match iff it equals $n)
+    //  - no promo     -> the torrent's own sp_state decides
+    $cond = function ($activePromo) use ($n, $normal) {
+        if ($activePromo != $normal) {
+            return ($activePromo == $n) ? "1=1" : "1=0";
+        }
+        return "torrents.sp_state = $n";
+    };
+
+    $nonOfficialCond = $cond($global);
+
+    // No official promotion in play -> classic global-only behaviour for everyone.
+    if ($officialTag <= 0 || $official == $normal) {
+        return "(" . $nonOfficialCond . ")";
+    }
+
+    $officialCond = $cond($official);
+    $isOfficial = "EXISTS (SELECT 1 FROM torrent_tags tt WHERE tt.torrent_id = torrents.id AND tt.tag_id = $officialTag)";
+    return "( ($isOfficial AND ($officialCond)) OR (NOT $isOfficial AND ($nonOfficialCond)) )";
+}
+
 function get_torrent_bg_color($promotion = 1, $posState = "", array $torrent = [])
 {
 	global $CURUSER;
