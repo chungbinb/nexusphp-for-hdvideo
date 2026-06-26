@@ -134,7 +134,8 @@ function game_bs_issue_no($roundId)
         return 0;
     }
     if (!isset($cache[$roundId])) {
-        $res = sql_query("SELECT COUNT(*) AS c FROM `" . GAME_BS_ROUND_TABLE . "` WHERE `id` <= $roundId") or sqlerr(__FILE__, __LINE__);
+        // Cancelled rounds (no bets, no draw) do not consume an issue number.
+        $res = sql_query("SELECT COUNT(*) AS c FROM `" . GAME_BS_ROUND_TABLE . "` WHERE `id` <= $roundId AND `status` != 'cancelled'") or sqlerr(__FILE__, __LINE__);
         $cache[$roundId] = (int)mysql_fetch_assoc($res)['c'];
     }
     return $cache[$roundId];
@@ -484,7 +485,7 @@ stdhead("压大小");
                 <tr><th>期号</th><th>截止时间</th><th>数字</th><th>结果</th></tr>
                 <?php while ($item = mysql_fetch_assoc($historyRes)) { ?>
                     <tr>
-                        <td><?php echo game_bs_issue_no($item['id']) ?></td>
+                        <td><?php echo $item['status'] === 'cancelled' ? '-' : game_bs_issue_no($item['id']) ?></td>
                         <td><?php echo htmlspecialchars($item['round_end']) ?></td>
                         <td><?php echo $item['status'] === 'cancelled' ? '-' : (int)$item['result_number'] ?></td>
                         <td><?php
