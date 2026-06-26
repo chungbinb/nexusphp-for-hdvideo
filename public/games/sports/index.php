@@ -617,8 +617,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = "请选择主胜、平局或客胜。";
         } elseif (!preg_match('/^[1-9][0-9]*$/', $amountRaw)) {
             $error = "押注电影票必须是正整数。";
-        } elseif ((int)$amountRaw > 1000000) {
-            $error = "单次押注不能超过 1000000 张电影票。";
+        } elseif ((int)$amountRaw > 10000000000) {
+            $error = "单次押注金额过大。";
         } else {
             $error = game_sp_place_bet($matchId, $choice, (int)$amountRaw);
             if ($error === "") {
@@ -775,6 +775,11 @@ stdhead("菠菜系统");
 .sp-odds b { color: #c0392b; }
 .sp-form input[type="number"] { width: 140px; padding: 8px; }
 .sp-form button { padding: 8px 16px; font-weight: 700; cursor: pointer; }
+.sp-quick { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.sp-chip { padding: 7px 12px; border: 1px solid rgba(120,150,190,.45); border-radius: 6px; cursor: pointer; font-weight: 700; background: rgba(255,255,255,.55); user-select: none; }
+.sp-chip:hover { border-color: #2ecc71; color: #2ecc71; }
+.sp-chip.allin { background: #e67e22; color: #fff; border-color: #e67e22; }
+.sp-chip.allin:hover { background: #d35400; color: #fff; }
 .sp-table { width: 100%; border-collapse: collapse; }
 .sp-table th, .sp-table td { padding: 8px; border: 1px solid rgba(120,150,190,.26); text-align: center; }
 .sp-pager { display: flex; justify-content: center; align-items: center; gap: 16px; margin-top: 14px; }
@@ -844,6 +849,12 @@ stdhead("菠菜系统");
                     </div>
                     <input type="number" name="amount" min="1" step="1" placeholder="电影票数量" required>
                     <button type="submit">押注</button>
+                    <span class="sp-quick">
+                        <span class="sp-chip" data-amt="1000">1000</span>
+                        <span class="sp-chip" data-amt="5000">5000</span>
+                        <span class="sp-chip" data-amt="10000">10000</span>
+                        <span class="sp-chip allin" data-amt="all">梭哈</span>
+                    </span>
                 </form>
             </div>
         <?php } ?>
@@ -1133,6 +1144,17 @@ stdhead("菠菜系统");
 </div>
 <script>
 (function () {
+    var spBalance = <?php echo (int)floor((float)$CURUSER['seedbonus']) ?>;
+    document.querySelectorAll('.sp-chip[data-amt]').forEach(function (chip) {
+        chip.addEventListener('click', function () {
+            var form = chip.closest('form');
+            var input = form ? form.querySelector('input[name="amount"]') : null;
+            if (!input) { return; }
+            var amt = chip.getAttribute('data-amt');
+            input.value = amt === 'all' ? spBalance : amt;
+            input.focus();
+        });
+    });
     var tabs = document.getElementById('spTabs');
     if (tabs) {
         var matches = document.querySelectorAll('.sp-match[data-league]');
