@@ -10,8 +10,8 @@ const GAME_BS_INTERVAL = 600;
 const GAME_BS_BUSINESS_TYPE = 13;
 const GAME_BS_ROUND_TABLE = 'hdvideo_game_big_small_rounds';
 const GAME_BS_BET_TABLE = 'hdvideo_game_big_small_bets';
-const GAME_BS_TRIPLE_MULT = 50;   // 押豹子: any triple
-const GAME_BS_STRAIGHT_MULT = 10; // 押顺子: any straight (consecutive digits, any order)
+const GAME_BS_TRIPLE_MULT = 5;   // 押豹子: any triple
+const GAME_BS_STRAIGHT_MULT = 4; // 押顺子: any straight (consecutive digits, any order)
 
 function game_bs_run_schema_sql($sql)
 {
@@ -124,9 +124,9 @@ function game_bs_number_type($number)
 function game_bs_number_multiplier($number)
 {
     switch (game_bs_number_type($number)) {
-        case 'triple': return 5;
-        case 'straight': return 4;
-        default: return 3;
+        case 'triple': return 10;
+        case 'straight': return 7;
+        default: return 6;
     }
 }
 
@@ -630,7 +630,7 @@ stdhead("压大小");
         <div class="bs-rules">
             玩法：开奖三位数字各 1-9（如 5 3 1）。<br>
             · <b>押大 / 押小</b>：按三位之和判定，和 ≤ 14 为小、≥ 16 为大，押中得 <b>2 倍</b>；三位相同（豹子，如 555）押大小都输；和正好 15 平局退回本金。<br>
-            · <b>押数字</b>：押中开奖的精确数字，豹子<b>5 倍</b>、顺子<b>4 倍</b>、其它<b>3 倍</b>。<br>
+            · <b>押数字</b>：押中开奖的精确数字，豹子<b>10 倍</b>、顺子<b>7 倍</b>、其它<b>6 倍</b>。<br>
             · <b>押豹子</b>：开出任意豹子（三位相同）即中，<b><?php echo GAME_BS_TRIPLE_MULT ?> 倍</b>。<b>押顺子</b>：开出任意顺子即中，<b><?php echo GAME_BS_STRAIGHT_MULT ?> 倍</b>。<br>
             · 顺子＝三位是连续数字（不分顺序），如 123 / 321 / 231 / 132 都算。<br>
             · 本期无人押注则不开奖（自动作废）。
