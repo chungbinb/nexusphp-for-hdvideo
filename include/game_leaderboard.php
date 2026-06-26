@@ -31,14 +31,18 @@ function game_lb_bonus($mode, $commentLike = null, $limit = 10)
     if ($commentLike !== null) {
         $where .= ' AND `bl`.`comment` LIKE ' . sqlesc($commentLike . '%');
     }
+    // The `value` column's sign is logged inconsistently across games (some log
+    // bet deductions as a positive amount). The true signed delta is always the
+    // real balance change new_total_value - old_total_value, so use that.
+    $delta = '(`bl`.`new_total_value` - `bl`.`old_total_value`)';
     if ($mode === 'active') {
         $metric = 'COUNT(*)';
     } elseif ($mode === 'wincount') {
-        $metric = 'SUM(CASE WHEN `bl`.`value` > 0 THEN 1 ELSE 0 END)';
+        $metric = "SUM(CASE WHEN $delta > 0 THEN 1 ELSE 0 END)";
     } elseif ($mode === 'win') {
-        $metric = 'SUM(CASE WHEN `bl`.`value` > 0 THEN `bl`.`value` ELSE 0 END)';
+        $metric = "SUM(CASE WHEN $delta > 0 THEN $delta ELSE 0 END)";
     } else {
-        $metric = 'SUM(`bl`.`value`)';
+        $metric = "SUM($delta)";
     }
     $sql = "SELECT `bl`.`uid` AS uid, `u`.`username` AS username, $metric AS amt, COUNT(*) AS cnt
             FROM `bonus_logs` `bl`
