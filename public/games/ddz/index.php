@@ -288,6 +288,7 @@ function ddz_settle($room, $landlordWon, $mult)
     }
     $now = date('Y-m-d H:i:s');
     $deltas = [0, 0, 0];
+    ddz_ensure_tables();
     sql_query("START TRANSACTION") or sqlerr(__FILE__, __LINE__);
     try {
         $order = [0, 1, 2];
@@ -318,8 +319,14 @@ function ddz_settle($room, $landlordWon, $mult)
         for ($i = 0; $i < 3; $i++) {
             $d = round($deltas[$i], 1);
             $deltas[$i] = $d;
-            if ($d == 0) continue;
             $uid = $uids[$i];
+            $roleKey = ($i === $landlord) ? 'landlord' : 'farmer';
+            $isWin = $landlordWon ? ($i === $landlord ? 1 : 0) : ($i !== $landlord ? 1 : 0);
+            sql_query(sprintf(
+                "INSERT INTO `hdvideo_ddz_results` (`room_id`,`uid`,`role`,`is_winner`,`delta`,`base`,`multiplier`,`created_at`) VALUES (%d,%d,%s,%d,%s,%d,%d,%s)",
+                (int)$room['id'], $uid, sqlesc($roleKey), $isWin, sqlesc(number_format($d, 1, '.', '')), $base, $mult, sqlesc($now)
+            )) or sqlerr(__FILE__, __LINE__);
+            if ($d == 0) continue;
             sql_query("UPDATE `users` SET `seedbonus` = `seedbonus` + " . sqlesc(number_format($d, 1, '.', '')) . " WHERE `id` = $uid") or sqlerr(__FILE__, __LINE__);
             $role = ($i === $landlord) ? '地主' : '农民';
             $comment = "[斗地主] 桌#{$room['id']} {$role} " . ($d > 0 ? '赢' : '输') . " " . abs($d) . "（倍数{$mult}）";
@@ -652,6 +659,80 @@ function ddz_list_tables()
     return $tables;
 }
 
+function ddz_ensure_tables()
+{
+    static $done = false;
+    if ($done) return;
+    @sql_query("
+        CREATE TABLE IF NOT EXISTS `hdvideo_ddz_results` (
+            `id` int unsigned NOT NULL AUTO_INCREMENT,
+            `room_id` int unsigned NOT NULL,
+            `uid` int unsigned NOT NULL,
+            `role` enum('landlord','farmer') NOT NULL,
+            `is_winner` tinyint(1) NOT NULL DEFAULT 0,
+            `delta` decimal(20,1) NOT NULL DEFAULT '0.0',
+            `base` int unsigned NOT NULL DEFAULT 0,
+            `multiplier` int unsigned NOT NULL DEFAULT 1,
+            `created_at` datetime NOT NULL,
+            PRIMARY KEY (`id`),
+            KEY `idx_uid` (`uid`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $done = true;
+}
+
+function ddz_points($v, $signed = false)
+{
+    $v = (float)$v;
+    $s = ($signed && $v > 0) ? '+' : '';
+    return $s . number_format(round($v), 0);
+}
+
+function ddz_leaderboard($orderBy, $limit, $minGames, $havingExtra = '')
+{
+    ddz_ensure_tables();
+    $extra = $havingExtra !== '' ? " AND ($havingExtra)" : '';
+    $sql = "SELECT r.`uid`, u.`username`,
+            COUNT(*) AS games,
+            SUM(r.`is_winner`) AS wins,
+            SUM(CASE WHEN r.`role` = 'landlord' THEN 1 ELSE 0 END) AS lord_games,
+            SUM(r.`delta`) AS net
+        FROM `hdvideo_ddz_results` r INNER JOIN `users` u ON u.`id` = r.`uid`
+        GROUP BY r.`uid`, u.`username`
+        HAVING games >= " . (int)$minGames . $extra . "
+        ORDER BY $orderBy
+        LIMIT " . (int)$limit;
+    $res = sql_query($sql) or sqlerr(__FILE__, __LINE__);
+    $rows = [];
+    while ($r = mysql_fetch_assoc($res)) $rows[] = $r;
+    return $rows;
+}
+
+function ddz_my_stats($uid)
+{
+    ddz_ensure_tables();
+    $res = sql_query("SELECT COUNT(*) AS games, SUM(`is_winner`) AS wins, SUM(`delta`) AS net,
+            SUM(CASE WHEN `role`='landlord' THEN 1 ELSE 0 END) AS lord
+        FROM `hdvideo_ddz_results` WHERE `uid` = " . (int)$uid) or sqlerr(__FILE__, __LINE__);
+    $r = mysql_fetch_assoc($res);
+    $games = (int)($r['games'] ?? 0);
+    $wins = (int)($r['wins'] ?? 0);
+    return ['games' => $games, 'wins' => $wins, 'losses' => $games - $wins, 'net' => (float)($r['net'] ?? 0), 'lord' => (int)($r['lord'] ?? 0)];
+}
+
+function ddz_subnav($active)
+{
+    $items = ['' => '大厅', 'ranking' => '战绩榜', 'pnl' => '盈亏榜'];
+    $out = '<div style="display:flex;flex-wrap:wrap;gap:2px;margin-bottom:16px;border-bottom:1px solid rgba(120,150,190,.3)">';
+    foreach ($items as $k => $label) {
+        $url = $k === '' ? '/games/ddz/' : '/games/ddz/?view=' . $k;
+        $color = $k === $active ? '#2ecc71' : '#6f7f95';
+        $border = $k === $active ? '3px solid #2ecc71' : '3px solid transparent';
+        $out .= '<a href="' . $url . '" style="padding:9px 14px;font-weight:700;text-decoration:none;color:' . $color . ';border-bottom:' . $border . '">' . $label . '</a>';
+    }
+    return $out . '</div>';
+}
+
 // ---- Polling endpoint (per-viewer JSON) ----
 if (($_GET['ajax'] ?? '') === 'poll') {
     header('Content-Type: application/json');
@@ -747,6 +828,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $error = trim((string)($_GET['error'] ?? ''));
+$view = $_GET['view'] ?? '';
 $tableId = (int)($_GET['table'] ?? 0);
 $room = $tableId ? ddz_room_get($tableId) : null;
 $mySeat = $room ? ddz_seat_of($room, $CURUSER['id']) : -1;
@@ -765,6 +847,13 @@ stdhead("斗地主");
 .ddz-panel { border: 1px solid rgba(120,150,190,.34); border-radius: 8px; padding: 16px; margin-bottom: 14px; background: rgba(30,60,100,.06); }
 .ddz-section-title { font-size: 18px; font-weight: 800; margin: 8px 0 12px; }
 .ddz-table-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 10px 12px; border: 1px solid rgba(120,150,190,.26); border-radius: 8px; margin-bottom: 8px; }
+.ddz-table { width: 100%; border-collapse: collapse; }
+.ddz-table th, .ddz-table td { padding: 8px; border: 1px solid rgba(120,150,190,.26); text-align: center; }
+.ddz-pos { color: #16a34a; font-weight: 700; }
+.ddz-neg { color: #dc2626; font-weight: 700; }
+.ddz-mystat { display: flex; gap: 16px; flex-wrap: wrap; padding: 10px 14px; background: rgba(0,0,0,.04); border-radius: 6px; margin-bottom: 14px; font-weight: 700; }
+.ddz-tab2 { display: inline-block; padding: 6px 14px; border: 1px solid rgba(120,150,190,.45); border-radius: 999px; cursor: pointer; font-weight: 700; background: rgba(0,0,0,.03); margin-right: 8px; }
+.ddz-tab2.is-active { background: #2ecc71; color: #fff; border-color: #2ecc71; }
 .ddz-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .ddz-form select, .ddz-form input { padding: 8px; }
 .ddz-btn { padding: 8px 16px; font-weight: 700; cursor: pointer; border-radius: 6px; border: 1px solid #2ecc71; background: #2ecc71; color: #fff; text-decoration: none; display: inline-block; }
@@ -801,7 +890,81 @@ stdhead("斗地主");
 
     <?php if ($error) { ?><div class="ddz-message"><?php echo htmlspecialchars($error) ?></div><?php } ?>
 
-    <?php if ($room) { ?>
+    <?php if ($view === 'ranking') {
+        $rows = ddz_leaderboard('games DESC, net DESC', 100, 1);
+    ?>
+        <?php echo ddz_subnav('ranking'); ?>
+        <div class="ddz-section-title">战绩榜（按局数）</div>
+        <div class="ddz-panel">
+            <table class="ddz-table">
+                <tr><th>排名</th><th>玩家</th><th>局数</th><th>胜</th><th>负</th><th>胜率</th><th>当地主</th><th>净盈亏</th></tr>
+                <?php foreach ($rows as $i => $r) {
+                    $g = (int)$r['games']; $w = (int)$r['wins']; $l = $g - $w;
+                    $rate = $g > 0 ? round($w * 100 / $g) . '%' : '-';
+                ?>
+                    <tr>
+                        <td>#<?php echo $i + 1 ?></td>
+                        <td><a href="userdetails.php?id=<?php echo (int)$r['uid'] ?>"><?php echo htmlspecialchars($r['username']) ?></a></td>
+                        <td><?php echo $g ?></td>
+                        <td><?php echo $w ?></td>
+                        <td><?php echo $l ?></td>
+                        <td><?php echo $rate ?></td>
+                        <td><?php echo (int)$r['lord_games'] ?></td>
+                        <td class="<?php echo (float)$r['net'] >= 0 ? 'ddz-pos' : 'ddz-neg' ?>"><?php echo ddz_points($r['net'], true) ?></td>
+                    </tr>
+                <?php } ?>
+                <?php if (!$rows) { ?><tr><td colspan="8" class="ddz-muted">暂无战绩。</td></tr><?php } ?>
+            </table>
+        </div>
+    <?php } elseif ($view === 'pnl') {
+        $win = ddz_leaderboard('net DESC', 50, 1, 'net > 0');
+        $lose = ddz_leaderboard('net ASC', 50, 1, 'net < 0');
+        $my = ddz_my_stats((int)$CURUSER['id']);
+    ?>
+        <?php echo ddz_subnav('pnl'); ?>
+        <div class="ddz-section-title">盈亏榜</div>
+        <div class="ddz-mystat">
+            <span>我的战绩</span>
+            <span>局数：<?php echo $my['games'] ?></span>
+            <span>胜：<?php echo $my['wins'] ?></span>
+            <span>负：<?php echo $my['losses'] ?></span>
+            <span>净：<span class="<?php echo $my['net'] >= 0 ? 'ddz-pos' : 'ddz-neg' ?>"><?php echo ddz_points($my['net'], true) ?></span></span>
+        </div>
+        <div id="ddzPnlTabs" style="margin-bottom:12px">
+            <span class="ddz-tab2 is-active" data-pnl="win">🏆 胜榜·总盈利</span>
+            <span class="ddz-tab2" data-pnl="lose">💸 负榜·总亏损</span>
+        </div>
+        <div class="ddz-panel">
+            <table class="ddz-table" id="ddzPnlWin">
+                <tr><th>排名</th><th>玩家</th><th>胜场</th><th>总盈利</th></tr>
+                <?php foreach ($win as $i => $r) { ?>
+                    <tr><td>#<?php echo $i + 1 ?></td><td><a href="userdetails.php?id=<?php echo (int)$r['uid'] ?>"><?php echo htmlspecialchars($r['username']) ?></a></td><td><?php echo (int)$r['wins'] ?></td><td class="ddz-pos"><?php echo ddz_points($r['net'], true) ?></td></tr>
+                <?php } ?>
+                <?php if (!$win) { ?><tr><td colspan="4" class="ddz-muted">暂无。</td></tr><?php } ?>
+            </table>
+            <table class="ddz-table" id="ddzPnlLose" style="display:none">
+                <tr><th>排名</th><th>玩家</th><th>胜场</th><th>总亏损</th></tr>
+                <?php foreach ($lose as $i => $r) { ?>
+                    <tr><td>#<?php echo $i + 1 ?></td><td><a href="userdetails.php?id=<?php echo (int)$r['uid'] ?>"><?php echo htmlspecialchars($r['username']) ?></a></td><td><?php echo (int)$r['wins'] ?></td><td class="ddz-neg"><?php echo ddz_points($r['net'], true) ?></td></tr>
+                <?php } ?>
+                <?php if (!$lose) { ?><tr><td colspan="4" class="ddz-muted">暂无。</td></tr><?php } ?>
+            </table>
+        </div>
+        <script>
+        (function () {
+            var t = document.getElementById('ddzPnlTabs');
+            t.addEventListener('click', function (e) {
+                var b = e.target.closest('.ddz-tab2');
+                if (!b) { return; }
+                t.querySelectorAll('.ddz-tab2').forEach(function (x) { x.classList.remove('is-active'); });
+                b.classList.add('is-active');
+                var w = b.getAttribute('data-pnl');
+                document.getElementById('ddzPnlWin').style.display = w === 'win' ? '' : 'none';
+                document.getElementById('ddzPnlLose').style.display = w === 'lose' ? '' : 'none';
+            });
+        })();
+        </script>
+    <?php } elseif ($room) { ?>
         <div class="ddz-panel">
             <div class="ddz-section-title">桌 #<?php echo (int)$room['id'] ?>　底分 <?php echo (int)$room['base'] ?> 电影票　<span id="ddzMult" class="ddz-muted"></span></div>
             <div class="ddz-status" id="ddzStatus">加载中…</div>
@@ -980,6 +1143,7 @@ stdhead("斗地主");
         </script>
 
     <?php } else { ?>
+        <?php echo ddz_subnav(''); ?>
         <div class="ddz-panel">
             <div class="ddz-section-title">创建桌子</div>
             <form class="ddz-form" method="post" action="/games/ddz/">
