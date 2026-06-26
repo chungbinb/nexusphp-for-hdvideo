@@ -10,6 +10,8 @@ const GAME_BS_INTERVAL = 600;
 const GAME_BS_BUSINESS_TYPE = 13;
 const GAME_BS_ROUND_TABLE = 'hdvideo_game_big_small_rounds';
 const GAME_BS_BET_TABLE = 'hdvideo_game_big_small_bets';
+const GAME_BS_TRIPLE_MULT = 5;   // 押豹子: any triple
+const GAME_BS_STRAIGHT_MULT = 4; // 押顺子: any straight (consecutive digits, any order)
 
 function game_bs_run_schema_sql($sql)
 {
@@ -54,7 +56,7 @@ function game_bs_ensure_tables()
             `id` int unsigned NOT NULL AUTO_INCREMENT,
             `round_id` int unsigned NOT NULL,
             `uid` int unsigned NOT NULL,
-            `choice` enum('big','small','number') NOT NULL,
+            `choice` enum('big','small','number','triple','straight') NOT NULL,
             `bet_number` smallint unsigned DEFAULT NULL,
             `amount` decimal(20,1) NOT NULL,
             `status` enum('pending','won','lost','refunded') NOT NULL DEFAULT 'pending',
@@ -73,7 +75,18 @@ function game_bs_ensure_tables()
         game_bs_run_schema_sql("ALTER TABLE `" . GAME_BS_BET_TABLE . "` MODIFY `choice` enum('big','small','number') NOT NULL");
         game_bs_run_schema_sql("ALTER TABLE `" . GAME_BS_BET_TABLE . "` ADD COLUMN `bet_number` smallint unsigned DEFAULT NULL AFTER `choice`");
     }
+    // Add 押豹子 / 押顺子 bet choices (v3).
+    if (!game_bs_choice_has_value('straight')) {
+        game_bs_run_schema_sql("ALTER TABLE `" . GAME_BS_BET_TABLE . "` MODIFY `choice` enum('big','small','number','triple','straight') NOT NULL");
+    }
     $done = true;
+}
+
+function game_bs_choice_has_value($val)
+{
+    $res = @sql_query("SHOW COLUMNS FROM `" . GAME_BS_BET_TABLE . "` LIKE 'choice'");
+    $row = $res ? mysql_fetch_assoc($res) : null;
+    return $row && strpos($row['Type'], "'$val'") !== false;
 }
 
 function game_bs_money($value)
@@ -89,7 +102,7 @@ function game_bs_rand($min, $max)
 /**
  * Classify a drawn 3-digit number (each digit 1-9):
  *   triple   -> all three digits equal (豹子)
- *   straight -> three consecutive digits, ascending or descending (顺子)
+ *   straight -> three consecutive digits in ANY order (顺子, e.g. 123/321/231/132)
  *   normal   -> anything else
  */
 function game_bs_number_type($number)
@@ -100,9 +113,9 @@ function game_bs_number_type($number)
     if ($d1 === $d2 && $d2 === $d3) {
         return 'triple';
     }
-    $asc = ($d2 === $d1 + 1 && $d3 === $d2 + 1);
-    $desc = ($d2 === $d1 - 1 && $d3 === $d2 - 1);
-    if ($asc || $desc) {
+    $s = [$d1, $d2, $d3];
+    sort($s);
+    if ($s[1] === $s[0] + 1 && $s[2] === $s[1] + 1) {
         return 'straight';
     }
     return 'normal';
@@ -111,9 +124,9 @@ function game_bs_number_type($number)
 function game_bs_number_multiplier($number)
 {
     switch (game_bs_number_type($number)) {
-        case 'triple': return 5;
-        case 'straight': return 4;
-        default: return 3;
+        case 'triple': return 10;
+        case 'straight': return 7;
+        default: return 6;
     }
 }
 
@@ -232,42 +245,34 @@ function game_bs_settle_due_rounds()
                 continue;
             }
 
-            // Draw a 3-digit number, each digit 1-9.
-            $d1 = game_bs_rand(1, 9);
-            $d2 = game_bs_rand(1, 9);
-            $d3 = game_bs_rand(1, 9);
+            // Roll three dice, each 1-6.
+            $d1 = game_bs_rand(1, 6);
+            $d2 = game_bs_rand(1, 6);
+            $d3 = game_bs_rand(1, 6);
             $number = $d1 * 100 + $d2 * 10 + $d3;
             $sum = $d1 + $d2 + $d3;
             $type = game_bs_number_type($number);
 
-            // Big/small outcome from the digit sum.
+            // Sic-bo style big/small from the dice sum (3-18), triples lose.
             if ($type === 'triple') {
                 $size = 'triple';          // 豹子: big & small both lose
-            } elseif ($sum <= 14) {
+            } elseif ($sum <= 10) {
                 $size = 'small';
-            } elseif ($sum >= 16) {
-                $size = 'big';
             } else {
-                $size = 'push';            // sum == 15: big & small refunded
+                $size = 'big';             // sum 11-17
             }
 
             sql_query("UPDATE `" . GAME_BS_ROUND_TABLE . "` SET `status` = 'closed', `result` = " . sqlesc($size) . ", `result_number` = $number, `updated_at` = " . sqlesc($now) . " WHERE `id` = $roundId") or sqlerr(__FILE__, __LINE__);
 
             $issueNo = game_bs_issue_no($roundId);
 
-            // 1) Big/small bets.
-            if ($size === 'push') {
-                game_bs_pay_winners($roundId, "b.`choice` IN ('big','small')", 1, $now, 'refunded',
-                    function ($bet, $payout) use ($issueNo, $number) {
-                        return "压大小第 {$issueNo} 期开 {$number}（和15平局），押" . ($bet['choice'] === 'big' ? '大' : '小') . "退还本金 {$payout}";
-                    });
-            } elseif ($size === 'big' || $size === 'small') {
+            // 1) Big/small bets. (triple or sum==15 -> both lose, fall through to "lost".)
+            if ($size === 'big' || $size === 'small') {
                 game_bs_pay_winners($roundId, "b.`choice` = " . sqlesc($size), 2, $now, 'won',
                     function ($bet, $payout) use ($issueNo, $number, $size) {
                         return "压大小第 {$issueNo} 期开 {$number}（" . ($size === 'big' ? '大' : '小') . "），押中派彩 {$payout}";
                     });
             }
-            // $size === 'triple' -> no big/small winners; they fall through to "lost" below.
 
             // 2) Exact number bets: win iff bet_number == drawn number; tier by number type.
             $multiplier = game_bs_number_multiplier($number);
@@ -276,6 +281,19 @@ function game_bs_settle_due_rounds()
                 function ($bet, $payout) use ($issueNo, $number, $typeLabel, $multiplier) {
                     return "压大小第 {$issueNo} 期开 {$number}，押数字命中（{$typeLabel} {$multiplier}倍）派彩 {$payout}";
                 });
+
+            // 3) 押豹子 / 押顺子: win if the drawn number is that category.
+            if ($type === 'triple') {
+                game_bs_pay_winners($roundId, "b.`choice` = 'triple'", GAME_BS_TRIPLE_MULT, $now, 'won',
+                    function ($bet, $payout) use ($issueNo, $number) {
+                        return "压大小第 {$issueNo} 期开 {$number}（豹子），押豹子命中派彩 {$payout}";
+                    });
+            } elseif ($type === 'straight') {
+                game_bs_pay_winners($roundId, "b.`choice` = 'straight'", GAME_BS_STRAIGHT_MULT, $now, 'won',
+                    function ($bet, $payout) use ($issueNo, $number) {
+                        return "压大小第 {$issueNo} 期开 {$number}（顺子），押顺子命中派彩 {$payout}";
+                    });
+            }
 
             // Everything still pending lost.
             sql_query("UPDATE `" . GAME_BS_BET_TABLE . "` SET `status` = 'lost', `settled_at` = " . sqlesc($now) . " WHERE `round_id` = $roundId AND `status` = 'pending'") or sqlerr(__FILE__, __LINE__);
@@ -332,8 +350,12 @@ function game_bs_place_bet($choice, $amount, $betNumber = null)
             $choiceField = $choice === 'big' ? 'total_big' : 'total_small';
             sql_query("UPDATE `" . GAME_BS_ROUND_TABLE . "` SET `$choiceField` = `$choiceField` + " . sqlesc($amountSql) . ", `updated_at` = " . sqlesc($now) . " WHERE `id` = $roundId") or sqlerr(__FILE__, __LINE__);
             $what = '押' . ($choice === 'big' ? '大' : '小');
-        } else {
+        } elseif ($choice === 'number') {
             $what = '押数字 ' . (int)$betNumber;
+        } elseif ($choice === 'triple') {
+            $what = '押豹子';
+        } else {
+            $what = '押顺子';
         }
         $issueNo = game_bs_issue_no($roundId);
         game_bs_bonus_log($uid, $oldBonus, $amount, $newBonus, "压大小第 {$issueNo} 期{$what}，扣除 {$amount} 张电影票");
@@ -353,6 +375,10 @@ function game_bs_format_my_bet($bet)
         $choice = '押大';
     } elseif ($bet['choice'] === 'small') {
         $choice = '押小';
+    } elseif ($bet['choice'] === 'triple') {
+        $choice = '押豹子';
+    } elseif ($bet['choice'] === 'straight') {
+        $choice = '押顺子';
     } else {
         $choice = '押数字 ' . (int)$bet['bet_number'];
     }
@@ -374,7 +400,7 @@ function game_bs_render_history()
     if ($page > $pages) { $page = $pages; }
     $offset = ($page - 1) * $perPage;
     $res = sql_query("SELECT * FROM `" . GAME_BS_ROUND_TABLE . "` WHERE `status` = 'closed' ORDER BY `id` DESC LIMIT $perPage OFFSET $offset") or sqlerr(__FILE__, __LINE__);
-    $resultSizeLabel = ['big' => '大', 'small' => '小', 'triple' => '豹子(通杀)', 'push' => '和15平局'];
+    $resultSizeLabel = ['big' => '大', 'small' => '小', 'triple' => '豹子(通杀)', 'push' => '和15(通杀)'];
     stdhead("历史开奖");
     ?>
     <style>
@@ -388,10 +414,8 @@ function game_bs_render_history()
     .bsh-pager .muted { color: #9aa7b5; }
     </style>
     <div class="bsh-wrap">
-        <div class="bsh-head">
-            <div class="bsh-title">历史开奖</div>
-            <div><a href="/games/big-small/">&laquo; 返回压大小</a></div>
-        </div>
+        <?php echo game_bs_subnav('history'); ?>
+        <h3 style="margin:0 0 12px">历史开奖</h3>
         <div class="bsh-panel">
             <table class="bsh-table">
                 <tr><th>期号</th><th>截止时间</th><th>数字</th><th>结果</th><th>我的押注</th></tr>
@@ -453,17 +477,15 @@ function game_bs_render_my_bets()
     .bsh-pager .muted { color: #9aa7b5; }
     </style>
     <div class="bsh-wrap">
-        <div class="bsh-head">
-            <div class="bsh-title">我的历史押注</div>
-            <div><a href="/games/big-small/">&laquo; 返回压大小</a></div>
-        </div>
+        <?php echo game_bs_subnav('mybets'); ?>
+        <h3 style="margin:0 0 12px">我的历史押注</h3>
         <div class="bsh-panel">
             <table class="bsh-table">
                 <tr><th>期号</th><th>选择</th><th>押注</th><th>状态</th><th>返还</th></tr>
                 <?php while ($bet = mysql_fetch_assoc($res)) { ?>
                     <tr>
                         <td><?php echo game_bs_issue_no($bet['round_id']) ?></td>
-                        <td><?php echo $bet['choice'] === 'big' ? '大' : ($bet['choice'] === 'small' ? '小' : '数字 ' . (int)$bet['bet_number']) ?></td>
+                        <td><?php $c = $bet['choice']; echo $c === 'big' ? '大' : ($c === 'small' ? '小' : ($c === 'triple' ? '豹子' : ($c === 'straight' ? '顺子' : '数字 ' . (int)$bet['bet_number']))) ?></td>
                         <td><?php echo game_bs_money($bet['amount']) ?></td>
                         <td><?php echo $statusMap[$bet['status']] ?? htmlspecialchars($bet['status']) ?></td>
                         <td><?php echo game_bs_money($bet['payout']) ?></td>
@@ -481,6 +503,185 @@ function game_bs_render_my_bets()
     stdfoot();
 }
 
+function game_bs_subnav($active = '')
+{
+    $items = ['' => '压大小', 'history' => '历史开奖', 'mybets' => '我的押注', 'ranking' => '用户排名', 'pnl' => '盈亏榜'];
+    $out = '<div style="display:flex;flex-wrap:wrap;gap:2px;margin-bottom:16px;border-bottom:1px solid rgba(120,150,190,.3)">';
+    foreach ($items as $k => $label) {
+        $url = $k === '' ? '/games/big-small/' : '/games/big-small/?view=' . $k;
+        $color = $k === $active ? '#2ecc71' : '#6f7f95';
+        $border = $k === $active ? '3px solid #2ecc71' : '3px solid transparent';
+        $out .= '<a href="' . $url . '" style="padding:9px 14px;font-weight:700;text-decoration:none;color:' . $color . ';border-bottom:' . $border . '">' . $label . '</a>';
+    }
+    return $out . '</div>';
+}
+
+function game_bs_leaderboard($orderBy, $limit, $minInvested, $havingExtra = '')
+{
+    $extra = $havingExtra !== '' ? " AND ($havingExtra)" : '';
+    $sql = "SELECT b.`uid`, u.`username`,
+            SUM(CASE WHEN b.`status` IN ('won','lost') THEN b.`amount` ELSE 0 END) AS invested,
+            SUM(CASE WHEN b.`status` = 'won' THEN 1 ELSE 0 END) AS won_cnt,
+            SUM(CASE WHEN b.`status` = 'lost' THEN 1 ELSE 0 END) AS lost_cnt,
+            SUM(CASE WHEN b.`status` = 'won' THEN b.`payout` - b.`amount` ELSE 0 END) AS win_points,
+            SUM(CASE WHEN b.`status` = 'lost' THEN b.`amount` ELSE 0 END) AS lose_points
+        FROM `" . GAME_BS_BET_TABLE . "` b
+        INNER JOIN `users` u ON u.`id` = b.`uid`
+        GROUP BY b.`uid`, u.`username`
+        HAVING invested > " . (int)$minInvested . $extra . "
+        ORDER BY $orderBy
+        LIMIT " . (int)$limit;
+    $res = sql_query($sql) or sqlerr(__FILE__, __LINE__);
+    $rows = [];
+    while ($r = mysql_fetch_assoc($res)) {
+        $rows[] = $r;
+    }
+    return $rows;
+}
+
+function game_bs_my_stats($uid)
+{
+    $res = sql_query("SELECT
+            SUM(CASE WHEN `status` IN ('won','lost') THEN 1 ELSE 0 END) AS total,
+            SUM(CASE WHEN `status` = 'won' THEN 1 ELSE 0 END) AS won_cnt,
+            SUM(CASE WHEN `status` = 'lost' THEN 1 ELSE 0 END) AS lost_cnt,
+            SUM(CASE WHEN `status` = 'won' THEN `payout` - `amount` ELSE 0 END) AS win_points,
+            SUM(CASE WHEN `status` = 'lost' THEN `amount` ELSE 0 END) AS lose_points
+        FROM `" . GAME_BS_BET_TABLE . "` WHERE `uid` = " . (int)$uid) or sqlerr(__FILE__, __LINE__);
+    $r = mysql_fetch_assoc($res);
+    return [
+        'total' => (int)($r['total'] ?? 0), 'won' => (int)($r['won_cnt'] ?? 0), 'lost' => (int)($r['lost_cnt'] ?? 0),
+        'win_points' => (float)($r['win_points'] ?? 0), 'lose_points' => (float)($r['lose_points'] ?? 0),
+    ];
+}
+
+function game_bs_points($v, $signed = false)
+{
+    $v = (float)$v;
+    $s = ($signed && $v > 0) ? '+' : '';
+    return $s . number_format(round($v), 0);
+}
+
+function game_bs_lb_styles()
+{
+    echo '<style>
+    .bsh-wrap { max-width: 980px; margin: 0 auto; }
+    .bsh-panel { border: 1px solid rgba(120,150,190,.34); border-radius: 8px; padding: 16px; background: rgba(30,60,100,.06); }
+    .bsh-table { width: 100%; border-collapse: collapse; }
+    .bsh-table th, .bsh-table td { padding: 8px; border: 1px solid rgba(120,150,190,.26); text-align: center; }
+    .bs-pos { color: #16a34a; font-weight: 700; }
+    .bs-neg { color: #dc2626; font-weight: 700; }
+    .bs-ranknum { font-weight: 800; color: #2f80b5; }
+    .bs-mystat { display: flex; gap: 16px; flex-wrap: wrap; padding: 10px 14px; background: rgba(0,0,0,.04); border-radius: 6px; margin-bottom: 14px; font-weight: 700; }
+    .bs-tab2 { display: inline-block; padding: 6px 14px; border: 1px solid rgba(120,150,190,.45); border-radius: 999px; cursor: pointer; font-weight: 700; background: rgba(0,0,0,.03); margin-right: 8px; }
+    .bs-tab2.is-active { background: #2ecc71; color: #fff; border-color: #2ecc71; }
+    </style>';
+}
+
+function game_bs_render_ranking()
+{
+    $rows = game_bs_leaderboard('invested DESC', 100, 1000);
+    stdhead("用户排名");
+    game_bs_lb_styles();
+    ?>
+    <div class="bsh-wrap">
+        <?php echo game_bs_subnav('ranking'); ?>
+        <h3 style="margin:0 0 12px">用户排名（总投入大于 1000 才计入）</h3>
+        <div class="bsh-panel">
+            <table class="bsh-table">
+                <tr><th>排名</th><th>用户名</th><th>积分变化</th><th>赢盘积分</th><th>输盘积分</th><th>赢盘次数</th><th>输盘次数</th><th>获胜比例</th><th>总投入</th></tr>
+                <?php foreach ($rows as $i => $r) {
+                    $net = (float)$r['win_points'] - (float)$r['lose_points'];
+                    $ratio = (int)$r['lost_cnt'] > 0 ? number_format((int)$r['won_cnt'] / (int)$r['lost_cnt'], 2) : ((int)$r['won_cnt'] > 0 ? '∞' : '-');
+                ?>
+                    <tr>
+                        <td class="bs-ranknum">#<?php echo $i + 1 ?></td>
+                        <td><a href="userdetails.php?id=<?php echo (int)$r['uid'] ?>"><?php echo htmlspecialchars($r['username']) ?></a></td>
+                        <td class="<?php echo $net >= 0 ? 'bs-pos' : 'bs-neg' ?>"><?php echo game_bs_points($net, true) ?></td>
+                        <td><?php echo game_bs_points($r['win_points']) ?></td>
+                        <td><?php echo game_bs_points($r['lose_points']) ?></td>
+                        <td><?php echo (int)$r['won_cnt'] ?></td>
+                        <td><?php echo (int)$r['lost_cnt'] ?></td>
+                        <td><?php echo $ratio ?></td>
+                        <td><?php echo game_bs_points($r['invested']) ?></td>
+                    </tr>
+                <?php } ?>
+                <?php if (!$rows) { ?><tr><td colspan="9" style="color:#6f7f95">暂无上榜用户。</td></tr><?php } ?>
+            </table>
+        </div>
+    </div>
+    <?php
+    stdfoot();
+}
+
+function game_bs_render_pnl()
+{
+    global $CURUSER;
+    $winRows = game_bs_leaderboard('(win_points - lose_points) DESC', 50, 1000, '(win_points - lose_points) > 0');
+    $loseRows = game_bs_leaderboard('(win_points - lose_points) ASC', 50, 1000, '(win_points - lose_points) < 0');
+    $my = game_bs_my_stats((int)$CURUSER['id']);
+    $myNet = $my['win_points'] - $my['lose_points'];
+    stdhead("盈亏榜");
+    game_bs_lb_styles();
+    ?>
+    <div class="bsh-wrap" style="max-width:760px">
+        <?php echo game_bs_subnav('pnl'); ?>
+        <div class="bs-mystat">
+            <span>我的胜负</span>
+            <span>总：<?php echo $my['total'] ?></span>
+            <span class="bs-pos">盈：<?php echo game_bs_points($my['win_points']) ?></span>
+            <span class="bs-neg">亏：<?php echo game_bs_points($my['lose_points']) ?></span>
+            <span>胜：<?php echo $my['won'] ?></span>
+            <span>负：<?php echo $my['lost'] ?></span>
+            <span>净：<span class="<?php echo $myNet >= 0 ? 'bs-pos' : 'bs-neg' ?>"><?php echo game_bs_points($myNet, true) ?></span></span>
+        </div>
+        <div id="bsPnlTabs" style="margin-bottom:12px">
+            <span class="bs-tab2 is-active" data-pnl="win">🏆 胜榜·总盈利</span>
+            <span class="bs-tab2" data-pnl="lose">💸 负榜·总亏损</span>
+        </div>
+        <table class="bsh-table" id="bsPnlWin">
+            <tr><th>排名</th><th>用户名</th><th>胜场</th><th>总盈利</th></tr>
+            <?php foreach ($winRows as $i => $r) { ?>
+                <tr>
+                    <td class="bs-ranknum"><?php echo $i + 1 ?></td>
+                    <td><a href="userdetails.php?id=<?php echo (int)$r['uid'] ?>"><?php echo htmlspecialchars($r['username']) ?></a></td>
+                    <td><?php echo (int)$r['won_cnt'] ?>胜</td>
+                    <td class="bs-pos"><?php echo game_bs_points((float)$r['win_points'] - (float)$r['lose_points'], true) ?></td>
+                </tr>
+            <?php } ?>
+            <?php if (!$winRows) { ?><tr><td colspan="4" style="color:#6f7f95">暂无盈利用户。</td></tr><?php } ?>
+        </table>
+        <table class="bsh-table" id="bsPnlLose" style="display:none">
+            <tr><th>排名</th><th>用户名</th><th>负场</th><th>总亏损</th></tr>
+            <?php foreach ($loseRows as $i => $r) { ?>
+                <tr>
+                    <td class="bs-ranknum"><?php echo $i + 1 ?></td>
+                    <td><a href="userdetails.php?id=<?php echo (int)$r['uid'] ?>"><?php echo htmlspecialchars($r['username']) ?></a></td>
+                    <td><?php echo (int)$r['lost_cnt'] ?>负</td>
+                    <td class="bs-neg"><?php echo game_bs_points((float)$r['win_points'] - (float)$r['lose_points'], true) ?></td>
+                </tr>
+            <?php } ?>
+            <?php if (!$loseRows) { ?><tr><td colspan="4" style="color:#6f7f95">暂无亏损用户。</td></tr><?php } ?>
+        </table>
+    </div>
+    <script>
+    (function () {
+        var tabs = document.getElementById('bsPnlTabs');
+        tabs.addEventListener('click', function (e) {
+            var tab = e.target.closest('.bs-tab2');
+            if (!tab) { return; }
+            tabs.querySelectorAll('.bs-tab2').forEach(function (t) { t.classList.remove('is-active'); });
+            tab.classList.add('is-active');
+            var w = tab.getAttribute('data-pnl');
+            document.getElementById('bsPnlWin').style.display = w === 'win' ? '' : 'none';
+            document.getElementById('bsPnlLose').style.display = w === 'lose' ? '' : 'none';
+        });
+    })();
+    </script>
+    <?php
+    stdfoot();
+}
+
 game_bs_ensure_tables();
 game_bs_settle_due_rounds();
 
@@ -492,6 +693,14 @@ if (($_GET['view'] ?? '') === 'mybets') {
     game_bs_render_my_bets();
     exit;
 }
+if (($_GET['view'] ?? '') === 'ranking') {
+    game_bs_render_ranking();
+    exit;
+}
+if (($_GET['view'] ?? '') === 'pnl') {
+    game_bs_render_pnl();
+    exit;
+}
 
 $message = "";
 $error = "";
@@ -499,10 +708,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $choice = $_POST['choice'] ?? '';
     $amountRaw = trim((string)($_POST['amount'] ?? ''));
     $betNumber = null;
-    if (!in_array($choice, ['big', 'small', 'number'], true)) {
-        $error = "请选择押大、押小或押数字。";
-    } elseif ($choice === 'number' && !preg_match('/^[1-9][1-9][1-9]$/', trim((string)($_POST['bet_number'] ?? '')))) {
-        $error = "押注数字必须是 111 到 999，且每一位都是 1-9（不含 0）。";
+    if (!in_array($choice, ['big', 'small', 'number', 'triple', 'straight'], true)) {
+        $error = "请选择有效的押注选项。";
+    } elseif ($choice === 'number' && !preg_match('/^[1-6][1-6][1-6]$/', trim((string)($_POST['bet_number'] ?? '')))) {
+        $error = "押注数字必须是 111 到 666，且每一位都是 1-6。";
     } elseif (!preg_match('/^[1-9][0-9]*$/', $amountRaw)) {
         $error = "押注电影票必须是正整数。";
     } else {
@@ -510,8 +719,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $betNumber = (int)trim((string)$_POST['bet_number']);
         }
         $amount = (int)$amountRaw;
-        if ($amount > 1000000) {
-            $error = "单次押注不能超过 1000000 张电影票。";
+        if ($amount > 10000000000) {
+            $error = "单次押注金额过大。";
         } else {
             $error = game_bs_place_bet($choice, $amount, $betNumber);
             if ($error === "") {
@@ -541,7 +750,7 @@ while ($stat = mysql_fetch_assoc($betsRes)) {
 $myBetsRes = sql_query("SELECT * FROM `" . GAME_BS_BET_TABLE . "` WHERE `uid` = " . (int)$CURUSER['id'] . " ORDER BY `id` DESC LIMIT 10") or sqlerr(__FILE__, __LINE__);
 $historyRes = sql_query("SELECT * FROM `" . GAME_BS_ROUND_TABLE . "` WHERE `status` IN ('closed','cancelled') ORDER BY `id` DESC LIMIT 10") or sqlerr(__FILE__, __LINE__);
 
-$resultSizeLabel = ['big' => '大', 'small' => '小', 'triple' => '豹子(通杀)', 'push' => '和15平局'];
+$resultSizeLabel = ['big' => '大', 'small' => '小', 'triple' => '豹子(通杀)', 'push' => '和15(通杀)'];
 
 stdhead("压大小");
 ?>
@@ -549,6 +758,7 @@ stdhead("压大小");
 .bs-wrap { max-width: 980px; margin: 0 auto; }
 .bs-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
 .bs-title { font-size: 24px; font-weight: 800; }
+.bs-badge { font-size: 12px; font-weight: 700; color: #e67e22; background: rgba(230,126,34,.12); padding: 2px 8px; border-radius: 999px; vertical-align: middle; }
 .bs-balance { font-size: 14px; font-weight: 700; }
 .bs-panel { border: 1px solid rgba(120,150,190,.34); border-radius: 8px; padding: 16px; margin-bottom: 14px; background: rgba(30,60,100,.06); }
 .bs-round { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 14px; }
@@ -561,6 +771,11 @@ stdhead("压大小");
 .bs-choice label { display: inline-flex; align-items: center; gap: 5px; padding: 8px 12px; border: 1px solid rgba(120,150,190,.45); border-radius: 6px; cursor: pointer; }
 .bs-form input[type="number"], .bs-form input[type="text"] { width: 150px; padding: 8px; }
 .bs-form button { padding: 8px 18px; font-weight: 700; cursor: pointer; }
+.bs-quick { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.bs-chip { padding: 7px 12px; border: 1px solid rgba(120,150,190,.45); border-radius: 6px; cursor: pointer; font-weight: 700; background: rgba(255,255,255,.55); user-select: none; }
+.bs-chip:hover { border-color: #2ecc71; color: #2ecc71; }
+.bs-chip.allin { background: #e67e22; color: #fff; border-color: #e67e22; }
+.bs-chip.allin:hover { background: #d35400; color: #fff; }
 .bs-message { padding: 10px 12px; border-radius: 6px; margin-bottom: 14px; font-weight: 700; }
 .bs-message.ok { background: rgba(34, 150, 90, .14); color: #16834d; }
 .bs-message.err { background: rgba(220, 60, 70, .14); color: #c02432; }
@@ -572,14 +787,16 @@ stdhead("压大小");
 <div class="bs-wrap">
     <div class="bs-head">
         <div>
-            <div class="bs-title">压大小</div>
-            <div class="bs-muted">每 10 分钟一期。开奖三位数字，每位 1-9。</div>
+            <div class="bs-title">压大小 <span class="bs-badge">公测中 v1.1</span></div>
+            <div class="bs-muted">每 10 分钟一期。开奖三个骰子，每个 1-6（111-666）。</div>
         </div>
         <div class="bs-balance">我的电影票：<?php echo game_bs_money($CURUSER['seedbonus']) ?> 张</div>
     </div>
 
     <?php if ($message) { ?><div class="bs-message ok"><?php echo htmlspecialchars($message) ?></div><?php } ?>
     <?php if ($error) { ?><div class="bs-message err"><?php echo htmlspecialchars($error) ?></div><?php } ?>
+
+    <?php echo game_bs_subnav(''); ?>
 
     <div class="bs-panel">
         <div class="bs-round">
@@ -589,20 +806,32 @@ stdhead("压大小");
             <div class="bs-stat"><span>押大 / 押小 / 押数字</span><b><?php echo game_bs_money($betStats['big']['total']) ?> / <?php echo game_bs_money($betStats['small']['total']) ?> / <?php echo game_bs_money($betStats['number']['total']) ?></b></div>
         </div>
         <div class="bs-rules">
-            玩法：开奖三位数字各 1-9（如 5 3 1）。<br>
-            · <b>押大 / 押小</b>：按三位之和判定，和 ≤ 14 为小、≥ 16 为大，押中得 <b>2 倍</b>；三位相同（豹子，如 555）押大小都输；和正好 15 平局退回本金。<br>
-            · <b>押数字</b>：押中开奖的精确数字，豹子（111…999 同数字）<b>5 倍</b>、顺子（123/789/321 这类连续）<b>4 倍</b>、其它（如 135）<b>3 倍</b>。<br>
+            玩法：开奖三个骰子各 1-6（如 5 3 1）。<br>
+            · <b>押大 / 押小</b>：按三个骰子之和判定，和 4-10 为小、11-17 为大，押中得 <b>2 倍</b>；三个相同（豹子，如 555）押大小都输（庄家通杀）。<br>
+            · <b>押数字</b>：押中开奖的精确数字，豹子<b>10 倍</b>、顺子<b>7 倍</b>、其它<b>6 倍</b>。<br>
+            · <b>押豹子</b>：开出任意豹子（三位相同）即中，<b><?php echo GAME_BS_TRIPLE_MULT ?> 倍</b>。<b>押顺子</b>：开出任意顺子即中，<b><?php echo GAME_BS_STRAIGHT_MULT ?> 倍</b>。<br>
+            · 顺子＝三位是连续数字（不分顺序），如 123 / 321 / 231 / 132 都算。<br>
             · 本期无人押注则不开奖（自动作废）。
         </div>
         <form class="bs-form" method="post" action="/games/big-small/">
             <div class="bs-choice">
                 <label><input type="radio" name="choice" value="big" checked> 押大</label>
                 <label><input type="radio" name="choice" value="small"> 押小</label>
+                <label><input type="radio" name="choice" value="triple"> 押豹子</label>
+                <label><input type="radio" name="choice" value="straight"> 押顺子</label>
                 <label><input type="radio" name="choice" value="number"> 押数字</label>
             </div>
-            <input type="text" name="bet_number" id="bsBetNumber" inputmode="numeric" maxlength="3" pattern="[1-9]{3}" placeholder="数字 111-999" disabled>
+            <input type="text" name="bet_number" id="bsBetNumber" inputmode="numeric" maxlength="3" pattern="[1-6]{3}" placeholder="数字 111-666" disabled>
             <input type="number" name="amount" min="1" step="1" placeholder="电影票数量" required>
             <button type="submit">立即押注</button>
+            <span class="bs-quick">
+                <span class="bs-chip" data-amt="100">100</span>
+                <span class="bs-chip" data-amt="500">500</span>
+                <span class="bs-chip" data-amt="1000">1000</span>
+                <span class="bs-chip" data-amt="5000">5000</span>
+                <span class="bs-chip" data-amt="10000">10000</span>
+                <span class="bs-chip allin" data-amt="all">梭哈</span>
+            </span>
         </form>
     </div>
 
@@ -614,7 +843,7 @@ stdhead("压大小");
                 <?php while ($bet = mysql_fetch_assoc($myBetsRes)) { ?>
                     <tr>
                         <td><?php echo game_bs_issue_no($bet['round_id']) ?></td>
-                        <td><?php echo $bet['choice'] === 'big' ? '大' : ($bet['choice'] === 'small' ? '小' : '数字 ' . (int)$bet['bet_number']) ?></td>
+                        <td><?php $c = $bet['choice']; echo $c === 'big' ? '大' : ($c === 'small' ? '小' : ($c === 'triple' ? '豹子' : ($c === 'straight' ? '顺子' : '数字 ' . (int)$bet['bet_number']))) ?></td>
                         <td><?php echo game_bs_money($bet['amount']) ?></td>
                         <td><?php echo ['pending' => '待开奖', 'won' => '中奖', 'lost' => '未中', 'refunded' => '已退回'][$bet['status']] ?? htmlspecialchars($bet['status']) ?></td>
                         <td><?php echo game_bs_money($bet['payout']) ?></td>
@@ -663,6 +892,19 @@ stdhead("压大小");
         }
     }
     tick();
+
+    // Quick-bet chips (100/500/.../梭哈).
+    var bsBalance = <?php echo (int)floor((float)$CURUSER['seedbonus']) ?>;
+    document.querySelectorAll('.bs-chip[data-amt]').forEach(function (chip) {
+        chip.addEventListener('click', function () {
+            var form = chip.closest('form');
+            var input = form ? form.querySelector('input[name="amount"]') : null;
+            if (!input) { return; }
+            var amt = chip.getAttribute('data-amt');
+            input.value = amt === 'all' ? bsBalance : amt;
+            input.focus();
+        });
+    });
 
     // Enable the number input only when "押数字" is selected.
     var numberInput = document.getElementById('bsBetNumber');

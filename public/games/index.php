@@ -9,6 +9,7 @@ $GLOBALS['nexus_hide_top_banner'] = true;
 $games = [
     [
         'title' => '压大小',
+        'badge' => '公测中 v1.1',
         'subtitle' => '每 10 分钟开奖一次，使用电影票押注，押中返还本金并获得等额奖励。',
         'date' => '已开放',
         'price' => '立即进入',
@@ -16,6 +17,18 @@ $games = [
         'status' => '可玩',
         'tags' => ['电影票', '开奖', '竞猜', '轻量休闲'],
         'theme' => 'dice',
+        'shots' => ['dice-a', 'dice-b', 'dice-c'],
+    ],
+    [
+        'title' => '菠菜系统',
+        'badge' => '内测中 v0.1',
+        'subtitle' => '体育赛事竞猜，固定赔率押注主胜/平局/客胜，押中按赔率派彩，比如当前的世界杯。',
+        'date' => '已开放',
+        'price' => '立即进入',
+        'href' => '/games/sports/',
+        'status' => '可玩',
+        'tags' => ['体育', '世界杯', '竞猜', '赔率'],
+        'theme' => 'sports',
         'shots' => ['dice-a', 'dice-b', 'dice-c'],
     ],
     [
@@ -180,6 +193,7 @@ body.page-games-php:not(.inframe) {
 }
 
 .theme-dice { --game-a: #1e88e5; --game-b: #07182d; }
+.theme-sports { --game-a: #2ecc71; --game-b: #0b3d1f; }
 .theme-scratch { --game-a: #f1c232; --game-b: #6b3f00; }
 .theme-wheel { --game-a: #b84cff; --game-b: #18224f; }
 .theme-quiz { --game-a: #13b58a; --game-b: #092c38; }
@@ -197,6 +211,17 @@ body.page-games-php:not(.inframe) {
     line-height: 1.25;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.steam-badge {
+    font-size: 11px;
+    font-weight: 700;
+    color: #ffcf6b;
+    background: rgba(0, 0, 0, 0.28);
+    padding: 1px 6px;
+    border-radius: 4px;
+    vertical-align: middle;
     white-space: nowrap;
 }
 
@@ -385,7 +410,7 @@ body.page-games-php:not(.inframe) {
                    <?php echo $disabled ? 'onclick="return false;"' : '' ?>>
                     <div class="steam-capsule" data-title="<?php echo htmlspecialchars($game['title']) ?>"></div>
                     <div class="steam-game-main">
-                        <div class="steam-game-title"><?php echo htmlspecialchars($game['title']) ?></div>
+                        <div class="steam-game-title"><?php echo htmlspecialchars($game['title']) ?><?php if (!empty($game['badge'])) { ?> <span class="steam-badge"><?php echo htmlspecialchars($game['badge']) ?></span><?php } ?></div>
                         <div class="steam-game-subtitle"><?php echo htmlspecialchars($game['subtitle']) ?></div>
                         <div class="steam-game-date"><?php echo htmlspecialchars($game['date']) ?></div>
                     </div>
