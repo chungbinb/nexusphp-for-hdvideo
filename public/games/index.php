@@ -115,7 +115,7 @@ body.page-games-php:not(.inframe) {
 
 .steam-layout {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 360px;
+    grid-template-columns: minmax(0, 1fr);
     gap: 20px;
     align-items: start;
 }
@@ -393,22 +393,6 @@ body.page-games-php:not(.inframe) {
                 </a>
             <?php } ?>
         </section>
-
-        <aside class="steam-preview" aria-label="游戏详情预览">
-            <div class="steam-preview-title"><?php echo htmlspecialchars($featured['title']) ?></div>
-            <div class="steam-preview-meta">
-                <?php echo htmlspecialchars($featured['status']) ?><br />
-                <?php echo htmlspecialchars($featured['subtitle']) ?>
-            </div>
-            <div class="steam-tags">
-                <?php foreach ($featured['tags'] as $tag) { ?>
-                    <span class="steam-tag"><?php echo htmlspecialchars($tag) ?></span>
-                <?php } ?>
-            </div>
-            <?php foreach ($featured['shots'] as $idx => $shot) { ?>
-                <div class="steam-shot shot-<?php echo htmlspecialchars($shot) ?>" data-label="<?php echo $idx === 0 ? '实时开奖' : ($idx === 1 ? '电影票下注' : '历史记录') ?>"></div>
-            <?php } ?>
-        </aside>
     </div>
 
     <div class="steam-more">
