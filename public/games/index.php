@@ -23,7 +23,7 @@ $games = [
     ],
     [
         'title' => '菠菜系统',
-        'badge' => '内测中 v0.2',
+        'badge' => '内测中 v0.3',
         'subtitle' => '体育赛事竞猜，固定赔率押注主胜/平局/客胜，押中按赔率派彩，比如当前的世界杯。',
         'date' => '已开放',
         'price' => '立即进入',
@@ -91,6 +91,18 @@ $games = [
         'tags' => ['签到', '宝箱', '连续奖励'],
         'theme' => 'chest',
         'shots' => ['chest-a', 'chest-b', 'chest-c'],
+    ],
+    [
+        'title' => '二十一点',
+        'badge' => '内测中 v0.1',
+        'subtitle' => '经典 21 点，用电影票下注，要牌/停牌/加倍，点数接近 21 且不爆即胜，黑杰克 1.5 倍赔。',
+        'date' => '已开放',
+        'price' => '立即进入',
+        'href' => '/games/blackjack/',
+        'status' => '可玩',
+        'tags' => ['扑克', '21点', '电影票', '对庄'],
+        'theme' => 'blackjack',
+        'shots' => ['dice-a', 'dice-b', 'dice-c'],
     ],
 ];
 
@@ -228,6 +240,7 @@ body.page-games-php:not(.inframe) {
 .theme-wheel { --game-a: #b84cff; --game-b: #18224f; }
 .theme-quiz { --game-a: #13b58a; --game-b: #092c38; }
 .theme-chest { --game-a: #ff7f50; --game-b: #371323; }
+.theme-blackjack { --game-a: #1f9a52; --game-b: #07210f; }
 
 .steam-game-main {
     padding: 12px 12px 10px;

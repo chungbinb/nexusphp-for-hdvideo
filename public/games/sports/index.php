@@ -11,6 +11,9 @@ game_guard('sports');
 const GAME_SP_BUSINESS_TYPE = 13; // reuse the lucky-draw / game bonus category
 const GAME_SP_MATCH_TABLE = 'hdvideo_sports_matches';
 const GAME_SP_BET_TABLE = 'hdvideo_sports_bets';
+// Virtual seed pool: keeps odds at the admin opening line when there are no bets and
+// damps how fast they move. Larger = needs more money to shift the line.
+const GAME_SP_LIQUIDITY = 2000;
 const GAME_SP_CONFIG_TABLE = 'hdvideo_sports_config';
 const GAME_SP_API_BASE = 'https://api.football-data.org/v4/';
 
@@ -402,6 +405,61 @@ function game_sp_points($v, $signed = false)
     return $s . number_format(round($v), 0);
 }
 
+/** Pending-bet pool for a match: ['home','draw','away' => amount, 'count', 'total']. */
+function game_sp_pool($matchId)
+{
+    $pool = ['home' => 0.0, 'draw' => 0.0, 'away' => 0.0, 'count' => 0, 'total' => 0.0, 'players' => 0];
+    $res = sql_query("SELECT `choice`, COUNT(*) AS c, SUM(`amount`) AS s FROM `" . GAME_SP_BET_TABLE . "` WHERE `match_id` = " . (int)$matchId . " AND `status` = 'pending' GROUP BY `choice`") or sqlerr(__FILE__, __LINE__);
+    while ($row = mysql_fetch_assoc($res)) {
+        $c = $row['choice'];
+        if (isset($pool[$c])) $pool[$c] = (float)$row['s'];
+        $pool['count'] += (int)$row['c'];
+        $pool['total'] += (float)$row['s'];
+    }
+    $pres = sql_query("SELECT COUNT(DISTINCT `uid`) AS p FROM `" . GAME_SP_BET_TABLE . "` WHERE `match_id` = " . (int)$matchId . " AND `status` = 'pending'") or sqlerr(__FILE__, __LINE__);
+    $pool['players'] = (int)mysql_fetch_assoc($pres)['p'];
+    return $pool;
+}
+
+/** All-time bet stats for a match (any status): ['count','players','total']. */
+function game_sp_bet_stats($matchId)
+{
+    $res = sql_query("SELECT COUNT(*) AS c, COUNT(DISTINCT `uid`) AS p, SUM(`amount`) AS s FROM `" . GAME_SP_BET_TABLE . "` WHERE `match_id` = " . (int)$matchId) or sqlerr(__FILE__, __LINE__);
+    $row = mysql_fetch_assoc($res);
+    return ['count' => (int)$row['c'], 'players' => (int)$row['p'], 'total' => (float)$row['s']];
+}
+
+/**
+ * Dynamic odds. The admin odds are the opening line; live odds shift with the betting
+ * distribution (more money on an outcome -> shorter odds). A virtual seed pool
+ * (GAME_SP_LIQUIDITY, split by the opening line) keeps odds exactly at the opening line
+ * when no bets are placed and damps volatility. Returns ['home','draw','away'].
+ */
+function game_sp_dynamic_odds($match, $pool = null)
+{
+    $base = [
+        'home' => (float)$match['odds_home'],
+        'draw' => (float)$match['odds_draw'],
+        'away' => (float)$match['odds_away'],
+    ];
+    if ($pool === null) $pool = game_sp_pool((int)$match['id']);
+    $ip = []; $sumIp = 0.0;
+    foreach ($base as $k => $o) { $ip[$k] = $o > 1 ? 1.0 / $o : 0.0; $sumIp += $ip[$k]; }
+    if ($sumIp <= 0) return $base; // not fully opened
+    $eff = []; $et = 0.0;
+    foreach ($base as $k => $o) {
+        $eff[$k] = GAME_SP_LIQUIDITY * $ip[$k] + (float)($pool[$k] ?? 0);
+        $et += $eff[$k];
+    }
+    $out = [];
+    foreach ($base as $k => $o) {
+        if ($o <= 1 || $eff[$k] <= 0) { $out[$k] = $o; continue; }
+        $dyn = ($et / $eff[$k]) / $sumIp;   // == base odds when the pool is empty
+        $out[$k] = round(max(1.01, min(100, $dyn)), 2);
+    }
+    return $out;
+}
+
 function game_sp_place_bet($matchId, $choice, $amount)
 {
     global $CURUSER;
@@ -418,8 +476,13 @@ function game_sp_place_bet($matchId, $choice, $amount)
             sql_query("ROLLBACK");
             return "该比赛已截止或不可押注，请刷新。";
         }
-        $oddsField = 'odds_' . $choice;
-        $odds = (float)$match[$oddsField];
+        if ((float)$match['odds_' . $choice] <= 1) {
+            sql_query("ROLLBACK");
+            return "该选项暂未开盘。";
+        }
+        // Lock in the current dynamic odds (admin opening line shifted by betting ratio).
+        $dynOdds = game_sp_dynamic_odds($match);
+        $odds = (float)($dynOdds[$choice] ?? 0);
         if ($odds <= 1) {
             sql_query("ROLLBACK");
             return "该选项暂未开盘。";
@@ -479,6 +542,31 @@ function game_sp_settle_match($matchId, $result, $homeScore, $awayScore)
             return "只有已开盘的比赛才能结算。";
         }
         sql_query("UPDATE `" . GAME_SP_MATCH_TABLE . "` SET `status` = 'settled', `result` = " . sqlesc($result) . ", `home_score` = $homeScoreSql, `away_score` = $awayScoreSql, `updated_at` = " . sqlesc($now) . " WHERE `id` = $matchId") or sqlerr(__FILE__, __LINE__);
+
+        // Two-way match (no draw option) that actually drew -> refund everyone (平局退款).
+        if ($result === 'draw' && (float)$match['odds_draw'] <= 1) {
+            $refRes = sql_query("
+                SELECT b.`id`, b.`uid`, b.`amount`, u.`seedbonus`
+                FROM `" . GAME_SP_BET_TABLE . "` b
+                INNER JOIN `users` u ON u.`id` = b.`uid`
+                WHERE b.`match_id` = $matchId AND b.`status` = 'pending'
+                FOR UPDATE
+            ") or sqlerr(__FILE__, __LINE__);
+            while ($bet = mysql_fetch_assoc($refRes)) {
+                $betId = (int)$bet['id'];
+                $uid = (int)$bet['uid'];
+                $amount = (float)$bet['amount'];
+                $oldBonus = (float)$bet['seedbonus'];
+                $newBonus = $oldBonus + $amount;
+                sql_query("UPDATE `users` SET `seedbonus` = `seedbonus` + " . sqlesc(game_sp_money($amount)) . " WHERE `id` = $uid") or sqlerr(__FILE__, __LINE__);
+                sql_query("UPDATE `" . GAME_SP_BET_TABLE . "` SET `status` = 'refunded', `payout` = " . sqlesc(game_sp_money($amount)) . ", `settled_at` = " . sqlesc($now) . " WHERE `id` = $betId") or sqlerr(__FILE__, __LINE__);
+                game_sp_bonus_log($uid, $oldBonus, $amount, $newBonus,
+                    "{$match['home_team']} vs {$match['away_team']} 平局（两项盘）退款 {$amount}");
+                clear_user_cache($uid);
+            }
+            sql_query("COMMIT") or sqlerr(__FILE__, __LINE__);
+            return "";
+        }
 
         $winRes = sql_query("
             SELECT b.`id`, b.`uid`, b.`amount`, b.`odds`, u.`seedbonus`
@@ -563,12 +651,17 @@ function game_sp_save_match($data, $isNew)
 {
     $now = date('Y-m-d H:i:s');
     $oddsHome = (float)($data['odds_home'] ?? 0);
-    $oddsDraw = (float)($data['odds_draw'] ?? 0);
     $oddsAway = (float)($data['odds_away'] ?? 0);
-    foreach (['主胜' => $oddsHome, '平局' => $oddsDraw, '客胜' => $oddsAway] as $name => $o) {
+    // 平局可留空（=0），表示只有主/客两个押注选项；填写则必须 >1 才算开放平局。
+    $drawRaw = trim((string)($data['odds_draw'] ?? ''));
+    $oddsDraw = $drawRaw === '' ? 0.0 : (float)$drawRaw;
+    foreach (['主胜' => $oddsHome, '客胜' => $oddsAway] as $name => $o) {
         if ($o <= 1 || $o > 1000) {
             return "{$name}赔率必须大于 1 且不超过 1000。";
         }
+    }
+    if ($oddsDraw != 0.0 && ($oddsDraw <= 1 || $oddsDraw > 1000)) {
+        return "平局赔率如需开放须大于 1 且不超过 1000；留空表示只设主/客两个选项。";
     }
 
     if ($isNew) {
@@ -798,6 +891,20 @@ stdhead("菠菜系统");
 .sp-odds { display: inline-flex; gap: 8px; flex-wrap: wrap; }
 .sp-odds label { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border: 1px solid rgba(120,150,190,.45); border-radius: 6px; cursor: pointer; }
 .sp-odds b { color: #c0392b; }
+.sp-side { margin-left: 6px; font-size: 12px; color: #8a9bb0; }
+.sp-side::before { content: "投"; margin-right: 2px; opacity: .7; }
+.sp-pool { margin: 8px 0; font-size: 13px; }
+.sp-pool b { color: #2c7; }
+.sp-chart { margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(120,150,190,.3); }
+.sp-chart-title { font-size: 13px; font-weight: 700; color: #6f7f95; margin-bottom: 6px; }
+.sp-bar { display: flex; width: 100%; height: 22px; border-radius: 6px; overflow: hidden; background: rgba(120,150,190,.15); }
+.sp-seg { display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; font-weight: 700; min-width: 0; transition: width .3s ease; }
+.sp-seg-home { background: #2e8b57; }
+.sp-seg-draw { background: #b0883a; }
+.sp-seg-away { background: #c0392b; }
+.sp-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; font-size: 12px; color: #6f7f95; }
+.sp-leg { display: inline-flex; align-items: center; gap: 5px; }
+.sp-dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
 .sp-form input[type="number"] { width: 140px; padding: 8px; }
 .sp-form button { padding: 8px 16px; font-weight: 700; cursor: pointer; }
 .sp-quick { display: inline-flex; gap: 6px; flex-wrap: wrap; }
@@ -822,7 +929,7 @@ stdhead("菠菜系统");
 </style>
 <div class="sp-wrap">
     <div class="sp-head">
-        <div class="sp-title">菠菜系统 <span class="sp-badge">内测中 v0.2</span></div>
+        <div class="sp-title">菠菜系统 <span class="sp-badge">内测中 v0.3</span></div>
         <div class="sp-balance">我的电影票：<?php echo game_sp_money($CURUSER['seedbonus']) ?> 张</div>
     </div>
 
@@ -857,7 +964,10 @@ stdhead("菠菜系统");
         <?php if (!$openMatches) { ?>
             <div class="sp-match sp-muted">暂无可押注的赛事，敬请期待。</div>
         <?php } ?>
-        <?php foreach ($openMatches as $m) { ?>
+        <?php foreach ($openMatches as $m) {
+            $pool = game_sp_pool((int)$m['id']);
+            $dyn = game_sp_dynamic_odds($m, $pool);
+        ?>
             <div class="sp-match" data-league="<?php echo htmlspecialchars($m['_lg']) ?>">
                 <div class="sp-match-top">
                     <?php if ($m['league'] !== '') { ?><span class="sp-league"><?php echo htmlspecialchars(game_sp_tr($m['league'])) ?></span><?php } ?>
@@ -868,11 +978,13 @@ stdhead("菠菜系统");
                 <form class="sp-form" method="post" action="/games/sports/">
                     <input type="hidden" name="action" value="bet">
                     <input type="hidden" name="match_id" value="<?php echo (int)$m['id'] ?>">
+                    <?php $hasDraw = (float)$m['odds_draw'] > 1; ?>
                     <div class="sp-odds">
-                        <label><input type="radio" name="choice" value="home" checked> 主胜 <b><?php echo number_format($m['odds_home'], 2) ?></b></label>
-                        <label><input type="radio" name="choice" value="draw"> 平局 <b><?php echo number_format($m['odds_draw'], 2) ?></b></label>
-                        <label><input type="radio" name="choice" value="away"> 客胜 <b><?php echo number_format($m['odds_away'], 2) ?></b></label>
+                        <label><input type="radio" name="choice" value="home" checked> 主胜 <b><?php echo number_format($dyn['home'], 2) ?></b><span class="sp-side"><?php echo number_format($pool['home']) ?></span></label>
+                        <?php if ($hasDraw) { ?><label><input type="radio" name="choice" value="draw"> 平局 <b><?php echo number_format($dyn['draw'], 2) ?></b><span class="sp-side"><?php echo number_format($pool['draw']) ?></span></label><?php } ?>
+                        <label><input type="radio" name="choice" value="away"> 客胜 <b><?php echo number_format($dyn['away'], 2) ?></b><span class="sp-side"><?php echo number_format($pool['away']) ?></span></label>
                     </div>
+                    <div class="sp-pool sp-muted">📊 下注 <b><?php echo (int)$pool['count'] ?></b> 笔 · 参与 <b><?php echo (int)$pool['players'] ?></b> 人 · 投注总额 <b><?php echo number_format($pool['total']) ?></b> 电影票 · 赔率随下注比率实时浮动（下注时锁定）</div>
                     <input type="number" name="amount" min="1" step="1" placeholder="电影票数量" required>
                     <button type="submit">押注</button>
                     <span class="sp-quick">
@@ -884,6 +996,32 @@ stdhead("菠菜系统");
                         <span class="sp-chip allin" data-amt="all">梭哈</span>
                     </span>
                 </form>
+                <?php
+                $sideMeta = ['home' => ['label' => '主胜', 'cls' => 'home']];
+                if ((float)$m['odds_draw'] > 1) {
+                    $sideMeta['draw'] = ['label' => '平局', 'cls' => 'draw'];
+                }
+                $sideMeta['away'] = ['label' => '客胜', 'cls' => 'away'];
+                $poolTotal = (float)$pool['total'];
+                ?>
+                <div class="sp-chart">
+                    <div class="sp-chart-title">投注分布</div>
+                    <?php if ($poolTotal <= 0) { ?>
+                        <div class="sp-muted" style="font-size:13px">暂无下注，赔率为开盘线。</div>
+                    <?php } else { ?>
+                        <div class="sp-bar">
+                            <?php foreach ($sideMeta as $k => $meta) {
+                                $pct = round((float)$pool[$k] / $poolTotal * 100, 1);
+                                if ($pct <= 0) continue;
+                            ?><span class="sp-seg sp-seg-<?php echo $meta['cls'] ?>" style="width:<?php echo $pct ?>%" title="<?php echo $meta['label'] . ' ' . $pct . '%' ?>"><?php echo $pct >= 10 ? $pct . '%' : '' ?></span><?php } ?>
+                        </div>
+                        <div class="sp-legend">
+                            <?php foreach ($sideMeta as $k => $meta) {
+                                $pct = round((float)$pool[$k] / $poolTotal * 100, 1);
+                            ?><span class="sp-leg"><i class="sp-dot sp-seg-<?php echo $meta['cls'] ?>"></i><?php echo $meta['label'] ?> <?php echo number_format($pool[$k]) ?> 票（<?php echo $pct ?>%）</span><?php } ?>
+                        </div>
+                    <?php } ?>
+                </div>
             </div>
         <?php } ?>
 
@@ -898,16 +1036,21 @@ stdhead("菠菜系统");
     ?>
         <div class="sp-section-title">历史开奖</div>
         <table class="sp-table">
-            <tr><th>赛事</th><th>比分</th><th>结果</th><th>时间</th></tr>
-            <?php while ($m = mysql_fetch_assoc($res)) { ?>
+            <tr><th>赛事</th><th>比分</th><th>结果</th><th>下注数</th><th>参与人数</th><th>投注总额</th><th>时间</th></tr>
+            <?php while ($m = mysql_fetch_assoc($res)) {
+                $st = game_sp_bet_stats((int)$m['id']);
+            ?>
                 <tr>
                     <td><?php echo htmlspecialchars(($m['league'] !== '' ? '[' . game_sp_tr($m['league']) . '] ' : '') . game_sp_tr($m['home_team']) . ' vs ' . game_sp_tr($m['away_team'])) ?></td>
                     <td><?php echo ($m['home_score'] === null || $m['away_score'] === null) ? '-' : ((int)$m['home_score'] . ' : ' . (int)$m['away_score']) ?></td>
                     <td><?php echo $m['status'] === 'cancelled' ? '已取消(退款)' : game_sp_choice_label($m['result']) ?></td>
+                    <td><?php echo number_format($st['count']) ?></td>
+                    <td><?php echo number_format($st['players']) ?></td>
+                    <td><?php echo number_format($st['total']) ?></td>
                     <td><?php echo htmlspecialchars($m['updated_at']) ?></td>
                 </tr>
             <?php } ?>
-            <?php if (!$total) { ?><tr><td colspan="4" class="sp-muted">暂无开奖记录。</td></tr><?php } ?>
+            <?php if (!$total) { ?><tr><td colspan="7" class="sp-muted">暂无开奖记录。</td></tr><?php } ?>
         </table>
         <?php if ($pages > 1) { ?>
             <div class="sp-pager">
@@ -1088,7 +1231,7 @@ stdhead("菠菜系统");
                                     <input type="hidden" name="action" value="publish_match">
                                     <input type="hidden" name="match_id" value="<?php echo (int)$m['id'] ?>">
                                     <input type="number" name="odds_home" min="1.01" max="1000" step="0.01" placeholder="主" style="width:60px" required>
-                                    <input type="number" name="odds_draw" min="1.01" max="1000" step="0.01" placeholder="平" style="width:60px" required>
+                                    <input type="number" name="odds_draw" min="1.01" max="1000" step="0.01" placeholder="平(可空)" style="width:60px" title="留空表示只设主/客两个选项">
                                     <input type="number" name="odds_away" min="1.01" max="1000" step="0.01" placeholder="客" style="width:60px" required>
                                     <input type="text" name="bet_deadline" value="<?php echo htmlspecialchars($m['bet_deadline']) ?>" style="width:140px" title="押注截止">
                                     <input type="text" name="watch_url" placeholder="观赛链接(留空=CCTV5)" style="width:160px" title="观赛链接，留空默认 CCTV5">
@@ -1117,7 +1260,7 @@ stdhead("菠菜系统");
                     <label>比赛时间<?php echo datetimepicker_input('match_time', '', '', ['require_files' => true, 'style' => 'padding:7px']) ?></label>
                     <label>押注截止<?php echo datetimepicker_input('bet_deadline', '', '', ['style' => 'padding:7px']) ?></label>
                     <label>主胜赔率<input type="number" name="odds_home" min="1.01" max="1000" step="0.01" required></label>
-                    <label>平局赔率<input type="number" name="odds_draw" min="1.01" max="1000" step="0.01" required></label>
+                    <label>平局赔率<span class="sp-muted">(留空=只设主/客)</span><input type="number" name="odds_draw" min="1.01" max="1000" step="0.01"></label>
                     <label>客胜赔率<input type="number" name="odds_away" min="1.01" max="1000" step="0.01" required></label>
                     <label>观赛链接<input type="text" name="watch_url" placeholder="留空默认 CCTV5"></label>
                     <label>&nbsp;<button type="submit">创建比赛</button></label>
