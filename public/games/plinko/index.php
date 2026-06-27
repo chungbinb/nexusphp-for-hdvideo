@@ -130,7 +130,7 @@ echo game_back_link();
 <div class="pk-wrap">
     <div class="pk-head">
         <div>
-            <div class="pk-title">Plinko 弹珠 <span class="pk-badge">内测中 v0.1</span></div>
+            <div class="pk-title">Plinko 弹珠 <span class="pk-badge">内测中 v0.2</span></div>
             <div class="pk-muted">投入电影票放下小球，落到不同格子按倍数派彩，越靠边倍数越高。</div>
         </div>
         <div class="pk-balance">我的电影票：<b id="pkBal"><?php echo pk_money($CURUSER['seedbonus']) ?></b> 张</div>
@@ -161,7 +161,7 @@ echo game_back_link();
         </div>
     </div>
 
-    <div class="pk-panel">
+    <div class="pk-panel" id="pkMine">
         <h3 style="margin:0 0 10px">我的最近战绩（共 <?php echo (int)($sum['n'] ?? 0) ?> 次，净 <span class="<?php echo (float)($sum['net'] ?? 0) >= 0 ? 'pk-pos' : 'pk-neg' ?>"><?php echo ((float)($sum['net'] ?? 0) >= 0 ? '+' : '') . number_format((float)($sum['net'] ?? 0), 0) ?></span>）</h3>
         <table class="pk-tbl">
             <tr><th>时间</th><th>下注</th><th>倍数</th><th>盈亏</th></tr>
@@ -184,7 +184,7 @@ echo game_back_link();
     $pkLuck = game_lb_run("SELECT `s`.`uid` AS uid, `u`.`username` AS username, MAX(`s`.`delta`) AS amt, COUNT(*) AS cnt FROM `" . PK_TABLE . "` `s` INNER JOIN `users` `u` ON `u`.`id` = `s`.`uid` GROUP BY `s`.`uid`, `u`.`username` ORDER BY amt DESC, cnt DESC LIMIT 10");
     echo game_lb_css();
     ?>
-    <div class="pk-panel">
+    <div class="pk-panel" id="pkLb">
         <h3 style="margin:0 0 12px">🏆 Plinko 榜单</h3>
         <div class="glb-grid">
             <?php
@@ -202,6 +202,17 @@ echo game_back_link();
     var betInput = document.getElementById('pkBet'), dropBtn = document.getElementById('pkDrop');
     var board = document.getElementById('pkBoard'), ball = document.getElementById('pkBall'), resultEl = document.getElementById('pkResult');
     function fmt(n) { return (Math.round(n * 10) / 10).toFixed(1); }
+    function refreshPanels() {
+        fetch(location.href, { credentials: 'same-origin' })
+            .then(function (r) { return r.text(); })
+            .then(function (html) {
+                var doc = new DOMParser().parseFromString(html, 'text/html');
+                ['pkMine', 'pkLb'].forEach(function (id) {
+                    var f = doc.getElementById(id), cur = document.getElementById(id);
+                    if (f && cur) cur.innerHTML = f.innerHTML;
+                });
+            }).catch(function () {});
+    }
 
     document.querySelectorAll('.pk-chip').forEach(function (c) {
         c.addEventListener('click', function () {
@@ -242,6 +253,7 @@ echo game_back_link();
         tr.innerHTML = '<td>刚刚</td><td>' + bet + '</td><td>' + d.mult + '×</td><td class="' + cls + '">' + (d.delta >= 0 ? '+' : '') + Math.round(d.delta) + '</td>';
         tb.insertBefore(tr, tb.firstChild);
         busy = false; dropBtn.disabled = false;
+        refreshPanels();
     }
 
     dropBtn.addEventListener('click', function () {

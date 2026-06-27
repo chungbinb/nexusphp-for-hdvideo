@@ -349,7 +349,7 @@ echo game_back_link();
 <div class="bj-wrap">
     <div class="bj-head">
         <div>
-            <div class="bj-title">二十一点 <span class="bj-badge">内测中 v0.1</span></div>
+            <div class="bj-title">二十一点 <span class="bj-badge">内测中 v0.2</span></div>
             <div class="bj-muted">点数接近 21 且不爆即胜。庄家停在 17，黑杰克(首两张 A+10)赔 1.5 倍。</div>
         </div>
         <div class="bj-balance">我的电影票：<b id="bjBal"><?php echo bj_money($CURUSER['seedbonus']) ?></b> 张</div>
@@ -385,7 +385,7 @@ echo game_back_link();
         <div class="bj-muted" id="bjMsg" style="margin-top:10px"></div>
     </div>
 
-    <div class="bj-panel">
+    <div class="bj-panel" id="bjMine">
         <h3 style="margin:0 0 10px">我的最近战绩（共 <?php echo (int)($sum['n'] ?? 0) ?> 局，净 <span class="<?php echo (float)($sum['net'] ?? 0) >= 0 ? 'bj-pos' : 'bj-neg' ?>"><?php echo ((float)($sum['net'] ?? 0) >= 0 ? '+' : '') . number_format((float)($sum['net'] ?? 0), 0) ?></span>）</h3>
         <table class="bj-tbl">
             <tr><th>时间</th><th>下注</th><th>结果</th><th>盈亏</th></tr>
@@ -408,7 +408,7 @@ echo game_back_link();
     $bjLuck = game_lb_run("SELECT `s`.`uid` AS uid, `u`.`username` AS username, MAX(`s`.`delta`) AS amt, COUNT(*) AS cnt FROM `" . BJ_RESULT_TABLE . "` `s` INNER JOIN `users` `u` ON `u`.`id` = `s`.`uid` GROUP BY `s`.`uid`, `u`.`username` ORDER BY amt DESC, cnt DESC LIMIT 10");
     echo game_lb_css();
     ?>
-    <div class="bj-panel">
+    <div class="bj-panel" id="bjLb">
         <h3 style="margin:0 0 12px">🏆 二十一点榜单</h3>
         <div class="glb-grid">
             <?php
@@ -440,6 +440,17 @@ echo game_back_link();
         return '<div class="' + cls + '"><span class="top">' + c.r + c.s + '</span><span class="bot">' + c.r + c.s + '</span></div>';
     }
     function fmt(n) { return (Math.round(n * 10) / 10).toFixed(1); }
+    function refreshPanels() {
+        fetch(location.href, { credentials: 'same-origin' })
+            .then(function (r) { return r.text(); })
+            .then(function (html) {
+                var doc = new DOMParser().parseFromString(html, 'text/html');
+                ['bjMine', 'bjLb'].forEach(function (id) {
+                    var f = doc.getElementById(id), cur = document.getElementById(id);
+                    if (f && cur) cur.innerHTML = f.innerHTML;
+                });
+            }).catch(function () {});
+    }
 
     function render(d) {
         document.getElementById('bjPlayer').innerHTML = d.player.map(cardHtml).join('');
@@ -460,6 +471,7 @@ echo game_back_link();
                 var cls = (d.outcome === 'win' || d.outcome === 'blackjack') ? 'bj-win' : (d.outcome === 'push' ? 'bj-push' : 'bj-lose');
                 result.className = 'bj-result ' + cls;
                 result.textContent = d.outcomeLabel;
+                refreshPanels();
             }
         }
     }

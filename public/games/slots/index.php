@@ -151,7 +151,7 @@ echo game_back_link();
 <div class="sl-wrap">
     <div class="sl-head">
         <div>
-            <div class="sl-title">老虎机 <span class="sl-badge">内测中 v0.1</span></div>
+            <div class="sl-title">老虎机 <span class="sl-badge">内测中 v0.2</span></div>
             <div class="sl-muted">投入电影票拉一把，三个相同按倍数派彩，两个🍒回本。</div>
         </div>
         <div class="sl-balance">我的电影票：<b id="slBal"><?php echo sl_money($CURUSER['seedbonus']) ?></b> 张</div>
@@ -182,7 +182,7 @@ echo game_back_link();
         </div>
     </div>
 
-    <div class="sl-panel">
+    <div class="sl-panel" id="slMine">
         <h3 style="margin:0 0 10px">我的最近战绩（共 <?php echo (int)($sum['n'] ?? 0) ?> 把，净 <span class="<?php echo (float)($sum['net'] ?? 0) >= 0 ? 'sl-pos' : 'sl-neg' ?>"><?php echo ((float)($sum['net'] ?? 0) >= 0 ? '+' : '') . number_format((float)($sum['net'] ?? 0), 0) ?></span>）</h3>
         <table class="sl-tbl">
             <tr><th>时间</th><th>结果</th><th>下注</th><th>盈亏</th></tr>
@@ -205,7 +205,7 @@ echo game_back_link();
     $slLuck = game_lb_run("SELECT `s`.`uid` AS uid, `u`.`username` AS username, MAX(`s`.`delta`) AS amt, COUNT(*) AS cnt FROM `" . SL_TABLE . "` `s` INNER JOIN `users` `u` ON `u`.`id` = `s`.`uid` GROUP BY `s`.`uid`, `u`.`username` ORDER BY amt DESC, cnt DESC LIMIT 10");
     echo game_lb_css();
     ?>
-    <div class="sl-panel">
+    <div class="sl-panel" id="slBoard">
         <h3 style="margin:0 0 12px">🏆 老虎机榜单</h3>
         <div class="glb-grid">
             <?php
@@ -223,6 +223,17 @@ echo game_back_link();
     var betInput = document.getElementById('slBet'), spinBtn = document.getElementById('slSpin'), resultEl = document.getElementById('slResult');
     var reelEls = [document.getElementById('slR0'), document.getElementById('slR1'), document.getElementById('slR2')];
     function fmt(n) { return (Math.round(n * 10) / 10).toFixed(1); }
+    function refreshPanels() {
+        fetch(location.href, { credentials: 'same-origin' })
+            .then(function (r) { return r.text(); })
+            .then(function (html) {
+                var doc = new DOMParser().parseFromString(html, 'text/html');
+                ['slMine', 'slBoard'].forEach(function (id) {
+                    var f = doc.getElementById(id), c = document.getElementById(id);
+                    if (f && c) c.innerHTML = f.innerHTML;
+                });
+            }).catch(function () {});
+    }
     document.querySelectorAll('.sl-chip').forEach(function (c) {
         c.addEventListener('click', function () {
             document.querySelectorAll('.sl-chip').forEach(function (x) { x.classList.remove('sel'); });
@@ -254,6 +265,7 @@ echo game_back_link();
                     tr.innerHTML = '<td>刚刚</td><td style="font-size:18px">' + SYMS[d.reels[0]] + SYMS[d.reels[1]] + SYMS[d.reels[2]] + '</td><td>' + bet + '</td><td class="' + cls + '">' + (d.delta >= 0 ? '+' : '') + Math.round(d.delta) + '</td>';
                     tb.insertBefore(tr, tb.firstChild);
                     busy = false; spinBtn.disabled = false;
+                    refreshPanels();
                 }, 1100);
             })
             .catch(function () { spinners.forEach(clearInterval); resultEl.style.color = '#ff9a9a'; resultEl.textContent = '网络错误'; busy = false; spinBtn.disabled = false; });

@@ -248,7 +248,7 @@ echo game_back_link();
 <div class="hl-wrap">
     <div class="hl-head">
         <div>
-            <div class="hl-title">猜高低 <span class="hl-badge">内测中 v0.1</span></div>
+            <div class="hl-title">猜高低 <span class="hl-badge">内测中 v0.2</span></div>
             <div class="hl-muted">猜下一张牌比当前大还是小（A 最小、K 最大）。猜中可叠倍续猜，随时收手，猜错或相同则归零。</div>
         </div>
         <div class="hl-balance">我的电影票：<b id="hlBal"><?php echo hl_money($CURUSER['seedbonus']) ?></b> 张</div>
@@ -272,7 +272,7 @@ echo game_back_link();
         <div class="hl-result" id="hlResult"></div>
     </div>
 
-    <div class="hl-panel">
+    <div class="hl-panel" id="hlMine">
         <h3 style="margin:0 0 10px">我的最近战绩（共 <?php echo (int)($sum['n'] ?? 0) ?> 局，净 <span class="<?php echo (float)($sum['net'] ?? 0) >= 0 ? 'hl-pos' : 'hl-neg' ?>"><?php echo ((float)($sum['net'] ?? 0) >= 0 ? '+' : '') . number_format((float)($sum['net'] ?? 0), 0) ?></span>）</h3>
         <table class="hl-tbl">
             <tr><th>时间</th><th>下注</th><th>连胜</th><th>结果</th><th>盈亏</th></tr>
@@ -296,7 +296,7 @@ echo game_back_link();
     $hlStreak = game_lb_run("SELECT `s`.`uid` AS uid, `u`.`username` AS username, MAX(`s`.`streak`) AS amt, COUNT(*) AS cnt FROM `" . HL_RESULT_TABLE . "` `s` INNER JOIN `users` `u` ON `u`.`id` = `s`.`uid` GROUP BY `s`.`uid`, `u`.`username` ORDER BY amt DESC, cnt DESC LIMIT 10");
     echo game_lb_css();
     ?>
-    <div class="hl-panel">
+    <div class="hl-panel" id="hlBoard">
         <h3 style="margin:0 0 12px">🏆 猜高低榜单</h3>
         <div class="glb-grid">
             <?php
@@ -317,6 +317,17 @@ echo game_back_link();
     var hiM = document.getElementById('hlHiM'), loM = document.getElementById('hlLoM');
     var initState = <?php echo json_encode($initState, JSON_UNESCAPED_UNICODE) ?: 'null' ?>;
     function fmt(n) { return (Math.round(n * 10) / 10).toFixed(1); }
+    function refreshPanels() {
+        fetch(location.href, { credentials: 'same-origin' })
+            .then(function (r) { return r.text(); })
+            .then(function (html) {
+                var doc = new DOMParser().parseFromString(html, 'text/html');
+                ['hlMine', 'hlBoard'].forEach(function (id) {
+                    var f = doc.getElementById(id), cur = document.getElementById(id);
+                    if (f && cur) cur.innerHTML = f.innerHTML;
+                });
+            }).catch(function () {});
+    }
 
     function showCard(c) {
         cardEl.className = 'hl-card' + (c.red ? ' red' : '');
@@ -343,6 +354,7 @@ echo game_back_link();
         resultEl.className = 'hl-result ' + cls;
         resultEl.textContent = msg;
         if (d.balance != null) document.getElementById('hlBal').textContent = fmt(d.balance);
+        refreshPanels();
     }
 
     function post(action, extra) {
