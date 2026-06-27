@@ -47,6 +47,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('hr:update_status --ignore_time=1')->hourly();
         $schedule->command('user:delete_expired_token')->dailyAt('04:00');
         $schedule->command('bank:auto_repay')->dailyAt('03:30');
+        $schedule->command('bank:dividend')->cron('0 3 1 1,4,7,10 *'); // 每季度首日 03:00 分红
         $schedule->command('claim:settle')->hourly()->when(function () {
             return Carbon::now()->format('d') == '01';
         });

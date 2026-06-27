@@ -13,17 +13,34 @@ if ($action === 'status') {
     exit;
 }
 
-if (in_array($action, ['deposit', 'withdraw', 'deposit_fix', 'withdraw_fix', 'borrow', 'repay'], true)) {
+if (in_array($action, ['deposit', 'withdraw', 'deposit_fix', 'withdraw_fix', 'repay'], true)) {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         echo json_encode(['ok' => false, 'error' => '请求方式错误。']);
         exit;
     }
     [$status, $err] = bank_do($uid, $action, $_POST['amount'] ?? 0, $_POST['term'] ?? 0);
-    if ($err !== '') {
-        echo json_encode(['ok' => false, 'error' => $err], JSON_UNESCAPED_UNICODE);
-        exit;
-    }
-    echo json_encode(['ok' => true] + $status, JSON_UNESCAPED_UNICODE);
+    echo json_encode($err !== '' ? ['ok' => false, 'error' => $err] : (['ok' => true] + $status), JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+if ($action === 'borrow') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') { echo json_encode(['ok' => false, 'error' => '请求方式错误。']); exit; }
+    [$status, $err] = bank_apply_loan($uid, $_POST['amount'] ?? 0, $_POST['term'] ?? 0, $_POST['guarantors'] ?? '');
+    echo json_encode($err !== '' ? ['ok' => false, 'error' => $err] : (['ok' => true] + $status), JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+if ($action === 'cancel_app') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') { echo json_encode(['ok' => false, 'error' => '请求方式错误。']); exit; }
+    [$status, $err] = bank_cancel_app($uid);
+    echo json_encode($err !== '' ? ['ok' => false, 'error' => $err] : (['ok' => true] + $status), JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+if ($action === 'guarantee_agree' || $action === 'guarantee_reject') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') { echo json_encode(['ok' => false, 'error' => '请求方式错误。']); exit; }
+    [$status, $err] = bank_respond_guarantee($uid, $_POST['app_id'] ?? 0, $action === 'guarantee_agree');
+    echo json_encode($err !== '' ? ['ok' => false, 'error' => $err] : (['ok' => true] + $status), JSON_UNESCAPED_UNICODE);
     exit;
 }
 
