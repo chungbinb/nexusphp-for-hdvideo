@@ -408,11 +408,19 @@ function game_sp_points($v, $signed = false)
 /** Pending-bet pool for a match: ['home','draw','away' => amount, 'count', 'total']. */
 function game_sp_pool($matchId)
 {
-    $pool = ['home' => 0.0, 'draw' => 0.0, 'away' => 0.0, 'count' => 0, 'total' => 0.0, 'players' => 0];
-    $res = sql_query("SELECT `choice`, COUNT(*) AS c, SUM(`amount`) AS s FROM `" . GAME_SP_BET_TABLE . "` WHERE `match_id` = " . (int)$matchId . " AND `status` = 'pending' GROUP BY `choice`") or sqlerr(__FILE__, __LINE__);
+    $pool = ['home' => 0.0, 'draw' => 0.0, 'away' => 0.0, 'count' => 0, 'total' => 0.0, 'players' => 0,
+        'sides' => [
+            'home' => ['amount' => 0.0, 'count' => 0, 'players' => 0],
+            'draw' => ['amount' => 0.0, 'count' => 0, 'players' => 0],
+            'away' => ['amount' => 0.0, 'count' => 0, 'players' => 0],
+        ]];
+    $res = sql_query("SELECT `choice`, COUNT(*) AS c, COUNT(DISTINCT `uid`) AS p, SUM(`amount`) AS s FROM `" . GAME_SP_BET_TABLE . "` WHERE `match_id` = " . (int)$matchId . " AND `status` = 'pending' GROUP BY `choice`") or sqlerr(__FILE__, __LINE__);
     while ($row = mysql_fetch_assoc($res)) {
         $c = $row['choice'];
         if (isset($pool[$c])) $pool[$c] = (float)$row['s'];
+        if (isset($pool['sides'][$c])) {
+            $pool['sides'][$c] = ['amount' => (float)$row['s'], 'count' => (int)$row['c'], 'players' => (int)$row['p']];
+        }
         $pool['count'] += (int)$row['c'];
         $pool['total'] += (float)$row['s'];
     }
@@ -897,14 +905,15 @@ stdhead("菠菜系统");
 .sp-pool b { color: #2c7; }
 .sp-chart { margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(120,150,190,.3); }
 .sp-chart-title { font-size: 13px; font-weight: 700; color: #6f7f95; margin-bottom: 6px; }
-.sp-bar { display: flex; width: 100%; height: 22px; border-radius: 6px; overflow: hidden; background: rgba(120,150,190,.15); }
-.sp-seg { display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; font-weight: 700; min-width: 0; transition: width .3s ease; }
 .sp-seg-home { background: #2e8b57; }
 .sp-seg-draw { background: #b0883a; }
 .sp-seg-away { background: #c0392b; }
-.sp-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; font-size: 12px; color: #6f7f95; }
-.sp-leg { display: inline-flex; align-items: center; gap: 5px; }
-.sp-dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.sp-bars { display: flex; align-items: flex-end; justify-content: space-around; gap: 12px; min-height: 150px; padding-top: 6px; }
+.sp-col { flex: 1; max-width: 120px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
+.sp-col-amt { font-size: 12px; font-weight: 800; margin-bottom: 4px; color: #2b3a4b; }
+.sp-col-bar { width: 56%; max-width: 64px; min-height: 4px; border-radius: 6px 6px 0 0; transition: height .3s ease; }
+.sp-col-label { margin-top: 6px; font-size: 13px; font-weight: 700; }
+.sp-col-meta { font-size: 12px; color: #6f7f95; }
 .sp-form input[type="number"] { width: 140px; padding: 8px; }
 .sp-form button { padding: 8px 16px; font-weight: 700; cursor: pointer; }
 .sp-quick { display: inline-flex; gap: 6px; flex-wrap: wrap; }
@@ -929,7 +938,7 @@ stdhead("菠菜系统");
 </style>
 <div class="sp-wrap">
     <div class="sp-head">
-        <div class="sp-title">菠菜系统 <span class="sp-badge">内测中 v0.3</span></div>
+        <div class="sp-title">菠菜系统 <span class="sp-badge">内测中 v0.4</span></div>
         <div class="sp-balance">我的电影票：<?php echo game_sp_money($CURUSER['seedbonus']) ?> 张</div>
     </div>
 
@@ -1008,17 +1017,26 @@ stdhead("菠菜系统");
                     <div class="sp-chart-title">投注分布</div>
                     <?php if ($poolTotal <= 0) { ?>
                         <div class="sp-muted" style="font-size:13px">暂无下注，赔率为开盘线。</div>
-                    <?php } else { ?>
-                        <div class="sp-bar">
+                    <?php } else {
+                        $maxAmt = 0.0;
+                        foreach ($sideMeta as $k => $meta) $maxAmt = max($maxAmt, (float)$pool['sides'][$k]['amount']);
+                        if ($maxAmt <= 0) $maxAmt = 1;
+                    ?>
+                        <div class="sp-bars">
                             <?php foreach ($sideMeta as $k => $meta) {
-                                $pct = round((float)$pool[$k] / $poolTotal * 100, 1);
-                                if ($pct <= 0) continue;
-                            ?><span class="sp-seg sp-seg-<?php echo $meta['cls'] ?>" style="width:<?php echo $pct ?>%" title="<?php echo $meta['label'] . ' ' . $pct . '%' ?>"><?php echo $pct >= 10 ? $pct . '%' : '' ?></span><?php } ?>
-                        </div>
-                        <div class="sp-legend">
-                            <?php foreach ($sideMeta as $k => $meta) {
-                                $pct = round((float)$pool[$k] / $poolTotal * 100, 1);
-                            ?><span class="sp-leg"><i class="sp-dot sp-seg-<?php echo $meta['cls'] ?>"></i><?php echo $meta['label'] ?> <?php echo number_format($pool[$k]) ?> 票（<?php echo $pct ?>%）</span><?php } ?>
+                                $sd = $pool['sides'][$k];
+                                $amt = (float)$sd['amount'];
+                                $ppl = (int)$sd['players'];
+                                $pct = round($amt / $poolTotal * 100, 1);
+                                $h = max(4, (int)round($amt / $maxAmt * 120));
+                            ?>
+                                <div class="sp-col">
+                                    <div class="sp-col-amt"><?php echo number_format($amt) ?></div>
+                                    <div class="sp-col-bar sp-seg-<?php echo $meta['cls'] ?>" style="height:<?php echo $h ?>px" title="<?php echo $meta['label'] . ' ' . $pct . '%' ?>"></div>
+                                    <div class="sp-col-label"><?php echo $meta['label'] ?></div>
+                                    <div class="sp-col-meta"><?php echo number_format($ppl) ?> 人 · <?php echo $pct ?>%</div>
+                                </div>
+                            <?php } ?>
                         </div>
                     <?php } ?>
                 </div>
