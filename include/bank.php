@@ -10,6 +10,11 @@
  * 自管理表，服务端事务。
  */
 
+// 在后台(Filament/Laravel)上下文里，旧版 mysql_* 兼容层可能未加载，按需补上。
+if (!function_exists('mysql_query') && is_file(__DIR__ . '/../nexus/Database/helpers.php')) {
+    require_once __DIR__ . '/../nexus/Database/helpers.php';
+}
+
 const BANK_BUSINESS_TYPE = 51;
 const BANK_ACCOUNT_TABLE = 'hdvideo_bank_accounts';
 const BANK_CONFIG_TABLE = 'hdvideo_bank_config';
