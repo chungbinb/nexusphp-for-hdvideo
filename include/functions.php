@@ -3218,6 +3218,10 @@ else {
 		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l2.6 5.3 5.9.86-4.25 4.14 1 5.86L12 17.1l-5.25 2.76 1-5.86L3.5 9.66l5.9-.86L12 3.5z"></path></svg>
 		<span class="qd-side-text">收藏</span>
 	</a>
+	<button type="button" class="qd-side-btn" id="qd-bank-btn" title="高清银行">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-6 9 6"></path><path d="M4 10v9h16v-9"></path><path d="M8 19v-6M12 19v-6M16 19v-6"></path><path d="M3 21h18"></path></svg>
+		<span class="qd-side-text">高清银行</span>
+	</button>
 	<button type="button" class="qd-side-btn" id="qd-personalize-btn" title="个性化配色">
 		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="1.3"></circle><circle cx="17.5" cy="10.5" r="1.3"></circle><circle cx="8.5" cy="7.5" r="1.3"></circle><circle cx="6.5" cy="12.5" r="1.3"></circle><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c.93 0 1.5-.75 1.5-1.5 0-.4-.18-.74-.42-1-.24-.27-.42-.6-.42-1 0-.83.67-1.5 1.5-1.5H16c3.31 0 6-2.69 6-6 0-4.42-4.48-8-10-8z"></path></svg>
 		<span class="qd-side-text">个性化</span>
@@ -3227,6 +3231,156 @@ else {
 		<span class="qd-side-text">游戏大厅</span>
 	</a>
 </div>
+<style>
+.qd-bank-bal{display:flex;gap:10px;margin:6px 0 12px;}
+.qd-bank-bal div{flex:1;text-align:center;background:var(--bili-surface-soft,#f2f3f5);border-radius:10px;padding:9px 6px;}
+.qd-bank-bal .v{font-size:16px;font-weight:800;}
+.qd-bank-bal .k{font-size:11px;color:var(--bili-text-muted,#9499a0);margin-top:2px;}
+.qd-bank-rate{font-size:12px;color:var(--bili-text-secondary,#61666d);margin:0 0 12px;}
+.qd-bank-amt{width:100%;box-sizing:border-box;border:1px solid var(--bili-border,#e6e9ef);border-radius:8px;padding:9px 10px;font-size:15px;background:var(--bili-surface,#fff);color:var(--bili-text,#18191c);}
+.qd-bank-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;}
+.qd-bank-acts button{border:none;border-radius:8px;padding:9px 0;font-size:13px;font-weight:700;cursor:pointer;color:#fff;}
+.qd-bank-deposit{background:#2e8b57;}.qd-bank-withdraw{background:#3a6ea5;}
+.qd-bank-borrow{background:#c0883a;}.qd-bank-repay{background:#c0392b;}
+.qd-bank-acts button:disabled{opacity:.5;cursor:not-allowed;}
+.qd-bank-msg{margin-top:10px;font-size:13px;font-weight:700;min-height:18px;text-align:center;}
+.qd-bank-sec{border-top:1px solid var(--bili-border,#e6e9ef);margin-top:12px;padding-top:12px;}
+.qd-bank-sec h4{margin:0 0 8px;font-size:13px;display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+.qd-bank-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.qd-bank-row .qd-bank-amt{flex:1;min-width:110px;}
+.qd-bank-sel{border:1px solid var(--bili-border,#e6e9ef);border-radius:8px;padding:8px;background:var(--bili-surface,#fff);color:var(--bili-text,#18191c);cursor:pointer;}
+.qd-bank-info{font-size:11px;font-weight:400;color:var(--bili-text-secondary,#61666d);}
+.qd-bank-info b{color:var(--bili-text,#18191c);}
+.qd-bank-info .warn{color:#c0392b;font-weight:700;}
+.qd-bank-detail{font-size:12px;color:var(--bili-text-secondary,#61666d);margin-bottom:8px;line-height:1.6;}
+.qd-b1{padding:9px 14px;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;color:#fff;}
+.qd-bank-bal{flex-wrap:wrap;}
+.qd-bank-bal>div{min-width:64px;}
+#qd-bank-modal .qd-modal-card{width:460px;}
+@media (max-width:520px){#qd-bank-modal .qd-modal-card{width:92vw;}}
+</style>
+<div class="qd-modal" id="qd-bank-modal" hidden>
+	<div class="qd-modal-mask" data-qd-close></div>
+	<div class="qd-modal-card">
+		<h3>🏦 高清银行</h3>
+		<p class="qd-modal-sub">活期随存随取，定期到期高息，急用可借（逾期每天加收费用）。</p>
+		<div class="qd-bank-bal">
+			<div><div class="v" id="qd-bank-wallet">-</div><div class="k">钱包</div></div>
+			<div><div class="v" id="qd-bank-cur" style="color:#2e8b57">-</div><div class="k">活期</div></div>
+			<div><div class="v" id="qd-bank-fix" style="color:#8e44ad">-</div><div class="k">定期</div></div>
+			<div><div class="v" id="qd-bank-loanbal" style="color:#c0392b">-</div><div class="k">欠款</div></div>
+		</div>
+		<div class="qd-bank-detail" id="qd-bank-credit" style="text-align:center;margin:2px 0 4px"></div>
+
+		<div class="qd-bank-sec">
+			<h4>活期存款 <span class="qd-bank-info" id="qd-bank-curr"></span></h4>
+			<div class="qd-bank-row">
+				<input type="number" class="qd-bank-amt" id="qd-amt-cur" min="1" placeholder="金额">
+				<button type="button" class="qd-b1 qd-bank-deposit" data-bank="deposit" data-amt="qd-amt-cur">存入</button>
+				<button type="button" class="qd-b1 qd-bank-withdraw" data-bank="withdraw" data-amt="qd-amt-cur">取出</button>
+			</div>
+		</div>
+
+		<div class="qd-bank-sec">
+			<h4>定期存款 <span class="qd-bank-info" id="qd-bank-fixr"></span></h4>
+			<div id="qd-bank-fix-none">
+				<div class="qd-bank-row">
+					<select class="qd-bank-sel" id="qd-fix-term"></select>
+					<input type="number" class="qd-bank-amt" id="qd-amt-fix" min="1" placeholder="金额">
+					<button type="button" class="qd-b1 qd-bank-borrow" data-bank="deposit_fix" data-amt="qd-amt-fix" data-term="qd-fix-term">存定期</button>
+				</div>
+			</div>
+			<div id="qd-bank-fix-has" style="display:none">
+				<div class="qd-bank-detail" id="qd-bank-fix-detail"></div>
+				<button type="button" class="qd-b1 qd-bank-withdraw" data-bank="withdraw_fix">取出定期</button>
+			</div>
+		</div>
+
+		<div class="qd-bank-sec">
+			<h4>借款 <span class="qd-bank-info" id="qd-bank-loanr"></span></h4>
+			<div id="qd-bank-loan-none">
+				<div class="qd-bank-row">
+					<select class="qd-bank-sel" id="qd-loan-term"></select>
+					<input type="number" class="qd-bank-amt" id="qd-amt-borrow" min="1" placeholder="金额">
+					<button type="button" class="qd-b1 qd-bank-borrow" data-bank="borrow" data-amt="qd-amt-borrow" data-term="qd-loan-term">借款</button>
+				</div>
+			</div>
+			<div id="qd-bank-loan-has" style="display:none">
+				<div class="qd-bank-detail" id="qd-bank-loan-detail"></div>
+				<div class="qd-bank-row">
+					<input type="number" class="qd-bank-amt" id="qd-amt-repay" min="1" placeholder="还款金额">
+					<button type="button" class="qd-b1 qd-bank-repay" data-bank="repay" data-amt="qd-amt-repay">还款</button>
+				</div>
+			</div>
+		</div>
+
+		<div class="qd-bank-msg" id="qd-bank-msg"></div>
+		<div class="qd-modal-actions"><button type="button" class="qd-btn-reset" data-qd-close>关闭</button></div>
+	</div>
+</div>
+<script>
+(function () {
+	var modal = document.getElementById('qd-bank-modal'), btn = document.getElementById('qd-bank-btn');
+	if (!modal || !btn) return;
+	var msg = document.getElementById('qd-bank-msg');
+	var busy = false, termsSet = false;
+	function $(id) { return document.getElementById(id); }
+	function fmt(n) { return Number(Math.round((n || 0) * 100) / 100).toLocaleString('en-US', { maximumFractionDigits: 2 }); }
+	function dateStr(ts) { if (!ts) return '-'; var d = new Date(ts * 1000); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+	function setTerms(d) {
+		if (termsSet) return; termsSet = true;
+		var fs = $('qd-fix-term');
+		if (fs) fs.innerHTML = (d.fix_tiers || []).map(function (t) { return '<option value="' + t.days + '">' + t.days + '天 · 年化' + t.annual + '%</option>'; }).join('');
+		var ls = $('qd-loan-term');
+		if (ls) ls.innerHTML = (d.loan_tiers || []).map(function (t) { return '<option value="' + t.periods + '">' + t.periods + '期(' + (t.periods * 30) + '天) · 月息' + t.rate_m + '%</option>'; }).join('');
+	}
+	function show(id, on) { var e = $(id); if (e) e.style.display = on ? '' : 'none'; }
+	function paint(d) {
+		setTerms(d);
+		$('qd-bank-wallet').textContent = fmt(d.wallet);
+		$('qd-bank-cur').textContent = fmt(d.cur_deposit);
+		$('qd-bank-fix').textContent = fmt(d.fix ? d.fix.value_now : 0);
+		$('qd-bank-loanbal').textContent = fmt(d.loan ? d.loan.owed : 0);
+		$('qd-bank-credit').innerHTML = '信用等级 <b style="color:#8e44ad">' + d.credit.grade + '</b> · 评分 ' + d.credit.score + ' · 分享率 ' + d.credit.ratio + ' · 可借上限 <b>' + fmt(d.credit.max_loan) + '</b>';
+		$('qd-bank-curr').innerHTML = '年化 <b>' + d.cur_annual + '%</b> · 满24h起息';
+		$('qd-bank-fixr').innerHTML = '到期得全额利息，提前取只退本金';
+		$('qd-bank-loanr').innerHTML = d.can_borrow ? '按信用等级定额度，分期月息见下' : '<span class="warn">' + d.borrow_block + '</span>';
+		if (d.fix) {
+			show('qd-bank-fix-none', false); show('qd-bank-fix-has', true);
+			$('qd-bank-fix-detail').innerHTML = '本金 <b>' + fmt(d.fix.principal) + '</b> · 年化 ' + d.fix.annual + '% · ' + d.fix.term + '天 · 到期 ' + dateStr(d.fix.due_ts) + '（' + (d.fix.matured ? '<b style="color:#2e8b57">已到期</b>' : '未到期') + '）<br>到期可得 <b>' + fmt(d.fix.mature_value) + '</b>，现在取出 <b>' + fmt(d.fix.value_now) + '</b>（提前取利息失效）';
+		} else { show('qd-bank-fix-none', true); show('qd-bank-fix-has', false); }
+		if (d.loan) {
+			show('qd-bank-loan-none', false); show('qd-bank-loan-has', true);
+			var od = d.loan.overdue ? ('<span class="warn">已逾期 ' + d.loan.overdue_days + ' 天</span>') : ('到期 ' + dateStr(d.loan.due_ts));
+			$('qd-bank-loan-detail').innerHTML = '当前欠款 <b style="color:#c0392b">' + fmt(d.loan.owed) + '</b>（本金 ' + fmt(d.loan.principal) + '）· ' + d.loan.periods + '期 · 月息 ' + d.loan.rate_m + '% · ' + od + (d.restricted ? '<br><span class="warn">⚠ 逾期已暂停娱乐功能，并启用每日自动还款</span>' : '');
+		} else {
+			show('qd-bank-loan-none', true); show('qd-bank-loan-has', false);
+			var bb = modal.querySelector('[data-bank="borrow"]'); if (bb) bb.disabled = !d.can_borrow;
+		}
+	}
+	function load() { fetch('/bank.php?action=status', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) { if (d.ok) paint(d); }).catch(function () {}); }
+	function act(b) {
+		if (busy) return;
+		var action = b.getAttribute('data-bank');
+		var amtId = b.getAttribute('data-amt'), termId = b.getAttribute('data-term');
+		var amount = amtId && $(amtId) ? parseFloat($(amtId).value) : 0;
+		if (action !== 'withdraw_fix' && !(amount > 0)) { msg.style.color = '#c0392b'; msg.textContent = '请输入金额'; if (amtId && $(amtId)) $(amtId).focus(); return; }
+		busy = true; msg.style.color = '#61666d'; msg.textContent = '处理中…';
+		var body = 'action=' + action + '&amount=' + encodeURIComponent(amount || 0);
+		if (termId && $(termId)) body += '&term=' + encodeURIComponent($(termId).value);
+		fetch('/bank.php', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
+			.then(function (r) { return r.json(); }).then(function (d) {
+				if (!d.ok) { msg.style.color = '#c0392b'; msg.textContent = d.error || '出错了'; return; }
+				paint(d); if (amtId && $(amtId)) $(amtId).value = '';
+				msg.style.color = '#16a34a'; msg.textContent = '操作成功';
+			}).catch(function () { msg.style.color = '#c0392b'; msg.textContent = '网络错误'; })
+			.finally(function () { busy = false; });
+	}
+	btn.addEventListener('click', function () { modal.hidden = false; msg.textContent = ''; load(); });
+	modal.querySelectorAll('[data-qd-close]').forEach(function (c) { c.addEventListener('click', function () { modal.hidden = true; }); });
+	modal.querySelectorAll('[data-bank]').forEach(function (b) { b.addEventListener('click', function () { act(b); }); });
+})();
+</script>
 <style>
 .qd-swatch{width:48px;height:28px;border:1px solid var(--bili-border,#e6e9ef);border-radius:6px;cursor:pointer;padding:0;box-shadow:inset 0 0 0 1px rgba(255,255,255,.5);}
 .qd-picker{position:absolute;z-index:10002;width:212px;background:var(--bili-surface,#fff);border:1px solid var(--bili-border,#e6e9ef);border-radius:12px;box-shadow:0 14px 44px rgba(0,0,0,.3);padding:12px;}
