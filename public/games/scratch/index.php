@@ -110,6 +110,14 @@ function sc_ensure_tables()
     if ($cfg && (int)mysql_fetch_assoc($cfg)['c'] === 0) {
         @sql_query("INSERT INTO `" . SC_CONFIG_TABLE . "` (`name`,`value`) VALUES ('cost', '" . SC_DEFAULT_COST . "')");
     }
+    $dl = @sql_query("SELECT COUNT(*) AS c FROM `" . SC_CONFIG_TABLE . "` WHERE `name` = 'daily_limit'");
+    if ($dl && (int)mysql_fetch_assoc($dl)['c'] === 0) {
+        @sql_query("INSERT INTO `" . SC_CONFIG_TABLE . "` (`name`,`value`) VALUES ('daily_limit', '0')");
+    }
+    $cd = @sql_query("SELECT COUNT(*) AS c FROM `" . SC_CONFIG_TABLE . "` WHERE `name` = 'cooldown'");
+    if ($cd && (int)mysql_fetch_assoc($cd)['c'] === 0) {
+        @sql_query("INSERT INTO `" . SC_CONFIG_TABLE . "` (`name`,`value`) VALUES ('cooldown', '2')");
+    }
     $done = true;
 }
 
@@ -122,6 +130,50 @@ function sc_cost()
     $row = $res ? mysql_fetch_assoc($res) : null;
     $cost = $row ? max(0, (int)$row['value']) : SC_DEFAULT_COST;
     return $cost;
+}
+
+/** Per-user daily scratch cap; 0 = unlimited. */
+function sc_daily_limit()
+{
+    static $lim = null;
+    if ($lim !== null) return $lim;
+    sc_ensure_tables();
+    $res = @sql_query("SELECT `value` FROM `" . SC_CONFIG_TABLE . "` WHERE `name` = 'daily_limit' LIMIT 1");
+    $row = $res ? mysql_fetch_assoc($res) : null;
+    $lim = $row ? max(0, (int)$row['value']) : 0;
+    return $lim;
+}
+
+/** How many cards a user has scratched since today 00:00. */
+function sc_today_count($uid)
+{
+    $today = date('Y-m-d') . ' 00:00:00';
+    $res = sql_query("SELECT COUNT(*) AS c FROM `" . SC_TABLE . "` WHERE `uid` = " . (int)$uid . " AND `created_at` >= " . sqlesc($today)) or sqlerr(__FILE__, __LINE__);
+    return (int)mysql_fetch_assoc($res)['c'];
+}
+
+/** Minimum seconds between two scratches; 0 = no cooldown. */
+function sc_cooldown()
+{
+    static $cd = null;
+    if ($cd !== null) return $cd;
+    sc_ensure_tables();
+    $res = @sql_query("SELECT `value` FROM `" . SC_CONFIG_TABLE . "` WHERE `name` = 'cooldown' LIMIT 1");
+    $row = $res ? mysql_fetch_assoc($res) : null;
+    $cd = $row ? max(0, (int)$row['value']) : 2;
+    return $cd;
+}
+
+/** Seconds remaining before the user may scratch again (0 = ready). */
+function sc_cooldown_left($uid)
+{
+    $cooldown = sc_cooldown();
+    if ($cooldown <= 0) return 0;
+    $res = sql_query("SELECT `created_at` FROM `" . SC_TABLE . "` WHERE `uid` = " . (int)$uid . " ORDER BY `id` DESC LIMIT 1") or sqlerr(__FILE__, __LINE__);
+    $row = mysql_fetch_assoc($res);
+    if (!$row) return 0;
+    $diff = time() - strtotime($row['created_at']);
+    return $diff < $cooldown ? ($cooldown - $diff) : 0;
 }
 
 /** Enabled prizes as list of [name, reward_type, amount, weight]; falls back to defaults. */
@@ -184,6 +236,16 @@ function sc_buy()
         if ($oldBonus < $cost) {
             sql_query("ROLLBACK");
             return [null, "电影票不足，当前只有 " . sc_money($oldBonus) . " 张（每张需 $cost）。"];
+        }
+        $cdLeft = sc_cooldown_left($uid);
+        if ($cdLeft > 0) {
+            sql_query("ROLLBACK");
+            return [null, "手速太快，请 {$cdLeft} 秒后再刮。"];
+        }
+        $limit = sc_daily_limit();
+        if ($limit > 0 && sc_today_count($uid) >= $limit) {
+            sql_query("ROLLBACK");
+            return [null, "今天的刮卡次数已用完（每日上限 $limit 次），明天再来。"];
         }
 
         $item = sc_pick_item();
@@ -257,6 +319,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'buy')
 
 sc_ensure_tables();
 $cost = sc_cost();
+$cooldown = sc_cooldown();
+$cooldownLeft = sc_cooldown_left((int)$CURUSER['id']);
+$dailyLimit = sc_daily_limit();
+$todayLeft = $dailyLimit > 0 ? max(0, $dailyLimit - sc_today_count((int)$CURUSER['id'])) : -1;
 $myRes = sql_query("SELECT * FROM `" . SC_TABLE . "` WHERE `uid` = " . (int)$CURUSER['id'] . " ORDER BY `id` DESC LIMIT 12") or sqlerr(__FILE__, __LINE__);
 $sumRes = sql_query("SELECT COUNT(*) AS n, SUM(`delta`) AS net FROM `" . SC_TABLE . "` WHERE `uid` = " . (int)$CURUSER['id']) or sqlerr(__FILE__, __LINE__);
 $sum = mysql_fetch_assoc($sumRes);
@@ -295,8 +361,8 @@ stdhead("刮刮乐");
 <div class="sc-wrap">
     <div class="sc-head">
         <div>
-            <div class="sc-title">刮刮乐 <span class="sc-badge">内测中 v0.2</span></div>
-            <div class="sc-muted">每张 <b class="sc-cost"><?php echo (int)$cost ?></b> 电影票，买一张用鼠标刮开涂层，刮中即得。</div>
+            <div class="sc-title">刮刮乐 <span class="sc-badge">内测中 v0.4</span></div>
+            <div class="sc-muted">每张 <b class="sc-cost"><?php echo (int)$cost ?></b> 电影票，买一张用鼠标刮开涂层，刮中即得。<?php if ($dailyLimit > 0) { ?> <span style="color:#e67e22;font-weight:700">今日剩余 <span id="scLeft"><?php echo (int)$todayLeft ?></span> 次</span>（每日上限 <?php echo (int)$dailyLimit ?>）<?php } ?></div>
         </div>
         <div class="sc-balance">我的电影票：<b id="scBal"><?php echo sc_money($CURUSER['seedbonus']) ?></b> 张</div>
     </div>
@@ -311,7 +377,8 @@ stdhead("刮刮乐");
         </div>
         <div class="sc-hint" id="scHint">买一张后，按住鼠标在卡片上来回涂抹即可刮开</div>
         <div class="sc-actions">
-            <button type="button" class="sc-btn" id="scBuy">买一张（<?php echo (int)$cost ?> 电影票）</button>
+            <?php $exhausted = ($dailyLimit > 0 && $todayLeft <= 0); ?>
+            <button type="button" class="sc-btn" id="scBuy"<?php echo $exhausted ? ' disabled' : '' ?>><?php echo $exhausted ? '今日次数已用完' : '买一张（' . (int)$cost . ' 电影票）' ?></button>
         </div>
         <div class="sc-msg" id="scMsg"></div>
         <div class="sc-odds" style="margin-top:12px">
@@ -375,6 +442,23 @@ stdhead("刮刮乐");
     var buyBtn = document.getElementById('scBuy');
     var ctx = canvas.getContext('2d');
     var scratching = false, lastX = 0, lastY = 0;
+    var COOLDOWN = <?php echo (int)$cooldown ?>;
+    var BUY_LABEL = '买一张（<?php echo (int)$cost ?> 电影票）';
+    var exhausted = <?php echo ($dailyLimit > 0 && $todayLeft <= 0) ? 'true' : 'false' ?>;
+    var lastBuyTs = 0, cdTimer = null;
+
+    function armBuy() {
+        if (cdTimer) { clearTimeout(cdTimer); cdTimer = null; }
+        if (exhausted) { buyBtn.disabled = true; buyBtn.textContent = '今日次数已用完'; return; }
+        var remain = COOLDOWN * 1000 - (Date.now() - lastBuyTs);
+        if (remain <= 0) { buyBtn.disabled = false; buyBtn.textContent = BUY_LABEL; return; }
+        buyBtn.disabled = true;
+        (function tick() {
+            var r = Math.ceil((COOLDOWN * 1000 - (Date.now() - lastBuyTs)) / 1000);
+            if (r <= 0) { buyBtn.disabled = false; buyBtn.textContent = BUY_LABEL; cdTimer = null; }
+            else { buyBtn.textContent = '等待 ' + r + ' 秒'; cdTimer = setTimeout(tick, 250); }
+        })();
+    }
 
     function paintCoating() {
         ctx.globalCompositeOperation = 'source-over';
@@ -433,8 +517,8 @@ stdhead("刮刮乐");
             msg.innerHTML = '<span class="' + (pending.delta >= 0 ? 'sc-pos' : 'sc-neg') + '">🎉 ' + pending.reward + '</span>';
         }
         hint.textContent = '再来一张试试手气';
-        buyBtn.disabled = false;
         pending = null;
+        armBuy();
     }
 
     function onMove(e) {
@@ -459,8 +543,9 @@ stdhead("刮刮乐");
         fetch('/games/scratch/', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'action=buy' })
             .then(function (r) { return r.json(); })
             .then(function (d) {
-                if (!d.ok) { msg.innerHTML = '<span class="sc-neg">' + (d.error || '出错了') + '</span>'; buyBtn.disabled = false; busy = false; return; }
+                if (!d.ok) { msg.innerHTML = '<span class="sc-neg">' + (d.error || '出错了') + '</span>'; busy = false; armBuy(); return; }
                 pending = d;
+                lastBuyTs = Date.now();
                 var win = d.type !== 'none';
                 prize.className = 'sc-prize ' + (win ? 'win' : 'lose');
                 prize.innerHTML = '<div class="pz-name">' + d.name + '</div><div class="pz-reward">' + d.reward + '</div>';
@@ -468,10 +553,20 @@ stdhead("刮刮乐");
                 canvas.style.display = 'block';
                 paintCoating();
                 hint.textContent = '按住鼠标在卡片上来回涂抹刮开';
+                var leftEl = document.getElementById('scLeft');
+                if (leftEl) {
+                    var left = Math.max(0, (parseInt(leftEl.textContent, 10) || 0) - 1);
+                    leftEl.textContent = left;
+                    if (left <= 0) { exhausted = true; }
+                }
                 busy = false;
             })
-            .catch(function () { msg.innerHTML = '<span class="sc-neg">网络错误</span>'; buyBtn.disabled = false; busy = false; });
+            .catch(function () { msg.innerHTML = '<span class="sc-neg">网络错误</span>'; busy = false; armBuy(); });
     });
+
+    // initial cooldown / exhausted state on load
+    if (exhausted) { armBuy(); }
+    else if (<?php echo (int)$cooldownLeft ?> > 0) { lastBuyTs = Date.now() - (COOLDOWN - <?php echo (int)$cooldownLeft ?>) * 1000; armBuy(); }
 })();
 </script>
 <?php

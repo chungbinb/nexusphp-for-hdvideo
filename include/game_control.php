@@ -16,6 +16,9 @@ function game_control_defaults()
         'quiz'      => ['name' => '答题挑战', 'is_open' => 0, 'min_class' => 15, 'sort' => 5], // 默认关闭
         'chest'     => ['name' => '签到宝箱', 'is_open' => 1, 'min_class' => 15, 'sort' => 6],
         'blackjack' => ['name' => '二十一点', 'is_open' => 1, 'min_class' => 15, 'sort' => 7],
+        'slots'     => ['name' => '老虎机', 'is_open' => 1, 'min_class' => 15, 'sort' => 8],
+        'plinko'    => ['name' => 'Plinko弹珠', 'is_open' => 1, 'min_class' => 15, 'sort' => 9],
+        'hilo'      => ['name' => '猜高低', 'is_open' => 1, 'min_class' => 15, 'sort' => 10],
     ];
 }
 

@@ -47,7 +47,7 @@ $games = [
     ],
     [
         'title' => '刮刮乐',
-        'badge' => '内测中 v0.1',
+        'badge' => '内测中 v0.4',
         'subtitle' => '花电影票刮一张即时开奖，刮中倍数 × 面额返还，适合快速试手气。',
         'date' => '已开放',
         'price' => '立即进入',
@@ -102,6 +102,42 @@ $games = [
         'status' => '可玩',
         'tags' => ['扑克', '21点', '电影票', '对庄'],
         'theme' => 'blackjack',
+        'shots' => ['dice-a', 'dice-b', 'dice-c'],
+    ],
+    [
+        'title' => '老虎机',
+        'badge' => '内测中 v0.1',
+        'subtitle' => '投入电影票拉一把，三轴转动，三个相同按倍数派彩，两个🍒回本，7️⃣大奖。',
+        'date' => '已开放',
+        'price' => '立即进入',
+        'href' => '/games/slots/',
+        'status' => '可玩',
+        'tags' => ['老虎机', '电影票', '概率', '大奖'],
+        'theme' => 'slots',
+        'shots' => ['dice-a', 'dice-b', 'dice-c'],
+    ],
+    [
+        'title' => 'Plinko 弹珠',
+        'badge' => '内测中 v0.1',
+        'subtitle' => '放下小球穿过钉板，落到不同倍率格子，越靠边倍数越高，动画刺激。',
+        'date' => '已开放',
+        'price' => '立即进入',
+        'href' => '/games/plinko/',
+        'status' => '可玩',
+        'tags' => ['弹珠', '电影票', '概率', '休闲'],
+        'theme' => 'plinko',
+        'shots' => ['dice-a', 'dice-b', 'dice-c'],
+    ],
+    [
+        'title' => '猜高低',
+        'badge' => '内测中 v0.1',
+        'subtitle' => '猜下一张牌比当前大还是小，猜中可叠倍续猜，随时收手落袋，规则极简。',
+        'date' => '已开放',
+        'price' => '立即进入',
+        'href' => '/games/hilo/',
+        'status' => '可玩',
+        'tags' => ['扑克', '猜牌', '电影票', '叠倍'],
+        'theme' => 'hilo',
         'shots' => ['dice-a', 'dice-b', 'dice-c'],
     ],
 ];
@@ -241,6 +277,9 @@ body.page-games-php:not(.inframe) {
 .theme-quiz { --game-a: #13b58a; --game-b: #092c38; }
 .theme-chest { --game-a: #ff7f50; --game-b: #371323; }
 .theme-blackjack { --game-a: #1f9a52; --game-b: #07210f; }
+.theme-slots { --game-a: #d4a017; --game-b: #3a2a10; }
+.theme-plinko { --game-a: #2980b9; --game-b: #0a1a2a; }
+.theme-hilo { --game-a: #8e44ad; --game-b: #1a0b26; }
 
 .steam-game-main {
     padding: 12px 12px 10px;

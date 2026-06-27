@@ -90,6 +90,12 @@ class ScratchPrize extends NexusModel
         if (! DB::connection($conn)->table('hdvideo_scratch_config')->where('name', 'cost')->exists()) {
             DB::connection($conn)->table('hdvideo_scratch_config')->insert(['name' => 'cost', 'value' => (string) self::DEFAULT_COST]);
         }
+        if (! DB::connection($conn)->table('hdvideo_scratch_config')->where('name', 'daily_limit')->exists()) {
+            DB::connection($conn)->table('hdvideo_scratch_config')->insert(['name' => 'daily_limit', 'value' => '0']);
+        }
+        if (! DB::connection($conn)->table('hdvideo_scratch_config')->where('name', 'cooldown')->exists()) {
+            DB::connection($conn)->table('hdvideo_scratch_config')->insert(['name' => 'cooldown', 'value' => '2']);
+        }
     }
 
     public static function getCost(): int
@@ -106,6 +112,40 @@ class ScratchPrize extends NexusModel
         DB::connection((new static)->getConnectionName())
             ->table('hdvideo_scratch_config')
             ->updateOrInsert(['name' => 'cost'], ['value' => (string) max(0, $v)]);
+    }
+
+    /** Daily scratch cap per user; 0 = unlimited. */
+    public static function getDailyLimit(): int
+    {
+        self::ensureSchema();
+        $row = DB::connection((new static)->getConnectionName())
+            ->table('hdvideo_scratch_config')->where('name', 'daily_limit')->first();
+        return $row ? max(0, (int) $row->value) : 0;
+    }
+
+    public static function setDailyLimit(int $v): void
+    {
+        self::ensureSchema();
+        DB::connection((new static)->getConnectionName())
+            ->table('hdvideo_scratch_config')
+            ->updateOrInsert(['name' => 'daily_limit'], ['value' => (string) max(0, $v)]);
+    }
+
+    /** Minimum seconds between two scratches per user; 0 = no cooldown. */
+    public static function getCooldown(): int
+    {
+        self::ensureSchema();
+        $row = DB::connection((new static)->getConnectionName())
+            ->table('hdvideo_scratch_config')->where('name', 'cooldown')->first();
+        return $row ? max(0, (int) $row->value) : 2;
+    }
+
+    public static function setCooldown(int $v): void
+    {
+        self::ensureSchema();
+        DB::connection((new static)->getConnectionName())
+            ->table('hdvideo_scratch_config')
+            ->updateOrInsert(['name' => 'cooldown'], ['value' => (string) max(0, $v)]);
     }
 
     public static function enabledWeightTotal(): int

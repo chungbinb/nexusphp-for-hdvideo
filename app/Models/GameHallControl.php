@@ -32,6 +32,9 @@ class GameHallControl extends NexusModel
             ['game_key' => 'quiz', 'name' => '答题挑战', 'is_open' => 0, 'min_class' => 15, 'sort' => 5],
             ['game_key' => 'chest', 'name' => '签到宝箱', 'is_open' => 1, 'min_class' => 15, 'sort' => 6],
             ['game_key' => 'blackjack', 'name' => '二十一点', 'is_open' => 1, 'min_class' => 15, 'sort' => 7],
+            ['game_key' => 'slots', 'name' => '老虎机', 'is_open' => 1, 'min_class' => 15, 'sort' => 8],
+            ['game_key' => 'plinko', 'name' => 'Plinko弹珠', 'is_open' => 1, 'min_class' => 15, 'sort' => 9],
+            ['game_key' => 'hilo', 'name' => '猜高低', 'is_open' => 1, 'min_class' => 15, 'sort' => 10],
         ];
     }
 
