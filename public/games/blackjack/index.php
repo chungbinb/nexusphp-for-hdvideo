@@ -349,7 +349,7 @@ echo game_back_link();
 <div class="bj-wrap">
     <div class="bj-head">
         <div>
-            <div class="bj-title">二十一点 <span class="bj-badge">内测中 v0.3</span></div>
+            <div class="bj-title">二十一点 <span class="bj-badge">公测 1.0</span></div>
             <div class="bj-muted">点数接近 21 且不爆即胜。庄家停在 17，黑杰克(首两张 A+10)赔 1.5 倍。</div>
         </div>
         <div class="bj-balance">我的电影票：<b id="bjBal"><?php echo bj_money($CURUSER['seedbonus']) ?></b> 张</div>
