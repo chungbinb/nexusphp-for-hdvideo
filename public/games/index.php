@@ -545,7 +545,7 @@ body.page-games-php:not(.inframe) {
                 <a class="steam-game-row theme-<?php echo htmlspecialchars($game['theme']) ?> <?php echo $index === 0 ? 'is-active' : '' ?> <?php echo $disabled ? 'is-disabled' : '' ?>"
                    href="<?php echo htmlspecialchars($rowHref) ?>"
                    <?php echo $disabled ? 'onclick="return false;"' : '' ?>>
-                    <div class="steam-capsule<?php echo $hasIcon ? ' has-icon' : '' ?>" data-title="<?php echo htmlspecialchars($game['title']) ?>"<?php if ($hasIcon) { echo ' style="background-image:url(\'/games/icons/' . htmlspecialchars($game['theme']) . '.png?v=1\')"'; } ?>></div>
+                    <div class="steam-capsule<?php echo $hasIcon ? ' has-icon' : '' ?>" data-title="<?php echo htmlspecialchars($game['title']) ?>"<?php if ($hasIcon) { echo ' style="background-image:url(\'/games/icons/' . htmlspecialchars($game['theme']) . '.png?v=2\')"'; } ?>></div>
                     <div class="steam-game-main">
                         <div class="steam-game-title"><?php echo htmlspecialchars($game['title']) ?><?php if (!empty($game['badge'])) { ?> <span class="steam-badge"><?php echo htmlspecialchars($game['badge']) ?></span><?php } ?><?php if ($gClosed) { ?> <span class="steam-badge" style="color:#ff9d9d;background:rgba(120,0,0,.32)"><?php echo $gCanAccess ? '未开放·管理员可见' : '未开放' ?></span><?php } ?></div>
                         <div class="steam-game-subtitle"><?php echo htmlspecialchars($game['subtitle']) ?></div>
