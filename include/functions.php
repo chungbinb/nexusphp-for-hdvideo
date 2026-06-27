@@ -3218,6 +3218,10 @@ else {
 		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l2.6 5.3 5.9.86-4.25 4.14 1 5.86L12 17.1l-5.25 2.76 1-5.86L3.5 9.66l5.9-.86L12 3.5z"></path></svg>
 		<span class="qd-side-text">收藏</span>
 	</a>
+	<button type="button" class="qd-side-btn" id="qd-bank-btn" title="高清银行">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-6 9 6"></path><path d="M4 10v9h16v-9"></path><path d="M8 19v-6M12 19v-6M16 19v-6"></path><path d="M3 21h18"></path></svg>
+		<span class="qd-side-text">高清银行</span>
+	</button>
 	<button type="button" class="qd-side-btn" id="qd-personalize-btn" title="个性化配色">
 		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="1.3"></circle><circle cx="17.5" cy="10.5" r="1.3"></circle><circle cx="8.5" cy="7.5" r="1.3"></circle><circle cx="6.5" cy="12.5" r="1.3"></circle><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c.93 0 1.5-.75 1.5-1.5 0-.4-.18-.74-.42-1-.24-.27-.42-.6-.42-1 0-.83.67-1.5 1.5-1.5H16c3.31 0 6-2.69 6-6 0-4.42-4.48-8-10-8z"></path></svg>
 		<span class="qd-side-text">个性化</span>
@@ -3227,6 +3231,75 @@ else {
 		<span class="qd-side-text">游戏大厅</span>
 	</a>
 </div>
+<style>
+.qd-bank-bal{display:flex;gap:10px;margin:6px 0 12px;}
+.qd-bank-bal div{flex:1;text-align:center;background:var(--bili-surface-soft,#f2f3f5);border-radius:10px;padding:9px 6px;}
+.qd-bank-bal .v{font-size:16px;font-weight:800;}
+.qd-bank-bal .k{font-size:11px;color:var(--bili-text-muted,#9499a0);margin-top:2px;}
+.qd-bank-rate{font-size:12px;color:var(--bili-text-secondary,#61666d);margin:0 0 12px;}
+.qd-bank-amt{width:100%;box-sizing:border-box;border:1px solid var(--bili-border,#e6e9ef);border-radius:8px;padding:9px 10px;font-size:15px;background:var(--bili-surface,#fff);color:var(--bili-text,#18191c);}
+.qd-bank-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;}
+.qd-bank-acts button{border:none;border-radius:8px;padding:9px 0;font-size:13px;font-weight:700;cursor:pointer;color:#fff;}
+.qd-bank-deposit{background:#2e8b57;}.qd-bank-withdraw{background:#3a6ea5;}
+.qd-bank-borrow{background:#c0883a;}.qd-bank-repay{background:#c0392b;}
+.qd-bank-acts button:disabled{opacity:.5;cursor:not-allowed;}
+.qd-bank-msg{margin-top:10px;font-size:13px;font-weight:700;min-height:18px;text-align:center;}
+</style>
+<div class="qd-modal" id="qd-bank-modal" hidden>
+	<div class="qd-modal-mask" data-qd-close></div>
+	<div class="qd-modal-card">
+		<h3>🏦 高清银行</h3>
+		<p class="qd-modal-sub">把电影票存进来吃利息，急用时也能借；利息由系统按日计算。</p>
+		<div class="qd-bank-bal">
+			<div><div class="v" id="qd-bank-wallet">-</div><div class="k">钱包电影票</div></div>
+			<div><div class="v" id="qd-bank-deposit" style="color:#2e8b57">-</div><div class="k">存款</div></div>
+			<div><div class="v" id="qd-bank-loan" style="color:#c0392b">-</div><div class="k">欠款</div></div>
+		</div>
+		<p class="qd-bank-rate" id="qd-bank-rate"></p>
+		<input type="number" class="qd-bank-amt" id="qd-bank-amt" min="1" step="1" placeholder="输入金额（电影票）">
+		<div class="qd-bank-acts">
+			<button type="button" class="qd-bank-deposit" data-bank="deposit">存入</button>
+			<button type="button" class="qd-bank-withdraw" data-bank="withdraw">取出</button>
+			<button type="button" class="qd-bank-borrow" data-bank="borrow">借款</button>
+			<button type="button" class="qd-bank-repay" data-bank="repay">还款</button>
+		</div>
+		<div class="qd-bank-msg" id="qd-bank-msg"></div>
+		<div class="qd-modal-actions"><button type="button" class="qd-btn-reset" data-qd-close>关闭</button></div>
+	</div>
+</div>
+<script>
+(function () {
+	var modal = document.getElementById('qd-bank-modal'), btn = document.getElementById('qd-bank-btn');
+	if (!modal || !btn) return;
+	var amt = document.getElementById('qd-bank-amt'), msg = document.getElementById('qd-bank-msg');
+	var elW = document.getElementById('qd-bank-wallet'), elD = document.getElementById('qd-bank-deposit'), elL = document.getElementById('qd-bank-loan'), elR = document.getElementById('qd-bank-rate');
+	var busy = false;
+	function fmt(n) { return Number(Math.round(n * 100) / 100).toLocaleString('en-US', { maximumFractionDigits: 2 }); }
+	function paint(d) {
+		elW.textContent = fmt(d.wallet); elD.textContent = fmt(d.deposit); elL.textContent = fmt(d.loan);
+		elR.innerHTML = '存款日息 <b>' + d.deposit_rate + '%</b> · 贷款日息 <b>' + d.loan_rate + '%</b> · 最多可借 ' + fmt(d.borrowable);
+	}
+	function load() {
+		fetch('/bank.php?action=status', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) { if (d.ok) paint(d); }).catch(function () {});
+	}
+	function act(a) {
+		if (busy) return;
+		var v = parseFloat(amt.value);
+		if (!(v > 0)) { msg.style.color = '#c0392b'; msg.textContent = '请输入金额'; amt.focus(); return; }
+		busy = true; msg.style.color = '#61666d'; msg.textContent = '处理中…';
+		fetch('/bank.php', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'action=' + a + '&amount=' + encodeURIComponent(v) })
+			.then(function (r) { return r.json(); }).then(function (d) {
+				if (!d.ok) { msg.style.color = '#c0392b'; msg.textContent = d.error || '出错了'; return; }
+				paint(d); amt.value = '';
+				msg.style.color = '#16a34a'; msg.textContent = '操作成功';
+			}).catch(function () { msg.style.color = '#c0392b'; msg.textContent = '网络错误'; })
+			.finally(function () { busy = false; });
+	}
+	btn.addEventListener('click', function () { modal.hidden = false; msg.textContent = ''; load(); });
+	modal.querySelectorAll('[data-qd-close]').forEach(function (c) { c.addEventListener('click', function () { modal.hidden = true; }); });
+	modal.querySelectorAll('[data-bank]').forEach(function (b) { b.addEventListener('click', function () { act(b.getAttribute('data-bank')); }); });
+})();
+</script>
 <style>
 .qd-swatch{width:48px;height:28px;border:1px solid var(--bili-border,#e6e9ef);border-radius:6px;cursor:pointer;padding:0;box-shadow:inset 0 0 0 1px rgba(255,255,255,.5);}
 .qd-picker{position:absolute;z-index:10002;width:212px;background:var(--bili-surface,#fff);border:1px solid var(--bili-border,#e6e9ef);border-radius:12px;box-shadow:0 14px 44px rgba(0,0,0,.3);padding:12px;}
