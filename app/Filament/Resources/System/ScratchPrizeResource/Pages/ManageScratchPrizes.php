@@ -24,7 +24,7 @@ class ManageScratchPrizes extends ManageRecords
     {
         return [
             Action::make('settings')
-                ->label('刮刮乐设置（每张 ' . ScratchPrize::getCost() . ' 票 · 每日 ' . (ScratchPrize::getDailyLimit() === 0 ? '不限' : ScratchPrize::getDailyLimit() . ' 次') . '）')
+                ->label('刮刮乐设置（每张 ' . ScratchPrize::getCost() . ' 票 · 每日 ' . (ScratchPrize::getDailyLimit() === 0 ? '不限' : ScratchPrize::getDailyLimit() . ' 次') . ' · 间隔 ' . ScratchPrize::getCooldown() . ' 秒）')
                 ->icon('heroicon-o-cog-6-tooth')
                 ->color('warning')
                 ->modalHeading('刮刮乐设置')
@@ -42,11 +42,18 @@ class ManageScratchPrizes extends ManageRecords
                         ->minValue(0)
                         ->required()
                         ->default(ScratchPrize::getDailyLimit()),
+                    TextInput::make('cooldown')
+                        ->label('两次刮卡最短间隔秒数（0 = 不限制，防连点/脚本）')
+                        ->numeric()
+                        ->minValue(0)
+                        ->required()
+                        ->default(ScratchPrize::getCooldown()),
                 ])
                 ->action(function (array $data) {
                     ScratchPrize::setCost((int) $data['cost']);
                     ScratchPrize::setDailyLimit((int) $data['daily_limit']);
-                    Notification::make()->title('已保存：每张 ' . (int) $data['cost'] . ' 票，每日 ' . ((int) $data['daily_limit'] === 0 ? '不限' : (int) $data['daily_limit'] . ' 次'))->success()->send();
+                    ScratchPrize::setCooldown((int) $data['cooldown']);
+                    Notification::make()->title('已保存：每张 ' . (int) $data['cost'] . ' 票，每日 ' . ((int) $data['daily_limit'] === 0 ? '不限' : (int) $data['daily_limit'] . ' 次') . '，间隔 ' . (int) $data['cooldown'] . ' 秒')->success()->send();
                 }),
             CreateAction::make(),
         ];
