@@ -237,6 +237,7 @@ $qCount = qz_question_count();
 $myState = qz_get_state((int)$CURUSER['id']);
 
 stdhead("答题挑战");
+echo game_back_link();
 ?>
 <style>
 .qz-wrap { max-width: 760px; margin: 0 auto; }

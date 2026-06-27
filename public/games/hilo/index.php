@@ -214,6 +214,7 @@ $sumRes = sql_query("SELECT COUNT(*) AS n, SUM(`delta`) AS net FROM `" . HL_RESU
 $sum = mysql_fetch_assoc($sumRes);
 
 stdhead("猜高低");
+echo game_back_link();
 ?>
 <style>
 .hl-wrap { max-width: 720px; margin: 0 auto; }

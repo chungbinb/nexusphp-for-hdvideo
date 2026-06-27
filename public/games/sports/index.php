@@ -877,6 +877,7 @@ if (!isset($navItems[$view])) {
 $page = max(1, (int)($_GET['page'] ?? 1));
 
 stdhead("菠菜系统");
+echo game_back_link();
 ?>
 <style>
 .sp-wrap { max-width: 1000px; margin: 0 auto; }

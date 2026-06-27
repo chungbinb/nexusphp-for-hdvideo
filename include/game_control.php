@@ -94,6 +94,14 @@ function game_user_can_access($key)
     return get_user_class() >= (int)$c['min_class'];
 }
 
+/** 「返回游戏大厅」按钮（各游戏页 stdhead 后输出）。 */
+function game_back_link()
+{
+    return '<div class="game-back-bar" style="max-width:820px;margin:10px auto 0;padding:0 6px;">'
+        . '<a href="/games/" style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:700;color:var(--bili-text-secondary,#61666d);text-decoration:none;padding:6px 12px;border:1px solid rgba(120,150,190,.35);border-radius:8px;background:rgba(120,150,190,.08);">« 返回游戏大厅</a>'
+        . '</div>';
+}
+
 /** Block entry to a closed game (call near the top of a game page). */
 function game_guard($key)
 {

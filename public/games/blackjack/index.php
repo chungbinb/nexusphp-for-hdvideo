@@ -313,6 +313,7 @@ $sumRes = sql_query("SELECT COUNT(*) AS n, SUM(`delta`) AS net FROM `" . BJ_RESU
 $sum = mysql_fetch_assoc($sumRes);
 
 stdhead("二十一点");
+echo game_back_link();
 ?>
 <style>
 .bj-wrap { max-width: 760px; margin: 0 auto; }

@@ -96,6 +96,7 @@ $sumRes = sql_query("SELECT COUNT(*) AS n, SUM(`delta`) AS net FROM `" . PK_TABL
 $sum = mysql_fetch_assoc($sumRes);
 
 stdhead("Plinko 弹珠");
+echo game_back_link();
 ?>
 <style>
 .pk-wrap { max-width: 720px; margin: 0 auto; }

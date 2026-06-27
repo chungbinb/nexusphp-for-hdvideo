@@ -163,6 +163,7 @@ $state = ch_state((int)$CURUSER['id'], $streakStart);
 $mask = (int)$state['claimed_mask'];
 
 stdhead("签到宝箱");
+echo game_back_link();
 ?>
 <style>
 .cb-wrap { max-width: 760px; margin: 0 auto; }
