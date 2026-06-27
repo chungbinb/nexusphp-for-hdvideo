@@ -15,6 +15,7 @@ function game_control_defaults()
         'scratch'   => ['name' => '刮刮乐', 'is_open' => 1, 'min_class' => 15, 'sort' => 4],
         'quiz'      => ['name' => '答题挑战', 'is_open' => 0, 'min_class' => 15, 'sort' => 5], // 默认关闭
         'chest'     => ['name' => '签到宝箱', 'is_open' => 1, 'min_class' => 15, 'sort' => 6],
+        'blackjack' => ['name' => '二十一点', 'is_open' => 1, 'min_class' => 15, 'sort' => 7],
     ];
 }
 
