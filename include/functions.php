@@ -3256,6 +3256,8 @@ else {
 .qd-b1{padding:9px 14px;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;color:#fff;}
 .qd-bank-bal{flex-wrap:wrap;}
 .qd-bank-bal>div{min-width:64px;}
+#qd-bank-modal .qd-modal-card{width:460px;}
+@media (max-width:520px){#qd-bank-modal .qd-modal-card{width:92vw;}}
 </style>
 <div class="qd-modal" id="qd-bank-modal" hidden>
 	<div class="qd-modal-mask" data-qd-close></div>
@@ -3350,7 +3352,7 @@ else {
 		if (d.loan) {
 			show('qd-bank-loan-none', false); show('qd-bank-loan-has', true);
 			var od = d.loan.overdue ? ('<span class="warn">已逾期 ' + d.loan.overdue_days + ' 天</span>') : ('到期 ' + dateStr(d.loan.due_ts));
-			$('qd-bank-loan-detail').innerHTML = '当前欠款 <b style="color:#c0392b">' + fmt(d.loan.owed) + '</b>（本金 ' + fmt(d.loan.principal) + '）· ' + d.loan.periods + '期 · 月息 ' + d.loan.rate_m + '% · ' + od;
+			$('qd-bank-loan-detail').innerHTML = '当前欠款 <b style="color:#c0392b">' + fmt(d.loan.owed) + '</b>（本金 ' + fmt(d.loan.principal) + '）· ' + d.loan.periods + '期 · 月息 ' + d.loan.rate_m + '% · ' + od + (d.restricted ? '<br><span class="warn">⚠ 逾期已暂停娱乐功能，并启用每日自动还款</span>' : '');
 		} else {
 			show('qd-bank-loan-none', true); show('qd-bank-loan-has', false);
 			var bb = modal.querySelector('[data-bank="borrow"]'); if (bb) bb.disabled = !d.can_borrow;

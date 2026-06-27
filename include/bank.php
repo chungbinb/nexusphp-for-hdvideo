@@ -53,6 +53,7 @@ function bank_ensure_tables()
             `loan_rate_m` decimal(8,4) NOT NULL DEFAULT '0.0000',
             `loan_start_ts` int unsigned NOT NULL DEFAULT 0,
             `loan_due_ts` int unsigned NOT NULL DEFAULT 0,
+            `blacklisted` tinyint(1) NOT NULL DEFAULT 0,
             `updated_at` datetime NOT NULL,
             PRIMARY KEY (`uid`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
@@ -68,6 +69,7 @@ function bank_ensure_tables()
         'loan_rate_m' => "decimal(8,4) NOT NULL DEFAULT '0.0000'",
         'loan_start_ts' => "int unsigned NOT NULL DEFAULT 0",
         'loan_due_ts' => "int unsigned NOT NULL DEFAULT 0",
+        'blacklisted' => "tinyint(1) NOT NULL DEFAULT 0",
     ] as $colName => $def) {
         $c = sql_query("SHOW COLUMNS FROM `" . BANK_ACCOUNT_TABLE . "` LIKE '$colName'");
         if ($c && !mysql_fetch_assoc($c)) {
@@ -158,6 +160,85 @@ function bank_loan_owed($a, $now)
     return round($p + $interest, 2);
 }
 
+/** 逾期分级：0无 1(1-7) 2(8-15) 3(16-30) 4(31-60) 5(61-90) 6(>90)。 */
+function bank_overdue_tier($days)
+{
+    if ($days <= 0) return 0;
+    if ($days <= 7) return 1;
+    if ($days <= 15) return 2;
+    if ($days <= 30) return 3;
+    if ($days <= 60) return 4;
+    if ($days <= 90) return 5;
+    return 6;
+}
+
+/**
+ * 逾期/黑名单状态（供游戏等娱乐功能拦截使用）。tier>=3(逾期16天+)即限制娱乐功能。
+ * 逾期>60天自动拉黑(持久)。返回 ['restricted','tier','days','blacklisted'].
+ */
+function bank_restricted($uid)
+{
+    bank_ensure_tables();
+    $uid = (int)$uid;
+    $res = sql_query("SELECT `loan`,`loan_due_ts`,`blacklisted` FROM `" . BANK_ACCOUNT_TABLE . "` WHERE `uid` = $uid LIMIT 1") or sqlerr(__FILE__, __LINE__);
+    $a = mysql_fetch_assoc($res);
+    if (!$a) return ['restricted' => false, 'tier' => 0, 'days' => 0, 'blacklisted' => false];
+    $days = 0;
+    $due = (int)$a['loan_due_ts'];
+    if ((float)$a['loan'] > 0 && $due > 0 && time() > $due) {
+        $days = (int)floor((time() - $due) / 86400);
+    }
+    $tier = bank_overdue_tier($days);
+    $blacklisted = ((int)$a['blacklisted'] === 1);
+    if ($days > 60 && !$blacklisted) {
+        sql_query("UPDATE `" . BANK_ACCOUNT_TABLE . "` SET `blacklisted` = 1 WHERE `uid` = $uid") or sqlerr(__FILE__, __LINE__);
+        $blacklisted = true;
+    }
+    return ['restricted' => ($tier >= 3), 'tier' => $tier, 'days' => $days, 'blacklisted' => $blacklisted];
+}
+
+/** P2 自动还款：把钱包电影票优先用于偿还借款（每日计划任务调用，不依赖 $CURUSER）。返回已扣金额。 */
+function bank_auto_repay($uid)
+{
+    bank_ensure_tables();
+    $uid = (int)$uid;
+    $now = time();
+    $ts = date('Y-m-d H:i:s');
+    sql_query("START TRANSACTION") or sqlerr(__FILE__, __LINE__);
+    try {
+        $ures = sql_query("SELECT `seedbonus` FROM `users` WHERE `id` = $uid FOR UPDATE") or sqlerr(__FILE__, __LINE__);
+        $u = mysql_fetch_assoc($ures);
+        if (!$u) { sql_query("ROLLBACK"); return 0; }
+        $wallet = (float)$u['seedbonus'];
+        $a = bank_account($uid, true);
+        $p = (float)$a['loan'];
+        if ($p <= 0 || $wallet <= 0) { sql_query("COMMIT"); return 0; }
+        $interest = (float)$a['loan_interest'] + $p * ((float)$a['loan_rate_m'] / 100) * ((($now - (int)$a['loan_ts']) / 86400) / 30);
+        $interest = round(max(0, $interest), 2);
+        $owed = round($p + $interest, 2);
+        $pay = round(min($wallet, $owed), 2);
+        if ($pay <= 0) { sql_query("COMMIT"); return 0; }
+        $payInterest = min($pay, $interest);
+        $payPrincipal = round($pay - $payInterest, 2);
+        $newInterest = round($interest - $payInterest, 2);
+        $newPrincipal = round($p - $payPrincipal, 2);
+        $newWallet = round($wallet - $pay, 2);
+        sql_query("UPDATE `users` SET `seedbonus` = `seedbonus` - " . sqlesc(bank_money($pay)) . " WHERE `id` = $uid") or sqlerr(__FILE__, __LINE__);
+        if ($newPrincipal <= 0 && $newInterest <= 0) {
+            sql_query("UPDATE `" . BANK_ACCOUNT_TABLE . "` SET `loan` = 0, `loan_interest` = 0, `loan_ts` = 0, `loan_periods` = 0, `loan_rate_m` = 0, `loan_start_ts` = 0, `loan_due_ts` = 0, `updated_at` = " . sqlesc($ts) . " WHERE `uid` = $uid") or sqlerr(__FILE__, __LINE__);
+        } else {
+            sql_query("UPDATE `" . BANK_ACCOUNT_TABLE . "` SET `loan` = " . sqlesc(bank_money($newPrincipal)) . ", `loan_interest` = " . sqlesc(bank_money($newInterest)) . ", `loan_ts` = $now, `updated_at` = " . sqlesc($ts) . " WHERE `uid` = $uid") or sqlerr(__FILE__, __LINE__);
+        }
+        bank_log($uid, $wallet, -$pay, $newWallet, "[高清银行] 自动还款 {$pay}");
+        sql_query("COMMIT") or sqlerr(__FILE__, __LINE__);
+        if (function_exists('clear_user_cache')) clear_user_cache($uid);
+        return $pay;
+    } catch (Throwable $e) {
+        sql_query("ROLLBACK");
+        return 0;
+    }
+}
+
 function bank_log($uid, $old, $delta, $new, $comment)
 {
     $now = date('Y-m-d H:i:s');
@@ -208,6 +289,13 @@ function bank_status($uid)
     $loanTiers = [];
     foreach (BANK_LOAN_TIERS as $pn => $r) $loanTiers[] = ['periods' => $pn, 'rate_m' => bank_loan_rate($pn, $credit['grade'])];
 
+    $rs = bank_restricted($uid);
+    if ($loan !== null) {
+        $loan['tier'] = $rs['tier'];
+    }
+    $canBorrow = ($credit['grade'] !== 'E' && $credit['reg_days'] >= 30 && !$rs['blacklisted']);
+    $block = $rs['blacklisted'] ? '账户已被列入贷款黑名单（曾逾期超过60天）' : ($credit['grade'] === 'E' ? '信用等级为 E，暂不可借款' : ($credit['reg_days'] < 30 ? '注册未满 30 天，暂不可借款' : ''));
+
     return [
         'wallet' => round((float)($CURUSER['seedbonus'] ?? 0), 2),
         'cur_deposit' => bank_cur_value($a, $now),
@@ -219,8 +307,11 @@ function bank_status($uid)
         'loan_tiers' => $loanTiers,
         'min_deposit' => BANK_MIN_DEPOSIT,
         'min_loan' => BANK_MIN_LOAN,
-        'can_borrow' => ($credit['grade'] !== 'E' && $credit['reg_days'] >= 30),
-        'borrow_block' => $credit['grade'] === 'E' ? '信用等级为 E，暂不可借款' : ($credit['reg_days'] < 30 ? '注册未满 30 天，暂不可借款' : ''),
+        'restricted' => $rs['restricted'],
+        'overdue_tier' => $rs['tier'],
+        'blacklisted' => $rs['blacklisted'],
+        'can_borrow' => $canBorrow,
+        'borrow_block' => $block,
     ];
 }
 
@@ -288,6 +379,7 @@ function bank_do($uid, $action, $amount, $param = 0)
         } elseif ($action === 'borrow') {
             if (bank_loan_owed($a, $now) > 0) { sql_query("ROLLBACK"); return [null, '已有未结清借款，请先还清再借。']; }
             if (!isset(BANK_LOAN_TIERS[$param])) { sql_query("ROLLBACK"); return [null, '请选择有效的分期期数。']; }
+            if ((int)$a['blacklisted'] === 1) { sql_query("ROLLBACK"); return [null, '账户已被列入贷款黑名单，暂不可借款。']; }
             $credit = bank_credit($uid);
             if ($credit['grade'] === 'E') { sql_query("ROLLBACK"); return [null, '信用等级为 E，暂不可借款。']; }
             if ($credit['reg_days'] < 30) { sql_query("ROLLBACK"); return [null, '注册未满 30 天，暂不可借款。']; }

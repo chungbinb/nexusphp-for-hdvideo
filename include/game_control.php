@@ -97,6 +97,27 @@ function game_user_can_access($key)
 /** Block entry to a closed game (call near the top of a game page). */
 function game_guard($key)
 {
+    // 贷款逾期(16天+)的用户暂停游戏等娱乐功能（魔力银行 P2 风控）。
+    if (function_exists('get_user_class')) {
+        @require_once __DIR__ . '/bank.php';
+        if (function_exists('bank_restricted')) {
+            $uid = isset($GLOBALS['CURUSER']['id']) ? (int)$GLOBALS['CURUSER']['id'] : 0;
+            if ($uid > 0) {
+                $rs = bank_restricted($uid);
+                if (!empty($rs['restricted'])) {
+                    stdhead('暂停使用');
+                    echo '<div style="max-width:640px;margin:48px auto;text-align:center">'
+                        . '<div style="font-size:46px">🔒</div>'
+                        . '<h2 style="margin:10px 0">娱乐功能已暂停</h2>'
+                        . '<p style="color:#6f7f95">你的银行贷款已逾期 ' . (int)$rs['days'] . ' 天，按规则暂停游戏/抽奖等娱乐功能，请先到「高清银行」还清欠款后再来。</p>'
+                        . '<p style="margin-top:16px"><a href="/games/">« 返回游戏大厅</a></p>'
+                        . '</div>';
+                    stdfoot();
+                    exit;
+                }
+            }
+        }
+    }
     if (game_user_can_access($key)) {
         return;
     }
