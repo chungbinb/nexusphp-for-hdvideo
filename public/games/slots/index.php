@@ -151,7 +151,7 @@ echo game_back_link();
 <div class="sl-wrap">
     <div class="sl-head">
         <div>
-            <div class="sl-title">老虎机 <span class="sl-badge">内测中 v0.2</span></div>
+            <div class="sl-title">老虎机 <span class="sl-badge">内测中 v0.3</span></div>
             <div class="sl-muted">投入电影票拉一把，三个相同按倍数派彩，两个🍒回本。</div>
         </div>
         <div class="sl-balance">我的电影票：<b id="slBal"><?php echo sl_money($CURUSER['seedbonus']) ?></b> 张</div>
@@ -201,6 +201,7 @@ echo game_back_link();
 
     <?php
     $slNet = game_lb_run("SELECT `s`.`uid` AS uid, `u`.`username` AS username, SUM(`s`.`delta`) AS amt FROM `" . SL_TABLE . "` `s` INNER JOIN `users` `u` ON `u`.`id` = `s`.`uid` GROUP BY `s`.`uid`, `u`.`username` ORDER BY amt DESC LIMIT 10");
+    $slNetLow = game_lb_run("SELECT `s`.`uid` AS uid, `u`.`username` AS username, SUM(`s`.`delta`) AS amt FROM `" . SL_TABLE . "` `s` INNER JOIN `users` `u` ON `u`.`id` = `s`.`uid` GROUP BY `s`.`uid`, `u`.`username` ORDER BY amt ASC LIMIT 10");
     $slCnt = game_lb_run("SELECT `s`.`uid` AS uid, `u`.`username` AS username, COUNT(*) AS amt FROM `" . SL_TABLE . "` `s` INNER JOIN `users` `u` ON `u`.`id` = `s`.`uid` GROUP BY `s`.`uid`, `u`.`username` ORDER BY amt DESC LIMIT 10");
     $slLuck = game_lb_run("SELECT `s`.`uid` AS uid, `u`.`username` AS username, MAX(`s`.`delta`) AS amt, COUNT(*) AS cnt FROM `" . SL_TABLE . "` `s` INNER JOIN `users` `u` ON `u`.`id` = `s`.`uid` GROUP BY `s`.`uid`, `u`.`username` ORDER BY amt DESC, cnt DESC LIMIT 10");
     echo game_lb_css();
@@ -209,7 +210,7 @@ echo game_back_link();
         <h3 style="margin:0 0 12px">🏆 老虎机榜单</h3>
         <div class="glb-grid">
             <?php
-            echo game_lb_table('💰 盈亏榜', $slNet, '净盈亏', function ($r) { return ((float)$r['amt'] >= 0 ? '+' : '') . game_lb_money($r['amt']); }, function ($r) { return (float)$r['amt'] >= 0 ? 'glb-pos' : 'glb-neg'; });
+            echo game_lb_table('💰 盈亏榜', $slNet, '净盈亏', function ($r) { return ((float)$r['amt'] >= 0 ? '+' : '') . game_lb_money($r['amt']); }, function ($r) { return (float)$r['amt'] >= 0 ? 'glb-pos' : 'glb-neg'; }, $slNetLow);
             echo game_lb_table('🔥 活跃榜', $slCnt, '次数', function ($r) { return number_format((int)$r['amt']) . ' 把'; });
             echo game_lb_table('🍀 手气榜', $slLuck, '单把最高赢', function ($r) { return game_lb_money($r['amt']); }, function ($r) { return (float)$r['amt'] > 0 ? 'glb-pos' : ''; });
             ?>

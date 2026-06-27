@@ -248,7 +248,7 @@ echo game_back_link();
 <div class="hl-wrap">
     <div class="hl-head">
         <div>
-            <div class="hl-title">猜高低 <span class="hl-badge">内测中 v0.2</span></div>
+            <div class="hl-title">猜高低 <span class="hl-badge">内测中 v0.3</span></div>
             <div class="hl-muted">猜下一张牌比当前大还是小（A 最小、K 最大）。猜中可叠倍续猜，随时收手，猜错或相同则归零。</div>
         </div>
         <div class="hl-balance">我的电影票：<b id="hlBal"><?php echo hl_money($CURUSER['seedbonus']) ?></b> 张</div>
@@ -292,6 +292,7 @@ echo game_back_link();
 
     <?php
     $hlNet = game_lb_run("SELECT `s`.`uid` AS uid, `u`.`username` AS username, SUM(`s`.`delta`) AS amt FROM `" . HL_RESULT_TABLE . "` `s` INNER JOIN `users` `u` ON `u`.`id` = `s`.`uid` GROUP BY `s`.`uid`, `u`.`username` ORDER BY amt DESC LIMIT 10");
+    $hlNetLow = game_lb_run("SELECT `s`.`uid` AS uid, `u`.`username` AS username, SUM(`s`.`delta`) AS amt FROM `" . HL_RESULT_TABLE . "` `s` INNER JOIN `users` `u` ON `u`.`id` = `s`.`uid` GROUP BY `s`.`uid`, `u`.`username` ORDER BY amt ASC LIMIT 10");
     $hlCnt = game_lb_run("SELECT `s`.`uid` AS uid, `u`.`username` AS username, COUNT(*) AS amt FROM `" . HL_RESULT_TABLE . "` `s` INNER JOIN `users` `u` ON `u`.`id` = `s`.`uid` GROUP BY `s`.`uid`, `u`.`username` ORDER BY amt DESC LIMIT 10");
     $hlStreak = game_lb_run("SELECT `s`.`uid` AS uid, `u`.`username` AS username, MAX(`s`.`streak`) AS amt, COUNT(*) AS cnt FROM `" . HL_RESULT_TABLE . "` `s` INNER JOIN `users` `u` ON `u`.`id` = `s`.`uid` GROUP BY `s`.`uid`, `u`.`username` ORDER BY amt DESC, cnt DESC LIMIT 10");
     echo game_lb_css();
@@ -300,7 +301,7 @@ echo game_back_link();
         <h3 style="margin:0 0 12px">🏆 猜高低榜单</h3>
         <div class="glb-grid">
             <?php
-            echo game_lb_table('💰 盈亏榜', $hlNet, '净盈亏', function ($r) { return ((float)$r['amt'] >= 0 ? '+' : '') . game_lb_money($r['amt']); }, function ($r) { return (float)$r['amt'] >= 0 ? 'glb-pos' : 'glb-neg'; });
+            echo game_lb_table('💰 盈亏榜', $hlNet, '净盈亏', function ($r) { return ((float)$r['amt'] >= 0 ? '+' : '') . game_lb_money($r['amt']); }, function ($r) { return (float)$r['amt'] >= 0 ? 'glb-pos' : 'glb-neg'; }, $hlNetLow);
             echo game_lb_table('🔥 活跃榜', $hlCnt, '局数', function ($r) { return number_format((int)$r['amt']) . ' 局'; });
             echo game_lb_table('🍀 连胜榜', $hlStreak, '最高连胜', function ($r) { return number_format((int)$r['amt']) . ' 连'; });
             ?>

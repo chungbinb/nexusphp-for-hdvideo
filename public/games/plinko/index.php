@@ -130,7 +130,7 @@ echo game_back_link();
 <div class="pk-wrap">
     <div class="pk-head">
         <div>
-            <div class="pk-title">Plinko 弹珠 <span class="pk-badge">内测中 v0.2</span></div>
+            <div class="pk-title">Plinko 弹珠 <span class="pk-badge">内测中 v0.3</span></div>
             <div class="pk-muted">投入电影票放下小球，落到不同格子按倍数派彩，越靠边倍数越高。</div>
         </div>
         <div class="pk-balance">我的电影票：<b id="pkBal"><?php echo pk_money($CURUSER['seedbonus']) ?></b> 张</div>
@@ -180,6 +180,7 @@ echo game_back_link();
 
     <?php
     $pkNet = game_lb_run("SELECT `s`.`uid` AS uid, `u`.`username` AS username, SUM(`s`.`delta`) AS amt FROM `" . PK_TABLE . "` `s` INNER JOIN `users` `u` ON `u`.`id` = `s`.`uid` GROUP BY `s`.`uid`, `u`.`username` ORDER BY amt DESC LIMIT 10");
+    $pkNetLow = game_lb_run("SELECT `s`.`uid` AS uid, `u`.`username` AS username, SUM(`s`.`delta`) AS amt FROM `" . PK_TABLE . "` `s` INNER JOIN `users` `u` ON `u`.`id` = `s`.`uid` GROUP BY `s`.`uid`, `u`.`username` ORDER BY amt ASC LIMIT 10");
     $pkCnt = game_lb_run("SELECT `s`.`uid` AS uid, `u`.`username` AS username, COUNT(*) AS amt FROM `" . PK_TABLE . "` `s` INNER JOIN `users` `u` ON `u`.`id` = `s`.`uid` GROUP BY `s`.`uid`, `u`.`username` ORDER BY amt DESC LIMIT 10");
     $pkLuck = game_lb_run("SELECT `s`.`uid` AS uid, `u`.`username` AS username, MAX(`s`.`delta`) AS amt, COUNT(*) AS cnt FROM `" . PK_TABLE . "` `s` INNER JOIN `users` `u` ON `u`.`id` = `s`.`uid` GROUP BY `s`.`uid`, `u`.`username` ORDER BY amt DESC, cnt DESC LIMIT 10");
     echo game_lb_css();
@@ -188,7 +189,7 @@ echo game_back_link();
         <h3 style="margin:0 0 12px">🏆 Plinko 榜单</h3>
         <div class="glb-grid">
             <?php
-            echo game_lb_table('💰 盈亏榜', $pkNet, '净盈亏', function ($r) { return ((float)$r['amt'] >= 0 ? '+' : '') . game_lb_money($r['amt']); }, function ($r) { return (float)$r['amt'] >= 0 ? 'glb-pos' : 'glb-neg'; });
+            echo game_lb_table('💰 盈亏榜', $pkNet, '净盈亏', function ($r) { return ((float)$r['amt'] >= 0 ? '+' : '') . game_lb_money($r['amt']); }, function ($r) { return (float)$r['amt'] >= 0 ? 'glb-pos' : 'glb-neg'; }, $pkNetLow);
             echo game_lb_table('🔥 活跃榜', $pkCnt, '次数', function ($r) { return number_format((int)$r['amt']) . ' 次'; });
             echo game_lb_table('🍀 手气榜', $pkLuck, '单次最高赢', function ($r) { return game_lb_money($r['amt']); }, function ($r) { return (float)$r['amt'] > 0 ? 'glb-pos' : ''; });
             ?>
