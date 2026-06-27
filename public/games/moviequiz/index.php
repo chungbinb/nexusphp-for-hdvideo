@@ -39,11 +39,20 @@ function mq_ensure_tables()
             `answer` varchar(255) NOT NULL DEFAULT '',
             `aliases` text,
             `status` tinyint NOT NULL DEFAULT 1,
+            `source` varchar(10) NOT NULL DEFAULT 'manual',
+            `torrent_id` int unsigned NOT NULL DEFAULT 0,
             `created_at` datetime NOT NULL,
             PRIMARY KEY (`id`),
-            KEY `idx_status` (`status`)
+            KEY `idx_status` (`status`),
+            KEY `idx_torrent` (`torrent_id`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
+    // tables created before auto-import lacked source/torrent_id; add on demand.
+    $col = sql_query("SHOW COLUMNS FROM `" . MQ_Q_TABLE . "` LIKE 'source'");
+    if ($col && !mysql_fetch_assoc($col)) {
+        sql_query("ALTER TABLE `" . MQ_Q_TABLE . "` ADD COLUMN `source` varchar(10) NOT NULL DEFAULT 'manual'") or sqlerr(__FILE__, __LINE__);
+        sql_query("ALTER TABLE `" . MQ_Q_TABLE . "` ADD COLUMN `torrent_id` int unsigned NOT NULL DEFAULT 0") or sqlerr(__FILE__, __LINE__);
+    }
     @sql_query("
         CREATE TABLE IF NOT EXISTS `" . MQ_STATE_TABLE . "` (
             `uid` int unsigned NOT NULL,
@@ -225,6 +234,85 @@ function mq_delete_question($id)
     return "";
 }
 
+/** Extract http(s) image URLs from a BBCode description ([img]...[/img] / [img=...]). */
+function mq_extract_images($descr)
+{
+    $urls = [];
+    if (preg_match_all('/\[img[^\]]*\]\s*([^\[\]]+?)\s*\[\/img\]/i', (string)$descr, $m)) {
+        foreach ($m[1] as $u) $urls[] = trim($u);
+    }
+    if (preg_match_all('/\[img=\s*([^\]\s]+)\s*\]/i', (string)$descr, $m2)) {
+        foreach ($m2[1] as $u) $urls[] = trim($u);
+    }
+    return array_values(array_filter($urls, function ($u) { return preg_match('#^https?://#i', $u); }));
+}
+
+/** Value of a 「◎X　　Y　 …」 field in the description (full-width spaces tolerated). */
+function mq_descr_field($descr, $c1, $c2)
+{
+    if (preg_match('/◎' . $c1 . '[\s\x{3000}]*' . $c2 . '[\s\x{3000}：:]*([^\r\n]+)/u', (string)$descr, $m)) {
+        return trim($m[1]);
+    }
+    return '';
+}
+
+/** Build acceptable aliases from 译名 + a season/year-stripped base + 副标题. */
+function mq_build_aliases($primary, $descr, $smallDescr)
+{
+    $aliases = [];
+    $trans = mq_descr_field($descr, '译', '名');
+    if ($trans !== '') {
+        foreach (preg_split('#[/／]#u', $trans) as $p) {
+            $p = trim($p);
+            if ($p !== '') $aliases[] = $p;
+        }
+    }
+    $base = trim(preg_replace('/[\s\x{3000}]*(第[0-9一二三四五六七八九十百零]+[季部期]|Season[\s]*\d+|S\d+|\(?(19|20)\d\d\)?)[\s\x{3000}]*$/iu', '', $primary));
+    if ($base !== '' && $base !== $primary) $aliases[] = $base;
+    $sd = trim((string)$smallDescr);
+    if ($sd !== '' && mb_strlen($sd) <= 60) $aliases[] = $sd;
+    $out = [];
+    foreach ($aliases as $a) {
+        if ($a !== '' && $a !== $primary && !in_array($a, $out, true)) $out[] = $a;
+    }
+    return implode("\n", $out);
+}
+
+/** Auto-generate screenshot questions from torrents that have screenshots. */
+function mq_import_from_torrents($limit)
+{
+    mq_ensure_tables();
+    $limit = max(1, min(100, (int)$limit));
+    $descrField = function_exists('hdvideo_column_exists') && hdvideo_column_exists('torrents', 'descr')
+        ? "COALESCE(NULLIF(torrent_extras.descr,''), torrents.descr)"
+        : "torrent_extras.descr";
+    $sql = "SELECT torrents.id AS id, torrents.name AS name, torrents.small_descr AS small_descr, $descrField AS descr
+            FROM torrents LEFT JOIN torrent_extras ON torrents.id = torrent_extras.torrent_id
+            WHERE torrents.visible = 'yes' AND $descrField LIKE '%[img%'
+              AND torrents.id NOT IN (SELECT torrent_id FROM `" . MQ_Q_TABLE . "` WHERE torrent_id > 0)
+            ORDER BY RAND() LIMIT $limit";
+    $res = sql_query($sql) or sqlerr(__FILE__, __LINE__);
+    $added = 0;
+    $now = date('Y-m-d H:i:s');
+    while ($t = mysql_fetch_assoc($res)) {
+        $imgs = mq_extract_images($t['descr']);
+        if (count($imgs) < 2) continue; // need a screenshot beyond the poster
+        $name = mq_descr_field($t['descr'], '片', '名');
+        if ($name === '') $name = trim((string)$t['small_descr']);
+        if ($name === '') $name = trim((string)$t['name']);
+        if ($name === '' || mb_strlen($name) > 255) continue;
+        $cand = array_slice($imgs, 1); // skip the poster (first image)
+        $shot = $cand[array_rand($cand)];
+        $aliases = mq_build_aliases($name, $t['descr'], $t['small_descr']);
+        sql_query(sprintf(
+            "INSERT INTO `" . MQ_Q_TABLE . "` (`type`,`clue`,`answer`,`aliases`,`status`,`source`,`torrent_id`,`created_at`) VALUES ('shot',%s,%s,%s,1,'auto',%d,%s)",
+            sqlesc(mb_substr($shot, 0, 2000)), sqlesc(mb_substr($name, 0, 255)), sqlesc(mb_substr($aliases, 0, 1000)), (int)$t['id'], sqlesc($now)
+        )) or sqlerr(__FILE__, __LINE__);
+        $added++;
+    }
+    return $added;
+}
+
 // ---- AJAX: next question ----
 if (($_GET['ajax'] ?? '') === 'question') {
     header('Content-Type: application/json');
@@ -239,6 +327,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Content-Type: application/json');
         $r = mq_answer((int)$CURUSER['id'], $_POST['guess'] ?? '');
         echo json_encode(['ok' => empty($r['error']) && empty($r['limit'])] + $r, JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    if ($action === 'import_torrents' && mq_is_admin()) {
+        $n = mq_import_from_torrents($_POST['count'] ?? 20);
+        header('Location: /games/moviequiz/?view=admin&imported=' . (int)$n);
         exit;
     }
     $error = '';
@@ -306,7 +399,19 @@ stdhead("猜电影");
 
     <?php if ($view === 'admin' && $isAdmin) {
         $qres = sql_query("SELECT * FROM `" . MQ_Q_TABLE . "` ORDER BY `id` DESC LIMIT 200") or sqlerr(__FILE__, __LINE__);
+        $autoCnt = (int)mysql_fetch_assoc(sql_query("SELECT COUNT(*) AS c FROM `" . MQ_Q_TABLE . "` WHERE `source` = 'auto'"))['c'];
+        $imported = isset($_GET['imported']) ? (int)$_GET['imported'] : -1;
     ?>
+        <?php if ($imported >= 0) { ?><div class="mq-panel" style="background:rgba(46,204,113,.12);color:#16a34a;font-weight:700">✅ 已从种子库自动导入 <?php echo $imported ?> 道截图题。</div><?php } ?>
+        <div class="mq-panel">
+            <h3 style="margin:0 0 10px">从种子库自动导入截图题</h3>
+            <div class="mq-muted" style="margin-bottom:8px">随机抽取「带截图的种子」，取一张截图作题、用简介里的「◎片名」作答案，并自动生成别名（译名/去季号/副标题）。会跳过已导入过的种子。当前自动题 <?php echo $autoCnt ?> 道。</div>
+            <form method="post" action="/games/moviequiz/" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <input type="hidden" name="action" value="import_torrents">
+                <label>本次导入数量 <input type="number" name="count" value="20" min="1" max="100" style="width:80px;padding:6px"></label>
+                <button type="submit" class="mq-btn">开始导入</button>
+            </form>
+        </div>
         <div class="mq-panel">
             <h3 style="margin:0 0 10px">添加题目（共 <?php echo $qCount ?> 道启用）</h3>
             <form class="mq-admin-form" method="post" action="/games/moviequiz/">
@@ -329,13 +434,14 @@ stdhead("猜电影");
         <div class="mq-panel">
             <h3 style="margin:0 0 10px">题库</h3>
             <table class="mq-table">
-                <tr><th>#</th><th>类型</th><th>线索</th><th>答案 / 别名</th><th></th></tr>
+                <tr><th>#</th><th>类型</th><th>线索</th><th>答案 / 别名</th><th>来源</th><th></th></tr>
                 <?php while ($q = mysql_fetch_assoc($qres)) { ?>
                     <tr>
                         <td><?php echo (int)$q['id'] ?></td>
                         <td><?php echo mq_type_label($q['type']) ?></td>
                         <td><?php if ($q['type'] === 'shot') { ?><img src="<?php echo htmlspecialchars($q['clue']) ?>" loading="lazy" alt=""><?php } else { ?><?php echo htmlspecialchars(mb_substr($q['clue'], 0, 120)) ?><?php } ?></td>
                         <td><b><?php echo htmlspecialchars($q['answer']) ?></b><?php if (trim((string)$q['aliases']) !== '') { ?><br><span class="mq-muted"><?php echo htmlspecialchars($q['aliases']) ?></span><?php } ?></td>
+                        <td><?php if (($q['source'] ?? '') === 'auto') { ?>自动<?php if ((int)($q['torrent_id'] ?? 0) > 0) { ?> <a href="/details.php?id=<?php echo (int)$q['torrent_id'] ?>" target="_blank">#<?php echo (int)$q['torrent_id'] ?></a><?php } ?><?php } else { ?>手动<?php } ?></td>
                         <td>
                             <form method="post" action="/games/moviequiz/" onsubmit="return confirm('删除该题？');">
                                 <input type="hidden" name="action" value="del_q">
