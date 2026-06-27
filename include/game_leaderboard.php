@@ -135,8 +135,8 @@ function game_lb_css()
     .glb-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
     @media(max-width:760px){.glb-grid{grid-template-columns:1fr}}
     .glb-card{border:1px solid rgba(120,150,190,.3);border-radius:8px;overflow:hidden}
-    .glb-card-title{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;font-weight:800;background:rgba(120,150,190,.16);font-size:14px;line-height:1.5}
-    .glb-dir{appearance:none;-webkit-appearance:none;font-size:14px;line-height:1.5;font-weight:800;border:0!important;background:transparent!important;box-shadow:none!important;border-radius:0!important;color:#8aa0b6;cursor:pointer;flex:none;padding:0;margin:0;height:auto}
+    .glb-card-title{display:flex;align-items:center;justify-content:space-between;gap:8px;height:40px;box-sizing:border-box;padding:0 12px;font-weight:800;background:rgba(120,150,190,.16);font-size:14px;line-height:1}
+    .glb-dir{appearance:none;-webkit-appearance:none;font-size:15px;line-height:1;font-weight:800;border:0!important;background:transparent!important;box-shadow:none!important;border-radius:0!important;color:#8aa0b6;cursor:pointer;flex:none;padding:0;margin:0;height:auto}
     .glb-dir:hover{color:#2980b9;background:transparent!important}
     .glb-table{width:100%;border-collapse:collapse}
     .glb-table th,.glb-table td{padding:7px 10px;text-align:left;border-top:1px solid rgba(120,150,190,.16);font-size:13px}
