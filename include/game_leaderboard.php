@@ -136,8 +136,8 @@ function game_lb_css()
     @media(max-width:760px){.glb-grid{grid-template-columns:1fr}}
     .glb-card{border:1px solid rgba(120,150,190,.3);border-radius:8px;overflow:hidden}
     .glb-card-title{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;font-weight:800;background:rgba(120,150,190,.16)}
-    .glb-dir{font-size:14px;font-weight:800;width:24px;height:22px;border:1px solid rgba(120,150,190,.45);border-radius:6px;background:transparent;color:#8aa0b6;cursor:pointer;line-height:1;flex:none;padding:0}
-    .glb-dir:hover{background:#2980b9;color:#fff;border-color:#2980b9}
+    .glb-dir{font-size:16px;font-weight:800;border:0;background:transparent;color:#8aa0b6;cursor:pointer;line-height:1;flex:none;padding:0}
+    .glb-dir:hover{color:#2980b9}
     .glb-table{width:100%;border-collapse:collapse}
     .glb-table th,.glb-table td{padding:7px 10px;text-align:left;border-top:1px solid rgba(120,150,190,.16);font-size:13px}
     .glb-table th{color:#8aa0b6;font-weight:700}
