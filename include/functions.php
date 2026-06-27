@@ -3320,6 +3320,12 @@ else {
 			</div>
 		</div>
 
+		<div class="qd-bank-sec" id="qd-bank-special" style="display:none">
+			<h4>特殊业务 <span class="qd-bank-info" id="qd-bank-special-info"></span></h4>
+			<div class="qd-bank-row" id="qd-bank-special-btns"></div>
+			<div class="qd-bank-detail" id="qd-bank-myreq" style="margin-top:6px"></div>
+		</div>
+
 		<div class="qd-bank-sec" id="qd-bank-guarantee-sec" style="display:none">
 			<h4>担保请求</h4>
 			<div id="qd-bank-guarantee-list"></div>
@@ -3362,7 +3368,7 @@ else {
 			$('qd-bank-fix-detail').innerHTML = '本金 <b>' + fmt(d.fix.principal) + '</b> · 年化 ' + d.fix.annual + '% · ' + d.fix.term + '天 · 到期 ' + dateStr(d.fix.due_ts) + '（' + (d.fix.matured ? '<b style="color:#2e8b57">已到期</b>' : '未到期') + '）<br>到期可得 <b>' + fmt(d.fix.mature_value) + '</b>，现在取出 <b>' + fmt(d.fix.value_now) + '</b>（提前取利息失效）';
 		} else { show('qd-bank-fix-none', true); show('qd-bank-fix-has', false); }
 		if (d.my_app) {
-			show('qd-bank-app', true); show('qd-bank-loan-none', false); show('qd-bank-loan-has', false);
+			show('qd-bank-app', true); show('qd-bank-loan-none', false); show('qd-bank-loan-has', false); show('qd-bank-special', false);
 			var gl = (d.my_app.guarantors || []).map(function (g) {
 				var t = g.status === 'agreed' ? '<b style="color:#2e8b57">已同意</b>' : (g.status === 'rejected' ? '<span class="warn">已拒绝</span>' : '待确认');
 				return g.name + '：' + t;
@@ -3372,9 +3378,21 @@ else {
 			show('qd-bank-app', false); show('qd-bank-loan-none', false); show('qd-bank-loan-has', true);
 			var od = d.loan.overdue ? ('<span class="warn">已逾期 ' + d.loan.overdue_days + ' 天</span>') : ('到期 ' + dateStr(d.loan.due_ts));
 			var mg = d.loan.margin > 0 ? ('（含冻结保证金 ' + fmt(d.loan.margin) + '）') : '';
-			$('qd-bank-loan-detail').innerHTML = '当前欠款 <b style="color:#c0392b">' + fmt(d.loan.owed) + '</b>（本金 ' + fmt(d.loan.principal) + '）· ' + d.loan.periods + '期 · 月息 ' + d.loan.rate_m + '% · ' + od + mg + (d.restricted ? '<br><span class="warn">⚠ 逾期已暂停娱乐功能，并启用每日自动还款/担保代偿</span>' : '');
+			var fz = d.loan.frozen ? ' · <b style="color:#8e44ad">已暂停计息</b>' : '';
+			var ins = d.loan.insured ? ' · <b style="color:#2e8b57">已投保</b>' : '';
+			$('qd-bank-loan-detail').innerHTML = '当前欠款 <b style="color:#c0392b">' + fmt(d.loan.owed) + '</b>（本金 ' + fmt(d.loan.principal) + '）· ' + d.loan.periods + '期 · 月息 ' + d.loan.rate_m + '% · ' + od + mg + fz + ins + (d.restricted ? '<br><span class="warn">⚠ 逾期已暂停娱乐功能，并启用每日自动还款/担保代偿</span>' : '');
+			// 特殊业务
+			show('qd-bank-special', true);
+			var sb = '';
+			if (!d.loan.insured) sb += '<button type="button" class="qd-b1 qd-bank-withdraw" data-bank="buy_insurance">购买保险(' + d.insurance_pct + '%)</button>';
+			else sb += '<button type="button" class="qd-b1 qd-bank-deposit" data-bank="apply_request" data-type="insurance_claim">申请保险理赔</button>';
+			sb += '<button type="button" class="qd-b1 qd-bank-borrow" data-bank="apply_request" data-type="bankruptcy">申请破产保护</button>';
+			sb += '<button type="button" class="qd-b1 qd-bank-borrow" data-bank="apply_request" data-type="restructure">申请债务重组</button>';
+			$('qd-bank-special-btns').innerHTML = sb;
+			var mr = (d.my_requests || []).map(function (r) { return r.label; }).join('，');
+			$('qd-bank-myreq').innerHTML = mr ? ('待审核申请：' + mr) : '';
 		} else {
-			show('qd-bank-app', false); show('qd-bank-loan-none', true); show('qd-bank-loan-has', false);
+			show('qd-bank-app', false); show('qd-bank-loan-none', true); show('qd-bank-loan-has', false); show('qd-bank-special', false);
 			var bb = modal.querySelector('[data-bank="borrow"]'); if (bb) bb.disabled = !d.can_borrow;
 		}
 		var reqs = d.guarantee_requests || [];
@@ -3386,18 +3404,23 @@ else {
 		}
 	}
 	function load() { fetch('/bank.php?action=status', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) { if (d.ok) paint(d); }).catch(function () {}); }
-	var noAmount = { withdraw_fix: 1, cancel_app: 1, guarantee_agree: 1, guarantee_reject: 1 };
+	var noAmount = { withdraw_fix: 1, cancel_app: 1, guarantee_agree: 1, guarantee_reject: 1, buy_insurance: 1, apply_request: 1 };
 	function act(b) {
 		if (busy) return;
 		var action = b.getAttribute('data-bank');
-		var amtId = b.getAttribute('data-amt'), termId = b.getAttribute('data-term'), guarId = b.getAttribute('data-guar'), appId = b.getAttribute('data-app');
+		var amtId = b.getAttribute('data-amt'), termId = b.getAttribute('data-term'), guarId = b.getAttribute('data-guar'), appId = b.getAttribute('data-app'), rtype = b.getAttribute('data-type');
 		var amount = amtId && $(amtId) ? parseFloat($(amtId).value) : 0;
 		if (!noAmount[action] && !(amount > 0)) { msg.style.color = '#c0392b'; msg.textContent = '请输入金额'; if (amtId && $(amtId)) $(amtId).focus(); return; }
+		var reason = null;
+		if (action === 'apply_request') { reason = window.prompt('请简述申请理由（供管理员审核）：', ''); if (reason === null) return; }
+		if (action === 'buy_insurance' && !window.confirm('购买保险将按贷款额收取 1% 保费，确定？')) return;
 		busy = true; msg.style.color = '#61666d'; msg.textContent = '处理中…';
 		var body = 'action=' + action + '&amount=' + encodeURIComponent(amount || 0);
 		if (termId && $(termId)) body += '&term=' + encodeURIComponent($(termId).value);
 		if (guarId && $(guarId)) body += '&guarantors=' + encodeURIComponent($(guarId).value);
 		if (appId) body += '&app_id=' + encodeURIComponent(appId);
+		if (rtype) body += '&type=' + encodeURIComponent(rtype);
+		if (reason !== null) body += '&reason=' + encodeURIComponent(reason);
 		fetch('/bank.php', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
 			.then(function (r) { return r.json(); }).then(function (d) {
 				if (!d.ok) { msg.style.color = '#c0392b'; msg.textContent = d.error || '出错了'; return; }

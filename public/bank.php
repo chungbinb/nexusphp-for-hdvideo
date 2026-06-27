@@ -44,4 +44,18 @@ if ($action === 'guarantee_agree' || $action === 'guarantee_reject') {
     exit;
 }
 
+if ($action === 'buy_insurance') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') { echo json_encode(['ok' => false, 'error' => '请求方式错误。']); exit; }
+    [$status, $err] = bank_buy_insurance($uid);
+    echo json_encode($err !== '' ? ['ok' => false, 'error' => $err] : (['ok' => true] + $status), JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+if ($action === 'apply_request') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') { echo json_encode(['ok' => false, 'error' => '请求方式错误。']); exit; }
+    [$status, $err] = bank_request($uid, $_POST['type'] ?? '', $_POST['reason'] ?? '');
+    echo json_encode($err !== '' ? ['ok' => false, 'error' => $err] : (['ok' => true] + $status), JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 echo json_encode(['ok' => false, 'error' => '未知操作。']);
