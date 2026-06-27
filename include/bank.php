@@ -15,6 +15,9 @@ const BANK_ACCOUNT_TABLE = 'hdvideo_bank_accounts';
 const BANK_CONFIG_TABLE = 'hdvideo_bank_config';
 const BANK_POOL_TABLE = 'hdvideo_bank_pool';   // 资金池/风险准备金/待分红统计（单行 id=1）
 const BANK_RESERVE_PCT = 25;                    // 贷款利息计入风险准备金的比例 %（其余进分红池）
+const BANK_APP_TABLE = 'hdvideo_bank_loan_apps';     // 需担保的贷款申请
+const BANK_GUARANTEE_TABLE = 'hdvideo_bank_guarantees';
+const BANK_MAX_GUARANTEES = 3;                  // 每人最多同时担保笔数
 
 const BANK_MIN_DEPOSIT = 10000;     // 最低存款（活期/定期单笔）
 const BANK_MIN_LOAN = 10000;        // 最低借款
@@ -72,12 +75,42 @@ function bank_ensure_tables()
         'loan_start_ts' => "int unsigned NOT NULL DEFAULT 0",
         'loan_due_ts' => "int unsigned NOT NULL DEFAULT 0",
         'blacklisted' => "tinyint(1) NOT NULL DEFAULT 0",
+        'loan_margin' => "decimal(20,2) NOT NULL DEFAULT '0.00'",
+        'loan_app_id' => "int unsigned NOT NULL DEFAULT 0",
     ] as $colName => $def) {
         $c = sql_query("SHOW COLUMNS FROM `" . BANK_ACCOUNT_TABLE . "` LIKE '$colName'");
         if ($c && !mysql_fetch_assoc($c)) {
             sql_query("ALTER TABLE `" . BANK_ACCOUNT_TABLE . "` ADD COLUMN `$colName` $def") or sqlerr(__FILE__, __LINE__);
         }
     }
+    @sql_query("
+        CREATE TABLE IF NOT EXISTS `" . BANK_APP_TABLE . "` (
+            `id` int unsigned NOT NULL AUTO_INCREMENT,
+            `uid` int unsigned NOT NULL,
+            `amount` bigint NOT NULL DEFAULT 0,
+            `periods` int unsigned NOT NULL DEFAULT 0,
+            `need` int unsigned NOT NULL DEFAULT 0,
+            `margin_pct` int unsigned NOT NULL DEFAULT 0,
+            `status` varchar(12) NOT NULL DEFAULT 'pending',
+            `created_at` datetime NOT NULL,
+            `updated_at` datetime NOT NULL,
+            PRIMARY KEY (`id`),
+            KEY `idx_uid` (`uid`,`status`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    @sql_query("
+        CREATE TABLE IF NOT EXISTS `" . BANK_GUARANTEE_TABLE . "` (
+            `id` int unsigned NOT NULL AUTO_INCREMENT,
+            `app_id` int unsigned NOT NULL,
+            `borrower` int unsigned NOT NULL,
+            `guarantor` int unsigned NOT NULL,
+            `status` varchar(12) NOT NULL DEFAULT 'pending',
+            `created_at` datetime NOT NULL,
+            PRIMARY KEY (`id`),
+            KEY `idx_g` (`guarantor`,`status`),
+            KEY `idx_app` (`app_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
     @sql_query("
         CREATE TABLE IF NOT EXISTS `" . BANK_POOL_TABLE . "` (
             `id` int unsigned NOT NULL,
@@ -312,13 +345,24 @@ function bank_auto_repay($uid)
         $newPrincipal = round($p - $payPrincipal, 2);
         $newWallet = round($wallet - $pay, 2);
         sql_query("UPDATE `users` SET `seedbonus` = `seedbonus` - " . sqlesc(bank_money($pay)) . " WHERE `id` = $uid") or sqlerr(__FILE__, __LINE__);
+        if ($payInterest > 0) bank_pool_add_interest($payInterest);
+        bank_log($uid, $wallet, -$pay, $newWallet, "[高清银行] 自动还款 {$pay}");
         if ($newPrincipal <= 0 && $newInterest <= 0) {
-            sql_query("UPDATE `" . BANK_ACCOUNT_TABLE . "` SET `loan` = 0, `loan_interest` = 0, `loan_ts` = 0, `loan_periods` = 0, `loan_rate_m` = 0, `loan_start_ts` = 0, `loan_due_ts` = 0, `updated_at` = " . sqlesc($ts) . " WHERE `uid` = $uid") or sqlerr(__FILE__, __LINE__);
+            $marginRet = round((float)$a['loan_margin'], 2);
+            $appId = (int)$a['loan_app_id'];
+            if ($marginRet > 0) {
+                sql_query("UPDATE `users` SET `seedbonus` = `seedbonus` + " . sqlesc(bank_money($marginRet)) . " WHERE `id` = $uid") or sqlerr(__FILE__, __LINE__);
+                bank_log($uid, $newWallet, $marginRet, round($newWallet + $marginRet, 2), "[高清银行] 退还保证金 {$marginRet}");
+                $newWallet = round($newWallet + $marginRet, 2);
+            }
+            sql_query("UPDATE `" . BANK_ACCOUNT_TABLE . "` SET `loan` = 0, `loan_interest` = 0, `loan_ts` = 0, `loan_periods` = 0, `loan_rate_m` = 0, `loan_start_ts` = 0, `loan_due_ts` = 0, `loan_margin` = 0, `loan_app_id` = 0, `updated_at` = " . sqlesc($ts) . " WHERE `uid` = $uid") or sqlerr(__FILE__, __LINE__);
+            if ($appId > 0) {
+                sql_query("UPDATE `" . BANK_GUARANTEE_TABLE . "` SET `status` = 'released' WHERE `app_id` = $appId AND `status` = 'agreed'") or sqlerr(__FILE__, __LINE__);
+                sql_query("UPDATE `" . BANK_APP_TABLE . "` SET `status` = 'closed', `updated_at` = " . sqlesc($ts) . " WHERE `id` = $appId") or sqlerr(__FILE__, __LINE__);
+            }
         } else {
             sql_query("UPDATE `" . BANK_ACCOUNT_TABLE . "` SET `loan` = " . sqlesc(bank_money($newPrincipal)) . ", `loan_interest` = " . sqlesc(bank_money($newInterest)) . ", `loan_ts` = $now, `updated_at` = " . sqlesc($ts) . " WHERE `uid` = $uid") or sqlerr(__FILE__, __LINE__);
         }
-        if ($payInterest > 0) bank_pool_add_interest($payInterest);
-        bank_log($uid, $wallet, -$pay, $newWallet, "[高清银行] 自动还款 {$pay}");
         sql_query("COMMIT") or sqlerr(__FILE__, __LINE__);
         if (function_exists('clear_user_cache')) clear_user_cache($uid);
         return $pay;
@@ -335,6 +379,307 @@ function bank_log($uid, $old, $delta, $new, $comment)
         "INSERT INTO bonus_logs (`business_type`,`uid`,`old_total_value`,`value`,`new_total_value`,`comment`,`created_at`,`updated_at`) VALUES (%d,%d,%s,%s,%s,%s,%s,%s)",
         BANK_BUSINESS_TYPE, (int)$uid, sqlesc(bank_money($old)), sqlesc(bank_money($delta)), sqlesc(bank_money($new)), sqlesc($comment), sqlesc($now), sqlesc($now)
     )) or sqlerr(__FILE__, __LINE__);
+}
+
+function bank_pm($uid, $subject, $body)
+{
+    $now = date('Y-m-d H:i:s');
+    @sql_query(sprintf("INSERT INTO messages (sender, receiver, added, subject, msg) VALUES (0, %d, %s, %s, %s)", (int)$uid, sqlesc($now), sqlesc($subject), sqlesc($body)));
+}
+
+/** 担保/保证金要求：[需担保人数, 保证金比例%]。 */
+function bank_guarantor_req($amount)
+{
+    $amount = (float)$amount;
+    if ($amount < 1000000) return [0, 0];
+    if ($amount <= 3000000) return [1, 10];
+    if ($amount <= 5000000) return [2, 15];
+    return [3, 20];
+}
+
+function bank_uid_by_name($name)
+{
+    $name = trim((string)$name);
+    if ($name === '') return 0;
+    $res = sql_query("SELECT `id` FROM `users` WHERE `username` = " . sqlesc($name) . " LIMIT 1") or sqlerr(__FILE__, __LINE__);
+    $r = mysql_fetch_assoc($res);
+    return $r ? (int)$r['id'] : 0;
+}
+
+function bank_name_by_uid($uid)
+{
+    $res = sql_query("SELECT `username` FROM `users` WHERE `id` = " . (int)$uid . " LIMIT 1") or sqlerr(__FILE__, __LINE__);
+    $r = mysql_fetch_assoc($res);
+    return $r ? (string)$r['username'] : ('用户#' . (int)$uid);
+}
+
+function bank_active_guarantee_count($uid)
+{
+    $res = sql_query("SELECT COUNT(*) AS c FROM `" . BANK_GUARANTEE_TABLE . "` WHERE `guarantor` = " . (int)$uid . " AND `status` = 'agreed'") or sqlerr(__FILE__, __LINE__);
+    return (int)mysql_fetch_assoc($res)['c'];
+}
+
+/** 担保人资格（第十一条简化版）。返回 [bool, reason]. */
+function bank_guarantor_eligible($uid)
+{
+    bank_ensure_tables();
+    $credit = bank_credit($uid);
+    if ($credit['reg_days'] < 180) return [false, '注册未满180天'];
+    if ($credit['ratio'] < 2.5) return [false, '分享率需≥2.5'];
+    if (!in_array($credit['grade'], ['SSS', 'SS', 'S', 'A'], true)) return [false, '信用等级需A级及以上'];
+    $rs = bank_restricted($uid);
+    if (!empty($rs['blacklisted']) || $rs['tier'] > 0) return [false, '本人有逾期/黑名单记录'];
+    if (bank_active_guarantee_count($uid) >= BANK_MAX_GUARANTEES) return [false, '已达最多同时担保 ' . BANK_MAX_GUARANTEES . ' 笔'];
+    return [true, ''];
+}
+
+/** 申请贷款（无需担保则直接放款；需担保则建申请并邀请担保人）。返回 [statusArray|null, error]. */
+function bank_apply_loan($uid, $amount, $periods, $guarantorsStr)
+{
+    bank_ensure_tables();
+    $uid = (int)$uid;
+    $amount = round((float)$amount, 2);
+    $periods = (int)$periods;
+    [$need, $marginPct] = bank_guarantor_req($amount);
+
+    // 基础校验
+    $a = bank_account($uid, false);
+    if (bank_loan_owed($a, time()) > 0) return [null, '已有未结清借款，请先还清再借。'];
+    $exist = sql_query("SELECT `id` FROM `" . BANK_APP_TABLE . "` WHERE `uid` = $uid AND `status` = 'pending' LIMIT 1") or sqlerr(__FILE__, __LINE__);
+    if (mysql_fetch_assoc($exist)) return [null, '你有一笔贷款申请待担保人确认，请先处理。'];
+    if ((int)$a['blacklisted'] === 1) return [null, '账户已被列入贷款黑名单。'];
+    if (!isset(BANK_LOAN_TIERS[$periods])) return [null, '请选择有效的分期期数。'];
+    $credit = bank_credit($uid);
+    if ($credit['grade'] === 'E') return [null, '信用等级为 E，暂不可借款。'];
+    if ($credit['reg_days'] < 30) return [null, '注册未满 30 天，暂不可借款。'];
+    if ($amount < BANK_MIN_LOAN) return [null, "最低借款 " . BANK_MIN_LOAN . "。"];
+    if ($amount > $credit['max_loan']) return [null, "超过你的信用额度（{$credit['grade']} 级最高可借 " . number_format($credit['max_loan']) . "）。"];
+
+    if ($need === 0) {
+        return bank_do($uid, 'borrow', $amount, $periods); // 无需担保，直接放款
+    }
+
+    // 需要担保人
+    $names = array_values(array_filter(array_map('trim', preg_split('/[,，\s]+/u', (string)$guarantorsStr))));
+    $names = array_unique($names);
+    if (count($names) < $need) return [null, "该金额需 {$need} 名担保人，请填写 {$need} 个担保人用户名。"];
+    $gUids = [];
+    foreach ($names as $n) {
+        $gid = bank_uid_by_name($n);
+        if ($gid <= 0) return [null, "找不到用户：{$n}"];
+        if ($gid === $uid) return [null, '不能担保自己。'];
+        if (in_array($gid, $gUids, true)) continue;
+        [$ok, $reason] = bank_guarantor_eligible($gid);
+        if (!$ok) return [null, "{$n} 不符合担保资格（{$reason}）。"];
+        $gUids[] = $gid;
+    }
+    if (count($gUids) < $need) return [null, "需 {$need} 名不同的合格担保人。"];
+    $gUids = array_slice($gUids, 0, $need);
+
+    $now = date('Y-m-d H:i:s');
+    sql_query(sprintf("INSERT INTO `" . BANK_APP_TABLE . "` (`uid`,`amount`,`periods`,`need`,`margin_pct`,`status`,`created_at`,`updated_at`) VALUES (%d,%d,%d,%d,%d,'pending',%s,%s)",
+        $uid, (int)$amount, $periods, $need, $marginPct, sqlesc($now), sqlesc($now))) or sqlerr(__FILE__, __LINE__);
+    $appId = (int)mysql_insert_id();
+    $bname = bank_name_by_uid($uid);
+    foreach ($gUids as $gid) {
+        sql_query(sprintf("INSERT INTO `" . BANK_GUARANTEE_TABLE . "` (`app_id`,`borrower`,`guarantor`,`status`,`created_at`) VALUES (%d,%d,%d,'pending',%s)", $appId, $uid, $gid, sqlesc($now))) or sqlerr(__FILE__, __LINE__);
+        bank_pm($gid, "魔力银行担保请求", "用户 {$bname} 申请借款 " . number_format($amount) . " 电影票，邀请你作为担保人。请到右侧「高清银行」弹窗确认是否同意担保。若借款人逾期超30天未还，担保人需按比例代偿。");
+    }
+    return [bank_status($uid), ''];
+}
+
+/** 全部担保人同意后正式放款（冻结保证金）。 */
+function bank_grant_from_app($appId)
+{
+    $appId = (int)$appId;
+    $ares = sql_query("SELECT * FROM `" . BANK_APP_TABLE . "` WHERE `id` = $appId AND `status` = 'pending' LIMIT 1") or sqlerr(__FILE__, __LINE__);
+    $app = mysql_fetch_assoc($ares);
+    if (!$app) return false;
+    $uid = (int)$app['uid'];
+    $amount = (float)$app['amount'];
+    $periods = (int)$app['periods'];
+    $marginPct = (int)$app['margin_pct'];
+    $now = time();
+    $ts = date('Y-m-d H:i:s');
+    sql_query("START TRANSACTION") or sqlerr(__FILE__, __LINE__);
+    try {
+        $ures = sql_query("SELECT `seedbonus` FROM `users` WHERE `id` = $uid FOR UPDATE") or sqlerr(__FILE__, __LINE__);
+        $u = mysql_fetch_assoc($ures);
+        if (!$u) { sql_query("ROLLBACK"); return false; }
+        $wallet = (float)$u['seedbonus'];
+        $a = bank_account($uid, true);
+        if (bank_loan_owed($a, $now) > 0) { sql_query("ROLLBACK"); return false; }
+        $margin = round($amount * $marginPct / 100, 2);
+        if ($wallet < $margin) {
+            sql_query("ROLLBACK");
+            sql_query("UPDATE `" . BANK_APP_TABLE . "` SET `status` = 'cancelled', `updated_at` = " . sqlesc($ts) . " WHERE `id` = $appId");
+            sql_query("UPDATE `" . BANK_GUARANTEE_TABLE . "` SET `status` = 'cancelled' WHERE `app_id` = $appId");
+            bank_pm($uid, "贷款放款失败", "保证金不足（需 " . number_format($margin) . " 电影票），贷款申请已取消。");
+            return false;
+        }
+        $credit = bank_credit($uid);
+        $rateM = bank_loan_rate($periods, $credit['grade']);
+        $due = $now + $periods * 30 * 86400;
+        $net = $amount - $margin; // 到账 = 借款 - 冻结保证金
+        $newWallet = $wallet + $net;
+        sql_query("UPDATE `users` SET `seedbonus` = `seedbonus` + " . sqlesc(bank_money($net)) . " WHERE `id` = $uid") or sqlerr(__FILE__, __LINE__);
+        sql_query("UPDATE `" . BANK_ACCOUNT_TABLE . "` SET `loan` = " . sqlesc(bank_money($amount)) . ", `loan_interest` = 0, `loan_ts` = $now, `loan_periods` = $periods, `loan_rate_m` = " . sqlesc(number_format($rateM, 4, '.', '')) . ", `loan_start_ts` = $now, `loan_due_ts` = $due, `loan_margin` = " . sqlesc(bank_money($margin)) . ", `loan_app_id` = $appId, `updated_at` = " . sqlesc($ts) . " WHERE `uid` = $uid") or sqlerr(__FILE__, __LINE__);
+        sql_query("UPDATE `" . BANK_APP_TABLE . "` SET `status` = 'approved', `updated_at` = " . sqlesc($ts) . " WHERE `id` = $appId") or sqlerr(__FILE__, __LINE__);
+        bank_log($uid, $wallet, $net, $newWallet, "[高清银行] 担保借款{$periods}期 {$amount}（冻结保证金{$margin}）");
+        sql_query("COMMIT") or sqlerr(__FILE__, __LINE__);
+        if (function_exists('clear_user_cache')) clear_user_cache($uid);
+        bank_pm($uid, "贷款已放款", "你的借款 " . number_format($amount) . " 已放款（冻结保证金 " . number_format($margin) . "，实际到账 " . number_format($net) . "）。请按时还款，逾期将启用担保代偿。");
+        return true;
+    } catch (Throwable $e) {
+        sql_query("ROLLBACK");
+        return false;
+    }
+}
+
+/** 担保人响应（同意/拒绝）。返回 [statusArray|null, error]. */
+function bank_respond_guarantee($guarantorUid, $appId, $agree)
+{
+    bank_ensure_tables();
+    $guarantorUid = (int)$guarantorUid;
+    $appId = (int)$appId;
+    $res = sql_query("SELECT * FROM `" . BANK_GUARANTEE_TABLE . "` WHERE `app_id` = $appId AND `guarantor` = $guarantorUid AND `status` = 'pending' LIMIT 1") or sqlerr(__FILE__, __LINE__);
+    $g = mysql_fetch_assoc($res);
+    if (!$g) return [null, '该担保请求不存在或已处理。'];
+    $borrower = (int)$g['borrower'];
+    $now = date('Y-m-d H:i:s');
+
+    if (!$agree) {
+        sql_query("UPDATE `" . BANK_GUARANTEE_TABLE . "` SET `status` = 'rejected' WHERE `id` = " . (int)$g['id']) or sqlerr(__FILE__, __LINE__);
+        sql_query("UPDATE `" . BANK_APP_TABLE . "` SET `status` = 'rejected', `updated_at` = " . sqlesc($now) . " WHERE `id` = $appId AND `status` = 'pending'") or sqlerr(__FILE__, __LINE__);
+        sql_query("UPDATE `" . BANK_GUARANTEE_TABLE . "` SET `status` = 'cancelled' WHERE `app_id` = $appId AND `status` = 'pending'") or sqlerr(__FILE__, __LINE__);
+        bank_pm($borrower, "担保被拒绝", "你的贷款申请被担保人拒绝，申请已取消，可重新申请。");
+        return [bank_status($guarantorUid), ''];
+    }
+
+    [$ok, $reason] = bank_guarantor_eligible($guarantorUid);
+    if (!$ok) return [null, "你当前不符合担保资格（{$reason}）。"];
+    sql_query("UPDATE `" . BANK_GUARANTEE_TABLE . "` SET `status` = 'agreed' WHERE `id` = " . (int)$g['id']) or sqlerr(__FILE__, __LINE__);
+    // 全部同意则放款
+    $pend = sql_query("SELECT COUNT(*) AS c FROM `" . BANK_GUARANTEE_TABLE . "` WHERE `app_id` = $appId AND `status` = 'pending'") or sqlerr(__FILE__, __LINE__);
+    if ((int)mysql_fetch_assoc($pend)['c'] === 0) {
+        bank_grant_from_app($appId);
+    }
+    return [bank_status($guarantorUid), ''];
+}
+
+function bank_cancel_app($uid)
+{
+    bank_ensure_tables();
+    $uid = (int)$uid;
+    $res = sql_query("SELECT `id` FROM `" . BANK_APP_TABLE . "` WHERE `uid` = $uid AND `status` = 'pending' LIMIT 1") or sqlerr(__FILE__, __LINE__);
+    $app = mysql_fetch_assoc($res);
+    if (!$app) return [null, '没有待处理的申请。'];
+    $appId = (int)$app['id'];
+    sql_query("UPDATE `" . BANK_APP_TABLE . "` SET `status` = 'cancelled', `updated_at` = " . sqlesc(date('Y-m-d H:i:s')) . " WHERE `id` = $appId") or sqlerr(__FILE__, __LINE__);
+    sql_query("UPDATE `" . BANK_GUARANTEE_TABLE . "` SET `status` = 'cancelled' WHERE `app_id` = $appId AND `status` = 'pending'") or sqlerr(__FILE__, __LINE__);
+    return [bank_status($uid), ''];
+}
+
+/** 借款人欠款列表中、我作为担保人的待确认请求。 */
+function bank_guarantee_requests($uid)
+{
+    bank_ensure_tables();
+    $uid = (int)$uid;
+    $out = [];
+    $res = sql_query("SELECT g.`app_id`, g.`borrower`, ap.`amount`, ap.`periods`, ap.`need` FROM `" . BANK_GUARANTEE_TABLE . "` g INNER JOIN `" . BANK_APP_TABLE . "` ap ON ap.`id` = g.`app_id` WHERE g.`guarantor` = $uid AND g.`status` = 'pending' AND ap.`status` = 'pending'") or sqlerr(__FILE__, __LINE__);
+    while ($r = mysql_fetch_assoc($res)) {
+        $out[] = [
+            'app_id' => (int)$r['app_id'],
+            'borrower' => bank_name_by_uid((int)$r['borrower']),
+            'amount' => (float)$r['amount'],
+            'periods' => (int)$r['periods'],
+        ];
+    }
+    return $out;
+}
+
+/** 我自己的待确认贷款申请（含各担保人状态）。 */
+function bank_my_app($uid)
+{
+    bank_ensure_tables();
+    $uid = (int)$uid;
+    $res = sql_query("SELECT * FROM `" . BANK_APP_TABLE . "` WHERE `uid` = $uid AND `status` = 'pending' ORDER BY `id` DESC LIMIT 1") or sqlerr(__FILE__, __LINE__);
+    $app = mysql_fetch_assoc($res);
+    if (!$app) return null;
+    $gs = [];
+    $gr = sql_query("SELECT `guarantor`,`status` FROM `" . BANK_GUARANTEE_TABLE . "` WHERE `app_id` = " . (int)$app['id']) or sqlerr(__FILE__, __LINE__);
+    while ($g = mysql_fetch_assoc($gr)) {
+        $gs[] = ['name' => bank_name_by_uid((int)$g['guarantor']), 'status' => $g['status']];
+    }
+    return ['amount' => (float)$app['amount'], 'periods' => (int)$app['periods'], 'margin_pct' => (int)$app['margin_pct'], 'guarantors' => $gs];
+}
+
+/** 担保代偿（逾期>30天调用）：先用保证金，再由担保人按人数均摊。返回已代偿金额。 */
+function bank_compensate($borrowerUid)
+{
+    bank_ensure_tables();
+    $borrowerUid = (int)$borrowerUid;
+    $now = time();
+    $ts = date('Y-m-d H:i:s');
+    sql_query("START TRANSACTION") or sqlerr(__FILE__, __LINE__);
+    try {
+        $a = bank_account($borrowerUid, true);
+        $owed = bank_loan_owed($a, $now);
+        if ($owed <= 0) { sql_query("COMMIT"); return 0; }
+        $appId = (int)$a['loan_app_id'];
+        $margin = (float)$a['loan_margin'];
+        $covered = 0;
+        // 1) 保证金抵债
+        if ($margin > 0) {
+            $useM = min($margin, $owed);
+            $owed = round($owed - $useM, 2);
+            $margin = round($margin - $useM, 2);
+            $covered += $useM;
+            sql_query("UPDATE `" . BANK_ACCOUNT_TABLE . "` SET `loan_margin` = " . sqlesc(bank_money($margin)) . " WHERE `uid` = $borrowerUid") or sqlerr(__FILE__, __LINE__);
+            bank_log($borrowerUid, 0, 0, 0, "[高清银行] 保证金抵债 {$useM}");
+        }
+        // 2) 担保人代偿
+        if ($owed > 0 && $appId > 0) {
+            $gr = sql_query("SELECT `id`,`guarantor` FROM `" . BANK_GUARANTEE_TABLE . "` WHERE `app_id` = $appId AND `status` = 'agreed'") or sqlerr(__FILE__, __LINE__);
+            $gs = [];
+            while ($g = mysql_fetch_assoc($gr)) $gs[] = $g;
+            $n = count($gs);
+            if ($n > 0) {
+                $share = round($owed / $n, 2);
+                foreach ($gs as $g) {
+                    if ($owed <= 0) break;
+                    $gid = (int)$g['guarantor'];
+                    $want = min($share, $owed);
+                    $gu = mysql_fetch_assoc(sql_query("SELECT `seedbonus` FROM `users` WHERE `id` = $gid FOR UPDATE"));
+                    if (!$gu) continue;
+                    $gw = (float)$gu['seedbonus'];
+                    $take = round(min($want, max(0, $gw)), 2);
+                    if ($take > 0) {
+                        sql_query("UPDATE `users` SET `seedbonus` = `seedbonus` - " . sqlesc(bank_money($take)) . " WHERE `id` = $gid") or sqlerr(__FILE__, __LINE__);
+                        bank_log($gid, $gw, -$take, round($gw - $take, 2), "[高清银行] 担保代偿（借款人逾期）{$take}");
+                        if (function_exists('clear_user_cache')) clear_user_cache($gid);
+                        $owed = round($owed - $take, 2);
+                        $covered += $take;
+                    }
+                    sql_query("UPDATE `" . BANK_GUARANTEE_TABLE . "` SET `status` = 'fulfilled' WHERE `id` = " . (int)$g['id']) or sqlerr(__FILE__, __LINE__);
+                }
+            }
+        }
+        // 3) 更新借款人欠款
+        if ($owed <= 0) {
+            sql_query("UPDATE `" . BANK_ACCOUNT_TABLE . "` SET `loan` = 0, `loan_interest` = 0, `loan_ts` = 0, `loan_periods` = 0, `loan_rate_m` = 0, `loan_start_ts` = 0, `loan_due_ts` = 0, `loan_margin` = 0, `loan_app_id` = 0, `updated_at` = " . sqlesc($ts) . " WHERE `uid` = $borrowerUid") or sqlerr(__FILE__, __LINE__);
+            if ($appId > 0) sql_query("UPDATE `" . BANK_APP_TABLE . "` SET `status` = 'compensated', `updated_at` = " . sqlesc($ts) . " WHERE `id` = $appId");
+        } else {
+            // 仍有剩余，记为本金，重置计息时间
+            sql_query("UPDATE `" . BANK_ACCOUNT_TABLE . "` SET `loan` = " . sqlesc(bank_money($owed)) . ", `loan_interest` = 0, `loan_ts` = $now, `updated_at` = " . sqlesc($ts) . " WHERE `uid` = $borrowerUid") or sqlerr(__FILE__, __LINE__);
+        }
+        sql_query("COMMIT") or sqlerr(__FILE__, __LINE__);
+        if (function_exists('clear_user_cache')) clear_user_cache($borrowerUid);
+        return round($covered, 2);
+    } catch (Throwable $e) {
+        sql_query("ROLLBACK");
+        return 0;
+    }
 }
 
 function bank_status($uid)
@@ -368,6 +713,7 @@ function bank_status($uid)
             'periods' => (int)$a['loan_periods'],
             'rate_m' => (float)$a['loan_rate_m'],
             'due_ts' => $due,
+            'margin' => round((float)$a['loan_margin'], 2),
             'overdue' => ($due > 0 && $now > $due),
             'overdue_days' => ($due > 0 && $now > $due) ? (int)floor(($now - $due) / 86400) : 0,
         ];
@@ -402,6 +748,8 @@ function bank_status($uid)
         'can_borrow' => $canBorrow,
         'borrow_block' => $block,
         'pool' => bank_pool_stats(),
+        'my_app' => bank_my_app($uid),
+        'guarantee_requests' => bank_guarantee_requests($uid),
     ];
 }
 
@@ -498,13 +846,24 @@ function bank_do($uid, $action, $amount, $param = 0)
             $newPrincipal = round($p - $payPrincipal, 2);
             $newWallet = $wallet - $pay;
             sql_query("UPDATE `users` SET `seedbonus` = `seedbonus` - " . sqlesc(bank_money($pay)) . " WHERE `id` = $uid") or sqlerr(__FILE__, __LINE__);
+            if ($payInterest > 0) bank_pool_add_interest($payInterest);
+            bank_log($uid, $wallet, -$pay, $newWallet, "[高清银行] 还款 {$pay}");
             if ($newPrincipal <= 0 && $newInterest <= 0) {
-                sql_query("UPDATE `" . BANK_ACCOUNT_TABLE . "` SET `loan` = 0, `loan_interest` = 0, `loan_ts` = 0, `loan_periods` = 0, `loan_rate_m` = 0, `loan_start_ts` = 0, `loan_due_ts` = 0, `updated_at` = " . sqlesc($ts) . " WHERE `uid` = $uid") or sqlerr(__FILE__, __LINE__);
+                $marginRet = round((float)$a['loan_margin'], 2);
+                $appId = (int)$a['loan_app_id'];
+                if ($marginRet > 0) {
+                    sql_query("UPDATE `users` SET `seedbonus` = `seedbonus` + " . sqlesc(bank_money($marginRet)) . " WHERE `id` = $uid") or sqlerr(__FILE__, __LINE__);
+                    bank_log($uid, $newWallet, $marginRet, round($newWallet + $marginRet, 2), "[高清银行] 退还保证金 {$marginRet}");
+                    $newWallet = round($newWallet + $marginRet, 2);
+                }
+                sql_query("UPDATE `" . BANK_ACCOUNT_TABLE . "` SET `loan` = 0, `loan_interest` = 0, `loan_ts` = 0, `loan_periods` = 0, `loan_rate_m` = 0, `loan_start_ts` = 0, `loan_due_ts` = 0, `loan_margin` = 0, `loan_app_id` = 0, `updated_at` = " . sqlesc($ts) . " WHERE `uid` = $uid") or sqlerr(__FILE__, __LINE__);
+                if ($appId > 0) {
+                    sql_query("UPDATE `" . BANK_GUARANTEE_TABLE . "` SET `status` = 'released' WHERE `app_id` = $appId AND `status` = 'agreed'") or sqlerr(__FILE__, __LINE__);
+                    sql_query("UPDATE `" . BANK_APP_TABLE . "` SET `status` = 'closed', `updated_at` = " . sqlesc($ts) . " WHERE `id` = $appId") or sqlerr(__FILE__, __LINE__);
+                }
             } else {
                 sql_query("UPDATE `" . BANK_ACCOUNT_TABLE . "` SET `loan` = " . sqlesc(bank_money($newPrincipal)) . ", `loan_interest` = " . sqlesc(bank_money($newInterest)) . ", `loan_ts` = $now, `updated_at` = " . sqlesc($ts) . " WHERE `uid` = $uid") or sqlerr(__FILE__, __LINE__);
             }
-            if ($payInterest > 0) bank_pool_add_interest($payInterest);
-            bank_log($uid, $wallet, -$pay, $newWallet, "[高清银行] 还款 {$pay}");
 
         } else {
             sql_query("ROLLBACK");

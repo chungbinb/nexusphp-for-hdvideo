@@ -34,17 +34,21 @@ class BankAutoRepay extends Command
 
         $total = 0.0;
         $count = 0;
+        $compensated = 0.0;
         foreach ($uids as $uid) {
             $paid = bank_auto_repay($uid);
             if ($paid > 0) {
                 $total += $paid;
                 $count++;
             }
-            // 触发逾期/黑名单状态更新
-            bank_restricted($uid);
+            // 逾期>30天(tier>=4)启动担保代偿；并更新逾期/黑名单状态
+            $rs = bank_restricted($uid);
+            if (!empty($rs['tier']) && $rs['tier'] >= 4) {
+                $compensated += bank_compensate($uid);
+            }
         }
 
-        $log = sprintf('[bank:auto_repay] users=%d repaid_users=%d total=%.2f', count($uids), $count, $total);
+        $log = sprintf('[bank:auto_repay] users=%d repaid_users=%d total=%.2f compensated=%.2f', count($uids), $count, $total, $compensated);
         $this->info($log);
         if (function_exists('do_log')) {
             do_log($log);

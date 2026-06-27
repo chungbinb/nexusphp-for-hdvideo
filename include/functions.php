@@ -3303,8 +3303,13 @@ else {
 				<div class="qd-bank-row">
 					<select class="qd-bank-sel" id="qd-loan-term"></select>
 					<input type="number" class="qd-bank-amt" id="qd-amt-borrow" min="1" placeholder="金额">
-					<button type="button" class="qd-b1 qd-bank-borrow" data-bank="borrow" data-amt="qd-amt-borrow" data-term="qd-loan-term">借款</button>
+					<button type="button" class="qd-b1 qd-bank-borrow" data-bank="borrow" data-amt="qd-amt-borrow" data-term="qd-loan-term" data-guar="qd-loan-guar">借款</button>
 				</div>
+				<input type="text" class="qd-bank-amt" id="qd-loan-guar" placeholder="担保人用户名（≥100万需担保，逗号分隔）" style="margin-top:6px">
+			</div>
+			<div id="qd-bank-app" style="display:none">
+				<div class="qd-bank-detail" id="qd-bank-app-detail"></div>
+				<button type="button" class="qd-b1 qd-bank-repay" data-bank="cancel_app">取消申请</button>
 			</div>
 			<div id="qd-bank-loan-has" style="display:none">
 				<div class="qd-bank-detail" id="qd-bank-loan-detail"></div>
@@ -3313,6 +3318,11 @@ else {
 					<button type="button" class="qd-b1 qd-bank-repay" data-bank="repay" data-amt="qd-amt-repay">还款</button>
 				</div>
 			</div>
+		</div>
+
+		<div class="qd-bank-sec" id="qd-bank-guarantee-sec" style="display:none">
+			<h4>担保请求</h4>
+			<div id="qd-bank-guarantee-list"></div>
 		</div>
 
 		<div class="qd-bank-msg" id="qd-bank-msg"></div>
@@ -3351,25 +3361,43 @@ else {
 			show('qd-bank-fix-none', false); show('qd-bank-fix-has', true);
 			$('qd-bank-fix-detail').innerHTML = '本金 <b>' + fmt(d.fix.principal) + '</b> · 年化 ' + d.fix.annual + '% · ' + d.fix.term + '天 · 到期 ' + dateStr(d.fix.due_ts) + '（' + (d.fix.matured ? '<b style="color:#2e8b57">已到期</b>' : '未到期') + '）<br>到期可得 <b>' + fmt(d.fix.mature_value) + '</b>，现在取出 <b>' + fmt(d.fix.value_now) + '</b>（提前取利息失效）';
 		} else { show('qd-bank-fix-none', true); show('qd-bank-fix-has', false); }
-		if (d.loan) {
-			show('qd-bank-loan-none', false); show('qd-bank-loan-has', true);
+		if (d.my_app) {
+			show('qd-bank-app', true); show('qd-bank-loan-none', false); show('qd-bank-loan-has', false);
+			var gl = (d.my_app.guarantors || []).map(function (g) {
+				var t = g.status === 'agreed' ? '<b style="color:#2e8b57">已同意</b>' : (g.status === 'rejected' ? '<span class="warn">已拒绝</span>' : '待确认');
+				return g.name + '：' + t;
+			}).join('，');
+			$('qd-bank-app-detail').innerHTML = '⏳ 贷款申请审核中：' + fmt(d.my_app.amount) + ' · ' + d.my_app.periods + '期 · 保证金' + d.my_app.margin_pct + '%<br>担保人 ' + gl;
+		} else if (d.loan) {
+			show('qd-bank-app', false); show('qd-bank-loan-none', false); show('qd-bank-loan-has', true);
 			var od = d.loan.overdue ? ('<span class="warn">已逾期 ' + d.loan.overdue_days + ' 天</span>') : ('到期 ' + dateStr(d.loan.due_ts));
-			$('qd-bank-loan-detail').innerHTML = '当前欠款 <b style="color:#c0392b">' + fmt(d.loan.owed) + '</b>（本金 ' + fmt(d.loan.principal) + '）· ' + d.loan.periods + '期 · 月息 ' + d.loan.rate_m + '% · ' + od + (d.restricted ? '<br><span class="warn">⚠ 逾期已暂停娱乐功能，并启用每日自动还款</span>' : '');
+			var mg = d.loan.margin > 0 ? ('（含冻结保证金 ' + fmt(d.loan.margin) + '）') : '';
+			$('qd-bank-loan-detail').innerHTML = '当前欠款 <b style="color:#c0392b">' + fmt(d.loan.owed) + '</b>（本金 ' + fmt(d.loan.principal) + '）· ' + d.loan.periods + '期 · 月息 ' + d.loan.rate_m + '% · ' + od + mg + (d.restricted ? '<br><span class="warn">⚠ 逾期已暂停娱乐功能，并启用每日自动还款/担保代偿</span>' : '');
 		} else {
-			show('qd-bank-loan-none', true); show('qd-bank-loan-has', false);
+			show('qd-bank-app', false); show('qd-bank-loan-none', true); show('qd-bank-loan-has', false);
 			var bb = modal.querySelector('[data-bank="borrow"]'); if (bb) bb.disabled = !d.can_borrow;
+		}
+		var reqs = d.guarantee_requests || [];
+		show('qd-bank-guarantee-sec', reqs.length > 0);
+		if (reqs.length > 0) {
+			$('qd-bank-guarantee-list').innerHTML = reqs.map(function (r) {
+				return '<div class="qd-bank-detail" style="border-top:1px dashed var(--bili-border,#e6e9ef);padding-top:8px">' + r.borrower + ' 申请借款 <b>' + fmt(r.amount) + '</b>（' + r.periods + '期），邀请你担保。<div class="qd-bank-row" style="margin-top:6px"><button type="button" class="qd-b1 qd-bank-deposit" data-bank="guarantee_agree" data-app="' + r.app_id + '">同意担保</button><button type="button" class="qd-b1 qd-bank-repay" data-bank="guarantee_reject" data-app="' + r.app_id + '">拒绝</button></div></div>';
+			}).join('');
 		}
 	}
 	function load() { fetch('/bank.php?action=status', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) { if (d.ok) paint(d); }).catch(function () {}); }
+	var noAmount = { withdraw_fix: 1, cancel_app: 1, guarantee_agree: 1, guarantee_reject: 1 };
 	function act(b) {
 		if (busy) return;
 		var action = b.getAttribute('data-bank');
-		var amtId = b.getAttribute('data-amt'), termId = b.getAttribute('data-term');
+		var amtId = b.getAttribute('data-amt'), termId = b.getAttribute('data-term'), guarId = b.getAttribute('data-guar'), appId = b.getAttribute('data-app');
 		var amount = amtId && $(amtId) ? parseFloat($(amtId).value) : 0;
-		if (action !== 'withdraw_fix' && !(amount > 0)) { msg.style.color = '#c0392b'; msg.textContent = '请输入金额'; if (amtId && $(amtId)) $(amtId).focus(); return; }
+		if (!noAmount[action] && !(amount > 0)) { msg.style.color = '#c0392b'; msg.textContent = '请输入金额'; if (amtId && $(amtId)) $(amtId).focus(); return; }
 		busy = true; msg.style.color = '#61666d'; msg.textContent = '处理中…';
 		var body = 'action=' + action + '&amount=' + encodeURIComponent(amount || 0);
 		if (termId && $(termId)) body += '&term=' + encodeURIComponent($(termId).value);
+		if (guarId && $(guarId)) body += '&guarantors=' + encodeURIComponent($(guarId).value);
+		if (appId) body += '&app_id=' + encodeURIComponent(appId);
 		fetch('/bank.php', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
 			.then(function (r) { return r.json(); }).then(function (d) {
 				if (!d.ok) { msg.style.color = '#c0392b'; msg.textContent = d.error || '出错了'; return; }
@@ -3379,8 +3407,12 @@ else {
 			.finally(function () { busy = false; });
 	}
 	btn.addEventListener('click', function () { modal.hidden = false; msg.textContent = ''; load(); });
-	modal.querySelectorAll('[data-qd-close]').forEach(function (c) { c.addEventListener('click', function () { modal.hidden = true; }); });
-	modal.querySelectorAll('[data-bank]').forEach(function (b) { b.addEventListener('click', function () { act(b); }); });
+	modal.addEventListener('click', function (e) {
+		var c = e.target.closest ? e.target.closest('[data-qd-close]') : null;
+		if (c && modal.contains(c)) { modal.hidden = true; return; }
+		var b = e.target.closest ? e.target.closest('[data-bank]') : null;
+		if (b && modal.contains(b)) act(b);
+	});
 })();
 </script>
 <style>
