@@ -349,7 +349,7 @@ echo game_back_link();
 <div class="bj-wrap">
     <div class="bj-head">
         <div>
-            <div class="bj-title">二十一点 <span class="bj-badge">内测中 v0.2</span></div>
+            <div class="bj-title">二十一点 <span class="bj-badge">公测 1.0</span></div>
             <div class="bj-muted">点数接近 21 且不爆即胜。庄家停在 17，黑杰克(首两张 A+10)赔 1.5 倍。</div>
         </div>
         <div class="bj-balance">我的电影票：<b id="bjBal"><?php echo bj_money($CURUSER['seedbonus']) ?></b> 张</div>
@@ -404,6 +404,7 @@ echo game_back_link();
 
     <?php
     $bjNet = game_lb_run("SELECT `s`.`uid` AS uid, `u`.`username` AS username, SUM(`s`.`delta`) AS amt FROM `" . BJ_RESULT_TABLE . "` `s` INNER JOIN `users` `u` ON `u`.`id` = `s`.`uid` GROUP BY `s`.`uid`, `u`.`username` ORDER BY amt DESC LIMIT 10");
+    $bjNetLow = game_lb_run("SELECT `s`.`uid` AS uid, `u`.`username` AS username, SUM(`s`.`delta`) AS amt FROM `" . BJ_RESULT_TABLE . "` `s` INNER JOIN `users` `u` ON `u`.`id` = `s`.`uid` GROUP BY `s`.`uid`, `u`.`username` ORDER BY amt ASC LIMIT 10");
     $bjCnt = game_lb_run("SELECT `s`.`uid` AS uid, `u`.`username` AS username, COUNT(*) AS amt FROM `" . BJ_RESULT_TABLE . "` `s` INNER JOIN `users` `u` ON `u`.`id` = `s`.`uid` GROUP BY `s`.`uid`, `u`.`username` ORDER BY amt DESC LIMIT 10");
     $bjLuck = game_lb_run("SELECT `s`.`uid` AS uid, `u`.`username` AS username, MAX(`s`.`delta`) AS amt, COUNT(*) AS cnt FROM `" . BJ_RESULT_TABLE . "` `s` INNER JOIN `users` `u` ON `u`.`id` = `s`.`uid` GROUP BY `s`.`uid`, `u`.`username` ORDER BY amt DESC, cnt DESC LIMIT 10");
     echo game_lb_css();
@@ -414,7 +415,7 @@ echo game_back_link();
             <?php
             echo game_lb_table('💰 盈亏榜', $bjNet, '净盈亏',
                 function ($r) { return ((float)$r['amt'] >= 0 ? '+' : '') . game_lb_money($r['amt']); },
-                function ($r) { return (float)$r['amt'] >= 0 ? 'glb-pos' : 'glb-neg'; });
+                function ($r) { return (float)$r['amt'] >= 0 ? 'glb-pos' : 'glb-neg'; }, $bjNetLow);
             echo game_lb_table('🔥 活跃榜', $bjCnt, '对局数',
                 function ($r) { return number_format((int)$r['amt']) . ' 局'; });
             echo game_lb_table('🍀 手气榜', $bjLuck, '单局最高赢',

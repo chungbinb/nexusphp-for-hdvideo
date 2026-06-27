@@ -28,8 +28,9 @@ function game_lb_run($sql)
  *  $mode: 'profit' = SUM(value) net | 'active' = COUNT(*) | 'win' = SUM(value>0)
  *  $commentLike: optional comment prefix to scope to one game (null = whole hall)
  */
-function game_lb_bonus($mode, $commentLike = null, $limit = 10)
+function game_lb_bonus($mode, $commentLike = null, $limit = 10, $order = 'DESC')
 {
+    $order = strtoupper($order) === 'ASC' ? 'ASC' : 'DESC';
     $where = '`bl`.`business_type` IN (' . GAME_LB_BUSINESS_TYPE_SET . ') AND `bl`.`uid` > 0';
     if ($commentLike !== null) {
         $where .= ' AND `bl`.`comment` LIKE ' . sqlesc($commentLike . '%');
@@ -52,7 +53,7 @@ function game_lb_bonus($mode, $commentLike = null, $limit = 10)
             INNER JOIN `users` `u` ON `u`.`id` = `bl`.`uid`
             WHERE $where
             GROUP BY `bl`.`uid`, `u`.`username`
-            ORDER BY amt DESC
+            ORDER BY amt $order
             LIMIT " . (int)$limit;
     return game_lb_run($sql);
 }
@@ -75,25 +76,53 @@ function game_lb_user_cell($row)
  *  $valueFn($row) => display string for the value column.
  *  $valueClassFn($row) => optional css class (glb-pos / glb-neg) for the value cell.
  */
-function game_lb_table($title, $rows, $valueLabel, $valueFn, $valueClassFn = null)
+function game_lb_table_body($rows, $valueLabel, $valueFn, $valueClassFn, $dir, $hidden)
 {
     ob_start(); ?>
+    <table class="glb-table glb-body" data-dir="<?php echo $dir ?>"<?php echo $hidden ? ' style="display:none"' : '' ?>>
+        <tr><th>#</th><th>用户</th><th><?php echo htmlspecialchars($valueLabel) ?></th></tr>
+        <?php if (!$rows) { ?>
+            <tr><td colspan="3" class="glb-empty">暂无数据</td></tr>
+        <?php } else { $i = 0; foreach ($rows as $r) { $i++;
+            $cls = $valueClassFn ? $valueClassFn($r) : '';
+        ?>
+            <tr>
+                <td class="glb-rank glb-rank-<?php echo $i ?>"><?php echo $i ?></td>
+                <td><?php echo game_lb_user_cell($r) ?></td>
+                <td class="<?php echo $cls ?>"><?php echo $valueFn($r) ?></td>
+            </tr>
+        <?php } } ?>
+    </table>
+    <?php return ob_get_clean();
+}
+
+/**
+ * Render one compact leaderboard card.
+ *  $valueFn($row) => display string for the value column.
+ *  $valueClassFn($row) => optional css class (glb-pos / glb-neg) for the value cell.
+ *  $reverseRows => optional second dataset (e.g. ascending / biggest losers). When given,
+ *                  a 高→低 / 低→高 toggle is shown and both tables are rendered (one hidden).
+ */
+function game_lb_table($title, $rows, $valueLabel, $valueFn, $valueClassFn = null, $reverseRows = null)
+{
+    $hasToggle = is_array($reverseRows);
+    ob_start(); ?>
     <div class="glb-card">
-        <div class="glb-card-title"><?php echo $title ?></div>
-        <table class="glb-table">
-            <tr><th>#</th><th>用户</th><th><?php echo htmlspecialchars($valueLabel) ?></th></tr>
-            <?php if (!$rows) { ?>
-                <tr><td colspan="3" class="glb-empty">暂无数据</td></tr>
-            <?php } else { $i = 0; foreach ($rows as $r) { $i++;
-                $cls = $valueClassFn ? $valueClassFn($r) : '';
-            ?>
-                <tr>
-                    <td class="glb-rank glb-rank-<?php echo $i ?>"><?php echo $i ?></td>
-                    <td><?php echo game_lb_user_cell($r) ?></td>
-                    <td class="<?php echo $cls ?>"><?php echo $valueFn($r) ?></td>
-                </tr>
-            <?php } } ?>
-        </table>
+        <div class="glb-card-title">
+            <span><?php echo $title ?></span>
+            <?php if ($hasToggle) { ?>
+                <span class="glb-toggle">
+                    <button type="button" class="glb-dir on" data-dir="desc">高→低</button>
+                    <button type="button" class="glb-dir" data-dir="asc">低→高</button>
+                </span>
+            <?php } ?>
+        </div>
+        <?php
+        echo game_lb_table_body($rows, $valueLabel, $valueFn, $valueClassFn, 'desc', false);
+        if ($hasToggle) {
+            echo game_lb_table_body($reverseRows, $valueLabel, $valueFn, $valueClassFn, 'asc', true);
+        }
+        ?>
     </div>
     <?php return ob_get_clean();
 }
@@ -109,7 +138,10 @@ function game_lb_css()
     .glb-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
     @media(max-width:760px){.glb-grid{grid-template-columns:1fr}}
     .glb-card{border:1px solid rgba(120,150,190,.3);border-radius:8px;overflow:hidden}
-    .glb-card-title{padding:10px 12px;font-weight:800;background:rgba(120,150,190,.16)}
+    .glb-card-title{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;font-weight:800;background:rgba(120,150,190,.16)}
+    .glb-toggle{display:inline-flex;border:1px solid rgba(120,150,190,.45);border-radius:6px;overflow:hidden;flex:none}
+    .glb-dir{font-size:11px;font-weight:700;padding:2px 8px;border:0;background:transparent;color:#8aa0b6;cursor:pointer;line-height:1.6}
+    .glb-dir.on{background:#2980b9;color:#fff}
     .glb-table{width:100%;border-collapse:collapse}
     .glb-table th,.glb-table td{padding:7px 10px;text-align:left;border-top:1px solid rgba(120,150,190,.16);font-size:13px}
     .glb-table th{color:#8aa0b6;font-weight:700}
@@ -119,5 +151,15 @@ function game_lb_css()
     .glb-rank-1{color:#e9b949}.glb-rank-2{color:#9fb0c2}.glb-rank-3{color:#c08457}
     .glb-pos{color:#16a34a;font-weight:700}.glb-neg{color:#dc2626;font-weight:700}
     .glb-empty{text-align:center;color:#8aa0b6;padding:16px}
-    </style>';
+    </style>
+    <script>
+    document.addEventListener("click", function (e) {
+        var btn = e.target.closest ? e.target.closest(".glb-dir") : null;
+        if (!btn) return;
+        var card = btn.closest(".glb-card"); if (!card) return;
+        var dir = btn.getAttribute("data-dir");
+        card.querySelectorAll(".glb-dir").forEach(function (b) { b.classList.toggle("on", b === btn); });
+        card.querySelectorAll(".glb-body").forEach(function (t) { t.style.display = t.getAttribute("data-dir") === dir ? "" : "none"; });
+    });
+    </script>';
 }
