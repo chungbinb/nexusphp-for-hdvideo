@@ -19,6 +19,7 @@ function game_control_defaults()
         'slots'     => ['name' => '老虎机', 'is_open' => 1, 'min_class' => 15, 'sort' => 8],
         'plinko'    => ['name' => 'Plinko弹珠', 'is_open' => 1, 'min_class' => 15, 'sort' => 9],
         'hilo'      => ['name' => '猜高低', 'is_open' => 1, 'min_class' => 15, 'sort' => 10],
+        'moviequiz' => ['name' => '猜电影', 'is_open' => 0, 'min_class' => 15, 'sort' => 11], // 题库就绪后再开放
     ];
 }
 

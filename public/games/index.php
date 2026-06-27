@@ -140,6 +140,18 @@ $games = [
         'theme' => 'hilo',
         'shots' => ['dice-a', 'dice-b', 'dice-c'],
     ],
+    [
+        'title' => '猜电影',
+        'badge' => '内测中 v0.1',
+        'subtitle' => '看电影截图或经典台词猜片名，答对得电影票，连对越多奖励越高，管理员可加题。',
+        'date' => '已开放',
+        'price' => '立即进入',
+        'href' => '/games/moviequiz/',
+        'status' => '可玩',
+        'tags' => ['电影', '截图', '台词', '竞猜'],
+        'theme' => 'moviequiz',
+        'shots' => ['quiz-a', 'quiz-b', 'quiz-c'],
+    ],
 ];
 
 $featured = $games[0];
@@ -280,6 +292,7 @@ body.page-games-php:not(.inframe) {
 .theme-slots { --game-a: #d4a017; --game-b: #3a2a10; }
 .theme-plinko { --game-a: #2980b9; --game-b: #0a1a2a; }
 .theme-hilo { --game-a: #8e44ad; --game-b: #1a0b26; }
+.theme-moviequiz { --game-a: #9b59b6; --game-b: #161226; }
 
 .steam-game-main {
     padding: 12px 12px 10px;
