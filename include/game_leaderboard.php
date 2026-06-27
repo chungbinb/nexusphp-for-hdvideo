@@ -111,10 +111,7 @@ function game_lb_table($title, $rows, $valueLabel, $valueFn, $valueClassFn = nul
         <div class="glb-card-title">
             <span><?php echo $title ?></span>
             <?php if ($hasToggle) { ?>
-                <span class="glb-toggle">
-                    <button type="button" class="glb-dir on" data-dir="desc">高→低</button>
-                    <button type="button" class="glb-dir" data-dir="asc">低→高</button>
-                </span>
+                <button type="button" class="glb-dir" data-dir="desc" title="切换升序/降序">↓</button>
             <?php } ?>
         </div>
         <?php
@@ -138,10 +135,9 @@ function game_lb_css()
     .glb-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
     @media(max-width:760px){.glb-grid{grid-template-columns:1fr}}
     .glb-card{border:1px solid rgba(120,150,190,.3);border-radius:8px;overflow:hidden}
-    .glb-card-title{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;font-weight:800;background:rgba(120,150,190,.16)}
-    .glb-toggle{display:inline-flex;border:1px solid rgba(120,150,190,.45);border-radius:6px;overflow:hidden;flex:none}
-    .glb-dir{font-size:11px;font-weight:700;padding:2px 8px;border:0;background:transparent;color:#8aa0b6;cursor:pointer;line-height:1.6}
-    .glb-dir.on{background:#2980b9;color:#fff}
+    .glb-card-title{display:flex;align-items:center;justify-content:space-between;gap:8px;height:40px;box-sizing:border-box;padding:0 12px;font-weight:800;background:rgba(120,150,190,.16);font-size:14px;line-height:1}
+    .glb-dir{appearance:none;-webkit-appearance:none;font-size:15px;line-height:1;font-weight:800;border:0!important;background:transparent!important;box-shadow:none!important;border-radius:0!important;color:#8aa0b6;cursor:pointer;flex:none;padding:0;margin:0;height:auto}
+    .glb-dir:hover{color:#2980b9;background:transparent!important}
     .glb-table{width:100%;border-collapse:collapse}
     .glb-table th,.glb-table td{padding:7px 10px;text-align:left;border-top:1px solid rgba(120,150,190,.16);font-size:13px}
     .glb-table th{color:#8aa0b6;font-weight:700}
@@ -157,8 +153,9 @@ function game_lb_css()
         var btn = e.target.closest ? e.target.closest(".glb-dir") : null;
         if (!btn) return;
         var card = btn.closest(".glb-card"); if (!card) return;
-        var dir = btn.getAttribute("data-dir");
-        card.querySelectorAll(".glb-dir").forEach(function (b) { b.classList.toggle("on", b === btn); });
+        var dir = btn.getAttribute("data-dir") === "desc" ? "asc" : "desc";
+        btn.setAttribute("data-dir", dir);
+        btn.textContent = dir === "desc" ? "↓" : "↑";
         card.querySelectorAll(".glb-body").forEach(function (t) { t.style.display = t.getAttribute("data-dir") === dir ? "" : "none"; });
     });
     </script>';
