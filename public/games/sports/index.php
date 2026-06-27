@@ -11,6 +11,9 @@ game_guard('sports');
 const GAME_SP_BUSINESS_TYPE = 13; // reuse the lucky-draw / game bonus category
 const GAME_SP_MATCH_TABLE = 'hdvideo_sports_matches';
 const GAME_SP_BET_TABLE = 'hdvideo_sports_bets';
+// Virtual seed pool: keeps odds at the admin opening line when there are no bets and
+// damps how fast they move. Larger = needs more money to shift the line.
+const GAME_SP_LIQUIDITY = 2000;
 const GAME_SP_CONFIG_TABLE = 'hdvideo_sports_config';
 const GAME_SP_API_BASE = 'https://api.football-data.org/v4/';
 
@@ -402,6 +405,51 @@ function game_sp_points($v, $signed = false)
     return $s . number_format(round($v), 0);
 }
 
+/** Pending-bet pool for a match: ['home','draw','away' => amount, 'count', 'total']. */
+function game_sp_pool($matchId)
+{
+    $pool = ['home' => 0.0, 'draw' => 0.0, 'away' => 0.0, 'count' => 0, 'total' => 0.0];
+    $res = sql_query("SELECT `choice`, COUNT(*) AS c, SUM(`amount`) AS s FROM `" . GAME_SP_BET_TABLE . "` WHERE `match_id` = " . (int)$matchId . " AND `status` = 'pending' GROUP BY `choice`") or sqlerr(__FILE__, __LINE__);
+    while ($row = mysql_fetch_assoc($res)) {
+        $c = $row['choice'];
+        if (isset($pool[$c])) $pool[$c] = (float)$row['s'];
+        $pool['count'] += (int)$row['c'];
+        $pool['total'] += (float)$row['s'];
+    }
+    return $pool;
+}
+
+/**
+ * Dynamic odds. The admin odds are the opening line; live odds shift with the betting
+ * distribution (more money on an outcome -> shorter odds). A virtual seed pool
+ * (GAME_SP_LIQUIDITY, split by the opening line) keeps odds exactly at the opening line
+ * when no bets are placed and damps volatility. Returns ['home','draw','away'].
+ */
+function game_sp_dynamic_odds($match, $pool = null)
+{
+    $base = [
+        'home' => (float)$match['odds_home'],
+        'draw' => (float)$match['odds_draw'],
+        'away' => (float)$match['odds_away'],
+    ];
+    if ($pool === null) $pool = game_sp_pool((int)$match['id']);
+    $ip = []; $sumIp = 0.0;
+    foreach ($base as $k => $o) { $ip[$k] = $o > 1 ? 1.0 / $o : 0.0; $sumIp += $ip[$k]; }
+    if ($sumIp <= 0) return $base; // not fully opened
+    $eff = []; $et = 0.0;
+    foreach ($base as $k => $o) {
+        $eff[$k] = GAME_SP_LIQUIDITY * $ip[$k] + (float)($pool[$k] ?? 0);
+        $et += $eff[$k];
+    }
+    $out = [];
+    foreach ($base as $k => $o) {
+        if ($o <= 1 || $eff[$k] <= 0) { $out[$k] = $o; continue; }
+        $dyn = ($et / $eff[$k]) / $sumIp;   // == base odds when the pool is empty
+        $out[$k] = round(max(1.01, min(100, $dyn)), 2);
+    }
+    return $out;
+}
+
 function game_sp_place_bet($matchId, $choice, $amount)
 {
     global $CURUSER;
@@ -418,8 +466,13 @@ function game_sp_place_bet($matchId, $choice, $amount)
             sql_query("ROLLBACK");
             return "该比赛已截止或不可押注，请刷新。";
         }
-        $oddsField = 'odds_' . $choice;
-        $odds = (float)$match[$oddsField];
+        if ((float)$match['odds_' . $choice] <= 1) {
+            sql_query("ROLLBACK");
+            return "该选项暂未开盘。";
+        }
+        // Lock in the current dynamic odds (admin opening line shifted by betting ratio).
+        $dynOdds = game_sp_dynamic_odds($match);
+        $odds = (float)($dynOdds[$choice] ?? 0);
         if ($odds <= 1) {
             sql_query("ROLLBACK");
             return "该选项暂未开盘。";
@@ -798,6 +851,10 @@ stdhead("菠菜系统");
 .sp-odds { display: inline-flex; gap: 8px; flex-wrap: wrap; }
 .sp-odds label { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border: 1px solid rgba(120,150,190,.45); border-radius: 6px; cursor: pointer; }
 .sp-odds b { color: #c0392b; }
+.sp-side { margin-left: 6px; font-size: 12px; color: #8a9bb0; }
+.sp-side::before { content: "投"; margin-right: 2px; opacity: .7; }
+.sp-pool { margin: 8px 0; font-size: 13px; }
+.sp-pool b { color: #2c7; }
 .sp-form input[type="number"] { width: 140px; padding: 8px; }
 .sp-form button { padding: 8px 16px; font-weight: 700; cursor: pointer; }
 .sp-quick { display: inline-flex; gap: 6px; flex-wrap: wrap; }
@@ -857,7 +914,10 @@ stdhead("菠菜系统");
         <?php if (!$openMatches) { ?>
             <div class="sp-match sp-muted">暂无可押注的赛事，敬请期待。</div>
         <?php } ?>
-        <?php foreach ($openMatches as $m) { ?>
+        <?php foreach ($openMatches as $m) {
+            $pool = game_sp_pool((int)$m['id']);
+            $dyn = game_sp_dynamic_odds($m, $pool);
+        ?>
             <div class="sp-match" data-league="<?php echo htmlspecialchars($m['_lg']) ?>">
                 <div class="sp-match-top">
                     <?php if ($m['league'] !== '') { ?><span class="sp-league"><?php echo htmlspecialchars(game_sp_tr($m['league'])) ?></span><?php } ?>
@@ -869,10 +929,11 @@ stdhead("菠菜系统");
                     <input type="hidden" name="action" value="bet">
                     <input type="hidden" name="match_id" value="<?php echo (int)$m['id'] ?>">
                     <div class="sp-odds">
-                        <label><input type="radio" name="choice" value="home" checked> 主胜 <b><?php echo number_format($m['odds_home'], 2) ?></b></label>
-                        <label><input type="radio" name="choice" value="draw"> 平局 <b><?php echo number_format($m['odds_draw'], 2) ?></b></label>
-                        <label><input type="radio" name="choice" value="away"> 客胜 <b><?php echo number_format($m['odds_away'], 2) ?></b></label>
+                        <label><input type="radio" name="choice" value="home" checked> 主胜 <b><?php echo number_format($dyn['home'], 2) ?></b><span class="sp-side"><?php echo number_format($pool['home']) ?></span></label>
+                        <label><input type="radio" name="choice" value="draw"> 平局 <b><?php echo number_format($dyn['draw'], 2) ?></b><span class="sp-side"><?php echo number_format($pool['draw']) ?></span></label>
+                        <label><input type="radio" name="choice" value="away"> 客胜 <b><?php echo number_format($dyn['away'], 2) ?></b><span class="sp-side"><?php echo number_format($pool['away']) ?></span></label>
                     </div>
+                    <div class="sp-pool sp-muted">📊 下注 <b><?php echo (int)$pool['count'] ?></b> 笔 · 投注总额 <b><?php echo number_format($pool['total']) ?></b> 电影票 · 赔率随下注比率实时浮动（下注时锁定）</div>
                     <input type="number" name="amount" min="1" step="1" placeholder="电影票数量" required>
                     <button type="submit">押注</button>
                     <span class="sp-quick">
