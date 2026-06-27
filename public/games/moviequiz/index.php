@@ -18,6 +18,7 @@ require_once "../../../include/game_leaderboard.php";
 const MQ_BUSINESS_TYPE = 13;
 const MQ_Q_TABLE = 'hdvideo_movie_questions';
 const MQ_STATE_TABLE = 'hdvideo_movie_state';
+const MQ_IMPORTED_TABLE = 'hdvideo_movie_imported';   // 记录已导入过的种子，删题后也不再重复导入
 const MQ_BASE_REWARD = 30;     // 电影票 per correct (×streak, capped)
 const MQ_STREAK_CAP = 10;
 const MQ_DAILY_LIMIT = 30;     // max answers per day
@@ -53,6 +54,13 @@ function mq_ensure_tables()
         sql_query("ALTER TABLE `" . MQ_Q_TABLE . "` ADD COLUMN `source` varchar(10) NOT NULL DEFAULT 'manual'") or sqlerr(__FILE__, __LINE__);
         sql_query("ALTER TABLE `" . MQ_Q_TABLE . "` ADD COLUMN `torrent_id` int unsigned NOT NULL DEFAULT 0") or sqlerr(__FILE__, __LINE__);
     }
+    @sql_query("
+        CREATE TABLE IF NOT EXISTS `" . MQ_IMPORTED_TABLE . "` (
+            `torrent_id` int unsigned NOT NULL,
+            `created_at` datetime NOT NULL,
+            PRIMARY KEY (`torrent_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
     @sql_query("
         CREATE TABLE IF NOT EXISTS `" . MQ_STATE_TABLE . "` (
             `uid` int unsigned NOT NULL,
@@ -302,12 +310,16 @@ function mq_import_from_torrents($limit)
     $sql = "SELECT torrents.id AS id, torrents.name AS name, torrents.small_descr AS small_descr, $descrField AS descr
             FROM torrents LEFT JOIN torrent_extras ON torrents.id = torrent_extras.torrent_id
             WHERE torrents.visible = 'yes' AND $descrField LIKE '%[img%'
+              AND torrents.id NOT IN (SELECT torrent_id FROM `" . MQ_IMPORTED_TABLE . "`)
               AND torrents.id NOT IN (SELECT torrent_id FROM `" . MQ_Q_TABLE . "` WHERE torrent_id > 0)
             ORDER BY RAND() LIMIT $limit";
     $res = sql_query($sql) or sqlerr(__FILE__, __LINE__);
     $added = 0;
     $now = date('Y-m-d H:i:s');
     while ($t = mysql_fetch_assoc($res)) {
+        // remember we processed this torrent so it is never picked again (even if its
+        // question is later deleted), until the admin resets the import log.
+        sql_query(sprintf("INSERT IGNORE INTO `" . MQ_IMPORTED_TABLE . "` (`torrent_id`,`created_at`) VALUES (%d,%s)", (int)$t['id'], sqlesc($now))) or sqlerr(__FILE__, __LINE__);
         $imgs = mq_extract_images($t['descr']);
         if (count($imgs) < 2) continue; // need a screenshot beyond the poster
         $name = mq_descr_field($t['descr'], '片', '名');
@@ -357,6 +369,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($action === 'del_auto' && mq_is_admin()) {
         mq_ensure_tables();
         sql_query("DELETE FROM `" . MQ_Q_TABLE . "` WHERE `source` = 'auto'") or sqlerr(__FILE__, __LINE__);
+    } elseif ($action === 'reset_import' && mq_is_admin()) {
+        mq_ensure_tables();
+        sql_query("DELETE FROM `" . MQ_IMPORTED_TABLE . "`") or sqlerr(__FILE__, __LINE__);
     }
     header('Location: /games/moviequiz/' . ($error !== '' ? '?view=admin&error=' . urlencode($error) : ($action !== '' ? '?view=admin&msg=1' : '')));
     exit;
@@ -400,7 +415,7 @@ stdhead("猜电影");
 <div class="mq-wrap">
     <div class="mq-head">
         <div>
-            <div class="mq-title">猜电影 <span class="mq-badge">内测中 v0.2</span></div>
+            <div class="mq-title">猜电影 <span class="mq-badge">内测中 v0.3</span></div>
             <div class="mq-muted">看截图或台词猜电影名，答对得电影票，连对越多奖励越高（连击 ×<?php echo MQ_BASE_REWARD ?>，封顶 ×<?php echo MQ_STREAK_CAP ?>）。每日上限 <?php echo MQ_DAILY_LIMIT ?> 题。</div>
         </div>
         <div class="mq-balance">我的电影票：<b id="mqBal"><?php echo number_format((float)$CURUSER['seedbonus'], 1) ?></b> 张</div>
@@ -418,16 +433,21 @@ stdhead("猜电影");
     <?php if ($view === 'admin' && $isAdmin) {
         $qres = sql_query("SELECT * FROM `" . MQ_Q_TABLE . "` ORDER BY `id` DESC LIMIT 200") or sqlerr(__FILE__, __LINE__);
         $autoCnt = (int)mysql_fetch_assoc(sql_query("SELECT COUNT(*) AS c FROM `" . MQ_Q_TABLE . "` WHERE `source` = 'auto'"))['c'];
+        $impLog = (int)mysql_fetch_assoc(sql_query("SELECT COUNT(*) AS c FROM `" . MQ_IMPORTED_TABLE . "`"))['c'];
         $imported = isset($_GET['imported']) ? (int)$_GET['imported'] : -1;
     ?>
         <?php if ($imported >= 0) { ?><div class="mq-panel" style="background:rgba(46,204,113,.12);color:#16a34a;font-weight:700">✅ 已从种子库自动导入 <?php echo $imported ?> 道截图题。</div><?php } ?>
         <div class="mq-panel">
             <h3 style="margin:0 0 10px">从种子库自动导入截图题</h3>
-            <div class="mq-muted" style="margin-bottom:8px">随机抽取「带截图的种子」，取一张截图作题、用简介里的「◎片名」作答案，并自动生成别名（译名/去季号/副标题）。会跳过已导入过的种子。当前自动题 <?php echo $autoCnt ?> 道。</div>
+            <div class="mq-muted" style="margin-bottom:8px">随机抽取「带截图的种子」，取一张截图作题、用简介里的「◎片名」作答案，并自动生成别名（译名/去季号/副标题）。<b>已处理过的种子不会再被导入（即使你把题删了也不会重来）</b>。当前自动题 <?php echo $autoCnt ?> 道，已处理种子 <?php echo $impLog ?> 个。</div>
             <form method="post" action="/games/moviequiz/" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
                 <input type="hidden" name="action" value="import_torrents">
                 <label>本次导入数量 <input type="number" name="count" value="20" min="1" max="100" style="width:80px;padding:6px"></label>
                 <button type="submit" class="mq-btn">开始导入</button>
+            </form>
+            <form method="post" action="/games/moviequiz/" onsubmit="return confirm('重置导入记录后，之前处理/删除过的种子又会重新进入可导入池，确定？');" style="margin-top:8px">
+                <input type="hidden" name="action" value="reset_import">
+                <button type="submit" style="background:transparent;border:1px solid #9b59b6;color:#9b59b6;padding:6px 12px;border-radius:6px;font-weight:700;cursor:pointer">重置导入记录（允许重新导入已处理过的种子）</button>
             </form>
         </div>
         <div class="mq-panel">
