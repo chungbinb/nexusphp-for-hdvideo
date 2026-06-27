@@ -3296,6 +3296,15 @@ html[data-site-theme="night"] #qd-bank-modal .qd-btn-reset{background:#16223a;co
 			</div>
 		</div>
 
+		<div class="qd-bank-sec" id="qd-bank-transfer-sec">
+			<h4>转账给用户 <span class="qd-bank-info">从钱包电影票转出，对方即时到账</span></h4>
+			<div class="qd-bank-row">
+				<input type="text" class="qd-bank-amt" id="qd-tx-to" placeholder="收款人用户名">
+				<input type="number" class="qd-bank-amt" id="qd-amt-tx" min="1" placeholder="金额">
+				<button type="button" class="qd-b1 qd-bank-withdraw" data-bank="transfer" data-amt="qd-amt-tx" data-to="qd-tx-to">转账</button>
+			</div>
+		</div>
+
 		<div class="qd-bank-sec">
 			<h4>定期存款 <span class="qd-bank-info" id="qd-bank-fixr"></span></h4>
 			<div id="qd-bank-fix-none">
@@ -3374,6 +3383,7 @@ html[data-site-theme="night"] #qd-bank-modal .qd-btn-reset{background:#16223a;co
 		$('qd-bank-loanbal').textContent = fmt(d.loan ? d.loan.owed : 0);
 		$('qd-bank-credit').innerHTML = '信用等级 <b style="color:#8e44ad">' + d.credit.grade + '</b> · 评分 ' + d.credit.score + ' · 分享率 ' + d.credit.ratio + ' · 可借上限 <b>' + fmt(d.credit.max_loan) + '</b>';
 		if (d.pool) { $('qd-bank-pool').innerHTML = '🏛 资金池存款 ' + fmt(d.pool.deposits) + ' · 风险准备金 ' + fmt(d.pool.risk_reserve) + ' · 待分红 ' + fmt(d.pool.dividend_pool) + '（每季度按存款占比派发）'; }
+		show('qd-bank-transfer-sec', d.transfer_enabled !== false);
 		$('qd-bank-curr').innerHTML = '年化 <b>' + d.cur_annual + '%</b> · 满24h起息';
 		$('qd-bank-fixr').innerHTML = '到期得全额利息，提前取只退本金';
 		$('qd-bank-loanr').innerHTML = d.can_borrow ? '按信用等级定额度，分期月息见下' : '<span class="warn">' + d.borrow_block + '</span>';
@@ -3422,7 +3432,7 @@ html[data-site-theme="night"] #qd-bank-modal .qd-btn-reset{background:#16223a;co
 	function act(b) {
 		if (busy) return;
 		var action = b.getAttribute('data-bank');
-		var amtId = b.getAttribute('data-amt'), termId = b.getAttribute('data-term'), guarId = b.getAttribute('data-guar'), appId = b.getAttribute('data-app'), rtype = b.getAttribute('data-type');
+		var amtId = b.getAttribute('data-amt'), termId = b.getAttribute('data-term'), guarId = b.getAttribute('data-guar'), appId = b.getAttribute('data-app'), rtype = b.getAttribute('data-type'), toId = b.getAttribute('data-to');
 		var amount = amtId && $(amtId) ? parseFloat($(amtId).value) : 0;
 		if (!noAmount[action] && !(amount > 0)) { msg.style.color = '#c0392b'; msg.textContent = '请输入金额'; if (amtId && $(amtId)) $(amtId).focus(); return; }
 		var reason = null;
@@ -3432,6 +3442,7 @@ html[data-site-theme="night"] #qd-bank-modal .qd-btn-reset{background:#16223a;co
 		var body = 'action=' + action + '&amount=' + encodeURIComponent(amount || 0);
 		if (termId && $(termId)) body += '&term=' + encodeURIComponent($(termId).value);
 		if (guarId && $(guarId)) body += '&guarantors=' + encodeURIComponent($(guarId).value);
+		if (toId && $(toId)) body += '&to=' + encodeURIComponent($(toId).value);
 		if (appId) body += '&app_id=' + encodeURIComponent(appId);
 		if (rtype) body += '&type=' + encodeURIComponent(rtype);
 		if (reason !== null) body += '&reason=' + encodeURIComponent(reason);
