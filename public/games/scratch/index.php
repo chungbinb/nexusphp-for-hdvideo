@@ -110,6 +110,10 @@ function sc_ensure_tables()
     if ($cfg && (int)mysql_fetch_assoc($cfg)['c'] === 0) {
         @sql_query("INSERT INTO `" . SC_CONFIG_TABLE . "` (`name`,`value`) VALUES ('cost', '" . SC_DEFAULT_COST . "')");
     }
+    $dl = @sql_query("SELECT COUNT(*) AS c FROM `" . SC_CONFIG_TABLE . "` WHERE `name` = 'daily_limit'");
+    if ($dl && (int)mysql_fetch_assoc($dl)['c'] === 0) {
+        @sql_query("INSERT INTO `" . SC_CONFIG_TABLE . "` (`name`,`value`) VALUES ('daily_limit', '0')");
+    }
     $done = true;
 }
 
@@ -122,6 +126,26 @@ function sc_cost()
     $row = $res ? mysql_fetch_assoc($res) : null;
     $cost = $row ? max(0, (int)$row['value']) : SC_DEFAULT_COST;
     return $cost;
+}
+
+/** Per-user daily scratch cap; 0 = unlimited. */
+function sc_daily_limit()
+{
+    static $lim = null;
+    if ($lim !== null) return $lim;
+    sc_ensure_tables();
+    $res = @sql_query("SELECT `value` FROM `" . SC_CONFIG_TABLE . "` WHERE `name` = 'daily_limit' LIMIT 1");
+    $row = $res ? mysql_fetch_assoc($res) : null;
+    $lim = $row ? max(0, (int)$row['value']) : 0;
+    return $lim;
+}
+
+/** How many cards a user has scratched since today 00:00. */
+function sc_today_count($uid)
+{
+    $today = date('Y-m-d') . ' 00:00:00';
+    $res = sql_query("SELECT COUNT(*) AS c FROM `" . SC_TABLE . "` WHERE `uid` = " . (int)$uid . " AND `created_at` >= " . sqlesc($today)) or sqlerr(__FILE__, __LINE__);
+    return (int)mysql_fetch_assoc($res)['c'];
 }
 
 /** Enabled prizes as list of [name, reward_type, amount, weight]; falls back to defaults. */
@@ -184,6 +208,11 @@ function sc_buy()
         if ($oldBonus < $cost) {
             sql_query("ROLLBACK");
             return [null, "电影票不足，当前只有 " . sc_money($oldBonus) . " 张（每张需 $cost）。"];
+        }
+        $limit = sc_daily_limit();
+        if ($limit > 0 && sc_today_count($uid) >= $limit) {
+            sql_query("ROLLBACK");
+            return [null, "今天的刮卡次数已用完（每日上限 $limit 次），明天再来。"];
         }
 
         $item = sc_pick_item();
@@ -257,6 +286,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'buy')
 
 sc_ensure_tables();
 $cost = sc_cost();
+$dailyLimit = sc_daily_limit();
+$todayLeft = $dailyLimit > 0 ? max(0, $dailyLimit - sc_today_count((int)$CURUSER['id'])) : -1;
 $myRes = sql_query("SELECT * FROM `" . SC_TABLE . "` WHERE `uid` = " . (int)$CURUSER['id'] . " ORDER BY `id` DESC LIMIT 12") or sqlerr(__FILE__, __LINE__);
 $sumRes = sql_query("SELECT COUNT(*) AS n, SUM(`delta`) AS net FROM `" . SC_TABLE . "` WHERE `uid` = " . (int)$CURUSER['id']) or sqlerr(__FILE__, __LINE__);
 $sum = mysql_fetch_assoc($sumRes);
@@ -295,8 +326,8 @@ stdhead("刮刮乐");
 <div class="sc-wrap">
     <div class="sc-head">
         <div>
-            <div class="sc-title">刮刮乐 <span class="sc-badge">内测中 v0.2</span></div>
-            <div class="sc-muted">每张 <b class="sc-cost"><?php echo (int)$cost ?></b> 电影票，买一张用鼠标刮开涂层，刮中即得。</div>
+            <div class="sc-title">刮刮乐 <span class="sc-badge">内测中 v0.3</span></div>
+            <div class="sc-muted">每张 <b class="sc-cost"><?php echo (int)$cost ?></b> 电影票，买一张用鼠标刮开涂层，刮中即得。<?php if ($dailyLimit > 0) { ?> <span style="color:#e67e22;font-weight:700">今日剩余 <span id="scLeft"><?php echo (int)$todayLeft ?></span> 次</span>（每日上限 <?php echo (int)$dailyLimit ?>）<?php } ?></div>
         </div>
         <div class="sc-balance">我的电影票：<b id="scBal"><?php echo sc_money($CURUSER['seedbonus']) ?></b> 张</div>
     </div>
@@ -311,7 +342,8 @@ stdhead("刮刮乐");
         </div>
         <div class="sc-hint" id="scHint">买一张后，按住鼠标在卡片上来回涂抹即可刮开</div>
         <div class="sc-actions">
-            <button type="button" class="sc-btn" id="scBuy">买一张（<?php echo (int)$cost ?> 电影票）</button>
+            <?php $exhausted = ($dailyLimit > 0 && $todayLeft <= 0); ?>
+            <button type="button" class="sc-btn" id="scBuy"<?php echo $exhausted ? ' disabled' : '' ?>><?php echo $exhausted ? '今日次数已用完' : '买一张（' . (int)$cost . ' 电影票）' ?></button>
         </div>
         <div class="sc-msg" id="scMsg"></div>
         <div class="sc-odds" style="margin-top:12px">
@@ -468,6 +500,12 @@ stdhead("刮刮乐");
                 canvas.style.display = 'block';
                 paintCoating();
                 hint.textContent = '按住鼠标在卡片上来回涂抹刮开';
+                var leftEl = document.getElementById('scLeft');
+                if (leftEl) {
+                    var left = Math.max(0, (parseInt(leftEl.textContent, 10) || 0) - 1);
+                    leftEl.textContent = left;
+                    if (left <= 0) { buyBtn.disabled = true; buyBtn.textContent = '今日次数已用完'; busy = false; return; }
+                }
                 busy = false;
             })
             .catch(function () { msg.innerHTML = '<span class="sc-neg">网络错误</span>'; buyBtn.disabled = false; busy = false; });

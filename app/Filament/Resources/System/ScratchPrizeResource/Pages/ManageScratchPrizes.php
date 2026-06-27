@@ -23,11 +23,11 @@ class ManageScratchPrizes extends ManageRecords
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('setCost')
-                ->label('每张花费：' . ScratchPrize::getCost() . ' 电影票')
-                ->icon('heroicon-o-banknotes')
+            Action::make('settings')
+                ->label('刮刮乐设置（每张 ' . ScratchPrize::getCost() . ' 票 · 每日 ' . (ScratchPrize::getDailyLimit() === 0 ? '不限' : ScratchPrize::getDailyLimit() . ' 次') . '）')
+                ->icon('heroicon-o-cog-6-tooth')
                 ->color('warning')
-                ->modalHeading('设置每张刮卡花费')
+                ->modalHeading('刮刮乐设置')
                 ->modalSubmitActionLabel('保存')
                 ->schema([
                     TextInput::make('cost')
@@ -36,10 +36,17 @@ class ManageScratchPrizes extends ManageRecords
                         ->minValue(0)
                         ->required()
                         ->default(ScratchPrize::getCost()),
+                    TextInput::make('daily_limit')
+                        ->label('每人每日刮卡次数上限（0 = 不限制）')
+                        ->numeric()
+                        ->minValue(0)
+                        ->required()
+                        ->default(ScratchPrize::getDailyLimit()),
                 ])
                 ->action(function (array $data) {
                     ScratchPrize::setCost((int) $data['cost']);
-                    Notification::make()->title('已保存，每张花费 ' . (int) $data['cost'] . ' 电影票')->success()->send();
+                    ScratchPrize::setDailyLimit((int) $data['daily_limit']);
+                    Notification::make()->title('已保存：每张 ' . (int) $data['cost'] . ' 票，每日 ' . ((int) $data['daily_limit'] === 0 ? '不限' : (int) $data['daily_limit'] . ' 次'))->success()->send();
                 }),
             CreateAction::make(),
         ];
