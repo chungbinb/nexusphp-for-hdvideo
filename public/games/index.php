@@ -513,6 +513,17 @@ body.page-games-php:not(.inframe) {
         height: 132px;
     }
 }
+
+@media (max-width: 430px) {
+    .steam-games { padding: 6px 6px 22px; }
+    .steam-game-row { grid-template-columns: 100px minmax(0, 1fr); }
+    .steam-capsule { min-height: 84px; }
+    .steam-game-title { font-size: 16px; }
+    .steam-game-subtitle { font-size: 12px; }
+    .steam-tabs { gap: 14px; font-size: 15px; }
+    .steam-board-title { font-size: 18px; }
+    .steam-board-sub { display: block; font-size: 12px; font-weight: 400; }
+}
 </style>
 <div class="steam-games">
     <nav class="steam-tabs" aria-label="游戏分类">

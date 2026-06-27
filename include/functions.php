@@ -2668,6 +2668,13 @@ function stdhead($title = "", $msgalert = true, $script = "", $place = "")
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <?php
+// 游戏板块（/games/...）做手机端适配：仅在游戏页输出 viewport，避免影响站点其他未适配页面。
+if (strpos((string)($_SERVER['SCRIPT_NAME'] ?? ''), '/games/') !== false
+    || strpos((string)($_SERVER['REQUEST_URI'] ?? ''), '/games/') !== false){
+?>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<?php
+}
 if ($metakeywords_tweak){
 ?>
 <meta name="keywords" content="<?php echo htmlspecialchars($metakeywords_tweak)?>" />

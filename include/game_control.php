@@ -97,9 +97,48 @@ function game_user_can_access($key)
 /** 「返回游戏大厅」按钮（各游戏页 stdhead 后输出）。 */
 function game_back_link()
 {
-    return '<div class="game-back-bar" style="max-width:820px;margin:10px auto 0;padding:0 6px;">'
+    return game_mobile_css()
+        . '<div class="game-back-bar" style="max-width:820px;margin:10px auto 0;padding:0 6px;">'
         . '<a href="/games/" style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:700;color:var(--bili-text-secondary,#61666d);text-decoration:none;padding:6px 12px;border:1px solid rgba(120,150,190,.35);border-radius:8px;background:rgba(120,150,190,.08);">« 返回游戏大厅</a>'
         . '</div>';
+}
+
+/**
+ * 手机端适配样式（各游戏页通用）。所有游戏页都用统一的类名后缀（*-wrap / *-head /
+ * *-title / *-balance），所以这里用属性选择器一处适配全部游戏。仅输出一次。
+ * 配合 stdhead() 里给 /games/ 页加的 viewport meta 生效。
+ */
+function game_mobile_css()
+{
+    static $done = false;
+    if ($done) {
+        return '';
+    }
+    $done = true;
+    return '<style>
+    @media (max-width: 768px) {
+        /* 包裹容器铺满屏幕、留出安全边距，避免内容贴边或被撑出横向滚动 */
+        body.page-games-php [class$="-wrap"] { max-width:100% !important; width:auto !important; padding-left:12px !important; padding-right:12px !important; box-sizing:border-box; }
+        /* 标题行：标题与余额允许换行，不再被挤压 */
+        body.page-games-php [class$="-head"] { flex-wrap:wrap; gap:6px 12px !important; }
+        body.page-games-php [class$="-title"] { font-size:21px !important; }
+        body.page-games-php [class$="-balance"] { font-size:13px; }
+        /* 表格更紧凑，列多也尽量塞下 */
+        body.page-games-php table { font-size:12px; }
+        body.page-games-php table th, body.page-games-php table td { padding:6px 5px !important; }
+        /* 输入框做成更大的触摸目标，并防止 iOS 聚焦时缩放（>=16px） */
+        body.page-games-php input[type="number"], body.page-games-php input[type="text"] { font-size:16px !important; padding:9px 8px !important; }
+        /* 大按钮（押注/开始等）便于点按 */
+        body.page-games-php [class$="-btn"] { min-height:44px; padding-top:0; padding-bottom:0; }
+        /* 快捷筹码：等分铺排两三列，方便单手点 */
+        body.page-games-php [class$="-chip"] { flex:1 1 auto; text-align:center; min-width:60px; padding-top:9px; padding-bottom:9px; }
+    }
+    @media (max-width: 430px) {
+        body.page-games-php [class$="-wrap"] { padding-left:8px !important; padding-right:8px !important; }
+        body.page-games-php [class$="-title"] { font-size:19px !important; }
+        body.page-games-php table th, body.page-games-php table td { padding:5px 3px !important; font-size:11px; }
+    }
+    </style>';
 }
 
 /** Block entry to a closed game (call near the top of a game page). */
