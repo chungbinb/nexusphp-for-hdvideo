@@ -576,6 +576,14 @@ print($lang_mybonus['text_howto_get_karma_five'].$uploadtorrent_bonus.$lang_mybo
 
 // Bonus exchange
 if ($action == "exchange") {
+	// 魔力银行：贷款逾期(16天+)的用户暂停魔力商城兑换/购买邀请（P2 风控）。
+	@require_once('../include/bank.php');
+	if (function_exists('bank_restricted')) {
+		$bankRs = bank_restricted((int)$CURUSER['id']);
+		if (!empty($bankRs['restricted'])) {
+			stderr('暂停使用', '你的银行贷款已逾期 ' . (int)$bankRs['days'] . ' 天，按规则暂停魔力商城兑换/购买邀请，请先到「高清银行」还清欠款后再来。');
+		}
+	}
 	if (isset($_POST["userid"]) || isset($_POST["points"]) || isset($_POST["bonus"]) || isset($_POST["art"]) || !isset($_POST['option']) || !isset($allBonus[$_POST['option']])){
 		write_log("User " . $CURUSER["username"] . "," . $CURUSER["ip"] . " is trying to cheat at bonus system",'mod');
 		die($lang_mybonus['text_cheat_alert']);
