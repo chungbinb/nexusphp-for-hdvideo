@@ -15,7 +15,7 @@ require_once "../../../include/game_leaderboard.php";
  * wrong resets the streak; a daily cap limits farming. Free-text answer is graded
  * server-side against the answer + aliases (normalized), never revealed until graded.
  */
-const MQ_BUSINESS_TYPE = 13;
+const MQ_BUSINESS_TYPE = 111; // 猜电影（历史记录为 13）
 const MQ_Q_TABLE = 'hdvideo_movie_questions';
 const MQ_STATE_TABLE = 'hdvideo_movie_state';
 const MQ_IMPORTED_TABLE = 'hdvideo_movie_imported';   // 记录已导入过的种子，删题后也不再重复导入

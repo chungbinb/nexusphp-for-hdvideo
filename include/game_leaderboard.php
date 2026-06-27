@@ -6,7 +6,10 @@
  * comment prefix (e.g. '[刮刮乐]') or use a game's own records table.
  */
 
+// 历史记录都记在 13（幸运大转盘），新记录每个游戏用各自的业务类型（101-111）。
+// 总榜与按 comment 过滤的单游戏榜都需要同时统计旧的 13 和新的各游戏类型。
 const GAME_LB_BUSINESS_TYPE = 13;
+const GAME_LB_BUSINESS_TYPE_SET = '13,101,102,103,104,105,106,107,108,109,110,111';
 
 function game_lb_run($sql)
 {
@@ -27,7 +30,7 @@ function game_lb_run($sql)
  */
 function game_lb_bonus($mode, $commentLike = null, $limit = 10)
 {
-    $where = '`bl`.`business_type` = ' . GAME_LB_BUSINESS_TYPE . ' AND `bl`.`uid` > 0';
+    $where = '`bl`.`business_type` IN (' . GAME_LB_BUSINESS_TYPE_SET . ') AND `bl`.`uid` > 0';
     if ($commentLike !== null) {
         $where .= ' AND `bl`.`comment` LIKE ' . sqlesc($commentLike . '%');
     }

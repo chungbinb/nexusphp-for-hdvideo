@@ -18,7 +18,7 @@ const DDZ_BASE_OPTIONS = [100, 500, 1000, 5000];
 const DDZ_JOIN_BALANCE_FACTOR = 16;
 const DDZ_ROOM_TTL = 7200;
 const DDZ_MULT_CAP = 1024;
-const DDZ_BUSINESS_TYPE = 13;
+const DDZ_BUSINESS_TYPE = 103; // 斗地主（历史记录为 13）
 const DDZ_TURN_SECONDS = 30; // 回合限时
 
 function ddz_set_deadline(&$room)

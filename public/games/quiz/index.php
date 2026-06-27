@@ -13,7 +13,7 @@ game_guard('quiz');
  * 电影票 with a consecutive-correct (streak) bonus; wrong resets the streak; a daily
  * answer cap limits farming. Server-side answer validation (answer never sent until graded).
  */
-const QZ_BUSINESS_TYPE = 13;
+const QZ_BUSINESS_TYPE = 105; // 答题挑战（历史记录为 13）
 const QZ_Q_TABLE = 'hdvideo_quiz_questions';
 const QZ_STATE_TABLE = 'hdvideo_quiz_state';
 const QZ_BASE_REWARD = 20;     // 电影票 per correct (×streak, capped)

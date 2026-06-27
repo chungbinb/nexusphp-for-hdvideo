@@ -14,7 +14,7 @@ require_once "../../../include/game_leaderboard.php";
  * Server-authoritative: the deck/hands live in a DB row per user; the client only
  * issues actions (deal/hit/stand/double). Dealer stands on 17, blackjack pays 3:2.
  */
-const BJ_BUSINESS_TYPE = 13;
+const BJ_BUSINESS_TYPE = 107; // 二十一点（历史记录为 13）
 const BJ_GAME_TABLE = 'hdvideo_blackjack_games';
 const BJ_RESULT_TABLE = 'hdvideo_blackjack_results';
 const BJ_CHIPS = [100, 500, 1000, 5000, 10000];

@@ -14,7 +14,7 @@ require_once "../../../include/game_leaderboard.php";
  * multiplier. The path & landing slot are decided server-side (binomial); the client
  * just animates the drop. Edge slots pay big, center pays under 1×.
  */
-const PK_BUSINESS_TYPE = 13;
+const PK_BUSINESS_TYPE = 109; // Plinko弹珠（历史记录为 13）
 const PK_TABLE = 'hdvideo_plinko_records';
 const PK_ROWS = 8;
 const PK_CHIPS = [100, 500, 1000, 5000, 10000];

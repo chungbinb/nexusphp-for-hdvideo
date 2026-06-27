@@ -15,7 +15,7 @@ require_once "../../../include/game_leaderboard.php";
  * server-side at purchase; the canvas coating is just a cosmetic scratch-off.
  * Prizes & cost are fully managed from the backend (刮刮乐奖品设置).
  */
-const SC_BUSINESS_TYPE = 13;
+const SC_BUSINESS_TYPE = 104; // 刮刮乐（历史记录为 13）
 const SC_TABLE = 'hdvideo_scratch_records';
 const SC_ITEM_TABLE = 'hdvideo_scratch_items';
 const SC_CONFIG_TABLE = 'hdvideo_scratch_config';

@@ -14,7 +14,7 @@ require_once "../../../include/game_leaderboard.php";
  * Each correct guess multiplies the pot (multiplier = (1-edge)/win-probability); cash
  * out anytime, a wrong guess (or a tie) loses everything. Server-authoritative state.
  */
-const HL_BUSINESS_TYPE = 13;
+const HL_BUSINESS_TYPE = 110; // 猜高低（历史记录为 13）
 const HL_GAME_TABLE = 'hdvideo_hilo_games';
 const HL_RESULT_TABLE = 'hdvideo_hilo_results';
 const HL_CHIPS = [100, 500, 1000, 5000, 10000];

@@ -8,7 +8,7 @@ $GLOBALS['nexus_hide_top_banner'] = true;
 require_once "../../../include/game_control.php";
 game_guard('sports');
 
-const GAME_SP_BUSINESS_TYPE = 13; // reuse the lucky-draw / game bonus category
+const GAME_SP_BUSINESS_TYPE = 102; // 菠菜系统（历史记录为 13）
 const GAME_SP_MATCH_TABLE = 'hdvideo_sports_matches';
 const GAME_SP_BET_TABLE = 'hdvideo_sports_bets';
 // Virtual seed pool: keeps odds at the admin opening line when there are no bets and
