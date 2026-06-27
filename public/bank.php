@@ -13,12 +13,12 @@ if ($action === 'status') {
     exit;
 }
 
-if (in_array($action, ['deposit', 'withdraw', 'borrow', 'repay'], true)) {
+if (in_array($action, ['deposit', 'withdraw', 'deposit_fix', 'withdraw_fix', 'borrow', 'repay'], true)) {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         echo json_encode(['ok' => false, 'error' => '请求方式错误。']);
         exit;
     }
-    [$status, $err] = bank_do($uid, $action, $_POST['amount'] ?? 0);
+    [$status, $err] = bank_do($uid, $action, $_POST['amount'] ?? 0, $_POST['term'] ?? 0);
     if ($err !== '') {
         echo json_encode(['ok' => false, 'error' => $err], JSON_UNESCAPED_UNICODE);
         exit;

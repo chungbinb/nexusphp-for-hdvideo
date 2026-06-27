@@ -3244,25 +3244,73 @@ else {
 .qd-bank-borrow{background:#c0883a;}.qd-bank-repay{background:#c0392b;}
 .qd-bank-acts button:disabled{opacity:.5;cursor:not-allowed;}
 .qd-bank-msg{margin-top:10px;font-size:13px;font-weight:700;min-height:18px;text-align:center;}
+.qd-bank-sec{border-top:1px solid var(--bili-border,#e6e9ef);margin-top:12px;padding-top:12px;}
+.qd-bank-sec h4{margin:0 0 8px;font-size:13px;display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+.qd-bank-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.qd-bank-row .qd-bank-amt{flex:1;min-width:110px;}
+.qd-bank-sel{border:1px solid var(--bili-border,#e6e9ef);border-radius:8px;padding:8px;background:var(--bili-surface,#fff);color:var(--bili-text,#18191c);cursor:pointer;}
+.qd-bank-info{font-size:11px;font-weight:400;color:var(--bili-text-secondary,#61666d);}
+.qd-bank-info b{color:var(--bili-text,#18191c);}
+.qd-bank-info .warn{color:#c0392b;font-weight:700;}
+.qd-bank-detail{font-size:12px;color:var(--bili-text-secondary,#61666d);margin-bottom:8px;line-height:1.6;}
+.qd-b1{padding:9px 14px;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;color:#fff;}
+.qd-bank-bal{flex-wrap:wrap;}
+.qd-bank-bal>div{min-width:64px;}
 </style>
 <div class="qd-modal" id="qd-bank-modal" hidden>
 	<div class="qd-modal-mask" data-qd-close></div>
 	<div class="qd-modal-card">
 		<h3>🏦 高清银行</h3>
-		<p class="qd-modal-sub">把电影票存进来吃利息，急用时也能借；利息由系统按日计算。</p>
+		<p class="qd-modal-sub">活期随存随取，定期到期高息，急用可借（逾期每天加收费用）。</p>
 		<div class="qd-bank-bal">
-			<div><div class="v" id="qd-bank-wallet">-</div><div class="k">钱包电影票</div></div>
-			<div><div class="v" id="qd-bank-deposit" style="color:#2e8b57">-</div><div class="k">存款</div></div>
-			<div><div class="v" id="qd-bank-loan" style="color:#c0392b">-</div><div class="k">欠款</div></div>
+			<div><div class="v" id="qd-bank-wallet">-</div><div class="k">钱包</div></div>
+			<div><div class="v" id="qd-bank-cur" style="color:#2e8b57">-</div><div class="k">活期</div></div>
+			<div><div class="v" id="qd-bank-fix" style="color:#8e44ad">-</div><div class="k">定期</div></div>
+			<div><div class="v" id="qd-bank-loanbal" style="color:#c0392b">-</div><div class="k">欠款</div></div>
 		</div>
-		<p class="qd-bank-rate" id="qd-bank-rate"></p>
-		<input type="number" class="qd-bank-amt" id="qd-bank-amt" min="1" step="1" placeholder="输入金额（电影票）">
-		<div class="qd-bank-acts">
-			<button type="button" class="qd-bank-deposit" data-bank="deposit">存入</button>
-			<button type="button" class="qd-bank-withdraw" data-bank="withdraw">取出</button>
-			<button type="button" class="qd-bank-borrow" data-bank="borrow">借款</button>
-			<button type="button" class="qd-bank-repay" data-bank="repay">还款</button>
+
+		<div class="qd-bank-sec">
+			<h4>活期存款 <span class="qd-bank-info" id="qd-bank-curr"></span></h4>
+			<div class="qd-bank-row">
+				<input type="number" class="qd-bank-amt" id="qd-amt-cur" min="1" placeholder="金额">
+				<button type="button" class="qd-b1 qd-bank-deposit" data-bank="deposit" data-amt="qd-amt-cur">存入</button>
+				<button type="button" class="qd-b1 qd-bank-withdraw" data-bank="withdraw" data-amt="qd-amt-cur">取出</button>
+			</div>
 		</div>
+
+		<div class="qd-bank-sec">
+			<h4>定期存款 <span class="qd-bank-info" id="qd-bank-fixr"></span></h4>
+			<div id="qd-bank-fix-none">
+				<div class="qd-bank-row">
+					<select class="qd-bank-sel" id="qd-fix-term"></select>
+					<input type="number" class="qd-bank-amt" id="qd-amt-fix" min="1" placeholder="金额">
+					<button type="button" class="qd-b1 qd-bank-borrow" data-bank="deposit_fix" data-amt="qd-amt-fix" data-term="qd-fix-term">存定期</button>
+				</div>
+			</div>
+			<div id="qd-bank-fix-has" style="display:none">
+				<div class="qd-bank-detail" id="qd-bank-fix-detail"></div>
+				<button type="button" class="qd-b1 qd-bank-withdraw" data-bank="withdraw_fix">取出定期</button>
+			</div>
+		</div>
+
+		<div class="qd-bank-sec">
+			<h4>借款 <span class="qd-bank-info" id="qd-bank-loanr"></span></h4>
+			<div id="qd-bank-loan-none">
+				<div class="qd-bank-row">
+					<select class="qd-bank-sel" id="qd-loan-term"></select>
+					<input type="number" class="qd-bank-amt" id="qd-amt-borrow" min="1" placeholder="金额">
+					<button type="button" class="qd-b1 qd-bank-borrow" data-bank="borrow" data-amt="qd-amt-borrow" data-term="qd-loan-term">借款</button>
+				</div>
+			</div>
+			<div id="qd-bank-loan-has" style="display:none">
+				<div class="qd-bank-detail" id="qd-bank-loan-detail"></div>
+				<div class="qd-bank-row">
+					<input type="number" class="qd-bank-amt" id="qd-amt-repay" min="1" placeholder="还款金额">
+					<button type="button" class="qd-b1 qd-bank-repay" data-bank="repay" data-amt="qd-amt-repay">还款</button>
+				</div>
+			</div>
+		</div>
+
 		<div class="qd-bank-msg" id="qd-bank-msg"></div>
 		<div class="qd-modal-actions"><button type="button" class="qd-btn-reset" data-qd-close>关闭</button></div>
 	</div>
@@ -3271,33 +3319,59 @@ else {
 (function () {
 	var modal = document.getElementById('qd-bank-modal'), btn = document.getElementById('qd-bank-btn');
 	if (!modal || !btn) return;
-	var amt = document.getElementById('qd-bank-amt'), msg = document.getElementById('qd-bank-msg');
-	var elW = document.getElementById('qd-bank-wallet'), elD = document.getElementById('qd-bank-deposit'), elL = document.getElementById('qd-bank-loan'), elR = document.getElementById('qd-bank-rate');
-	var busy = false;
-	function fmt(n) { return Number(Math.round(n * 100) / 100).toLocaleString('en-US', { maximumFractionDigits: 2 }); }
+	var msg = document.getElementById('qd-bank-msg');
+	var busy = false, termsSet = false;
+	function $(id) { return document.getElementById(id); }
+	function fmt(n) { return Number(Math.round((n || 0) * 100) / 100).toLocaleString('en-US', { maximumFractionDigits: 2 }); }
+	function dateStr(ts) { if (!ts) return '-'; var d = new Date(ts * 1000); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+	function setTerms(terms) {
+		if (termsSet) return; termsSet = true;
+		['qd-fix-term', 'qd-loan-term'].forEach(function (id) {
+			var s = $(id); if (!s) return;
+			s.innerHTML = (terms || [7, 30, 90]).map(function (t) { return '<option value="' + t + '">' + t + ' 天</option>'; }).join('');
+		});
+	}
+	function show(id, on) { var e = $(id); if (e) e.style.display = on ? '' : 'none'; }
 	function paint(d) {
-		elW.textContent = fmt(d.wallet); elD.textContent = fmt(d.deposit); elL.textContent = fmt(d.loan);
-		elR.innerHTML = '存款日息 <b>' + d.deposit_rate + '%</b> · 贷款日息 <b>' + d.loan_rate + '%</b> · 最多可借 ' + fmt(d.borrowable);
+		setTerms(d.terms);
+		$('qd-bank-wallet').textContent = fmt(d.wallet);
+		$('qd-bank-cur').textContent = fmt(d.cur_deposit);
+		$('qd-bank-fix').textContent = fmt(d.fix ? d.fix.value_now : 0);
+		$('qd-bank-loanbal').textContent = fmt(d.loan ? d.loan.owed : 0);
+		$('qd-bank-curr').innerHTML = '日息 <b>' + d.deposit_rate + '%</b>';
+		$('qd-bank-fixr').innerHTML = '日息 <b>' + d.fixed_rate + '%</b>（提前取按活期息）';
+		$('qd-bank-loanr').innerHTML = '日息 <b>' + d.loan_rate + '%</b> · 逾期 ' + fmt(d.overdue_fee) + '/天 · 上限 ' + fmt(d.max_loan);
+		if (d.fix) {
+			show('qd-bank-fix-none', false); show('qd-bank-fix-has', true);
+			$('qd-bank-fix-detail').innerHTML = '本金 <b>' + fmt(d.fix.principal) + '</b> · 日息 ' + d.fix.rate + '% · 到期 ' + dateStr(d.fix.due_ts) + '（' + (d.fix.matured ? '<b style="color:#2e8b57">已到期</b>' : '未到期') + '）<br>到期可得 <b>' + fmt(d.fix.mature_value) + '</b>，现在取出可得 <b>' + fmt(d.fix.value_now) + '</b>';
+		} else { show('qd-bank-fix-none', true); show('qd-bank-fix-has', false); }
+		if (d.loan) {
+			show('qd-bank-loan-none', false); show('qd-bank-loan-has', true);
+			var od = d.loan.overdue ? ('<span class="warn">已逾期 ' + d.loan.overdue_days + ' 天，每天 +' + fmt(d.overdue_fee) + '</span>') : ('到期 ' + dateStr(d.loan.due_ts));
+			$('qd-bank-loan-detail').innerHTML = '当前欠款 <b style="color:#c0392b">' + fmt(d.loan.owed) + '</b> · 借期 ' + d.loan.term + ' 天 · ' + od;
+		} else { show('qd-bank-loan-none', true); show('qd-bank-loan-has', false); }
 	}
-	function load() {
-		fetch('/bank.php?action=status', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) { if (d.ok) paint(d); }).catch(function () {});
-	}
-	function act(a) {
+	function load() { fetch('/bank.php?action=status', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) { if (d.ok) paint(d); }).catch(function () {}); }
+	function act(b) {
 		if (busy) return;
-		var v = parseFloat(amt.value);
-		if (!(v > 0)) { msg.style.color = '#c0392b'; msg.textContent = '请输入金额'; amt.focus(); return; }
+		var action = b.getAttribute('data-bank');
+		var amtId = b.getAttribute('data-amt'), termId = b.getAttribute('data-term');
+		var amount = amtId && $(amtId) ? parseFloat($(amtId).value) : 0;
+		if (action !== 'withdraw_fix' && !(amount > 0)) { msg.style.color = '#c0392b'; msg.textContent = '请输入金额'; if (amtId && $(amtId)) $(amtId).focus(); return; }
 		busy = true; msg.style.color = '#61666d'; msg.textContent = '处理中…';
-		fetch('/bank.php', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'action=' + a + '&amount=' + encodeURIComponent(v) })
+		var body = 'action=' + action + '&amount=' + encodeURIComponent(amount || 0);
+		if (termId && $(termId)) body += '&term=' + encodeURIComponent($(termId).value);
+		fetch('/bank.php', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
 			.then(function (r) { return r.json(); }).then(function (d) {
 				if (!d.ok) { msg.style.color = '#c0392b'; msg.textContent = d.error || '出错了'; return; }
-				paint(d); amt.value = '';
+				paint(d); if (amtId && $(amtId)) $(amtId).value = '';
 				msg.style.color = '#16a34a'; msg.textContent = '操作成功';
 			}).catch(function () { msg.style.color = '#c0392b'; msg.textContent = '网络错误'; })
 			.finally(function () { busy = false; });
 	}
 	btn.addEventListener('click', function () { modal.hidden = false; msg.textContent = ''; load(); });
 	modal.querySelectorAll('[data-qd-close]').forEach(function (c) { c.addEventListener('click', function () { modal.hidden = true; }); });
-	modal.querySelectorAll('[data-bank]').forEach(function (b) { b.addEventListener('click', function () { act(b.getAttribute('data-bank')); }); });
+	modal.querySelectorAll('[data-bank]').forEach(function (b) { b.addEventListener('click', function () { act(b); }); });
 })();
 </script>
 <style>

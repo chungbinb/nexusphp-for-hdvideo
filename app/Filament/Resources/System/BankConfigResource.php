@@ -41,7 +41,13 @@ class BankConfigResource extends Resource
         return $schema
             ->components([
                 TextInput::make('deposit_rate')
-                    ->label('存款日利率（%/天，例如 0.1 表示每天 0.1%）')
+                    ->label('活期存款日利率（%/天，例如 0.1 表示每天 0.1%）')
+                    ->numeric()
+                    ->minValue(0)
+                    ->step('0.0001')
+                    ->required(),
+                TextInput::make('fixed_rate')
+                    ->label('定期存款日利率（%/天，应高于活期；提前支取只按活期息）')
                     ->numeric()
                     ->minValue(0)
                     ->step('0.0001')
@@ -51,6 +57,11 @@ class BankConfigResource extends Resource
                     ->numeric()
                     ->minValue(0)
                     ->step('0.0001')
+                    ->required(),
+                TextInput::make('overdue_fee')
+                    ->label('逾期每天固定费（电影票/天，贷款到期未还后每天加收）')
+                    ->numeric()
+                    ->minValue(0)
                     ->required(),
                 TextInput::make('max_loan')
                     ->label('单用户最高可借（电影票）')
@@ -69,8 +80,10 @@ class BankConfigResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('deposit_rate')->label('存款日利率')->formatStateUsing(fn ($s) => $s . ' %/天'),
-                TextColumn::make('loan_rate')->label('贷款日利率')->formatStateUsing(fn ($s) => $s . ' %/天'),
+                TextColumn::make('deposit_rate')->label('活期日息')->formatStateUsing(fn ($s) => $s . ' %/天'),
+                TextColumn::make('fixed_rate')->label('定期日息')->formatStateUsing(fn ($s) => $s . ' %/天'),
+                TextColumn::make('loan_rate')->label('贷款日息')->formatStateUsing(fn ($s) => $s . ' %/天'),
+                TextColumn::make('overdue_fee')->label('逾期/天')->numeric(),
                 TextColumn::make('max_loan')->label('最高可借')->numeric(),
                 TextColumn::make('min_amount')->label('最低金额')->numeric(),
             ])
