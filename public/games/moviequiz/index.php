@@ -234,6 +234,19 @@ function mq_delete_question($id)
     return "";
 }
 
+function mq_delete_batch($ids)
+{
+    mq_ensure_tables();
+    $clean = [];
+    foreach ((array)$ids as $i) {
+        $i = (int)$i;
+        if ($i > 0) $clean[] = $i;
+    }
+    if (!$clean) return "未选择任何题目。";
+    sql_query("DELETE FROM `" . MQ_Q_TABLE . "` WHERE `id` IN (" . implode(',', $clean) . ")") or sqlerr(__FILE__, __LINE__);
+    return "";
+}
+
 /** Extract http(s) image URLs from a BBCode description ([img]...[/img] / [img=...]). */
 function mq_extract_images($descr)
 {
@@ -339,6 +352,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = mq_add_question($_POST);
     } elseif ($action === 'del_q' && mq_is_admin()) {
         $error = mq_delete_question($_POST['id'] ?? 0);
+    } elseif ($action === 'del_batch' && mq_is_admin()) {
+        $error = mq_delete_batch($_POST['ids'] ?? []);
+    } elseif ($action === 'del_auto' && mq_is_admin()) {
+        mq_ensure_tables();
+        sql_query("DELETE FROM `" . MQ_Q_TABLE . "` WHERE `source` = 'auto'") or sqlerr(__FILE__, __LINE__);
     }
     header('Location: /games/moviequiz/' . ($error !== '' ? '?view=admin&error=' . urlencode($error) : ($action !== '' ? '?view=admin&msg=1' : '')));
     exit;
@@ -382,7 +400,7 @@ stdhead("猜电影");
 <div class="mq-wrap">
     <div class="mq-head">
         <div>
-            <div class="mq-title">猜电影 <span class="mq-badge">内测中 v0.1</span></div>
+            <div class="mq-title">猜电影 <span class="mq-badge">内测中 v0.2</span></div>
             <div class="mq-muted">看截图或台词猜电影名，答对得电影票，连对越多奖励越高（连击 ×<?php echo MQ_BASE_REWARD ?>，封顶 ×<?php echo MQ_STREAK_CAP ?>）。每日上限 <?php echo MQ_DAILY_LIMIT ?> 题。</div>
         </div>
         <div class="mq-balance">我的电影票：<b id="mqBal"><?php echo number_format((float)$CURUSER['seedbonus'], 1) ?></b> 张</div>
@@ -433,26 +451,44 @@ stdhead("猜电影");
         </div>
         <div class="mq-panel">
             <h3 style="margin:0 0 10px">题库</h3>
-            <table class="mq-table">
-                <tr><th>#</th><th>类型</th><th>线索</th><th>答案 / 别名</th><th>来源</th><th></th></tr>
-                <?php while ($q = mysql_fetch_assoc($qres)) { ?>
-                    <tr>
-                        <td><?php echo (int)$q['id'] ?></td>
-                        <td><?php echo mq_type_label($q['type']) ?></td>
-                        <td><?php if ($q['type'] === 'shot') { ?><img src="<?php echo htmlspecialchars($q['clue']) ?>" loading="lazy" alt=""><?php } else { ?><?php echo htmlspecialchars(mb_substr($q['clue'], 0, 120)) ?><?php } ?></td>
-                        <td><b><?php echo htmlspecialchars($q['answer']) ?></b><?php if (trim((string)$q['aliases']) !== '') { ?><br><span class="mq-muted"><?php echo htmlspecialchars($q['aliases']) ?></span><?php } ?></td>
-                        <td><?php if (($q['source'] ?? '') === 'auto') { ?>自动<?php if ((int)($q['torrent_id'] ?? 0) > 0) { ?> <a href="/details.php?id=<?php echo (int)$q['torrent_id'] ?>" target="_blank">#<?php echo (int)$q['torrent_id'] ?></a><?php } ?><?php } else { ?>手动<?php } ?></td>
-                        <td>
-                            <form method="post" action="/games/moviequiz/" onsubmit="return confirm('删除该题？');">
-                                <input type="hidden" name="action" value="del_q">
-                                <input type="hidden" name="id" value="<?php echo (int)$q['id'] ?>">
-                                <button type="submit">删除</button>
-                            </form>
-                        </td>
-                    </tr>
-                <?php } ?>
-            </table>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+                <form method="post" action="/games/moviequiz/" onsubmit="return confirm('删除全部自动导入的题目？此操作不可撤销。');" style="display:inline">
+                    <input type="hidden" name="action" value="del_auto">
+                    <button type="submit" style="background:#9b59b6;border:1px solid #9b59b6;color:#fff;padding:7px 12px;border-radius:6px;font-weight:700;cursor:pointer">清空全部自动导入题</button>
+                </form>
+            </div>
+            <form method="post" action="/games/moviequiz/" onsubmit="return confirm('确定删除选中的题目？');">
+                <input type="hidden" name="action" value="del_batch">
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+                    <button type="submit" style="background:#c0392b;border:1px solid #c0392b;color:#fff;padding:7px 14px;border-radius:6px;font-weight:800;cursor:pointer">删除选中</button>
+                    <label style="font-weight:700"><input type="checkbox" id="mqCheckAll"> 全选本页</label>
+                    <span class="mq-muted" id="mqSelCount"></span>
+                </div>
+                <table class="mq-table">
+                    <tr><th style="width:30px"></th><th>#</th><th>类型</th><th>线索</th><th>答案 / 别名</th><th>来源</th></tr>
+                    <?php while ($q = mysql_fetch_assoc($qres)) { ?>
+                        <tr>
+                            <td style="text-align:center"><input type="checkbox" class="mq-ck" name="ids[]" value="<?php echo (int)$q['id'] ?>"></td>
+                            <td><?php echo (int)$q['id'] ?></td>
+                            <td><?php echo mq_type_label($q['type']) ?></td>
+                            <td><?php if ($q['type'] === 'shot') { ?><img src="<?php echo htmlspecialchars($q['clue']) ?>" loading="lazy" alt=""><?php } else { ?><?php echo htmlspecialchars(mb_substr($q['clue'], 0, 120)) ?><?php } ?></td>
+                            <td><b><?php echo htmlspecialchars($q['answer']) ?></b><?php if (trim((string)$q['aliases']) !== '') { ?><br><span class="mq-muted"><?php echo htmlspecialchars($q['aliases']) ?></span><?php } ?></td>
+                            <td><?php if (($q['source'] ?? '') === 'auto') { ?>自动<?php if ((int)($q['torrent_id'] ?? 0) > 0) { ?> <a href="/details.php?id=<?php echo (int)$q['torrent_id'] ?>" target="_blank">#<?php echo (int)$q['torrent_id'] ?></a><?php } ?><?php } else { ?>手动<?php } ?></td>
+                        </tr>
+                    <?php } ?>
+                </table>
+            </form>
         </div>
+        <script>
+        (function () {
+            var all = document.getElementById('mqCheckAll');
+            var cks = function () { return Array.prototype.slice.call(document.querySelectorAll('.mq-ck')); };
+            var cnt = document.getElementById('mqSelCount');
+            function upd() { var n = cks().filter(function (c) { return c.checked; }).length; cnt.textContent = n > 0 ? ('已选 ' + n + ' 题') : ''; }
+            if (all) all.addEventListener('change', function () { cks().forEach(function (c) { c.checked = all.checked; }); upd(); });
+            cks().forEach(function (c) { c.addEventListener('change', upd); });
+        })();
+        </script>
     <?php } else { ?>
         <div class="mq-panel">
             <div class="mq-stat">
