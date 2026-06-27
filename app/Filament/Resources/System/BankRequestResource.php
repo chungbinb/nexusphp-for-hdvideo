@@ -75,8 +75,13 @@ class BankRequestResource extends Resource
                         Textarea::make('note')->label('备注（可选）')->rows(2),
                     ])
                     ->action(function ($record, array $data) {
-                        require_once base_path('include/bank.php');
-                        [$ok, $msg] = bank_handle_request($record->id, true, $data['note'] ?? '', $data['periods'] ?? '');
+                        try {
+                            require_once base_path('include/bank.php');
+                            [$ok, $msg] = bank_handle_request($record->id, true, $data['note'] ?? '', $data['periods'] ?? '');
+                        } catch (\Throwable $e) {
+                            $ok = false;
+                            $msg = '处理失败：' . $e->getMessage();
+                        }
                         Notification::make()->title($msg)->{$ok ? 'success' : 'danger'}()->send();
                     }),
                 Action::make('reject')
@@ -88,8 +93,13 @@ class BankRequestResource extends Resource
                         Textarea::make('note')->label('拒绝原因（可选）')->rows(2),
                     ])
                     ->action(function ($record, array $data) {
-                        require_once base_path('include/bank.php');
-                        [$ok, $msg] = bank_handle_request($record->id, false, $data['note'] ?? '', '');
+                        try {
+                            require_once base_path('include/bank.php');
+                            [$ok, $msg] = bank_handle_request($record->id, false, $data['note'] ?? '', '');
+                        } catch (\Throwable $e) {
+                            $ok = false;
+                            $msg = '处理失败：' . $e->getMessage();
+                        }
                         Notification::make()->title($msg)->{$ok ? 'success' : 'danger'}()->send();
                     }),
             ]);
