@@ -3271,6 +3271,7 @@ else {
 			<div><div class="v" id="qd-bank-loanbal" style="color:#c0392b">-</div><div class="k">欠款</div></div>
 		</div>
 		<div class="qd-bank-detail" id="qd-bank-credit" style="text-align:center;margin:2px 0 4px"></div>
+		<div class="qd-bank-detail" id="qd-bank-pool" style="text-align:center;margin:0 0 4px;font-size:11px"></div>
 
 		<div class="qd-bank-sec">
 			<h4>活期存款 <span class="qd-bank-info" id="qd-bank-curr"></span></h4>
@@ -3342,6 +3343,7 @@ else {
 		$('qd-bank-fix').textContent = fmt(d.fix ? d.fix.value_now : 0);
 		$('qd-bank-loanbal').textContent = fmt(d.loan ? d.loan.owed : 0);
 		$('qd-bank-credit').innerHTML = '信用等级 <b style="color:#8e44ad">' + d.credit.grade + '</b> · 评分 ' + d.credit.score + ' · 分享率 ' + d.credit.ratio + ' · 可借上限 <b>' + fmt(d.credit.max_loan) + '</b>';
+		if (d.pool) { $('qd-bank-pool').innerHTML = '🏛 资金池存款 ' + fmt(d.pool.deposits) + ' · 风险准备金 ' + fmt(d.pool.risk_reserve) + ' · 待分红 ' + fmt(d.pool.dividend_pool) + '（每季度按存款占比派发）'; }
 		$('qd-bank-curr').innerHTML = '年化 <b>' + d.cur_annual + '%</b> · 满24h起息';
 		$('qd-bank-fixr').innerHTML = '到期得全额利息，提前取只退本金';
 		$('qd-bank-loanr').innerHTML = d.can_borrow ? '按信用等级定额度，分期月息见下' : '<span class="warn">' + d.borrow_block + '</span>';

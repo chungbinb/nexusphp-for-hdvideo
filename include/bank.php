@@ -13,6 +13,8 @@
 const BANK_BUSINESS_TYPE = 51;
 const BANK_ACCOUNT_TABLE = 'hdvideo_bank_accounts';
 const BANK_CONFIG_TABLE = 'hdvideo_bank_config';
+const BANK_POOL_TABLE = 'hdvideo_bank_pool';   // 资金池/风险准备金/待分红统计（单行 id=1）
+const BANK_RESERVE_PCT = 25;                    // 贷款利息计入风险准备金的比例 %（其余进分红池）
 
 const BANK_MIN_DEPOSIT = 10000;     // 最低存款（活期/定期单笔）
 const BANK_MIN_LOAN = 10000;        // 最低借款
@@ -76,7 +78,93 @@ function bank_ensure_tables()
             sql_query("ALTER TABLE `" . BANK_ACCOUNT_TABLE . "` ADD COLUMN `$colName` $def") or sqlerr(__FILE__, __LINE__);
         }
     }
+    @sql_query("
+        CREATE TABLE IF NOT EXISTS `" . BANK_POOL_TABLE . "` (
+            `id` int unsigned NOT NULL,
+            `total_interest` decimal(20,2) NOT NULL DEFAULT '0.00',
+            `risk_reserve` decimal(20,2) NOT NULL DEFAULT '0.00',
+            `dividend_pool` decimal(20,2) NOT NULL DEFAULT '0.00',
+            `last_dividend_at` datetime DEFAULT NULL,
+            PRIMARY KEY (`id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    $pc = @sql_query("SELECT COUNT(*) AS c FROM `" . BANK_POOL_TABLE . "` WHERE `id` = 1");
+    if ($pc && (int)mysql_fetch_assoc($pc)['c'] === 0) {
+        @sql_query("INSERT INTO `" . BANK_POOL_TABLE . "` (`id`) VALUES (1)");
+    }
     $done = true;
+}
+
+/** 贷款利息入账：按比例分配到风险准备金与分红池。 */
+function bank_pool_add_interest($interest)
+{
+    $interest = round((float)$interest, 2);
+    if ($interest <= 0) return;
+    $reserve = round($interest * BANK_RESERVE_PCT / 100, 2);
+    $div = round($interest - $reserve, 2);
+    sql_query("UPDATE `" . BANK_POOL_TABLE . "` SET `total_interest` = `total_interest` + " . sqlesc(bank_money($interest)) . ", `risk_reserve` = `risk_reserve` + " . sqlesc(bank_money($reserve)) . ", `dividend_pool` = `dividend_pool` + " . sqlesc(bank_money($div)) . " WHERE `id` = 1") or sqlerr(__FILE__, __LINE__);
+}
+
+/** 资金池/风险准备金/分红 概况。 */
+function bank_pool_stats()
+{
+    bank_ensure_tables();
+    $r = mysql_fetch_assoc(sql_query("SELECT COALESCE(SUM(`deposit`+`fix_deposit`),0) AS dep, COALESCE(SUM(`loan`),0) AS loans, SUM((`deposit`+`fix_deposit`)>0) AS depositors FROM `" . BANK_ACCOUNT_TABLE . "`") ?: false) ?: ['dep' => 0, 'loans' => 0, 'depositors' => 0];
+    $p = mysql_fetch_assoc(sql_query("SELECT * FROM `" . BANK_POOL_TABLE . "` WHERE `id` = 1 LIMIT 1") ?: false) ?: [];
+    return [
+        'deposits' => round((float)$r['dep'], 2),
+        'loans' => round((float)$r['loans'], 2),
+        'depositors' => (int)$r['depositors'],
+        'risk_reserve' => round((float)($p['risk_reserve'] ?? 0), 2),
+        'dividend_pool' => round((float)($p['dividend_pool'] ?? 0), 2),
+        'total_interest' => round((float)($p['total_interest'] ?? 0), 2),
+        'last_dividend_at' => $p['last_dividend_at'] ?? null,
+        'reserve_pct' => BANK_RESERVE_PCT,
+    ];
+}
+
+/** 季度分红：把分红池按各用户存款占比派发到钱包。返回 [总派发, 人数]。 */
+function bank_distribute_dividends()
+{
+    bank_ensure_tables();
+    $p = mysql_fetch_assoc(sql_query("SELECT `dividend_pool` FROM `" . BANK_POOL_TABLE . "` WHERE `id` = 1 LIMIT 1") ?: false);
+    $pool = round((float)($p['dividend_pool'] ?? 0), 2);
+    if ($pool <= 0) return [0, 0];
+    $rows = [];
+    $total = 0.0;
+    $res = sql_query("SELECT `uid`, (`deposit`+`fix_deposit`) AS dep FROM `" . BANK_ACCOUNT_TABLE . "` WHERE (`deposit`+`fix_deposit`) > 0") or sqlerr(__FILE__, __LINE__);
+    while ($row = mysql_fetch_assoc($res)) {
+        $rows[] = ['uid' => (int)$row['uid'], 'dep' => (float)$row['dep']];
+        $total += (float)$row['dep'];
+    }
+    if ($total <= 0 || !$rows) return [0, 0];
+
+    $distributed = 0.0;
+    $count = 0;
+    $now = date('Y-m-d H:i:s');
+    sql_query("START TRANSACTION") or sqlerr(__FILE__, __LINE__);
+    try {
+        foreach ($rows as $r) {
+            $amt = floor($pool * ($r['dep'] / $total) * 100) / 100;
+            if ($amt <= 0) continue;
+            $ures = sql_query("SELECT `seedbonus` FROM `users` WHERE `id` = {$r['uid']} FOR UPDATE") or sqlerr(__FILE__, __LINE__);
+            $u = mysql_fetch_assoc($ures);
+            if (!$u) continue;
+            $old = (float)$u['seedbonus'];
+            $new = $old + $amt;
+            sql_query("UPDATE `users` SET `seedbonus` = `seedbonus` + " . sqlesc(bank_money($amt)) . " WHERE `id` = {$r['uid']}") or sqlerr(__FILE__, __LINE__);
+            bank_log($r['uid'], $old, $amt, $new, "[高清银行] 季度存款分红 {$amt}");
+            if (function_exists('clear_user_cache')) clear_user_cache($r['uid']);
+            $distributed += $amt;
+            $count++;
+        }
+        sql_query("UPDATE `" . BANK_POOL_TABLE . "` SET `dividend_pool` = 0, `last_dividend_at` = " . sqlesc($now) . " WHERE `id` = 1") or sqlerr(__FILE__, __LINE__);
+        sql_query("COMMIT") or sqlerr(__FILE__, __LINE__);
+    } catch (Throwable $e) {
+        sql_query("ROLLBACK");
+        return [0, 0];
+    }
+    return [round($distributed, 2), $count];
 }
 
 function bank_account($uid, $forUpdate = false)
@@ -229,6 +317,7 @@ function bank_auto_repay($uid)
         } else {
             sql_query("UPDATE `" . BANK_ACCOUNT_TABLE . "` SET `loan` = " . sqlesc(bank_money($newPrincipal)) . ", `loan_interest` = " . sqlesc(bank_money($newInterest)) . ", `loan_ts` = $now, `updated_at` = " . sqlesc($ts) . " WHERE `uid` = $uid") or sqlerr(__FILE__, __LINE__);
         }
+        if ($payInterest > 0) bank_pool_add_interest($payInterest);
         bank_log($uid, $wallet, -$pay, $newWallet, "[高清银行] 自动还款 {$pay}");
         sql_query("COMMIT") or sqlerr(__FILE__, __LINE__);
         if (function_exists('clear_user_cache')) clear_user_cache($uid);
@@ -312,6 +401,7 @@ function bank_status($uid)
         'blacklisted' => $rs['blacklisted'],
         'can_borrow' => $canBorrow,
         'borrow_block' => $block,
+        'pool' => bank_pool_stats(),
     ];
 }
 
@@ -413,6 +503,7 @@ function bank_do($uid, $action, $amount, $param = 0)
             } else {
                 sql_query("UPDATE `" . BANK_ACCOUNT_TABLE . "` SET `loan` = " . sqlesc(bank_money($newPrincipal)) . ", `loan_interest` = " . sqlesc(bank_money($newInterest)) . ", `loan_ts` = $now, `updated_at` = " . sqlesc($ts) . " WHERE `uid` = $uid") or sqlerr(__FILE__, __LINE__);
             }
+            if ($payInterest > 0) bank_pool_add_interest($payInterest);
             bank_log($uid, $wallet, -$pay, $newWallet, "[高清银行] 还款 {$pay}");
 
         } else {
