@@ -141,6 +141,14 @@ function game_sp_choice_label($choice)
     return ['home' => '主胜', 'draw' => '平局', 'away' => '客胜'][$choice] ?? $choice;
 }
 
+/** Team-aware option label: home/away -> the team name, draw -> 平局. */
+function game_sp_side_name($choice, $match)
+{
+    if ($choice === 'home') return game_sp_tr($match['home_team'] ?? '主队');
+    if ($choice === 'away') return game_sp_tr($match['away_team'] ?? '客队');
+    return '平局';
+}
+
 /**
  * Best-effort English -> Chinese for league / national-team / common club names.
  * Unknown names are returned unchanged.
@@ -901,6 +909,7 @@ stdhead("菠菜系统");
 .sp-odds b { color: #c0392b; }
 .sp-side { margin-left: 6px; font-size: 12px; color: #8a9bb0; }
 .sp-side::before { content: "投"; margin-right: 2px; opacity: .7; }
+.sp-hint { font-size: 11px; color: #8a9bb0; margin-left: 2px; vertical-align: super; }
 .sp-pool { margin: 8px 0; font-size: 13px; }
 .sp-pool b { color: #2c7; }
 .sp-chart { margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(120,150,190,.3); }
@@ -938,7 +947,7 @@ stdhead("菠菜系统");
 </style>
 <div class="sp-wrap">
     <div class="sp-head">
-        <div class="sp-title">菠菜系统 <span class="sp-badge">内测中 v0.4</span></div>
+        <div class="sp-title">菠菜系统 <span class="sp-badge">内测中 v0.5</span></div>
         <div class="sp-balance">我的电影票：<?php echo game_sp_money($CURUSER['seedbonus']) ?> 张</div>
     </div>
 
@@ -989,9 +998,9 @@ stdhead("菠菜系统");
                     <input type="hidden" name="match_id" value="<?php echo (int)$m['id'] ?>">
                     <?php $hasDraw = (float)$m['odds_draw'] > 1; ?>
                     <div class="sp-odds">
-                        <label><input type="radio" name="choice" value="home" checked> 主胜 <b><?php echo number_format($dyn['home'], 2) ?></b><span class="sp-side"><?php echo number_format($pool['home']) ?></span></label>
+                        <label><input type="radio" name="choice" value="home" checked> <?php echo htmlspecialchars(game_sp_tr($m['home_team'])) ?><span class="sp-hint">主</span> <b><?php echo number_format($dyn['home'], 2) ?></b><span class="sp-side"><?php echo number_format($pool['home']) ?></span></label>
                         <?php if ($hasDraw) { ?><label><input type="radio" name="choice" value="draw"> 平局 <b><?php echo number_format($dyn['draw'], 2) ?></b><span class="sp-side"><?php echo number_format($pool['draw']) ?></span></label><?php } ?>
-                        <label><input type="radio" name="choice" value="away"> 客胜 <b><?php echo number_format($dyn['away'], 2) ?></b><span class="sp-side"><?php echo number_format($pool['away']) ?></span></label>
+                        <label><input type="radio" name="choice" value="away"> <?php echo htmlspecialchars(game_sp_tr($m['away_team'])) ?><span class="sp-hint">客</span> <b><?php echo number_format($dyn['away'], 2) ?></b><span class="sp-side"><?php echo number_format($pool['away']) ?></span></label>
                     </div>
                     <div class="sp-pool sp-muted">📊 下注 <b><?php echo (int)$pool['count'] ?></b> 笔 · 参与 <b><?php echo (int)$pool['players'] ?></b> 人 · 投注总额 <b><?php echo number_format($pool['total']) ?></b> 电影票 · 赔率随下注比率实时浮动（下注时锁定）</div>
                     <input type="number" name="amount" min="1" step="1" placeholder="电影票数量" required>
@@ -1006,11 +1015,11 @@ stdhead("菠菜系统");
                     </span>
                 </form>
                 <?php
-                $sideMeta = ['home' => ['label' => '主胜', 'cls' => 'home']];
+                $sideMeta = ['home' => ['label' => game_sp_tr($m['home_team']), 'cls' => 'home']];
                 if ((float)$m['odds_draw'] > 1) {
                     $sideMeta['draw'] = ['label' => '平局', 'cls' => 'draw'];
                 }
-                $sideMeta['away'] = ['label' => '客胜', 'cls' => 'away'];
+                $sideMeta['away'] = ['label' => game_sp_tr($m['away_team']), 'cls' => 'away'];
                 $poolTotal = (float)$pool['total'];
                 ?>
                 <div class="sp-chart">
@@ -1032,8 +1041,8 @@ stdhead("菠菜系统");
                             ?>
                                 <div class="sp-col">
                                     <div class="sp-col-amt"><?php echo number_format($amt) ?></div>
-                                    <div class="sp-col-bar sp-seg-<?php echo $meta['cls'] ?>" style="height:<?php echo $h ?>px" title="<?php echo $meta['label'] . ' ' . $pct . '%' ?>"></div>
-                                    <div class="sp-col-label"><?php echo $meta['label'] ?></div>
+                                    <div class="sp-col-bar sp-seg-<?php echo $meta['cls'] ?>" style="height:<?php echo $h ?>px" title="<?php echo htmlspecialchars($meta['label'] . ' ' . $pct . '%') ?>"></div>
+                                    <div class="sp-col-label"><?php echo htmlspecialchars($meta['label']) ?></div>
                                     <div class="sp-col-meta"><?php echo number_format($ppl) ?> 人 · <?php echo $pct ?>%</div>
                                 </div>
                             <?php } ?>
@@ -1099,7 +1108,7 @@ stdhead("菠菜系统");
             <?php while ($bet = mysql_fetch_assoc($res)) { ?>
                 <tr>
                     <td><?php echo htmlspecialchars(($bet['league'] !== '' ? '[' . game_sp_tr($bet['league']) . '] ' : '') . game_sp_tr($bet['home_team']) . ' vs ' . game_sp_tr($bet['away_team'])) ?></td>
-                    <td><?php echo game_sp_choice_label($bet['choice']) ?></td>
+                    <td><?php echo htmlspecialchars(game_sp_side_name($bet['choice'], $bet)) ?></td>
                     <td><?php echo number_format($bet['odds'], 2) ?></td>
                     <td><?php echo game_sp_money($bet['amount']) ?></td>
                     <td><?php echo $betStatusLabel[$bet['status']] ?? htmlspecialchars($bet['status']) ?></td>
