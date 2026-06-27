@@ -535,6 +535,31 @@ function game_sp_settle_match($matchId, $result, $homeScore, $awayScore)
         }
         sql_query("UPDATE `" . GAME_SP_MATCH_TABLE . "` SET `status` = 'settled', `result` = " . sqlesc($result) . ", `home_score` = $homeScoreSql, `away_score` = $awayScoreSql, `updated_at` = " . sqlesc($now) . " WHERE `id` = $matchId") or sqlerr(__FILE__, __LINE__);
 
+        // Two-way match (no draw option) that actually drew -> refund everyone (平局退款).
+        if ($result === 'draw' && (float)$match['odds_draw'] <= 1) {
+            $refRes = sql_query("
+                SELECT b.`id`, b.`uid`, b.`amount`, u.`seedbonus`
+                FROM `" . GAME_SP_BET_TABLE . "` b
+                INNER JOIN `users` u ON u.`id` = b.`uid`
+                WHERE b.`match_id` = $matchId AND b.`status` = 'pending'
+                FOR UPDATE
+            ") or sqlerr(__FILE__, __LINE__);
+            while ($bet = mysql_fetch_assoc($refRes)) {
+                $betId = (int)$bet['id'];
+                $uid = (int)$bet['uid'];
+                $amount = (float)$bet['amount'];
+                $oldBonus = (float)$bet['seedbonus'];
+                $newBonus = $oldBonus + $amount;
+                sql_query("UPDATE `users` SET `seedbonus` = `seedbonus` + " . sqlesc(game_sp_money($amount)) . " WHERE `id` = $uid") or sqlerr(__FILE__, __LINE__);
+                sql_query("UPDATE `" . GAME_SP_BET_TABLE . "` SET `status` = 'refunded', `payout` = " . sqlesc(game_sp_money($amount)) . ", `settled_at` = " . sqlesc($now) . " WHERE `id` = $betId") or sqlerr(__FILE__, __LINE__);
+                game_sp_bonus_log($uid, $oldBonus, $amount, $newBonus,
+                    "{$match['home_team']} vs {$match['away_team']} 平局（两项盘）退款 {$amount}");
+                clear_user_cache($uid);
+            }
+            sql_query("COMMIT") or sqlerr(__FILE__, __LINE__);
+            return "";
+        }
+
         $winRes = sql_query("
             SELECT b.`id`, b.`uid`, b.`amount`, b.`odds`, u.`seedbonus`
             FROM `" . GAME_SP_BET_TABLE . "` b
@@ -618,12 +643,17 @@ function game_sp_save_match($data, $isNew)
 {
     $now = date('Y-m-d H:i:s');
     $oddsHome = (float)($data['odds_home'] ?? 0);
-    $oddsDraw = (float)($data['odds_draw'] ?? 0);
     $oddsAway = (float)($data['odds_away'] ?? 0);
-    foreach (['主胜' => $oddsHome, '平局' => $oddsDraw, '客胜' => $oddsAway] as $name => $o) {
+    // 平局可留空（=0），表示只有主/客两个押注选项；填写则必须 >1 才算开放平局。
+    $drawRaw = trim((string)($data['odds_draw'] ?? ''));
+    $oddsDraw = $drawRaw === '' ? 0.0 : (float)$drawRaw;
+    foreach (['主胜' => $oddsHome, '客胜' => $oddsAway] as $name => $o) {
         if ($o <= 1 || $o > 1000) {
             return "{$name}赔率必须大于 1 且不超过 1000。";
         }
+    }
+    if ($oddsDraw != 0.0 && ($oddsDraw <= 1 || $oddsDraw > 1000)) {
+        return "平局赔率如需开放须大于 1 且不超过 1000；留空表示只设主/客两个选项。";
     }
 
     if ($isNew) {
@@ -940,9 +970,10 @@ stdhead("菠菜系统");
                 <form class="sp-form" method="post" action="/games/sports/">
                     <input type="hidden" name="action" value="bet">
                     <input type="hidden" name="match_id" value="<?php echo (int)$m['id'] ?>">
+                    <?php $hasDraw = (float)$m['odds_draw'] > 1; ?>
                     <div class="sp-odds">
                         <label><input type="radio" name="choice" value="home" checked> 主胜 <b><?php echo number_format($dyn['home'], 2) ?></b><span class="sp-side"><?php echo number_format($pool['home']) ?></span></label>
-                        <label><input type="radio" name="choice" value="draw"> 平局 <b><?php echo number_format($dyn['draw'], 2) ?></b><span class="sp-side"><?php echo number_format($pool['draw']) ?></span></label>
+                        <?php if ($hasDraw) { ?><label><input type="radio" name="choice" value="draw"> 平局 <b><?php echo number_format($dyn['draw'], 2) ?></b><span class="sp-side"><?php echo number_format($pool['draw']) ?></span></label><?php } ?>
                         <label><input type="radio" name="choice" value="away"> 客胜 <b><?php echo number_format($dyn['away'], 2) ?></b><span class="sp-side"><?php echo number_format($pool['away']) ?></span></label>
                     </div>
                     <div class="sp-pool sp-muted">📊 下注 <b><?php echo (int)$pool['count'] ?></b> 笔 · 参与 <b><?php echo (int)$pool['players'] ?></b> 人 · 投注总额 <b><?php echo number_format($pool['total']) ?></b> 电影票 · 赔率随下注比率实时浮动（下注时锁定）</div>
@@ -958,11 +989,11 @@ stdhead("菠菜系统");
                     </span>
                 </form>
                 <?php
-                $sideMeta = [
-                    'home' => ['label' => '主胜', 'cls' => 'home'],
-                    'draw' => ['label' => '平局', 'cls' => 'draw'],
-                    'away' => ['label' => '客胜', 'cls' => 'away'],
-                ];
+                $sideMeta = ['home' => ['label' => '主胜', 'cls' => 'home']];
+                if ((float)$m['odds_draw'] > 1) {
+                    $sideMeta['draw'] = ['label' => '平局', 'cls' => 'draw'];
+                }
+                $sideMeta['away'] = ['label' => '客胜', 'cls' => 'away'];
                 $poolTotal = (float)$pool['total'];
                 ?>
                 <div class="sp-chart">
@@ -1187,7 +1218,7 @@ stdhead("菠菜系统");
                                     <input type="hidden" name="action" value="publish_match">
                                     <input type="hidden" name="match_id" value="<?php echo (int)$m['id'] ?>">
                                     <input type="number" name="odds_home" min="1.01" max="1000" step="0.01" placeholder="主" style="width:60px" required>
-                                    <input type="number" name="odds_draw" min="1.01" max="1000" step="0.01" placeholder="平" style="width:60px" required>
+                                    <input type="number" name="odds_draw" min="1.01" max="1000" step="0.01" placeholder="平(可空)" style="width:60px" title="留空表示只设主/客两个选项">
                                     <input type="number" name="odds_away" min="1.01" max="1000" step="0.01" placeholder="客" style="width:60px" required>
                                     <input type="text" name="bet_deadline" value="<?php echo htmlspecialchars($m['bet_deadline']) ?>" style="width:140px" title="押注截止">
                                     <input type="text" name="watch_url" placeholder="观赛链接(留空=CCTV5)" style="width:160px" title="观赛链接，留空默认 CCTV5">
@@ -1216,7 +1247,7 @@ stdhead("菠菜系统");
                     <label>比赛时间<?php echo datetimepicker_input('match_time', '', '', ['require_files' => true, 'style' => 'padding:7px']) ?></label>
                     <label>押注截止<?php echo datetimepicker_input('bet_deadline', '', '', ['style' => 'padding:7px']) ?></label>
                     <label>主胜赔率<input type="number" name="odds_home" min="1.01" max="1000" step="0.01" required></label>
-                    <label>平局赔率<input type="number" name="odds_draw" min="1.01" max="1000" step="0.01" required></label>
+                    <label>平局赔率<span class="sp-muted">(留空=只设主/客)</span><input type="number" name="odds_draw" min="1.01" max="1000" step="0.01"></label>
                     <label>客胜赔率<input type="number" name="odds_away" min="1.01" max="1000" step="0.01" required></label>
                     <label>观赛链接<input type="text" name="watch_url" placeholder="留空默认 CCTV5"></label>
                     <label>&nbsp;<button type="submit">创建比赛</button></label>
