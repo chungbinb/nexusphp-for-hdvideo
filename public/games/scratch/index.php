@@ -387,7 +387,7 @@ echo game_back_link();
 <div class="sc-wrap">
     <div class="sc-head">
         <div>
-            <div class="sc-title">刮刮乐 <span class="sc-badge">内测中 v0.5</span></div>
+            <div class="sc-title">刮刮乐 <span class="sc-badge">内测中 v0.6</span></div>
             <div class="sc-muted">每张 <b class="sc-cost"><?php echo (int)$cost ?></b> 电影票，买一张用鼠标刮开涂层，刮中即得。<?php if ($dailyLimit > 0) { ?> <span style="color:#e67e22;font-weight:700">今日剩余 <span id="scLeft"><?php echo (int)$todayLeft ?></span> 次</span>（每日上限 <?php echo (int)$dailyLimit ?>）<?php } ?></div>
         </div>
         <div class="sc-balance">我的电影票：<b id="scBal"><?php echo sc_money($CURUSER['seedbonus']) ?></b> 张</div>
@@ -418,7 +418,7 @@ echo game_back_link();
         </div>
     </div>
 
-    <div class="sc-panel">
+    <div class="sc-panel" id="scMine">
         <h3 style="margin:0 0 10px">我的最近刮奖（共 <?php echo (int)($sum['n'] ?? 0) ?> 次，电影票净 <span class="<?php echo (float)($sum['net'] ?? 0) >= 0 ? 'sc-pos' : 'sc-neg' ?>"><?php echo ((float)($sum['net'] ?? 0) >= 0 ? '+' : '') . number_format((float)($sum['net'] ?? 0), 0) ?></span>）</h3>
         <table class="sc-table">
             <tr><th>时间</th><th>花费</th><th>刮中</th><th>电影票盈亏</th></tr>
@@ -533,10 +533,15 @@ echo game_back_link();
     }
 
     function refreshBoard() {
-        fetch('/games/scratch/', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'action=board' })
+        fetch(location.href, { credentials: 'same-origin' })
             .then(function (r) { return r.text(); })
-            .then(function (html) { var g = document.getElementById('scBoardGrid'); if (g && html) g.innerHTML = html; })
-            .catch(function () {});
+            .then(function (html) {
+                var doc = new DOMParser().parseFromString(html, 'text/html');
+                ['scMine', 'scBoardGrid'].forEach(function (id) {
+                    var f = doc.getElementById(id), c = document.getElementById(id);
+                    if (f && c) c.innerHTML = f.innerHTML;
+                });
+            }).catch(function () {});
     }
 
     function onMove(e) {
