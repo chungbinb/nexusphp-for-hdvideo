@@ -421,6 +421,14 @@ function game_sp_pool($matchId)
     return $pool;
 }
 
+/** All-time bet stats for a match (any status): ['count','players','total']. */
+function game_sp_bet_stats($matchId)
+{
+    $res = sql_query("SELECT COUNT(*) AS c, COUNT(DISTINCT `uid`) AS p, SUM(`amount`) AS s FROM `" . GAME_SP_BET_TABLE . "` WHERE `match_id` = " . (int)$matchId) or sqlerr(__FILE__, __LINE__);
+    $row = mysql_fetch_assoc($res);
+    return ['count' => (int)$row['c'], 'players' => (int)$row['p'], 'total' => (float)$row['s']];
+}
+
 /**
  * Dynamic odds. The admin odds are the opening line; live odds shift with the betting
  * distribution (more money on an outcome -> shorter odds). A virtual seed pool
@@ -921,7 +929,7 @@ stdhead("菠菜系统");
 </style>
 <div class="sp-wrap">
     <div class="sp-head">
-        <div class="sp-title">菠菜系统 <span class="sp-badge">内测中 v0.2</span></div>
+        <div class="sp-title">菠菜系统 <span class="sp-badge">内测中 v0.3</span></div>
         <div class="sp-balance">我的电影票：<?php echo game_sp_money($CURUSER['seedbonus']) ?> 张</div>
     </div>
 
@@ -1028,16 +1036,21 @@ stdhead("菠菜系统");
     ?>
         <div class="sp-section-title">历史开奖</div>
         <table class="sp-table">
-            <tr><th>赛事</th><th>比分</th><th>结果</th><th>时间</th></tr>
-            <?php while ($m = mysql_fetch_assoc($res)) { ?>
+            <tr><th>赛事</th><th>比分</th><th>结果</th><th>下注数</th><th>参与人数</th><th>投注总额</th><th>时间</th></tr>
+            <?php while ($m = mysql_fetch_assoc($res)) {
+                $st = game_sp_bet_stats((int)$m['id']);
+            ?>
                 <tr>
                     <td><?php echo htmlspecialchars(($m['league'] !== '' ? '[' . game_sp_tr($m['league']) . '] ' : '') . game_sp_tr($m['home_team']) . ' vs ' . game_sp_tr($m['away_team'])) ?></td>
                     <td><?php echo ($m['home_score'] === null || $m['away_score'] === null) ? '-' : ((int)$m['home_score'] . ' : ' . (int)$m['away_score']) ?></td>
                     <td><?php echo $m['status'] === 'cancelled' ? '已取消(退款)' : game_sp_choice_label($m['result']) ?></td>
+                    <td><?php echo number_format($st['count']) ?></td>
+                    <td><?php echo number_format($st['players']) ?></td>
+                    <td><?php echo number_format($st['total']) ?></td>
                     <td><?php echo htmlspecialchars($m['updated_at']) ?></td>
                 </tr>
             <?php } ?>
-            <?php if (!$total) { ?><tr><td colspan="4" class="sp-muted">暂无开奖记录。</td></tr><?php } ?>
+            <?php if (!$total) { ?><tr><td colspan="7" class="sp-muted">暂无开奖记录。</td></tr><?php } ?>
         </table>
         <?php if ($pages > 1) { ?>
             <div class="sp-pager">
