@@ -408,7 +408,7 @@ function game_sp_points($v, $signed = false)
 /** Pending-bet pool for a match: ['home','draw','away' => amount, 'count', 'total']. */
 function game_sp_pool($matchId)
 {
-    $pool = ['home' => 0.0, 'draw' => 0.0, 'away' => 0.0, 'count' => 0, 'total' => 0.0];
+    $pool = ['home' => 0.0, 'draw' => 0.0, 'away' => 0.0, 'count' => 0, 'total' => 0.0, 'players' => 0];
     $res = sql_query("SELECT `choice`, COUNT(*) AS c, SUM(`amount`) AS s FROM `" . GAME_SP_BET_TABLE . "` WHERE `match_id` = " . (int)$matchId . " AND `status` = 'pending' GROUP BY `choice`") or sqlerr(__FILE__, __LINE__);
     while ($row = mysql_fetch_assoc($res)) {
         $c = $row['choice'];
@@ -416,6 +416,8 @@ function game_sp_pool($matchId)
         $pool['count'] += (int)$row['c'];
         $pool['total'] += (float)$row['s'];
     }
+    $pres = sql_query("SELECT COUNT(DISTINCT `uid`) AS p FROM `" . GAME_SP_BET_TABLE . "` WHERE `match_id` = " . (int)$matchId . " AND `status` = 'pending'") or sqlerr(__FILE__, __LINE__);
+    $pool['players'] = (int)mysql_fetch_assoc($pres)['p'];
     return $pool;
 }
 
@@ -855,6 +857,16 @@ stdhead("菠菜系统");
 .sp-side::before { content: "投"; margin-right: 2px; opacity: .7; }
 .sp-pool { margin: 8px 0; font-size: 13px; }
 .sp-pool b { color: #2c7; }
+.sp-chart { margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(120,150,190,.3); }
+.sp-chart-title { font-size: 13px; font-weight: 700; color: #6f7f95; margin-bottom: 6px; }
+.sp-bar { display: flex; width: 100%; height: 22px; border-radius: 6px; overflow: hidden; background: rgba(120,150,190,.15); }
+.sp-seg { display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; font-weight: 700; min-width: 0; transition: width .3s ease; }
+.sp-seg-home { background: #2e8b57; }
+.sp-seg-draw { background: #b0883a; }
+.sp-seg-away { background: #c0392b; }
+.sp-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; font-size: 12px; color: #6f7f95; }
+.sp-leg { display: inline-flex; align-items: center; gap: 5px; }
+.sp-dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
 .sp-form input[type="number"] { width: 140px; padding: 8px; }
 .sp-form button { padding: 8px 16px; font-weight: 700; cursor: pointer; }
 .sp-quick { display: inline-flex; gap: 6px; flex-wrap: wrap; }
@@ -933,7 +945,7 @@ stdhead("菠菜系统");
                         <label><input type="radio" name="choice" value="draw"> 平局 <b><?php echo number_format($dyn['draw'], 2) ?></b><span class="sp-side"><?php echo number_format($pool['draw']) ?></span></label>
                         <label><input type="radio" name="choice" value="away"> 客胜 <b><?php echo number_format($dyn['away'], 2) ?></b><span class="sp-side"><?php echo number_format($pool['away']) ?></span></label>
                     </div>
-                    <div class="sp-pool sp-muted">📊 下注 <b><?php echo (int)$pool['count'] ?></b> 笔 · 投注总额 <b><?php echo number_format($pool['total']) ?></b> 电影票 · 赔率随下注比率实时浮动（下注时锁定）</div>
+                    <div class="sp-pool sp-muted">📊 下注 <b><?php echo (int)$pool['count'] ?></b> 笔 · 参与 <b><?php echo (int)$pool['players'] ?></b> 人 · 投注总额 <b><?php echo number_format($pool['total']) ?></b> 电影票 · 赔率随下注比率实时浮动（下注时锁定）</div>
                     <input type="number" name="amount" min="1" step="1" placeholder="电影票数量" required>
                     <button type="submit">押注</button>
                     <span class="sp-quick">
@@ -945,6 +957,32 @@ stdhead("菠菜系统");
                         <span class="sp-chip allin" data-amt="all">梭哈</span>
                     </span>
                 </form>
+                <?php
+                $sideMeta = [
+                    'home' => ['label' => '主胜', 'cls' => 'home'],
+                    'draw' => ['label' => '平局', 'cls' => 'draw'],
+                    'away' => ['label' => '客胜', 'cls' => 'away'],
+                ];
+                $poolTotal = (float)$pool['total'];
+                ?>
+                <div class="sp-chart">
+                    <div class="sp-chart-title">投注分布</div>
+                    <?php if ($poolTotal <= 0) { ?>
+                        <div class="sp-muted" style="font-size:13px">暂无下注，赔率为开盘线。</div>
+                    <?php } else { ?>
+                        <div class="sp-bar">
+                            <?php foreach ($sideMeta as $k => $meta) {
+                                $pct = round((float)$pool[$k] / $poolTotal * 100, 1);
+                                if ($pct <= 0) continue;
+                            ?><span class="sp-seg sp-seg-<?php echo $meta['cls'] ?>" style="width:<?php echo $pct ?>%" title="<?php echo $meta['label'] . ' ' . $pct . '%' ?>"><?php echo $pct >= 10 ? $pct . '%' : '' ?></span><?php } ?>
+                        </div>
+                        <div class="sp-legend">
+                            <?php foreach ($sideMeta as $k => $meta) {
+                                $pct = round((float)$pool[$k] / $poolTotal * 100, 1);
+                            ?><span class="sp-leg"><i class="sp-dot sp-seg-<?php echo $meta['cls'] ?>"></i><?php echo $meta['label'] ?> <?php echo number_format($pool[$k]) ?> 票（<?php echo $pct ?>%）</span><?php } ?>
+                        </div>
+                    <?php } ?>
+                </div>
             </div>
         <?php } ?>
 
