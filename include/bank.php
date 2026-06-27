@@ -1,27 +1,37 @@
 <?php
 /**
- * 高清银行 — store (活期/定期 deposits) and borrow (term loans) of 电影票 (seedbonus).
- *  - 活期存款：随时存取，按活期日息计息。
- *  - 定期存款：选期限锁定，到期得全期高息；提前支取只退本金+活期息。
- *  - 借款：选期限，到期前按贷款日息，逾期后每天加收固定逾期费。
- * Rates/limits set in backend (Filament: 高清银行设置). Self-managed tables, transactional.
+ * HDV 魔力银行 (P1: 信用评级 + 存款 + 分期借款 + 逾期状态)
+ *  - 魔力 = 电影票 = users.seedbonus。
+ *  - 活期：随存随取，年化计息（满24h起息），按日折算。
+ *  - 定期：30/90/180/365 天年化档，到期得全额利息；提前支取只退本金（利息全失效）。
+ *  - 借款：按信用等级定额度/利率；分 3/6/12/18/24 期(每期30天)，月利率，利息按实际占用本金与时间计；
+ *    随时可提前部分/全部还款；到期未清记为逾期(实际处置在 P2)。
+ * 费率/额度表见下方常量；信用评分自动按 分享率/做种时长/注册时长/处罚/还款历史 计算。
+ * 自管理表，服务端事务。
  */
 
 const BANK_BUSINESS_TYPE = 51;
 const BANK_ACCOUNT_TABLE = 'hdvideo_bank_accounts';
 const BANK_CONFIG_TABLE = 'hdvideo_bank_config';
-const BANK_TERMS = [7, 30, 90];        // 可选期限（天）
-const BANK_DEF_DEPOSIT_RATE = 0.10;    // 活期 %/day
-const BANK_DEF_FIXED_RATE = 0.25;      // 定期 %/day
-const BANK_DEF_LOAN_RATE = 0.30;       // 贷款 %/day
-const BANK_DEF_OVERDUE_FEE = 500;      // 逾期每天固定费（电影票）
-const BANK_DEF_MAX_LOAN = 100000;
-const BANK_DEF_MIN_AMOUNT = 100;
 
-function bank_money($v)
-{
-    return number_format((float)$v, 2, '.', '');
-}
+const BANK_MIN_DEPOSIT = 10000;     // 最低存款（活期/定期单笔）
+const BANK_MIN_LOAN = 10000;        // 最低借款
+const BANK_CUR_ANNUAL = 1.20;       // 活期年化 %
+const BANK_INTEREST_MIN_HOURS = 24; // 活期满24h起息
+
+// 定期：天数 => 年化 %
+const BANK_FIX_TIERS = [30 => 2.50, 90 => 4.00, 180 => 6.00, 365 => 8.00];
+// 借款分期：期数 => 月利率 %（每期30天）
+const BANK_LOAN_TIERS = [3 => 0.50, 6 => 0.80, 12 => 1.00, 18 => 1.20, 24 => 1.50];
+// 信用等级 => 最高可借（电影票）
+const BANK_CREDIT_LIMIT = [
+    'SSS' => 5000000, 'SS' => 3000000, 'S' => 2000000, 'A' => 1000000,
+    'B' => 500000, 'C' => 100000, 'D' => 50000, 'E' => 0,
+];
+// 高信用月利率优惠（绝对值，%）
+const BANK_RATE_DISCOUNT = ['SSS' => 0.15, 'SS' => 0.10, 'S' => 0.05];
+
+function bank_money($v) { return number_format((float)$v, 2, '.', ''); }
 
 function bank_ensure_tables()
 {
@@ -32,120 +42,120 @@ function bank_ensure_tables()
             `uid` int unsigned NOT NULL,
             `deposit` decimal(20,2) NOT NULL DEFAULT '0.00',
             `deposit_ts` int unsigned NOT NULL DEFAULT 0,
-            `loan` decimal(20,2) NOT NULL DEFAULT '0.00',
-            `loan_ts` int unsigned NOT NULL DEFAULT 0,
-            `loan_term` int unsigned NOT NULL DEFAULT 0,
-            `loan_due_ts` int unsigned NOT NULL DEFAULT 0,
-            `loan_rate` decimal(8,4) NOT NULL DEFAULT '0.0000',
             `fix_deposit` decimal(20,2) NOT NULL DEFAULT '0.00',
             `fix_ts` int unsigned NOT NULL DEFAULT 0,
             `fix_term` int unsigned NOT NULL DEFAULT 0,
-            `fix_rate` decimal(8,4) NOT NULL DEFAULT '0.0000',
+            `fix_annual` decimal(8,4) NOT NULL DEFAULT '0.0000',
+            `loan` decimal(20,2) NOT NULL DEFAULT '0.00',
+            `loan_interest` decimal(20,2) NOT NULL DEFAULT '0.00',
+            `loan_ts` int unsigned NOT NULL DEFAULT 0,
+            `loan_periods` int unsigned NOT NULL DEFAULT 0,
+            `loan_rate_m` decimal(8,4) NOT NULL DEFAULT '0.0000',
+            `loan_start_ts` int unsigned NOT NULL DEFAULT 0,
+            `loan_due_ts` int unsigned NOT NULL DEFAULT 0,
             `updated_at` datetime NOT NULL,
             PRIMARY KEY (`uid`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
-    // accounts created before terms lacked the loan-term / fixed-deposit columns.
-    $col = sql_query("SHOW COLUMNS FROM `" . BANK_ACCOUNT_TABLE . "` LIKE 'fix_deposit'");
-    if ($col && !mysql_fetch_assoc($col)) {
-        foreach ([
-            "ADD COLUMN `loan_term` int unsigned NOT NULL DEFAULT 0",
-            "ADD COLUMN `loan_due_ts` int unsigned NOT NULL DEFAULT 0",
-            "ADD COLUMN `loan_rate` decimal(8,4) NOT NULL DEFAULT '0.0000'",
-            "ADD COLUMN `fix_deposit` decimal(20,2) NOT NULL DEFAULT '0.00'",
-            "ADD COLUMN `fix_ts` int unsigned NOT NULL DEFAULT 0",
-            "ADD COLUMN `fix_term` int unsigned NOT NULL DEFAULT 0",
-            "ADD COLUMN `fix_rate` decimal(8,4) NOT NULL DEFAULT '0.0000'",
-        ] as $clause) {
-            sql_query("ALTER TABLE `" . BANK_ACCOUNT_TABLE . "` $clause") or sqlerr(__FILE__, __LINE__);
+    // upgrade older account tables (dev46/47 had different loan/fix columns)
+    foreach ([
+        'fix_deposit' => "decimal(20,2) NOT NULL DEFAULT '0.00'",
+        'fix_ts' => "int unsigned NOT NULL DEFAULT 0",
+        'fix_term' => "int unsigned NOT NULL DEFAULT 0",
+        'fix_annual' => "decimal(8,4) NOT NULL DEFAULT '0.0000'",
+        'loan_interest' => "decimal(20,2) NOT NULL DEFAULT '0.00'",
+        'loan_periods' => "int unsigned NOT NULL DEFAULT 0",
+        'loan_rate_m' => "decimal(8,4) NOT NULL DEFAULT '0.0000'",
+        'loan_start_ts' => "int unsigned NOT NULL DEFAULT 0",
+        'loan_due_ts' => "int unsigned NOT NULL DEFAULT 0",
+    ] as $colName => $def) {
+        $c = sql_query("SHOW COLUMNS FROM `" . BANK_ACCOUNT_TABLE . "` LIKE '$colName'");
+        if ($c && !mysql_fetch_assoc($c)) {
+            sql_query("ALTER TABLE `" . BANK_ACCOUNT_TABLE . "` ADD COLUMN `$colName` $def") or sqlerr(__FILE__, __LINE__);
         }
     }
-    @sql_query("
-        CREATE TABLE IF NOT EXISTS `" . BANK_CONFIG_TABLE . "` (
-            `id` int unsigned NOT NULL,
-            `deposit_rate` decimal(8,4) NOT NULL DEFAULT '0.1000',
-            `fixed_rate` decimal(8,4) NOT NULL DEFAULT '0.2500',
-            `loan_rate` decimal(8,4) NOT NULL DEFAULT '0.3000',
-            `overdue_fee` bigint NOT NULL DEFAULT 500,
-            `max_loan` bigint NOT NULL DEFAULT 100000,
-            `min_amount` int NOT NULL DEFAULT 100,
-            `updated_at` datetime DEFAULT NULL,
-            PRIMARY KEY (`id`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    ");
-    $cc = sql_query("SHOW COLUMNS FROM `" . BANK_CONFIG_TABLE . "` LIKE 'fixed_rate'");
-    if ($cc && !mysql_fetch_assoc($cc)) {
-        sql_query("ALTER TABLE `" . BANK_CONFIG_TABLE . "` ADD COLUMN `fixed_rate` decimal(8,4) NOT NULL DEFAULT '0.2500'") or sqlerr(__FILE__, __LINE__);
-        sql_query("ALTER TABLE `" . BANK_CONFIG_TABLE . "` ADD COLUMN `overdue_fee` bigint NOT NULL DEFAULT 500") or sqlerr(__FILE__, __LINE__);
-    }
-    $res = @sql_query("SELECT COUNT(*) AS c FROM `" . BANK_CONFIG_TABLE . "` WHERE `id` = 1");
-    if ($res && (int)mysql_fetch_assoc($res)['c'] === 0) {
-        @sql_query(sprintf(
-            "INSERT INTO `" . BANK_CONFIG_TABLE . "` (`id`,`deposit_rate`,`fixed_rate`,`loan_rate`,`overdue_fee`,`max_loan`,`min_amount`,`updated_at`) VALUES (1,%s,%s,%s,%d,%d,%d,%s)",
-            BANK_DEF_DEPOSIT_RATE, BANK_DEF_FIXED_RATE, BANK_DEF_LOAN_RATE, BANK_DEF_OVERDUE_FEE, BANK_DEF_MAX_LOAN, BANK_DEF_MIN_AMOUNT, sqlesc(date('Y-m-d H:i:s'))
-        ));
-    }
     $done = true;
-}
-
-function bank_config()
-{
-    static $cfg = null;
-    if ($cfg !== null) return $cfg;
-    bank_ensure_tables();
-    $res = @sql_query("SELECT * FROM `" . BANK_CONFIG_TABLE . "` WHERE `id` = 1 LIMIT 1");
-    $r = $res ? mysql_fetch_assoc($res) : null;
-    $cfg = [
-        'deposit_rate' => $r ? (float)$r['deposit_rate'] : BANK_DEF_DEPOSIT_RATE,
-        'fixed_rate' => $r && isset($r['fixed_rate']) ? (float)$r['fixed_rate'] : BANK_DEF_FIXED_RATE,
-        'loan_rate' => $r ? (float)$r['loan_rate'] : BANK_DEF_LOAN_RATE,
-        'overdue_fee' => $r && isset($r['overdue_fee']) ? (int)$r['overdue_fee'] : BANK_DEF_OVERDUE_FEE,
-        'max_loan' => $r ? (int)$r['max_loan'] : BANK_DEF_MAX_LOAN,
-        'min_amount' => $r ? (int)$r['min_amount'] : BANK_DEF_MIN_AMOUNT,
-    ];
-    return $cfg;
 }
 
 function bank_account($uid, $forUpdate = false)
 {
     bank_ensure_tables();
     $uid = (int)$uid;
-    $res = sql_query("SELECT * FROM `" . BANK_ACCOUNT_TABLE . "` WHERE `uid` = $uid LIMIT 1" . ($forUpdate ? " FOR UPDATE" : "")) or sqlerr(__FILE__, __LINE__);
+    $lock = $forUpdate ? " FOR UPDATE" : "";
+    $res = sql_query("SELECT * FROM `" . BANK_ACCOUNT_TABLE . "` WHERE `uid` = $uid LIMIT 1$lock") or sqlerr(__FILE__, __LINE__);
     $a = mysql_fetch_assoc($res);
     if (!$a) {
         sql_query("INSERT INTO `" . BANK_ACCOUNT_TABLE . "` (`uid`,`updated_at`) VALUES ($uid, " . sqlesc(date('Y-m-d H:i:s')) . ")") or sqlerr(__FILE__, __LINE__);
-        $res = sql_query("SELECT * FROM `" . BANK_ACCOUNT_TABLE . "` WHERE `uid` = $uid LIMIT 1" . ($forUpdate ? " FOR UPDATE" : "")) or sqlerr(__FILE__, __LINE__);
+        $res = sql_query("SELECT * FROM `" . BANK_ACCOUNT_TABLE . "` WHERE `uid` = $uid LIMIT 1$lock") or sqlerr(__FILE__, __LINE__);
         $a = mysql_fetch_assoc($res);
     }
     return $a;
 }
 
-/** Current 活期 value (interest accrued to now, simple). */
-function bank_cur_value($a, $cfg, $now)
+/** 信用评分与等级（自动）。返回 [grade, score, max_loan, reg_days, ratio]. */
+function bank_credit($uid)
 {
-    $p = (float)$a['deposit'];
-    if ($p <= 0 || (int)$a['deposit_ts'] <= 0) return $p;
-    $days = max(0, ($now - (int)$a['deposit_ts']) / 86400);
-    return round($p + $p * $cfg['deposit_rate'] / 100 * $days, 2);
+    $uid = (int)$uid;
+    $res = sql_query("SELECT `uploaded`,`downloaded`,`seedtime`,`added`,`enabled`,`leechwarn` FROM `users` WHERE `id` = $uid LIMIT 1") or sqlerr(__FILE__, __LINE__);
+    $u = mysql_fetch_assoc($res) ?: [];
+    $up = (float)($u['uploaded'] ?? 0);
+    $down = (float)($u['downloaded'] ?? 0);
+    $ratio = $down > 0 ? $up / $down : ($up > 0 ? 99 : 1);
+    $regDays = !empty($u['added']) ? max(0, (time() - strtotime($u['added'])) / 86400) : 0;
+    $seedDays = (float)($u['seedtime'] ?? 0) / 86400;
+    $banned = (($u['enabled'] ?? 'yes') !== 'yes');
+    $warned = (($u['leechwarn'] ?? 'no') === 'yes');
+
+    $score = 100;
+    $score += $ratio >= 4 ? 200 : ($ratio >= 2.5 ? 160 : ($ratio >= 1.5 ? 120 : ($ratio >= 1 ? 80 : ($ratio >= 0.5 ? 40 : 0))));
+    $score += $regDays >= 365 ? 150 : ($regDays >= 180 ? 110 : ($regDays >= 90 ? 70 : ($regDays >= 30 ? 40 : 10)));
+    $score += $seedDays >= 180 ? 200 : ($seedDays >= 90 ? 150 : ($seedDays >= 30 ? 100 : ($seedDays >= 7 ? 50 : 10)));
+    // 还款历史：历史还款笔数加分（封顶 150）
+    $rp = sql_query("SELECT COUNT(*) AS c FROM `bonus_logs` WHERE `business_type` = " . BANK_BUSINESS_TYPE . " AND `uid` = $uid AND `comment` LIKE '%还款%'") or sqlerr(__FILE__, __LINE__);
+    $repays = (int)mysql_fetch_assoc($rp)['c'];
+    $score += min(150, $repays * 20);
+    if ($banned) $score -= 400;
+    if ($warned) $score -= 150;
+    $score = max(0, (int)$score);
+
+    $grade = $score >= 750 ? 'SSS' : ($score >= 650 ? 'SS' : ($score >= 550 ? 'S' : ($score >= 430 ? 'A' : ($score >= 320 ? 'B' : ($score >= 200 ? 'C' : ($score >= 100 ? 'D' : 'E'))))));
+    return [
+        'grade' => $grade,
+        'score' => $score,
+        'max_loan' => BANK_CREDIT_LIMIT[$grade],
+        'reg_days' => (int)$regDays,
+        'ratio' => round($ratio, 2),
+    ];
 }
 
-/** Current owed for a loan (principal + interest since loan_ts + overdue fee since due). */
-function bank_loan_owed($a, $cfg, $now)
+function bank_loan_rate($periods, $grade)
 {
-    $owed = (float)$a['loan'];
-    if ($owed <= 0) return 0.0;
-    $ts = (int)$a['loan_ts'];
-    $rate = (float)$a['loan_rate'] > 0 ? (float)$a['loan_rate'] : $cfg['loan_rate'];
-    $days = max(0, ($now - $ts) / 86400);
-    $owed += $owed * $rate / 100 * $days;
-    $due = (int)$a['loan_due_ts'];
-    if ($due > 0) {
-        $ovStart = max($ts, $due);
-        if ($now > $ovStart) {
-            $owed += $cfg['overdue_fee'] * (($now - $ovStart) / 86400);
-        }
-    }
-    return round($owed, 2);
+    $base = BANK_LOAN_TIERS[$periods] ?? 1.0;
+    $disc = BANK_RATE_DISCOUNT[$grade] ?? 0;
+    return max(0.1, round($base - $disc, 4));
+}
+
+/** 活期当前价值（满24h起息，年化按日折算）。 */
+function bank_cur_value($a, $now)
+{
+    $p = (float)$a['deposit'];
+    if ($p <= 0 || (int)$a['deposit_ts'] <= 0) return round($p, 2);
+    $secs = $now - (int)$a['deposit_ts'];
+    if ($secs < BANK_INTEREST_MIN_HOURS * 3600) return round($p, 2);
+    $days = $secs / 86400;
+    return round($p + $p * (BANK_CUR_ANNUAL / 100 / 365) * $days, 2);
+}
+
+/** 借款当前欠款 = 本金 + 已计未还利息 + 自上次结算以来新增利息。 */
+function bank_loan_owed($a, $now)
+{
+    $p = (float)$a['loan'];
+    if ($p <= 0) return 0.0;
+    $interest = (float)$a['loan_interest'];
+    $rateM = (float)$a['loan_rate_m'];
+    $days = max(0, ($now - (int)$a['loan_ts']) / 86400);
+    $interest += $p * ($rateM / 100) * ($days / 30); // 月利率按30天折算到日
+    return round($p + $interest, 2);
 }
 
 function bank_log($uid, $old, $delta, $new, $comment)
@@ -160,64 +170,67 @@ function bank_log($uid, $old, $delta, $new, $comment)
 function bank_status($uid)
 {
     global $CURUSER;
-    $cfg = bank_config();
     $a = bank_account($uid, false);
     $now = time();
+    $credit = bank_credit($uid);
 
     $fix = null;
     if ((float)$a['fix_deposit'] > 0) {
         $p = (float)$a['fix_deposit'];
         $term = (int)$a['fix_term'];
-        $rate = (float)$a['fix_rate'];
+        $annual = (float)$a['fix_annual'];
         $due = (int)$a['fix_ts'] + $term * 86400;
         $matured = $now >= $due;
-        $matureValue = round($p + $p * $rate / 100 * $term, 2);
-        if ($matured) {
-            $valueNow = $matureValue;
-        } else {
-            $elapsed = max(0, ($now - (int)$a['fix_ts']) / 86400);
-            $valueNow = round($p + $p * $cfg['deposit_rate'] / 100 * $elapsed, 2); // early = 活期息
-        }
+        $matureValue = round($p + $p * ($annual / 100 / 365) * $term, 2);
         $fix = [
-            'principal' => round($p, 2), 'rate' => $rate, 'term' => $term, 'due_ts' => $due,
-            'matured' => $matured, 'mature_value' => $matureValue, 'value_now' => $valueNow,
+            'principal' => round($p, 2), 'annual' => $annual, 'term' => $term, 'due_ts' => $due,
+            'matured' => $matured, 'mature_value' => $matureValue,
+            'value_now' => $matured ? $matureValue : round($p, 2), // 提前取只退本金
         ];
     }
 
     $loan = null;
     if ((float)$a['loan'] > 0) {
-        $owed = bank_loan_owed($a, $cfg, $now);
         $due = (int)$a['loan_due_ts'];
-        $overdueDays = ($due > 0 && $now > $due) ? (int)floor(($now - $due) / 86400) : 0;
         $loan = [
-            'owed' => $owed, 'rate' => (float)$a['loan_rate'] > 0 ? (float)$a['loan_rate'] : $cfg['loan_rate'],
-            'term' => (int)$a['loan_term'], 'due_ts' => $due, 'overdue' => ($due > 0 && $now > $due), 'overdue_days' => $overdueDays,
+            'owed' => bank_loan_owed($a, $now),
+            'principal' => round((float)$a['loan'], 2),
+            'periods' => (int)$a['loan_periods'],
+            'rate_m' => (float)$a['loan_rate_m'],
+            'due_ts' => $due,
+            'overdue' => ($due > 0 && $now > $due),
+            'overdue_days' => ($due > 0 && $now > $due) ? (int)floor(($now - $due) / 86400) : 0,
         ];
     }
 
+    $fixTiers = [];
+    foreach (BANK_FIX_TIERS as $d => $r) $fixTiers[] = ['days' => $d, 'annual' => $r];
+    $loanTiers = [];
+    foreach (BANK_LOAN_TIERS as $pn => $r) $loanTiers[] = ['periods' => $pn, 'rate_m' => bank_loan_rate($pn, $credit['grade'])];
+
     return [
         'wallet' => round((float)($CURUSER['seedbonus'] ?? 0), 2),
-        'cur_deposit' => bank_cur_value($a, $cfg, $now),
+        'cur_deposit' => bank_cur_value($a, $now),
+        'cur_annual' => BANK_CUR_ANNUAL,
         'fix' => $fix,
         'loan' => $loan,
-        'deposit_rate' => $cfg['deposit_rate'],
-        'fixed_rate' => $cfg['fixed_rate'],
-        'loan_rate' => $cfg['loan_rate'],
-        'overdue_fee' => $cfg['overdue_fee'],
-        'max_loan' => $cfg['max_loan'],
-        'min_amount' => $cfg['min_amount'],
-        'terms' => BANK_TERMS,
+        'credit' => $credit,
+        'fix_tiers' => $fixTiers,
+        'loan_tiers' => $loanTiers,
+        'min_deposit' => BANK_MIN_DEPOSIT,
+        'min_loan' => BANK_MIN_LOAN,
+        'can_borrow' => ($credit['grade'] !== 'E' && $credit['reg_days'] >= 30),
+        'borrow_block' => $credit['grade'] === 'E' ? '信用等级为 E，暂不可借款' : ($credit['reg_days'] < 30 ? '注册未满 30 天，暂不可借款' : ''),
     ];
 }
 
-function bank_do($uid, $action, $amount, $term = 0)
+function bank_do($uid, $action, $amount, $param = 0)
 {
     global $CURUSER;
     bank_ensure_tables();
     $uid = (int)$uid;
     $amount = round((float)$amount, 2);
-    $term = (int)$term;
-    $cfg = bank_config();
+    $param = (int)$param;
 
     sql_query("START TRANSACTION") or sqlerr(__FILE__, __LINE__);
     try {
@@ -227,12 +240,12 @@ function bank_do($uid, $action, $amount, $term = 0)
         $wallet = (float)$u['seedbonus'];
         $a = bank_account($uid, true);
         $now = time();
+        $ts = date('Y-m-d H:i:s');
 
         if ($action === 'deposit' || $action === 'withdraw') {
-            // 活期：先把已计利息结算入本金
-            $cur = bank_cur_value($a, $cfg, $now);
+            $cur = bank_cur_value($a, $now);
             if ($action === 'deposit') {
-                if ($amount < $cfg['min_amount']) { sql_query("ROLLBACK"); return [null, "单次存入不少于 {$cfg['min_amount']}。"]; }
+                if ($amount < BANK_MIN_DEPOSIT) { sql_query("ROLLBACK"); return [null, "活期最低存入 " . BANK_MIN_DEPOSIT . "。"]; }
                 if ($wallet < $amount) { sql_query("ROLLBACK"); return [null, '钱包电影票不足。']; }
                 $newCur = $cur + $amount; $newWallet = $wallet - $amount;
                 sql_query("UPDATE `users` SET `seedbonus` = `seedbonus` - " . sqlesc(bank_money($amount)) . " WHERE `id` = $uid") or sqlerr(__FILE__, __LINE__);
@@ -243,60 +256,70 @@ function bank_do($uid, $action, $amount, $term = 0)
                 sql_query("UPDATE `users` SET `seedbonus` = `seedbonus` + " . sqlesc(bank_money($amount)) . " WHERE `id` = $uid") or sqlerr(__FILE__, __LINE__);
                 bank_log($uid, $wallet, $amount, $newWallet, "[高清银行] 活期取出 {$amount}");
             }
-            sql_query("UPDATE `" . BANK_ACCOUNT_TABLE . "` SET `deposit` = " . sqlesc(bank_money($newCur)) . ", `deposit_ts` = $now, `updated_at` = " . sqlesc(date('Y-m-d H:i:s')) . " WHERE `uid` = $uid") or sqlerr(__FILE__, __LINE__);
+            sql_query("UPDATE `" . BANK_ACCOUNT_TABLE . "` SET `deposit` = " . sqlesc(bank_money($newCur)) . ", `deposit_ts` = $now, `updated_at` = " . sqlesc($ts) . " WHERE `uid` = $uid") or sqlerr(__FILE__, __LINE__);
 
         } elseif ($action === 'deposit_fix') {
             if ((float)$a['fix_deposit'] > 0) { sql_query("ROLLBACK"); return [null, '已有一笔定期，请先取出后再存。']; }
-            if (!in_array($term, BANK_TERMS, true)) { sql_query("ROLLBACK"); return [null, '请选择有效的存期。']; }
-            if ($amount < $cfg['min_amount']) { sql_query("ROLLBACK"); return [null, "单次存入不少于 {$cfg['min_amount']}。"]; }
+            if (!isset(BANK_FIX_TIERS[$param])) { sql_query("ROLLBACK"); return [null, '请选择有效的存期。']; }
+            if ($amount < BANK_MIN_DEPOSIT) { sql_query("ROLLBACK"); return [null, "定期最低存入 " . BANK_MIN_DEPOSIT . "。"]; }
             if ($wallet < $amount) { sql_query("ROLLBACK"); return [null, '钱包电影票不足。']; }
+            $annual = BANK_FIX_TIERS[$param];
             $newWallet = $wallet - $amount;
             sql_query("UPDATE `users` SET `seedbonus` = `seedbonus` - " . sqlesc(bank_money($amount)) . " WHERE `id` = $uid") or sqlerr(__FILE__, __LINE__);
-            sql_query("UPDATE `" . BANK_ACCOUNT_TABLE . "` SET `fix_deposit` = " . sqlesc(bank_money($amount)) . ", `fix_ts` = $now, `fix_term` = $term, `fix_rate` = " . sqlesc(number_format($cfg['fixed_rate'], 4, '.', '')) . ", `updated_at` = " . sqlesc(date('Y-m-d H:i:s')) . " WHERE `uid` = $uid") or sqlerr(__FILE__, __LINE__);
-            bank_log($uid, $wallet, -$amount, $newWallet, "[高清银行] 存入{$term}天定期 {$amount}");
+            sql_query("UPDATE `" . BANK_ACCOUNT_TABLE . "` SET `fix_deposit` = " . sqlesc(bank_money($amount)) . ", `fix_ts` = $now, `fix_term` = $param, `fix_annual` = " . sqlesc(number_format($annual, 4, '.', '')) . ", `updated_at` = " . sqlesc($ts) . " WHERE `uid` = $uid") or sqlerr(__FILE__, __LINE__);
+            bank_log($uid, $wallet, -$amount, $newWallet, "[高清银行] 存入{$param}天定期 {$amount}");
 
         } elseif ($action === 'withdraw_fix') {
             if ((float)$a['fix_deposit'] <= 0) { sql_query("ROLLBACK"); return [null, '没有定期存款。']; }
             $p = (float)$a['fix_deposit'];
             $due = (int)$a['fix_ts'] + (int)$a['fix_term'] * 86400;
             if ($now >= $due) {
-                $payout = round($p + $p * (float)$a['fix_rate'] / 100 * (int)$a['fix_term'], 2);
-                $note = "[高清银行] 定期到期支取 本金{$p}+息";
+                $payout = round($p + $p * ((float)$a['fix_annual'] / 100 / 365) * (int)$a['fix_term'], 2);
+                $note = "[高清银行] 定期到期支取 {$payout}";
             } else {
-                $elapsed = max(0, ($now - (int)$a['fix_ts']) / 86400);
-                $payout = round($p + $p * $cfg['deposit_rate'] / 100 * $elapsed, 2); // 提前=活期息
-                $note = "[高清银行] 定期提前支取(按活期息) 本金{$p}";
+                $payout = round($p, 2); // 提前支取：利息全失效，只退本金
+                $note = "[高清银行] 定期提前支取(利息失效) 退本金{$payout}";
             }
             $newWallet = $wallet + $payout;
             sql_query("UPDATE `users` SET `seedbonus` = `seedbonus` + " . sqlesc(bank_money($payout)) . " WHERE `id` = $uid") or sqlerr(__FILE__, __LINE__);
-            sql_query("UPDATE `" . BANK_ACCOUNT_TABLE . "` SET `fix_deposit` = 0, `fix_ts` = 0, `fix_term` = 0, `fix_rate` = 0, `updated_at` = " . sqlesc(date('Y-m-d H:i:s')) . " WHERE `uid` = $uid") or sqlerr(__FILE__, __LINE__);
+            sql_query("UPDATE `" . BANK_ACCOUNT_TABLE . "` SET `fix_deposit` = 0, `fix_ts` = 0, `fix_term` = 0, `fix_annual` = 0, `updated_at` = " . sqlesc($ts) . " WHERE `uid` = $uid") or sqlerr(__FILE__, __LINE__);
             bank_log($uid, $wallet, $payout, $newWallet, $note);
 
         } elseif ($action === 'borrow') {
-            $owed = bank_loan_owed($a, $cfg, $now);
-            if ($owed > 0) { sql_query("ROLLBACK"); return [null, '已有未结清借款，请先还清再借。']; }
-            if (!in_array($term, BANK_TERMS, true)) { sql_query("ROLLBACK"); return [null, '请选择有效的借款期限。']; }
-            if ($amount < $cfg['min_amount']) { sql_query("ROLLBACK"); return [null, "单次借款不少于 {$cfg['min_amount']}。"]; }
-            if ($amount > $cfg['max_loan']) { sql_query("ROLLBACK"); return [null, "超过可借上限 {$cfg['max_loan']}。"]; }
-            $due = $now + $term * 86400;
+            if (bank_loan_owed($a, $now) > 0) { sql_query("ROLLBACK"); return [null, '已有未结清借款，请先还清再借。']; }
+            if (!isset(BANK_LOAN_TIERS[$param])) { sql_query("ROLLBACK"); return [null, '请选择有效的分期期数。']; }
+            $credit = bank_credit($uid);
+            if ($credit['grade'] === 'E') { sql_query("ROLLBACK"); return [null, '信用等级为 E，暂不可借款。']; }
+            if ($credit['reg_days'] < 30) { sql_query("ROLLBACK"); return [null, '注册未满 30 天，暂不可借款。']; }
+            if ($amount < BANK_MIN_LOAN) { sql_query("ROLLBACK"); return [null, "最低借款 " . BANK_MIN_LOAN . "。"]; }
+            if ($amount > $credit['max_loan']) { sql_query("ROLLBACK"); return [null, "超过你的信用额度（{$credit['grade']} 级最高可借 " . number_format($credit['max_loan']) . "）。"]; }
+            $rateM = bank_loan_rate($param, $credit['grade']);
+            $due = $now + $param * 30 * 86400;
             $newWallet = $wallet + $amount;
             sql_query("UPDATE `users` SET `seedbonus` = `seedbonus` + " . sqlesc(bank_money($amount)) . " WHERE `id` = $uid") or sqlerr(__FILE__, __LINE__);
-            sql_query("UPDATE `" . BANK_ACCOUNT_TABLE . "` SET `loan` = " . sqlesc(bank_money($amount)) . ", `loan_ts` = $now, `loan_term` = $term, `loan_due_ts` = $due, `loan_rate` = " . sqlesc(number_format($cfg['loan_rate'], 4, '.', '')) . ", `updated_at` = " . sqlesc(date('Y-m-d H:i:s')) . " WHERE `uid` = $uid") or sqlerr(__FILE__, __LINE__);
-            bank_log($uid, $wallet, $amount, $newWallet, "[高清银行] 借款{$term}天 {$amount}");
+            sql_query("UPDATE `" . BANK_ACCOUNT_TABLE . "` SET `loan` = " . sqlesc(bank_money($amount)) . ", `loan_interest` = 0, `loan_ts` = $now, `loan_periods` = $param, `loan_rate_m` = " . sqlesc(number_format($rateM, 4, '.', '')) . ", `loan_start_ts` = $now, `loan_due_ts` = $due, `updated_at` = " . sqlesc($ts) . " WHERE `uid` = $uid") or sqlerr(__FILE__, __LINE__);
+            bank_log($uid, $wallet, $amount, $newWallet, "[高清银行] 借款{$param}期(月息{$rateM}%) {$amount}");
 
         } elseif ($action === 'repay') {
-            $owed = bank_loan_owed($a, $cfg, $now);
-            if ($owed <= 0) { sql_query("ROLLBACK"); return [null, '当前没有欠款。']; }
+            $p = (float)$a['loan'];
+            if ($p <= 0) { sql_query("ROLLBACK"); return [null, '当前没有欠款。']; }
+            // 结算利息到 loan_interest
+            $interest = (float)$a['loan_interest'] + $p * ((float)$a['loan_rate_m'] / 100) * ((($now - (int)$a['loan_ts']) / 86400) / 30);
+            $interest = round(max(0, $interest), 2);
+            $owed = round($p + $interest, 2);
             $pay = min($amount, $owed, $wallet);
             if ($pay <= 0) { sql_query("ROLLBACK"); return [null, '钱包电影票不足以还款。']; }
-            $remain = round($owed - $pay, 2);
+            // 先还利息，再还本金
+            $payInterest = min($pay, $interest);
+            $payPrincipal = round($pay - $payInterest, 2);
+            $newInterest = round($interest - $payInterest, 2);
+            $newPrincipal = round($p - $payPrincipal, 2);
             $newWallet = $wallet - $pay;
             sql_query("UPDATE `users` SET `seedbonus` = `seedbonus` - " . sqlesc(bank_money($pay)) . " WHERE `id` = $uid") or sqlerr(__FILE__, __LINE__);
-            if ($remain <= 0) {
-                sql_query("UPDATE `" . BANK_ACCOUNT_TABLE . "` SET `loan` = 0, `loan_ts` = 0, `loan_term` = 0, `loan_due_ts` = 0, `loan_rate` = 0, `updated_at` = " . sqlesc(date('Y-m-d H:i:s')) . " WHERE `uid` = $uid") or sqlerr(__FILE__, __LINE__);
+            if ($newPrincipal <= 0 && $newInterest <= 0) {
+                sql_query("UPDATE `" . BANK_ACCOUNT_TABLE . "` SET `loan` = 0, `loan_interest` = 0, `loan_ts` = 0, `loan_periods` = 0, `loan_rate_m` = 0, `loan_start_ts` = 0, `loan_due_ts` = 0, `updated_at` = " . sqlesc($ts) . " WHERE `uid` = $uid") or sqlerr(__FILE__, __LINE__);
             } else {
-                // 结算：剩余欠款落账，利息/逾期费从现在重新计
-                sql_query("UPDATE `" . BANK_ACCOUNT_TABLE . "` SET `loan` = " . sqlesc(bank_money($remain)) . ", `loan_ts` = $now, `updated_at` = " . sqlesc(date('Y-m-d H:i:s')) . " WHERE `uid` = $uid") or sqlerr(__FILE__, __LINE__);
+                sql_query("UPDATE `" . BANK_ACCOUNT_TABLE . "` SET `loan` = " . sqlesc(bank_money($newPrincipal)) . ", `loan_interest` = " . sqlesc(bank_money($newInterest)) . ", `loan_ts` = $now, `updated_at` = " . sqlesc($ts) . " WHERE `uid` = $uid") or sqlerr(__FILE__, __LINE__);
             }
             bank_log($uid, $wallet, -$pay, $newWallet, "[高清银行] 还款 {$pay}");
 

@@ -3268,6 +3268,7 @@ else {
 			<div><div class="v" id="qd-bank-fix" style="color:#8e44ad">-</div><div class="k">定期</div></div>
 			<div><div class="v" id="qd-bank-loanbal" style="color:#c0392b">-</div><div class="k">欠款</div></div>
 		</div>
+		<div class="qd-bank-detail" id="qd-bank-credit" style="text-align:center;margin:2px 0 4px"></div>
 
 		<div class="qd-bank-sec">
 			<h4>活期存款 <span class="qd-bank-info" id="qd-bank-curr"></span></h4>
@@ -3324,32 +3325,36 @@ else {
 	function $(id) { return document.getElementById(id); }
 	function fmt(n) { return Number(Math.round((n || 0) * 100) / 100).toLocaleString('en-US', { maximumFractionDigits: 2 }); }
 	function dateStr(ts) { if (!ts) return '-'; var d = new Date(ts * 1000); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
-	function setTerms(terms) {
+	function setTerms(d) {
 		if (termsSet) return; termsSet = true;
-		['qd-fix-term', 'qd-loan-term'].forEach(function (id) {
-			var s = $(id); if (!s) return;
-			s.innerHTML = (terms || [7, 30, 90]).map(function (t) { return '<option value="' + t + '">' + t + ' 天</option>'; }).join('');
-		});
+		var fs = $('qd-fix-term');
+		if (fs) fs.innerHTML = (d.fix_tiers || []).map(function (t) { return '<option value="' + t.days + '">' + t.days + '天 · 年化' + t.annual + '%</option>'; }).join('');
+		var ls = $('qd-loan-term');
+		if (ls) ls.innerHTML = (d.loan_tiers || []).map(function (t) { return '<option value="' + t.periods + '">' + t.periods + '期(' + (t.periods * 30) + '天) · 月息' + t.rate_m + '%</option>'; }).join('');
 	}
 	function show(id, on) { var e = $(id); if (e) e.style.display = on ? '' : 'none'; }
 	function paint(d) {
-		setTerms(d.terms);
+		setTerms(d);
 		$('qd-bank-wallet').textContent = fmt(d.wallet);
 		$('qd-bank-cur').textContent = fmt(d.cur_deposit);
 		$('qd-bank-fix').textContent = fmt(d.fix ? d.fix.value_now : 0);
 		$('qd-bank-loanbal').textContent = fmt(d.loan ? d.loan.owed : 0);
-		$('qd-bank-curr').innerHTML = '日息 <b>' + d.deposit_rate + '%</b>';
-		$('qd-bank-fixr').innerHTML = '日息 <b>' + d.fixed_rate + '%</b>（提前取按活期息）';
-		$('qd-bank-loanr').innerHTML = '日息 <b>' + d.loan_rate + '%</b> · 逾期 ' + fmt(d.overdue_fee) + '/天 · 上限 ' + fmt(d.max_loan);
+		$('qd-bank-credit').innerHTML = '信用等级 <b style="color:#8e44ad">' + d.credit.grade + '</b> · 评分 ' + d.credit.score + ' · 分享率 ' + d.credit.ratio + ' · 可借上限 <b>' + fmt(d.credit.max_loan) + '</b>';
+		$('qd-bank-curr').innerHTML = '年化 <b>' + d.cur_annual + '%</b> · 满24h起息';
+		$('qd-bank-fixr').innerHTML = '到期得全额利息，提前取只退本金';
+		$('qd-bank-loanr').innerHTML = d.can_borrow ? '按信用等级定额度，分期月息见下' : '<span class="warn">' + d.borrow_block + '</span>';
 		if (d.fix) {
 			show('qd-bank-fix-none', false); show('qd-bank-fix-has', true);
-			$('qd-bank-fix-detail').innerHTML = '本金 <b>' + fmt(d.fix.principal) + '</b> · 日息 ' + d.fix.rate + '% · 到期 ' + dateStr(d.fix.due_ts) + '（' + (d.fix.matured ? '<b style="color:#2e8b57">已到期</b>' : '未到期') + '）<br>到期可得 <b>' + fmt(d.fix.mature_value) + '</b>，现在取出可得 <b>' + fmt(d.fix.value_now) + '</b>';
+			$('qd-bank-fix-detail').innerHTML = '本金 <b>' + fmt(d.fix.principal) + '</b> · 年化 ' + d.fix.annual + '% · ' + d.fix.term + '天 · 到期 ' + dateStr(d.fix.due_ts) + '（' + (d.fix.matured ? '<b style="color:#2e8b57">已到期</b>' : '未到期') + '）<br>到期可得 <b>' + fmt(d.fix.mature_value) + '</b>，现在取出 <b>' + fmt(d.fix.value_now) + '</b>（提前取利息失效）';
 		} else { show('qd-bank-fix-none', true); show('qd-bank-fix-has', false); }
 		if (d.loan) {
 			show('qd-bank-loan-none', false); show('qd-bank-loan-has', true);
-			var od = d.loan.overdue ? ('<span class="warn">已逾期 ' + d.loan.overdue_days + ' 天，每天 +' + fmt(d.overdue_fee) + '</span>') : ('到期 ' + dateStr(d.loan.due_ts));
-			$('qd-bank-loan-detail').innerHTML = '当前欠款 <b style="color:#c0392b">' + fmt(d.loan.owed) + '</b> · 借期 ' + d.loan.term + ' 天 · ' + od;
-		} else { show('qd-bank-loan-none', true); show('qd-bank-loan-has', false); }
+			var od = d.loan.overdue ? ('<span class="warn">已逾期 ' + d.loan.overdue_days + ' 天</span>') : ('到期 ' + dateStr(d.loan.due_ts));
+			$('qd-bank-loan-detail').innerHTML = '当前欠款 <b style="color:#c0392b">' + fmt(d.loan.owed) + '</b>（本金 ' + fmt(d.loan.principal) + '）· ' + d.loan.periods + '期 · 月息 ' + d.loan.rate_m + '% · ' + od;
+		} else {
+			show('qd-bank-loan-none', true); show('qd-bank-loan-has', false);
+			var bb = modal.querySelector('[data-bank="borrow"]'); if (bb) bb.disabled = !d.can_borrow;
+		}
 	}
 	function load() { fetch('/bank.php?action=status', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) { if (d.ok) paint(d); }).catch(function () {}); }
 	function act(b) {
