@@ -353,6 +353,7 @@ $sumRes = sql_query("SELECT COUNT(*) AS n, SUM(`delta`) AS net FROM `" . SC_TABL
 $sum = mysql_fetch_assoc($sumRes);
 
 stdhead("刮刮乐");
+echo game_back_link();
 ?>
 <style>
 .sc-wrap { max-width: 760px; margin: 0 auto; }

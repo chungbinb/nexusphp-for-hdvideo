@@ -384,6 +384,7 @@ $qCount = mq_question_count();
 $myState = mq_get_state((int)$CURUSER['id']);
 
 stdhead("猜电影");
+echo game_back_link();
 ?>
 <style>
 .mq-wrap { max-width: 760px; margin: 0 auto; }

@@ -122,6 +122,7 @@ $sumRes = sql_query("SELECT COUNT(*) AS n, SUM(`delta`) AS net FROM `" . SL_TABL
 $sum = mysql_fetch_assoc($sumRes);
 
 stdhead("老虎机");
+echo game_back_link();
 ?>
 <style>
 .sl-wrap { max-width: 720px; margin: 0 auto; }

@@ -837,6 +837,7 @@ $mySeat = $room ? ddz_seat_of($room, $CURUSER['id']) : -1;
 $inRoom = $mySeat >= 0;
 
 stdhead("斗地主");
+echo game_back_link();
 ?>
 <style>
 .ddz-wrap { max-width: 940px; margin: 0 auto; }

@@ -404,6 +404,7 @@ function game_bs_render_history()
     $res = sql_query("SELECT * FROM `" . GAME_BS_ROUND_TABLE . "` WHERE `status` = 'closed' ORDER BY `id` DESC LIMIT $perPage OFFSET $offset") or sqlerr(__FILE__, __LINE__);
     $resultSizeLabel = ['big' => '大', 'small' => '小', 'triple' => '豹子(通杀)', 'push' => '和15(通杀)'];
     stdhead("历史开奖");
+echo game_back_link();
     ?>
     <style>
     .bsh-wrap { max-width: 760px; margin: 0 auto; }
@@ -467,6 +468,7 @@ function game_bs_render_my_bets()
     $res = sql_query("SELECT * FROM `" . GAME_BS_BET_TABLE . "` WHERE `uid` = $uid ORDER BY `id` DESC LIMIT $perPage OFFSET $offset") or sqlerr(__FILE__, __LINE__);
     $statusMap = ['pending' => '待开奖', 'won' => '中奖', 'lost' => '未中', 'refunded' => '已退回'];
     stdhead("我的历史押注");
+echo game_back_link();
     ?>
     <style>
     .bsh-wrap { max-width: 760px; margin: 0 auto; }
@@ -584,6 +586,7 @@ function game_bs_render_ranking()
 {
     $rows = game_bs_leaderboard('invested DESC', 100, 1000);
     stdhead("用户排名");
+echo game_back_link();
     game_bs_lb_styles();
     ?>
     <div class="bsh-wrap">
@@ -624,6 +627,7 @@ function game_bs_render_pnl()
     $my = game_bs_my_stats((int)$CURUSER['id']);
     $myNet = $my['win_points'] - $my['lose_points'];
     stdhead("盈亏榜");
+echo game_back_link();
     game_bs_lb_styles();
     ?>
     <div class="bsh-wrap" style="max-width:760px">
@@ -755,6 +759,7 @@ $historyRes = sql_query("SELECT * FROM `" . GAME_BS_ROUND_TABLE . "` WHERE `stat
 $resultSizeLabel = ['big' => '大', 'small' => '小', 'triple' => '豹子(通杀)', 'push' => '和15(通杀)'];
 
 stdhead("压大小");
+echo game_back_link();
 ?>
 <style>
 .bs-wrap { max-width: 980px; margin: 0 auto; }
