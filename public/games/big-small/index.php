@@ -9,7 +9,7 @@ require_once "../../../include/game_control.php";
 game_guard('big-small');
 
 const GAME_BS_INTERVAL = 60;
-const GAME_BS_BUSINESS_TYPE = 13;
+const GAME_BS_BUSINESS_TYPE = 101; // 压大小（历史记录为 13）
 const GAME_BS_ROUND_TABLE = 'hdvideo_game_big_small_rounds';
 const GAME_BS_BET_TABLE = 'hdvideo_game_big_small_bets';
 const GAME_BS_TRIPLE_MULT = 5;   // 押豹子: any triple

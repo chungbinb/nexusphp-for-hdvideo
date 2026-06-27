@@ -13,7 +13,7 @@ require_once "../../../include/game_leaderboard.php";
  * 老虎机 Slots — 3 reels, weighted symbols, server-authoritative spin.
  * 三个相同按该符号倍数派彩；恰好两个🍒回本；其余不中。
  */
-const SL_BUSINESS_TYPE = 13;
+const SL_BUSINESS_TYPE = 108; // 老虎机（历史记录为 13）
 const SL_TABLE = 'hdvideo_slots_records';
 const SL_CHIPS = [100, 500, 1000, 5000, 10000];
 // [emoji, weight, triple multiplier]; index 0 (🍒) also triggers the two-cherry refund

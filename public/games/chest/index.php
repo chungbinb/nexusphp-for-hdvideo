@@ -14,7 +14,7 @@ require_once "../../../include/game_leaderboard.php";
  * consecutive sign-in days). Reaching 7/15/30 consecutive days unlocks a chest of
  * random 电影票, claimable once per streak; breaking the streak resets the claims.
  */
-const CH_BUSINESS_TYPE = 13;
+const CH_BUSINESS_TYPE = 106; // 签到宝箱（历史记录为 13）
 const CH_STATE_TABLE = 'hdvideo_chest_state';
 // milestone days => per reward-type range. bonus=电影票; upload/download in GB.
 const CH_MILESTONES = [

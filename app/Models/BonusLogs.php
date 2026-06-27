@@ -49,6 +49,20 @@ class BonusLogs extends NexusModel
     const BUSINESS_TYPE_CLAIMED_UNREACHED = 23;
     const BUSINESS_TYPE_SELF_ENABLE = 24;
 
+    // HDV 自定义：银行 + 各游戏（用于精确区分/筛选）
+    const BUSINESS_TYPE_BANK = 51;
+    const BUSINESS_TYPE_GAME_BIG_SMALL = 101;
+    const BUSINESS_TYPE_GAME_SPORTS = 102;
+    const BUSINESS_TYPE_GAME_DDZ = 103;
+    const BUSINESS_TYPE_GAME_SCRATCH = 104;
+    const BUSINESS_TYPE_GAME_QUIZ = 105;
+    const BUSINESS_TYPE_GAME_CHEST = 106;
+    const BUSINESS_TYPE_GAME_BLACKJACK = 107;
+    const BUSINESS_TYPE_GAME_SLOTS = 108;
+    const BUSINESS_TYPE_GAME_PLINKO = 109;
+    const BUSINESS_TYPE_GAME_HILO = 110;
+    const BUSINESS_TYPE_GAME_MOVIEQUIZ = 111;
+
     //获得类，普通获得，1000 起步
     const BUSINESS_TYPE_ROLE_WORK_SALARY = 1000;
     const BUSINESS_TYPE_TORRENT_BE_DOWNLOADED = 1001;
@@ -90,6 +104,19 @@ class BonusLogs extends NexusModel
         self::BUSINESS_TYPE_REWARD_TORRENT => ['text' => 'Reward torrent'],
         self::BUSINESS_TYPE_CLAIMED_UNREACHED => ['text' => 'Claimed torrent unreached'],
         self::BUSINESS_TYPE_SELF_ENABLE => ['text' => 'Self enable'],
+
+        self::BUSINESS_TYPE_BANK => ['text' => 'HDV Bank'],
+        self::BUSINESS_TYPE_GAME_BIG_SMALL => ['text' => 'Game: Big-Small'],
+        self::BUSINESS_TYPE_GAME_SPORTS => ['text' => 'Game: Sports'],
+        self::BUSINESS_TYPE_GAME_DDZ => ['text' => 'Game: Dou Dizhu'],
+        self::BUSINESS_TYPE_GAME_SCRATCH => ['text' => 'Game: Scratch'],
+        self::BUSINESS_TYPE_GAME_QUIZ => ['text' => 'Game: Quiz'],
+        self::BUSINESS_TYPE_GAME_CHEST => ['text' => 'Game: Sign-in chest'],
+        self::BUSINESS_TYPE_GAME_BLACKJACK => ['text' => 'Game: Blackjack'],
+        self::BUSINESS_TYPE_GAME_SLOTS => ['text' => 'Game: Slots'],
+        self::BUSINESS_TYPE_GAME_PLINKO => ['text' => 'Game: Plinko'],
+        self::BUSINESS_TYPE_GAME_HILO => ['text' => 'Game: Hi-Lo'],
+        self::BUSINESS_TYPE_GAME_MOVIEQUIZ => ['text' => 'Game: Movie quiz'],
 
         self::BUSINESS_TYPE_ROLE_WORK_SALARY => ['text' => 'Role work salary'],
         self::BUSINESS_TYPE_TORRENT_BE_DOWNLOADED => ['text' => 'Torrent be downloaded'],
