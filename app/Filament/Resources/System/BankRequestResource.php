@@ -41,8 +41,12 @@ class BankRequestResource extends Resource
 
     public static function getNavigationBadge(): ?string
     {
-        $n = BankRequest::query()->where('status', 'pending')->count();
-        return $n > 0 ? (string) $n : null;
+        try {
+            $n = BankRequest::query()->where('status', 'pending')->count();
+            return $n > 0 ? (string) $n : null;
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     public static function table(Table $table): Table
@@ -51,7 +55,7 @@ class BankRequestResource extends Resource
             ->defaultSort('id', 'desc')
             ->columns([
                 TextColumn::make('id')->label('#'),
-                TextColumn::make('uid')->label('用户')->formatStateUsing(fn ($state) => (User::find($state)->username ?? ('#' . $state))),
+                TextColumn::make('uid')->label('用户')->formatStateUsing(fn ($state) => (User::find($state)?->username ?? ('#' . $state))),
                 TextColumn::make('type')->label('类型')->badge()->formatStateUsing(fn ($state) => BankRequest::typeLabels()[$state] ?? $state),
                 TextColumn::make('reason')->label('理由')->limit(60)->wrap(),
                 TextColumn::make('status')->label('状态')->badge()
@@ -65,27 +69,27 @@ class BankRequestResource extends Resource
                     ->label('通过')
                     ->icon('heroicon-o-check')
                     ->color('success')
-                    ->visible(fn (BankRequest $r) => $r->status === 'pending')
+                    ->visible(fn ($record) => $record->status === 'pending')
                     ->schema([
                         TextInput::make('periods')->label('债务重组：新期数（3/6/12/18/24，仅重组填）')->numeric(),
                         Textarea::make('note')->label('备注（可选）')->rows(2),
                     ])
-                    ->action(function (BankRequest $r, array $data) {
+                    ->action(function ($record, array $data) {
                         require_once base_path('include/bank.php');
-                        [$ok, $msg] = bank_handle_request($r->id, true, $data['note'] ?? '', $data['periods'] ?? '');
+                        [$ok, $msg] = bank_handle_request($record->id, true, $data['note'] ?? '', $data['periods'] ?? '');
                         Notification::make()->title($msg)->{$ok ? 'success' : 'danger'}()->send();
                     }),
                 Action::make('reject')
                     ->label('拒绝')
                     ->icon('heroicon-o-x-mark')
                     ->color('danger')
-                    ->visible(fn (BankRequest $r) => $r->status === 'pending')
+                    ->visible(fn ($record) => $record->status === 'pending')
                     ->schema([
                         Textarea::make('note')->label('拒绝原因（可选）')->rows(2),
                     ])
-                    ->action(function (BankRequest $r, array $data) {
+                    ->action(function ($record, array $data) {
                         require_once base_path('include/bank.php');
-                        [$ok, $msg] = bank_handle_request($r->id, false, $data['note'] ?? '', '');
+                        [$ok, $msg] = bank_handle_request($record->id, false, $data['note'] ?? '', '');
                         Notification::make()->title($msg)->{$ok ? 'success' : 'danger'}()->send();
                     }),
             ]);
