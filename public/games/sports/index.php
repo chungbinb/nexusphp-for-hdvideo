@@ -914,15 +914,19 @@ stdhead("菠菜系统");
 .sp-pool b { color: #2c7; }
 .sp-chart { margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(120,150,190,.3); }
 .sp-chart-title { font-size: 13px; font-weight: 700; color: #6f7f95; margin-bottom: 6px; }
-.sp-seg-home { background: #2e8b57; }
-.sp-seg-draw { background: #b0883a; }
-.sp-seg-away { background: #c0392b; }
-.sp-bars { display: flex; align-items: flex-end; justify-content: space-around; gap: 12px; min-height: 150px; padding-top: 6px; }
-.sp-col { flex: 1; max-width: 120px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
-.sp-col-amt { font-size: 12px; font-weight: 800; margin-bottom: 4px; color: #2b3a4b; }
-.sp-col-bar { width: 56%; max-width: 64px; min-height: 4px; border-radius: 6px 6px 0 0; transition: height .3s ease; }
-.sp-col-label { margin-top: 6px; font-size: 13px; font-weight: 700; }
-.sp-col-meta { font-size: 12px; color: #6f7f95; }
+.sp-chart-legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: #6f7f95; margin-bottom: 10px; }
+.sp-leg { display: inline-flex; align-items: center; gap: 5px; }
+.sp-dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.sp-m-amt { background: #3a6ea5; }
+.sp-m-ppl { background: #c0883a; }
+.sp-m-pct { background: #2e8b57; }
+.sp-groups { display: flex; align-items: flex-end; justify-content: space-around; gap: 16px; }
+.sp-group { flex: 1; max-width: 180px; display: flex; flex-direction: column; align-items: center; }
+.sp-gbars { display: flex; align-items: flex-end; gap: 8px; height: 124px; }
+.sp-gbar { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
+.sp-gval { font-size: 11px; font-weight: 700; color: #2b3a4b; margin-bottom: 3px; white-space: nowrap; }
+.sp-bar2 { width: 20px; border-radius: 4px 4px 0 0; min-height: 3px; transition: height .3s ease; }
+.sp-col-label { margin-top: 7px; font-size: 13px; font-weight: 700; text-align: center; }
 .sp-form input[type="number"] { width: 140px; padding: 8px; }
 .sp-form button { padding: 8px 16px; font-weight: 700; cursor: pointer; }
 .sp-quick { display: inline-flex; gap: 6px; flex-wrap: wrap; }
@@ -947,7 +951,7 @@ stdhead("菠菜系统");
 </style>
 <div class="sp-wrap">
     <div class="sp-head">
-        <div class="sp-title">菠菜系统 <span class="sp-badge">内测中 v0.5</span></div>
+        <div class="sp-title">菠菜系统 <span class="sp-badge">内测中 v0.6</span></div>
         <div class="sp-balance">我的电影票：<?php echo game_sp_money($CURUSER['seedbonus']) ?> 张</div>
     </div>
 
@@ -1027,23 +1031,37 @@ stdhead("菠菜系统");
                     <?php if ($poolTotal <= 0) { ?>
                         <div class="sp-muted" style="font-size:13px">暂无下注，赔率为开盘线。</div>
                     <?php } else {
-                        $maxAmt = 0.0;
-                        foreach ($sideMeta as $k => $meta) $maxAmt = max($maxAmt, (float)$pool['sides'][$k]['amount']);
+                        $maxAmt = 0.0; $maxPpl = 0;
+                        foreach ($sideMeta as $k => $meta) {
+                            $maxAmt = max($maxAmt, (float)$pool['sides'][$k]['amount']);
+                            $maxPpl = max($maxPpl, (int)$pool['sides'][$k]['players']);
+                        }
                         if ($maxAmt <= 0) $maxAmt = 1;
+                        if ($maxPpl <= 0) $maxPpl = 1;
+                        $H = 100;
                     ?>
-                        <div class="sp-bars">
+                        <div class="sp-chart-legend">
+                            <span class="sp-leg"><i class="sp-dot sp-m-amt"></i>押注金额</span>
+                            <span class="sp-leg"><i class="sp-dot sp-m-ppl"></i>押注人数</span>
+                            <span class="sp-leg"><i class="sp-dot sp-m-pct"></i>押注占比</span>
+                        </div>
+                        <div class="sp-groups">
                             <?php foreach ($sideMeta as $k => $meta) {
                                 $sd = $pool['sides'][$k];
                                 $amt = (float)$sd['amount'];
                                 $ppl = (int)$sd['players'];
                                 $pct = round($amt / $poolTotal * 100, 1);
-                                $h = max(4, (int)round($amt / $maxAmt * 120));
+                                $hAmt = max(3, (int)round($amt / $maxAmt * $H));
+                                $hPpl = max(3, (int)round($ppl / $maxPpl * $H));
+                                $hPct = max(3, (int)round($pct / 100 * $H));
                             ?>
-                                <div class="sp-col">
-                                    <div class="sp-col-amt"><?php echo number_format($amt) ?></div>
-                                    <div class="sp-col-bar sp-seg-<?php echo $meta['cls'] ?>" style="height:<?php echo $h ?>px" title="<?php echo htmlspecialchars($meta['label'] . ' ' . $pct . '%') ?>"></div>
+                                <div class="sp-group">
+                                    <div class="sp-gbars">
+                                        <div class="sp-gbar"><span class="sp-gval"><?php echo number_format($amt) ?></span><i class="sp-bar2 sp-m-amt" style="height:<?php echo $hAmt ?>px" title="押注金额 <?php echo number_format($amt) ?>"></i></div>
+                                        <div class="sp-gbar"><span class="sp-gval"><?php echo number_format($ppl) ?></span><i class="sp-bar2 sp-m-ppl" style="height:<?php echo $hPpl ?>px" title="押注人数 <?php echo number_format($ppl) ?>"></i></div>
+                                        <div class="sp-gbar"><span class="sp-gval"><?php echo $pct ?>%</span><i class="sp-bar2 sp-m-pct" style="height:<?php echo $hPct ?>px" title="押注占比 <?php echo $pct ?>%"></i></div>
+                                    </div>
                                     <div class="sp-col-label"><?php echo htmlspecialchars($meta['label']) ?></div>
-                                    <div class="sp-col-meta"><?php echo number_format($ppl) ?> 人 · <?php echo $pct ?>%</div>
                                 </div>
                             <?php } ?>
                         </div>
