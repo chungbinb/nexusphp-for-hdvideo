@@ -305,6 +305,31 @@ function sc_buy()
     }
 }
 
+/** HTML of the three leaderboard cards (shared by initial render and AJAX refresh). */
+function sc_leaderboards_html()
+{
+    $scNet = game_lb_run("SELECT `s`.`uid` AS uid, `u`.`username` AS username, SUM(`s`.`delta`) AS amt FROM `" . SC_TABLE . "` `s` INNER JOIN `users` `u` ON `u`.`id` = `s`.`uid` GROUP BY `s`.`uid`, `u`.`username` ORDER BY amt DESC LIMIT 10");
+    $scCnt = game_lb_run("SELECT `s`.`uid` AS uid, `u`.`username` AS username, COUNT(*) AS amt FROM `" . SC_TABLE . "` `s` INNER JOIN `users` `u` ON `u`.`id` = `s`.`uid` GROUP BY `s`.`uid`, `u`.`username` ORDER BY amt DESC LIMIT 10");
+    $scLuck = game_lb_run("SELECT `s`.`uid` AS uid, `u`.`username` AS username, MAX(`s`.`payout`) AS amt, COUNT(*) AS cnt FROM `" . SC_TABLE . "` `s` INNER JOIN `users` `u` ON `u`.`id` = `s`.`uid` GROUP BY `s`.`uid`, `u`.`username` ORDER BY amt DESC, cnt DESC LIMIT 10");
+    $html = game_lb_table('💰 盈亏榜', $scNet, '净盈亏',
+        function ($r) { return ((float)$r['amt'] >= 0 ? '+' : '') . game_lb_money($r['amt']); },
+        function ($r) { return (float)$r['amt'] >= 0 ? 'glb-pos' : 'glb-neg'; });
+    $html .= game_lb_table('🔥 活跃榜', $scCnt, '刮奖次数',
+        function ($r) { return number_format((int)$r['amt']) . ' 次'; });
+    $html .= game_lb_table('🍀 手气榜', $scLuck, '最高单刮电影票',
+        function ($r) { return game_lb_money($r['amt']); },
+        function ($r) { return (float)$r['amt'] > 0 ? 'glb-pos' : ''; });
+    return $html;
+}
+
+// ---- AJAX leaderboard refresh ----
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'board') {
+    sc_ensure_tables();
+    header('Content-Type: text/html; charset=utf-8');
+    echo sc_leaderboards_html();
+    exit;
+}
+
 // ---- AJAX buy ----
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'buy') {
     header('Content-Type: application/json');
@@ -361,7 +386,7 @@ stdhead("刮刮乐");
 <div class="sc-wrap">
     <div class="sc-head">
         <div>
-            <div class="sc-title">刮刮乐 <span class="sc-badge">内测中 v0.4</span></div>
+            <div class="sc-title">刮刮乐 <span class="sc-badge">内测中 v0.5</span></div>
             <div class="sc-muted">每张 <b class="sc-cost"><?php echo (int)$cost ?></b> 电影票，买一张用鼠标刮开涂层，刮中即得。<?php if ($dailyLimit > 0) { ?> <span style="color:#e67e22;font-weight:700">今日剩余 <span id="scLeft"><?php echo (int)$todayLeft ?></span> 次</span>（每日上限 <?php echo (int)$dailyLimit ?>）<?php } ?></div>
         </div>
         <div class="sc-balance">我的电影票：<b id="scBal"><?php echo sc_money($CURUSER['seedbonus']) ?></b> 张</div>
@@ -409,26 +434,10 @@ stdhead("刮刮乐");
         </table>
     </div>
 
-    <?php
-    $scNet = game_lb_run("SELECT `s`.`uid` AS uid, `u`.`username` AS username, SUM(`s`.`delta`) AS amt FROM `" . SC_TABLE . "` `s` INNER JOIN `users` `u` ON `u`.`id` = `s`.`uid` GROUP BY `s`.`uid`, `u`.`username` ORDER BY amt DESC LIMIT 10");
-    $scCnt = game_lb_run("SELECT `s`.`uid` AS uid, `u`.`username` AS username, COUNT(*) AS amt FROM `" . SC_TABLE . "` `s` INNER JOIN `users` `u` ON `u`.`id` = `s`.`uid` GROUP BY `s`.`uid`, `u`.`username` ORDER BY amt DESC LIMIT 10");
-    $scLuck = game_lb_run("SELECT `s`.`uid` AS uid, `u`.`username` AS username, MAX(`s`.`payout`) AS amt, COUNT(*) AS cnt FROM `" . SC_TABLE . "` `s` INNER JOIN `users` `u` ON `u`.`id` = `s`.`uid` GROUP BY `s`.`uid`, `u`.`username` ORDER BY amt DESC, cnt DESC LIMIT 10");
-    echo game_lb_css();
-    ?>
+    <?php echo game_lb_css(); ?>
     <div class="sc-panel">
         <h3 style="margin:0 0 12px">🏆 刮刮乐榜单</h3>
-        <div class="glb-grid">
-            <?php
-            echo game_lb_table('💰 盈亏榜', $scNet, '净盈亏',
-                function ($r) { return ((float)$r['amt'] >= 0 ? '+' : '') . game_lb_money($r['amt']); },
-                function ($r) { return (float)$r['amt'] >= 0 ? 'glb-pos' : 'glb-neg'; });
-            echo game_lb_table('🔥 活跃榜', $scCnt, '刮奖次数',
-                function ($r) { return number_format((int)$r['amt']) . ' 次'; });
-            echo game_lb_table('🍀 手气榜', $scLuck, '最高单刮电影票',
-                function ($r) { return game_lb_money($r['amt']); },
-                function ($r) { return (float)$r['amt'] > 0 ? 'glb-pos' : ''; });
-            ?>
-        </div>
+        <div class="glb-grid" id="scBoardGrid"><?php echo sc_leaderboards_html() ?></div>
     </div>
 </div>
 <script>
@@ -519,6 +528,14 @@ stdhead("刮刮乐");
         hint.textContent = '再来一张试试手气';
         pending = null;
         armBuy();
+        refreshBoard();
+    }
+
+    function refreshBoard() {
+        fetch('/games/scratch/', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'action=board' })
+            .then(function (r) { return r.text(); })
+            .then(function (html) { var g = document.getElementById('scBoardGrid'); if (g && html) g.innerHTML = html; })
+            .catch(function () {});
     }
 
     function onMove(e) {
