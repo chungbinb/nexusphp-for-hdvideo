@@ -3258,6 +3258,20 @@ else {
 .qd-bank-bal>div{min-width:64px;}
 #qd-bank-modal .qd-modal-card{width:460px;}
 @media (max-width:520px){#qd-bank-modal .qd-modal-card{width:92vw;}}
+html[data-site-theme="night"] #qd-bank-modal .qd-modal-card{background:#0e1728;color:#d9e2f4;}
+html[data-site-theme="night"] #qd-bank-modal h3,
+html[data-site-theme="night"] #qd-bank-modal h4{color:#eaf1ff;}
+html[data-site-theme="night"] #qd-bank-modal .qd-modal-sub,
+html[data-site-theme="night"] #qd-bank-modal .qd-bank-info,
+html[data-site-theme="night"] #qd-bank-modal .qd-bank-detail,
+html[data-site-theme="night"] #qd-bank-modal .qd-bank-bal .k{color:#9fb0c8;}
+html[data-site-theme="night"] #qd-bank-modal .qd-bank-info b,
+html[data-site-theme="night"] #qd-bank-modal .qd-bank-detail b{color:#eaf1ff;}
+html[data-site-theme="night"] #qd-bank-modal .qd-bank-bal div,
+html[data-site-theme="night"] #qd-bank-modal .qd-bank-amt,
+html[data-site-theme="night"] #qd-bank-modal .qd-bank-sel{background:#16223a;color:#d9e2f4;border-color:rgba(116,145,196,.4);}
+html[data-site-theme="night"] #qd-bank-modal .qd-bank-sec{border-top-color:rgba(116,145,196,.25);}
+html[data-site-theme="night"] #qd-bank-modal .qd-btn-reset{background:#16223a;color:#cdd9ee;}
 </style>
 <div class="qd-modal" id="qd-bank-modal" hidden>
 	<div class="qd-modal-mask" data-qd-close></div>

@@ -11,9 +11,13 @@ class ManageBankRequests extends ManageRecords
 
     public function mount(): void
     {
-        require_once base_path('include/bank.php');
-        if (function_exists('bank_ensure_tables')) {
-            bank_ensure_tables();
+        try {
+            require_once base_path('include/bank.php');
+            if (function_exists('bank_ensure_tables')) {
+                bank_ensure_tables();
+            }
+        } catch (\Throwable $e) {
+            // 表已存在/建表失败都不应阻塞页面加载
         }
         parent::mount();
     }
