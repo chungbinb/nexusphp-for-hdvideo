@@ -758,6 +758,13 @@ $historyRes = sql_query("SELECT * FROM `" . GAME_BS_ROUND_TABLE . "` WHERE `stat
 
 $resultSizeLabel = ['big' => '大', 'small' => '小', 'triple' => '豹子(通杀)', 'push' => '和15(通杀)'];
 
+// 手机端：走独立的手机版赌桌页面（自带头尾、支持横屏、榜单收进悬浮按钮）。?pc=1 强制电脑版。
+if (empty($_GET['pc'])
+    && preg_match('/Mobile|Android|iPhone|iPod|Windows Phone|BlackBerry|webOS|HarmonyOS/i', (string)($_SERVER['HTTP_USER_AGENT'] ?? ''))) {
+    require __DIR__ . '/mobile.php';
+    exit;
+}
+
 stdhead("压大小");
 echo game_back_link();
 ?>
