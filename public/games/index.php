@@ -213,7 +213,7 @@ body.page-games-php:not(.inframe) {
 
 .steam-layout {
     display: grid;
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) 340px;
     gap: 20px;
     align-items: start;
 }
@@ -451,7 +451,14 @@ body.page-games-php:not(.inframe) {
 }
 
 .steam-board {
-    margin-top: 26px;
+    position: sticky;
+    top: 12px;
+}
+
+/* 右侧榜单为窄栏，三个榜竖向堆叠 */
+.steam-board .glb-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
 }
 
 .steam-board-title {
@@ -482,8 +489,19 @@ body.page-games-php:not(.inframe) {
         grid-template-columns: 1fr;
     }
 
-    .steam-preview {
-        order: -1;
+    .steam-board {
+        position: static;
+        margin-top: 8px;
+    }
+
+    .steam-board .glb-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 760px) {
+    .steam-board .glb-grid {
+        grid-template-columns: 1fr;
     }
 }
 
@@ -531,6 +549,13 @@ body.page-games-php:not(.inframe) {
         <span class="steam-tab">人气蹿升的免费游戏</span>
     </nav>
 
+    <?php
+    $hallProfit = game_lb_bonus('profit', null, 10);
+    $hallProfitLow = game_lb_bonus('profit', null, 10, 'ASC');
+    $hallActive = game_lb_bonus('active', null, 10);
+    $hallWin    = game_lb_bonus('wincount', null, 10);
+    echo game_lb_css();
+    ?>
     <div class="steam-layout">
         <section class="steam-list" aria-label="游戏列表">
             <?php foreach ($games as $index => $game) { ?>
@@ -563,30 +588,23 @@ body.page-games-php:not(.inframe) {
                 </a>
             <?php } ?>
         </section>
-    </div>
 
-    <?php
-    $hallProfit = game_lb_bonus('profit', null, 10);
-    $hallProfitLow = game_lb_bonus('profit', null, 10, 'ASC');
-    $hallActive = game_lb_bonus('active', null, 10);
-    $hallWin    = game_lb_bonus('wincount', null, 10);
-    echo game_lb_css();
-    ?>
-    <section class="steam-board" aria-label="游戏大厅总榜">
-        <h2 class="steam-board-title">🏆 游戏大厅总榜 <span class="steam-board-sub">汇总全部游戏（电影票）</span></h2>
-        <div class="glb-grid">
-            <?php
-            echo game_lb_table('💰 盈亏榜', $hallProfit, '净盈亏',
-                function ($r) { return ((float)$r['amt'] >= 0 ? '+' : '') . game_lb_money($r['amt']); },
-                function ($r) { return (float)$r['amt'] >= 0 ? 'glb-pos' : 'glb-neg'; }, $hallProfitLow);
-            echo game_lb_table('🔥 活跃榜', $hallActive, '参与次数',
-                function ($r) { return number_format((int)$r['amt']) . ' 次'; });
-            echo game_lb_table('🎉 中奖榜', $hallWin, '中奖次数',
-                function ($r) { return number_format((int)$r['amt']) . ' 次'; },
-                function ($r) { return 'glb-pos'; });
-            ?>
-        </div>
-    </section>
+        <aside class="steam-board" aria-label="游戏大厅总榜">
+            <h2 class="steam-board-title">🏆 总榜 <span class="steam-board-sub">汇总全部游戏</span></h2>
+            <div class="glb-grid">
+                <?php
+                echo game_lb_table('💰 盈亏榜', $hallProfit, '净盈亏',
+                    function ($r) { return ((float)$r['amt'] >= 0 ? '+' : '') . game_lb_money($r['amt']); },
+                    function ($r) { return (float)$r['amt'] >= 0 ? 'glb-pos' : 'glb-neg'; }, $hallProfitLow);
+                echo game_lb_table('🔥 活跃榜', $hallActive, '参与次数',
+                    function ($r) { return number_format((int)$r['amt']) . ' 次'; });
+                echo game_lb_table('🎉 中奖榜', $hallWin, '中奖次数',
+                    function ($r) { return number_format((int)$r['amt']) . ' 次'; },
+                    function ($r) { return 'glb-pos'; });
+                ?>
+            </div>
+        </aside>
+    </div>
 
     <div class="steam-more">
         <span>查看更多：</span>
