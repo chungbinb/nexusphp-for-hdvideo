@@ -60,10 +60,8 @@ a { text-decoration: none; color: inherit; }
 .gm-list { display: flex; flex-direction: column; gap: 16px; }
 .gm-sc { display: block; background: #16222f; border: 1px solid rgba(91,129,166,.2); border-radius: 12px; overflow: hidden; transition: transform .12s ease; }
 .gm-sc:active { transform: scale(.99); }
-.gm-sc-banner { position: relative; height: 148px; background: radial-gradient(circle at 20% 22%, rgba(255,255,255,.24), transparent 24%), linear-gradient(135deg, var(--game-a,#2a4a66), var(--game-b,#0a1622)); }
-.gm-sc-banner::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(255,255,255,.06) 0 1px, transparent 1px 10px); opacity: .5; }
-.gm-sc-ic { position: absolute; left: 14px; top: 14px; width: 64px; height: 64px; border-radius: 16px; background: center/cover no-repeat; box-shadow: 0 5px 16px rgba(0,0,0,.45); }
-.gm-sc-ttl { position: absolute; left: 16px; right: 14px; bottom: 12px; font-size: 24px; font-weight: 900; color: #fff; text-shadow: 0 3px 12px rgba(0,0,0,.6); }
+.gm-sc-banner { position: relative; aspect-ratio: 2 / 1; background-color: var(--game-b,#0a1622); background-image: radial-gradient(circle at 20% 22%, rgba(255,255,255,.24), transparent 24%), linear-gradient(135deg, var(--game-a,#2a4a66), var(--game-b,#0a1622)); background-size: cover; background-position: center; }
+.gm-sc-ttl { position: absolute; left: 16px; right: 14px; bottom: 12px; font-size: 26px; font-weight: 900; color: #fff; text-shadow: 0 3px 12px rgba(0,0,0,.6); }
 .gm-sc-ver { position: absolute; top: 11px; right: 11px; font-size: 11px; font-weight: 700; color: #fff; background: rgba(0,0,0,.42); padding: 3px 9px; border-radius: 999px; }
 .gm-sc-foot { display: flex; align-items: center; gap: 10px; padding: 11px 13px; }
 .gm-sc-tags { min-width: 0; flex: 1; font-size: 12px; color: #90a8c0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -110,14 +108,20 @@ a { text-decoration: none; color: inherit; }
             $disabled = $game['href'] === '#' || $gBlocked;
             $href = $disabled ? '#' : $game['href'];
             $go = $gClosed ? ($gCanAccess ? '预览' : '未开放') : '进入';
-            $hasIcon = is_file(__DIR__ . '/icons/' . $game['theme'] . '.png');
             $tags = !empty($game['tags']) ? implode(' · ', $game['tags']) : htmlspecialchars($game['subtitle'] ?? '');
+            // 海报：/games/posters/<theme>.jpg 或 .png（设计员按规格出图后即自动生效）
+            $poster = '';
+            foreach (['jpg', 'png', 'webp'] as $ext) {
+                if (is_file(__DIR__ . '/posters/' . $game['theme'] . '.' . $ext)) {
+                    $poster = '/games/posters/' . $game['theme'] . '.' . $ext . '?v=1';
+                    break;
+                }
+            }
             ?>
             <a class="gm-sc<?php echo $disabled ? ' off' : '' ?>" href="<?php echo htmlspecialchars($href) ?>"<?php echo $disabled ? ' onclick="return false;"' : '' ?>>
-                <div class="gm-sc-banner theme-<?php echo htmlspecialchars($game['theme']) ?>">
+                <div class="gm-sc-banner theme-<?php echo htmlspecialchars($game['theme']) ?>"<?php if ($poster) { echo ' style="background-image:url(\'' . htmlspecialchars($poster) . '\')"'; } ?>>
                     <?php if (!empty($game['badge'])) { ?><span class="gm-sc-ver"><?php echo htmlspecialchars($game['badge']) ?></span><?php } ?>
-                    <?php if ($hasIcon) { ?><div class="gm-sc-ic" style="background-image:url('/games/icons/<?php echo htmlspecialchars($game['theme']) ?>.png?v=2')"></div><?php } ?>
-                    <div class="gm-sc-ttl"><?php echo htmlspecialchars($game['title']) ?></div>
+                    <?php if (!$poster) { ?><div class="gm-sc-ttl"><?php echo htmlspecialchars($game['title']) ?></div><?php } ?>
                 </div>
                 <div class="gm-sc-foot">
                     <div class="gm-sc-tags"><?php echo htmlspecialchars($tags) ?></div>
