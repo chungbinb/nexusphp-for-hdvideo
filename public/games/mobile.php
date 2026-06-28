@@ -49,26 +49,33 @@ a { text-decoration: none; color: inherit; }
 .gm-bal { font-size: 13px; color: #9fb6cf; background: rgba(120,150,190,.16); border: 1px solid rgba(120,150,190,.3); padding: 6px 12px; border-radius: 999px; white-space: nowrap; }
 .gm-bal b { color: #ffd770; }
 
-.gm-feature { display: flex; align-items: center; gap: 13px; background: linear-gradient(135deg,#16324f,#0b1c2e); border: 1px solid rgba(91,160,230,.32); border-radius: 16px; padding: 14px; margin-bottom: 8px; }
-.gm-feature-icon { width: 60px; height: 60px; border-radius: 15px; background: #1c3550 center/cover no-repeat; flex: none; box-shadow: 0 3px 10px rgba(0,0,0,.4); }
-.gm-feature-txt { min-width: 0; flex: 1; }
-.gm-feature-name { font-size: 17px; font-weight: 800; }
-.gm-feature-sub { font-size: 12px; color: #92a8c0; margin-top: 4px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.gm-feature-go { flex: none; color: #5bb8f1; font-size: 13px; font-weight: 800; }
+.gm-tabs { display: flex; gap: 22px; overflow-x: auto; margin: 2px 0 16px; padding-bottom: 6px; color: #9eb4ca; font-size: 16px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.gm-tabs::-webkit-scrollbar { display: none; }
+.gm-tab2 { white-space: nowrap; padding-bottom: 7px; position: relative; }
+.gm-tab2.on { color: #fff; font-weight: 700; }
+.gm-tab2.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: #35b8f1; border-radius: 2px; }
 
 .gm-sec { font-size: 15px; font-weight: 800; color: #d4e3f4; margin: 20px 2px 12px; }
 
-.gm-list { display: flex; flex-direction: column; gap: 10px; }
-.gm-card { display: flex; align-items: center; gap: 13px; background: rgba(255,255,255,.05); border: 1px solid rgba(120,150,190,.2); border-radius: 14px; padding: 12px; transition: transform .12s ease; }
-.gm-card:active { transform: scale(.985); }
-.gm-card-icon { width: 56px; height: 56px; border-radius: 14px; background: linear-gradient(135deg,#33567c,#1d3450) center/cover no-repeat; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800; color: #fff; flex: none; box-shadow: 0 3px 9px rgba(0,0,0,.32); }
-.gm-card-body { min-width: 0; flex: 1; }
-.gm-card-name { font-size: 15px; font-weight: 800; }
-.gm-card-badge { font-size: 11px; font-weight: 700; color: #9fd0ff; margin-left: 5px; }
-.gm-card-sub { font-size: 12px; color: #92a8c0; margin-top: 3px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
-.gm-card-go { flex: none; font-size: 12px; font-weight: 700; color: #5bb8f1; white-space: nowrap; }
-.gm-card.off { opacity: .55; }
-.gm-card.off .gm-card-go { color: #ff9d9d; }
+.gm-list { display: flex; flex-direction: column; gap: 16px; }
+.gm-sc { display: block; background: #16222f; border: 1px solid rgba(91,129,166,.2); border-radius: 12px; overflow: hidden; transition: transform .12s ease; }
+.gm-sc:active { transform: scale(.99); }
+.gm-sc-banner { position: relative; height: 148px; background: radial-gradient(circle at 20% 22%, rgba(255,255,255,.24), transparent 24%), linear-gradient(135deg, var(--game-a,#2a4a66), var(--game-b,#0a1622)); }
+.gm-sc-banner::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(255,255,255,.06) 0 1px, transparent 1px 10px); opacity: .5; }
+.gm-sc-ic { position: absolute; left: 14px; top: 14px; width: 64px; height: 64px; border-radius: 16px; background: center/cover no-repeat; box-shadow: 0 5px 16px rgba(0,0,0,.45); }
+.gm-sc-ttl { position: absolute; left: 16px; right: 14px; bottom: 12px; font-size: 24px; font-weight: 900; color: #fff; text-shadow: 0 3px 12px rgba(0,0,0,.6); }
+.gm-sc-ver { position: absolute; top: 11px; right: 11px; font-size: 11px; font-weight: 700; color: #fff; background: rgba(0,0,0,.42); padding: 3px 9px; border-radius: 999px; }
+.gm-sc-foot { display: flex; align-items: center; gap: 10px; padding: 11px 13px; }
+.gm-sc-tags { min-width: 0; flex: 1; font-size: 12px; color: #90a8c0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gm-sc-go { flex: none; background: #1f6fb0; color: #fff; font-size: 13px; font-weight: 800; padding: 9px 16px; border-radius: 8px; }
+.gm-sc.off { opacity: .6; }
+.gm-sc.off .gm-sc-go { background: #7a2b2b; }
+.theme-dice{--game-a:#1e88e5;--game-b:#07182d;} .theme-sports{--game-a:#2ecc71;--game-b:#0b3d1f;}
+.theme-ddz{--game-a:#e74c3c;--game-b:#2c1a0c;} .theme-scratch{--game-a:#f1c232;--game-b:#6b3f00;}
+.theme-wheel{--game-a:#b84cff;--game-b:#18224f;} .theme-quiz{--game-a:#13b58a;--game-b:#092c38;}
+.theme-chest{--game-a:#ff7f50;--game-b:#371323;} .theme-blackjack{--game-a:#1f9a52;--game-b:#07210f;}
+.theme-slots{--game-a:#d4a017;--game-b:#3a2a10;} .theme-plinko{--game-a:#2980b9;--game-b:#0a1a2a;}
+.theme-hilo{--game-a:#8e44ad;--game-b:#1a0b26;} .theme-moviequiz{--game-a:#9b59b6;--game-b:#161226;}
 
 .gm-board { margin-top: 4px; }
 
@@ -86,17 +93,14 @@ a { text-decoration: none; color: inherit; }
         <div class="gm-bal">电影票 <b><?php echo $mBonus ?></b></div>
     </div>
 
-    <?php $f = $games[0]; ?>
-    <a class="gm-feature" href="<?php echo htmlspecialchars($f['href']) ?>">
-        <div class="gm-feature-icon"<?php echo gm_icon_style($f['theme']) ?>></div>
-        <div class="gm-feature-txt">
-            <div class="gm-feature-name"><?php echo htmlspecialchars($f['title']) ?></div>
-            <div class="gm-feature-sub"><?php echo htmlspecialchars($f['subtitle']) ?></div>
-        </div>
-        <span class="gm-feature-go">进入 ›</span>
-    </a>
+    <div class="gm-tabs">
+        <span class="gm-tab2 on">热门新品</span>
+        <span class="gm-tab2">热销游戏</span>
+        <span class="gm-tab2">即将推出</span>
+        <span class="gm-tab2">优惠</span>
+        <span class="gm-tab2">免费畅玩</span>
+    </div>
 
-    <div class="gm-sec">全部游戏</div>
     <div class="gm-list">
         <?php foreach ($games as $game) {
             $ctrlKey = preg_match('#^/games/([^/]+)/#', $game['href'], $m) ? $m[1] : null;
@@ -105,16 +109,20 @@ a { text-decoration: none; color: inherit; }
             $gBlocked = $gClosed && !$gCanAccess;
             $disabled = $game['href'] === '#' || $gBlocked;
             $href = $disabled ? '#' : $game['href'];
-            $go = $gClosed ? ($gCanAccess ? '预览' : '未开放') : '进入 ›';
+            $go = $gClosed ? ($gCanAccess ? '预览' : '未开放') : '进入';
             $hasIcon = is_file(__DIR__ . '/icons/' . $game['theme'] . '.png');
+            $tags = !empty($game['tags']) ? implode(' · ', $game['tags']) : htmlspecialchars($game['subtitle'] ?? '');
             ?>
-            <a class="gm-card<?php echo $disabled ? ' off' : '' ?>" href="<?php echo htmlspecialchars($href) ?>"<?php echo $disabled ? ' onclick="return false;"' : '' ?>>
-                <div class="gm-card-icon"<?php echo gm_icon_style($game['theme']) ?>><?php echo $hasIcon ? '' : htmlspecialchars(mb_substr($game['title'], 0, 1)) ?></div>
-                <div class="gm-card-body">
-                    <div class="gm-card-name"><?php echo htmlspecialchars($game['title']) ?><?php if (!empty($game['badge'])) { ?><span class="gm-card-badge"><?php echo htmlspecialchars($game['badge']) ?></span><?php } ?></div>
-                    <div class="gm-card-sub"><?php echo htmlspecialchars($game['subtitle']) ?></div>
+            <a class="gm-sc<?php echo $disabled ? ' off' : '' ?>" href="<?php echo htmlspecialchars($href) ?>"<?php echo $disabled ? ' onclick="return false;"' : '' ?>>
+                <div class="gm-sc-banner theme-<?php echo htmlspecialchars($game['theme']) ?>">
+                    <?php if (!empty($game['badge'])) { ?><span class="gm-sc-ver"><?php echo htmlspecialchars($game['badge']) ?></span><?php } ?>
+                    <?php if ($hasIcon) { ?><div class="gm-sc-ic" style="background-image:url('/games/icons/<?php echo htmlspecialchars($game['theme']) ?>.png?v=2')"></div><?php } ?>
+                    <div class="gm-sc-ttl"><?php echo htmlspecialchars($game['title']) ?></div>
                 </div>
-                <span class="gm-card-go"><?php echo htmlspecialchars($go) ?></span>
+                <div class="gm-sc-foot">
+                    <div class="gm-sc-tags"><?php echo htmlspecialchars($tags) ?></div>
+                    <span class="gm-sc-go"><?php echo htmlspecialchars($go) ?> ›</span>
+                </div>
             </a>
         <?php } ?>
     </div>
