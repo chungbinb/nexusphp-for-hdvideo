@@ -95,6 +95,13 @@ $myRes = sql_query("SELECT * FROM `" . PK_TABLE . "` WHERE `uid` = " . (int)$CUR
 $sumRes = sql_query("SELECT COUNT(*) AS n, SUM(`delta`) AS net FROM `" . PK_TABLE . "` WHERE `uid` = " . (int)$CURUSER['id']) or sqlerr(__FILE__, __LINE__);
 $sum = mysql_fetch_assoc($sumRes);
 
+// 手机端：走独立的手机版页面（自带头尾、榜单收进悬浮按钮）。?pc=1 强制电脑版。
+if (empty($_GET['pc'])
+    && preg_match('/Mobile|Android|iPhone|iPod|Windows Phone|BlackBerry|webOS|HarmonyOS/i', (string)($_SERVER['HTTP_USER_AGENT'] ?? ''))) {
+    require __DIR__ . '/mobile.php';
+    exit;
+}
+
 stdhead("Plinko 弹珠");
 echo game_back_link();
 ?>
