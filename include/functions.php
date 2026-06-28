@@ -2490,13 +2490,15 @@ function menu ($selected = "home") {
 			print ("<li" . ($selected == "forums" ? " class=\"selected\"" : "") . "><a href=\"forums.php\">".$normalizeMenuText($lang_functions['text_forums'])."</a></li>");
         else
 			print ("<li" . ($selected == "forums" ? " class=\"selected\"" : "") . "><a href=\"" . $extforumurl."\" target=\"_blank\">".$normalizeMenuText($lang_functions['text_forums'])."</a></li>");
-		$qdTorrentSelected = ($selected == "torrents");
+		$qdIsRequireSeed = !empty($_GET['requireseed']);
+		$qdTorrentSelected = ($selected == "torrents") && !$qdIsRequireSeed;
 		print ("<li class=\"nav-torrents has-submenu" . ($qdTorrentSelected ? " selected" : "") . "\"><a href=\"torrents.php\">".$normalizeMenuText($normalSectionName[$lang] ?? $lang_functions['text_torrents'])."</a><ul class=\"nav-submenu nav-torrents-submenu\">");
 		foreach (genrelist(get_setting('main.browsecat')) as $qdCat) {
 			if (empty($qdCat['id'])) { continue; }
 			print ("<li><a href=\"torrents.php?cat=".(int)$qdCat['id']."\">".htmlspecialchars((string)$qdCat['name'])."</a></li>");
 		}
 		print ("</ul></li>");
+		print ("<li class=\"nav-requireseed" . ($selected == "torrents" && $qdIsRequireSeed ? " selected" : "") . "\"><a href=\"torrents.php?requireseed=1\">保种区</a></li>");
         if ($enablespecial == 'yes' && user_can('view_special_torrent'))
 			print ("<li" . ($selected == "special" ? " class=\"selected\"" : "") . "><a href=\"special.php\">".$normalizeMenuText($specialSectionName[$lang] ?? $lang_functions['text_special'])."</a></li>");
         if ($enableoffer == 'yes')
@@ -5256,6 +5258,7 @@ for ($i=1; $i<=9; $i++){
 	else $link[$i] = ($i == 1 ? "asc" : "desc");
 }
 ?>
+<td class="colhead" style="padding:0 6px;text-align:center">#</td>
 <td class="colhead" style="padding: 0px"><?php echo $lang_functions['col_type'] ?></td>
 <td class="colhead"><a href="?<?php echo $oldlink?>sort=1&amp;type=<?php echo $link[1]?>"><?php echo $lang_functions['col_name'] ?></a></td>
 <?php
@@ -5296,6 +5299,8 @@ foreach ($rows as $row)
 	$id = $row["id"];
 	$sphighlight = get_torrent_bg_color($row['sp_state'], $row['pos_state'], $row);
 	print("<tr" . $sphighlight . ">\n");
+
+	print("<td class=\"rowfollow\" align=\"center\" valign=\"middle\" style='padding:0 6px;color:#8aa0b6'>" . ($counter + 1) . "</td>\n");
 
 	print("<td class=\"rowfollow nowrap\" valign=\"middle\" style='padding: 0px'>");
 	if (isset($row["category"])) {

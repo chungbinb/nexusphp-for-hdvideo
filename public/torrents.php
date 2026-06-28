@@ -189,10 +189,23 @@ if (isset($_GET['sort']) && $_GET['sort'] && isset($_GET['type']) && $_GET['type
 
 } else {
 
-	// Gently float 急需求种 torrents (0 seeders but people still downloading) up so
-	// members notice them and seed. Stays below sticky; normal newest-first otherwise.
-	$urgentSeedOrder = "CASE WHEN torrents.seeders = 0 AND torrents.leechers > 0 THEN 1 ELSE 0 END DESC, ";
-	$orderby = "ORDER BY pos_state DESC, " . $urgentSeedOrder . "torrents.id DESC";
+	// 置顶只保留最新的 N 个真正生效（后台「种子列表设置」可调，默认 5；超出的置顶按普通最新排）。
+	// 死种/急需求种不再前置——需要保种的种子改到「保种区」单独展示。其余一律按最新（id 倒序）。
+	$stickyLimit = 5;
+	try {
+		$cfgRes = sql_query("SELECT `sticky_count` FROM `hdvideo_torrent_settings` WHERE `id` = 1 LIMIT 1");
+		if ($cfgRes && ($cfgRow = mysql_fetch_assoc($cfgRes))) { $stickyLimit = max(0, (int)$cfgRow['sticky_count']); }
+	} catch (\Throwable $e) { $stickyLimit = 5; }
+	$stickyIds = [];
+	if ($stickyLimit > 0) {
+		$sres = sql_query("SELECT `id` FROM `torrents` WHERE `pos_state` <> 'normal' ORDER BY `pos_state` DESC, `id` DESC LIMIT " . (int)$stickyLimit);
+		while ($sres && ($sr = mysql_fetch_assoc($sres))) { $stickyIds[] = (int)$sr['id']; }
+	}
+	if ($stickyIds) {
+		$orderby = "ORDER BY CASE WHEN torrents.id IN (" . implode(',', $stickyIds) . ") THEN 0 ELSE 1 END, torrents.id DESC";
+	} else {
+		$orderby = "ORDER BY torrents.id DESC";
+	}
 	$pagerlink = "";
 
 }
@@ -209,6 +222,14 @@ $whereprocessingina = array();
 $whereteamina = array();
 $whereaudiocodecina = array();
 $whereothera = [];
+// 保种区：只看需要保种的种子（做种数<=1）。濒死(有人下却0做种)最前，其次断种，再按最新。
+$requireSeedMode = !empty($_GET['requireseed']);
+if ($requireSeedMode) {
+	$whereothera[] = "visible = 'yes'";
+	$whereothera[] = "seeders <= 1";
+	$orderby = "ORDER BY CASE WHEN torrents.seeders = 0 AND torrents.leechers > 0 THEN 0 WHEN torrents.seeders = 0 THEN 1 ELSE 2 END, torrents.leechers DESC, torrents.id DESC";
+	$addparam .= "requireseed=1&";
+}
 $style_get = intval($_GET['style'] ?? 0);
 $region_get = intval($_GET['region'] ?? 0);
 //----------------- start whether show torrents from all sections---------------------//
@@ -297,7 +318,7 @@ elseif ($include_dead == 2)		//dead
 // list stays newest-first, matching the stock ordering.
 $officialTag = intval(get_setting('bonus.official_tag', 0));
 $officialPromoActive = get_official_sp_state() != \App\Models\Torrent::PROMOTION_NORMAL;
-if ($officialTag > 0 && $officialPromoActive && in_array($include_dead, [1, 2], true)) {
+if ($officialTag > 0 && $officialPromoActive && in_array($include_dead, [1, 2], true) && empty($requireSeedMode)) {
 	$officialOrder = "CASE WHEN EXISTS (SELECT 1 FROM torrent_tags tt WHERE tt.torrent_id = torrents.id AND tt.tag_id = {$officialTag}) THEN 1 ELSE 0 END DESC, ";
 	$orderby = preg_replace('/^ORDER BY\s+/i', 'ORDER BY ' . $officialOrder, $orderby);
 }
@@ -1484,7 +1505,7 @@ if ($count) {
     }
 	$rows = apply_filter('torrent_list', $rows, $page, $sectiontype, $_GET['search'] ?? '');
 	print('<div class="torrent-view-toolbar">'
-	. '<div class="torrent-view-title">Torrent List</div>'
+	. '<div class="torrent-view-title">' . (!empty($requireSeedMode) ? '🌱 保种区 · 做种数≤1的种子，求大佬做种回血' : 'Torrent List') . '</div>'
 		. '<div class="torrent-view-pager">' . $pagertop . '</div>'
 		. '<div class="torrent-view-switch" role="tablist" aria-label="Torrent View Switch">'
 	. '<button type="button" class="torrent-view-btn is-active" data-view="list">List</button>'
