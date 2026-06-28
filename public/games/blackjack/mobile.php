@@ -127,7 +127,7 @@ a { color: inherit; text-decoration: none; }
             大厅
         </a>
         <div class="cz-mid">
-            <div class="cz-minmax">Min/Max <?php echo bj_chip_label(BJ_CHIPS[0]) ?> - <?php echo bj_chip_label(end(BJ_CHIPS)) ?></div>
+            <div class="cz-minmax">Min/Max <?php echo bj_chip_label(BJ_CHIPS[0]) ?> - <?php echo bj_chip_label(BJ_CHIPS[count(BJ_CHIPS) - 1]) ?></div>
             <div class="cz-tnum">二十一点 · 黑杰克 1.5 倍</div>
         </div>
         <span class="cz-tbtn" id="bjLbBtn">
