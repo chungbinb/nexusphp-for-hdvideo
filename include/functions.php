@@ -2678,9 +2678,10 @@ if ($GLOBALS['nexus_is_game_page']){
 /* 手机端游戏板块：隐藏全站顶部导航/账户/通知区，右侧悬浮工具条改为底部横向导航栏（仿手机 App）。
    注意只隐藏导航相关块，不能动 .mainouter——它同时是正文容器#outer的外层；导航用 #nav_block 精确定位。 */
 @media (max-width: 768px) {
-    body.game-page table.head, body.game-page #nav_block, body.game-page #top-account-widget,
-    body.game-page #info_block, body.game-page #global-top-banner { display: none !important; }
-    body.game-page #outer { padding: 6px 0 66px !important; }
+    body.game-page table.head, body.game-page table.mainouter:has(#nav_block), body.game-page #nav_block,
+    body.game-page #top-account-widget, body.game-page #info_block, body.game-page #global-top-banner,
+    body.game-page .msg-alert { display: none !important; }
+    body.game-page #outer, body.game-page #outer.outer { padding: 8px 0 70px !important; }
 
     /* 右侧竖直悬浮工具条 → 底部横向导航栏 */
     body.game-page #qd-side-tools {
@@ -7863,7 +7864,7 @@ function get_ip_location_from_geoip($ip): bool|array
 
 function msgalert($url, $text, $bgcolor = "red")
 {
-    print("<table border=\"0\" cellspacing=\"0\" cellpadding=\"10\" style=\"margin: 0 auto;\"><tr><td style='border: none; padding: 10px; background: ".$bgcolor."; text-align: center;'>\n");
+    print("<table class=\"msg-alert\" border=\"0\" cellspacing=\"0\" cellpadding=\"10\" style=\"margin: 0 auto;\"><tr><td style='border: none; padding: 10px; background: ".$bgcolor."; text-align: center;'>\n");
     if (!empty($url)) {
         print("<b><a href=\"".$url."\" target='_blank'><font color=\"white\">".$text."</font></a></b>");
     } else {

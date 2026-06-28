@@ -543,14 +543,17 @@ body.page-games-php:not(.inframe) {
 .gm-feature-sub { font-size: 12px; color: #90a6bf; margin-top: 3px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .gm-feature-go { flex: none; color: #5bb8f1; font-size: 13px; font-weight: 800; }
 .gm-sec-title { font-size: 15px; font-weight: 800; color: #d4e3f4; margin: 18px 2px 11px; }
-.gm-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-.gm-tile { display: flex; flex-direction: column; align-items: center; text-align: center; text-decoration: none; background: rgba(255,255,255,.045); border: 1px solid rgba(120,150,190,.2); border-radius: 16px; padding: 13px 6px 11px; transition: transform .12s ease; }
-.gm-tile:active { transform: scale(.95); }
-.gm-tile-icon { width: 58px; height: 58px; border-radius: 16px; background: linear-gradient(135deg,#33567c,#1d3450) center/cover no-repeat; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 800; color: #fff; box-shadow: 0 3px 9px rgba(0,0,0,.32); }
-.gm-tile-name { font-size: 13px; font-weight: 700; color: #e8eff8; margin-top: 9px; line-height: 1.2; }
-.gm-tile-tag { font-size: 10px; color: #8aa0b6; margin-top: 3px; }
-.gm-tile.is-disabled { opacity: .5; }
-.gm-tile.is-disabled .gm-tile-tag { color: #ff9d9d; }
+.gm-list { display: flex; flex-direction: column; gap: 10px; }
+.gm-card { display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,.05); border: 1px solid rgba(120,150,190,.2); border-radius: 14px; padding: 11px 12px; text-decoration: none; transition: transform .12s ease; }
+.gm-card:active { transform: scale(.985); }
+.gm-card-icon { width: 54px; height: 54px; border-radius: 14px; background: linear-gradient(135deg,#33567c,#1d3450) center/cover no-repeat; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800; color: #fff; flex: none; box-shadow: 0 3px 9px rgba(0,0,0,.3); }
+.gm-card-body { min-width: 0; flex: 1; }
+.gm-card-name { font-size: 15px; font-weight: 800; color: #e8eff8; }
+.gm-card-badge { font-size: 11px; font-weight: 700; color: #9fd0ff; margin-left: 4px; }
+.gm-card-sub { font-size: 12px; color: #90a6bf; margin-top: 2px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.gm-card-go { flex: none; font-size: 12px; font-weight: 700; color: #5bb8f1; white-space: nowrap; }
+.gm-card.is-disabled { opacity: .55; }
+.gm-card.is-disabled .gm-card-go { color: #ff9d9d; }
 .gm-board { margin-top: 4px; }
 </style>
 <?php
@@ -650,7 +653,7 @@ $renderBoards = function () use ($hallProfit, $hallProfitLow, $hallActive, $hall
         </a>
 
         <div class="gm-sec-title">全部游戏</div>
-        <div class="gm-grid">
+        <div class="gm-list">
             <?php foreach ($games as $game) {
                 $ctrlKey = preg_match('#^/games/([^/]+)/#', $game['href'], $m) ? $m[1] : null;
                 $gClosed = $ctrlKey ? !game_is_open($ctrlKey) : false;
@@ -659,17 +662,19 @@ $renderBoards = function () use ($hallProfit, $hallProfitLow, $hallActive, $hall
                 $disabled = $game['href'] === '#' || $gBlocked;
                 $rowHref = $disabled ? '#' : $game['href'];
                 $hasIcon = is_file(__DIR__ . '/icons/' . $game['theme'] . '.png');
-                $tag = '';
                 if ($gClosed) {
-                    $tag = $gCanAccess ? '可预览' : '未开放';
-                } elseif (($game['status'] ?? '') !== '可玩') {
-                    $tag = $game['status'] ?? '';
+                    $go = $gCanAccess ? '预览' : '未开放';
+                } else {
+                    $go = '进入 ›';
                 }
                 ?>
-                <a class="gm-tile<?php echo $disabled ? ' is-disabled' : '' ?>" href="<?php echo htmlspecialchars($rowHref) ?>"<?php echo $disabled ? ' onclick="return false;"' : '' ?>>
-                    <div class="gm-tile-icon"<?php if ($hasIcon) { echo ' style="background-image:url(\'/games/icons/' . htmlspecialchars($game['theme']) . '.png?v=2\')"'; } ?>><?php echo $hasIcon ? '' : htmlspecialchars(mb_substr($game['title'], 0, 1)) ?></div>
-                    <div class="gm-tile-name"><?php echo htmlspecialchars($game['title']) ?></div>
-                    <?php if ($tag !== '') { ?><div class="gm-tile-tag"><?php echo htmlspecialchars($tag) ?></div><?php } ?>
+                <a class="gm-card<?php echo $disabled ? ' is-disabled' : '' ?>" href="<?php echo htmlspecialchars($rowHref) ?>"<?php echo $disabled ? ' onclick="return false;"' : '' ?>>
+                    <div class="gm-card-icon"<?php if ($hasIcon) { echo ' style="background-image:url(\'/games/icons/' . htmlspecialchars($game['theme']) . '.png?v=2\')"'; } ?>><?php echo $hasIcon ? '' : htmlspecialchars(mb_substr($game['title'], 0, 1)) ?></div>
+                    <div class="gm-card-body">
+                        <div class="gm-card-name"><?php echo htmlspecialchars($game['title']) ?><?php if (!empty($game['badge'])) { ?><span class="gm-card-badge"><?php echo htmlspecialchars($game['badge']) ?></span><?php } ?></div>
+                        <div class="gm-card-sub"><?php echo htmlspecialchars($game['subtitle']) ?></div>
+                    </div>
+                    <span class="gm-card-go"><?php echo htmlspecialchars($go) ?></span>
                 </a>
             <?php } ?>
         </div>
