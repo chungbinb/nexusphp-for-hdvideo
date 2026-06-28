@@ -2668,45 +2668,11 @@ function stdhead($title = "", $msgalert = true, $script = "", $place = "")
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <?php
-// 游戏板块（/games/...）做手机端适配：仅在游戏页输出 viewport + App 式纯净界面，避免影响站点其他未适配页面。
-$GLOBALS['nexus_is_game_page'] = (strpos((string)($_SERVER['SCRIPT_NAME'] ?? ''), '/games/') !== false
-    || strpos((string)($_SERVER['REQUEST_URI'] ?? ''), '/games/') !== false);
-if ($GLOBALS['nexus_is_game_page']){
+// 游戏板块(/games/...)做手机端适配：仅游戏页输出 viewport，不影响站点其他未适配页面。
+if (strpos((string)($_SERVER['SCRIPT_NAME'] ?? ''), '/games/') !== false
+    || strpos((string)($_SERVER['REQUEST_URI'] ?? ''), '/games/') !== false){
 ?>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<style>
-/* 手机端游戏板块：隐藏全站顶部导航/账户/通知区，右侧悬浮工具条改为底部横向导航栏（仿手机 App）。
-   注意只隐藏导航相关块，不能动 .mainouter——它同时是正文容器#outer的外层；导航用 #nav_block 精确定位。 */
-@media (max-width: 768px) {
-    body.game-page table.head, body.game-page table.mainouter:has(#nav_block), body.game-page #nav_block,
-    body.game-page #top-account-widget, body.game-page #info_block, body.game-page #global-top-banner,
-    body.game-page .msg-alert { display: none !important; }
-    body.game-page #outer, body.game-page #outer.outer { padding: 8px 0 70px !important; }
-
-    /* 右侧竖直悬浮工具条 → 底部横向导航栏 */
-    body.game-page #qd-side-tools {
-        top: auto !important; bottom: 0 !important; left: 0 !important; right: 0 !important;
-        transform: none !important; width: 100% !important; flex-direction: row !important;
-        justify-content: space-around !important; align-items: stretch !important;
-        border-radius: 0 !important; box-shadow: 0 -2px 10px rgba(0,0,0,.28) !important;
-        z-index: 9991 !important; padding-bottom: env(safe-area-inset-bottom) !important;
-    }
-    body.game-page #qd-side-tools .qd-side-btn { flex: 1 1 0 !important; width: auto !important; height: 54px !important; border-top: 0 !important; }
-    body.game-page #qd-side-tools .qd-side-text { display: none !important; }
-    body.game-page #qd-side-tools .qd-side-submenu { display: none !important; }
-    body.game-page #qd-side-tools .qd-side-msg-wrap { flex: 1 1 0 !important; display: flex !important; }
-    body.game-page #qd-side-tools .qd-side-msg-wrap .qd-side-btn { width: 100% !important; }
-    /* 消息按钮在底栏改用铃铛图标 */
-    body.game-page #qd-side-tools .qd-side-env { display: none !important; }
-    body.game-page #qd-side-tools .qd-side-bell { display: block !important; }
-
-    /* 横屏按钮：悬浮在底栏上方右侧 */
-    .gm-float { position: fixed; z-index: 9992; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 50%; background: rgba(18,38,60,.86); color: #fff; border: 1px solid rgba(140,180,225,.3); box-shadow: 0 2px 9px rgba(0,0,0,.4); text-decoration: none; cursor: pointer; }
-    .gm-float svg { width: 22px; height: 22px; }
-    .gm-land { right: 14px; bottom: 70px; }
-}
-.gm-float { display: none; }
-</style>
 <?php
 }
 if ($metakeywords_tweak){
@@ -2828,8 +2794,6 @@ $qdCarouselOff = !$isInframePage
     && !in_array(nexus()->getScript(), ['upload', 'details'], true)
     && !should_show_top_carousel($GLOBALS['CURUSER'] ?? null);
 $bodyClass = trim('page-' . ($pageClass ?: 'index') . ($isInframePage ? ' inframe' : '') . ($qdCarouselOff ? ' carousel-off' : ''));
-// 游戏板块统一加 game-page 类，作为手机端适配的可靠选择器（页面脚本名不固定，不能只靠 page-games*）。
-if (!empty($GLOBALS['nexus_is_game_page'])) { $bodyClass .= ' game-page'; }
 ?>
 <body class="<?php echo htmlspecialchars($bodyClass) ?>">
 <?php if ($isInframePage) { ?>
@@ -3210,7 +3174,6 @@ else {
 .qd-side-btn:hover{background:var(--bili-surface-soft,#f2f3f5);color:var(--bili-primary-hover,#38bff2);}
 .qd-side-btn svg{width:21px;height:21px;margin-bottom:3px;}
 .qd-side-btn .qd-side-text{font-size:10px;white-space:nowrap;}
-.qd-side-bell{display:none;}
 @media (max-width:768px){.qd-side-tools{right:8px;}.qd-side-btn{width:50px;height:50px;}.qd-side-btn svg{width:18px;height:18px;}}
 .qd-modal{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;}
 .qd-modal[hidden]{display:none;}
@@ -3244,8 +3207,7 @@ else {
 	</a>
 	<div class="qd-side-msg-wrap">
 	<a class="qd-side-btn" href="messages.php" title="消息">
-		<svg class="qd-side-env" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"></rect><path d="M3.5 6.5l8.5 6 8.5-6"></path></svg>
-		<svg class="qd-side-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"></rect><path d="M3.5 6.5l8.5 6 8.5-6"></path></svg>
 		<span class="qd-side-text">消息</span>
 <?php if (isset($topUnreadCount) && $topUnreadCount > 0) { ?>		<span class="qd-side-badge"><?php echo $topUnreadCount > 99 ? '99+' : $topUnreadCount ?></span>
 <?php } ?>	</a>
@@ -3276,31 +3238,6 @@ else {
 		<span class="qd-side-text">游戏大厅</span>
 	</a>
 </div>
-<?php if (!empty($GLOBALS['nexus_is_game_page'])) { ?>
-<button type="button" class="gm-float gm-land" id="gmLandBtn" title="横屏" aria-label="横屏">
-	<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M3 16v3a2 2 0 0 1 2 2h3"></path></svg>
-</button>
-<script>
-(function () {
-	var b = document.getElementById('gmLandBtn');
-	if (!b) return;
-	b.addEventListener('click', function () {
-		var doc = document, el = doc.documentElement;
-		var fs = doc.fullscreenElement || doc.webkitFullscreenElement;
-		var lock = function () { try { if (screen.orientation && screen.orientation.lock) { screen.orientation.lock('landscape').catch(function () {}); } } catch (e) {} };
-		if (!fs) {
-			var req = el.requestFullscreen || el.webkitRequestFullscreen;
-			if (req) { var p = req.call(el); if (p && p.then) { p.then(lock).catch(lock); } else { lock(); } }
-			else { lock(); }
-		} else {
-			try { if (screen.orientation && screen.orientation.unlock) { screen.orientation.unlock(); } } catch (e) {}
-			var ex = doc.exitFullscreen || doc.webkitExitFullscreen;
-			if (ex) { ex.call(doc); }
-		}
-	});
-})();
-</script>
-<?php } ?>
 <style>
 .qd-bank-bal{display:flex;gap:10px;margin:6px 0 12px;}
 .qd-bank-bal div{flex:1;text-align:center;background:var(--bili-surface-soft,#f2f3f5);border-radius:10px;padding:9px 6px;}
@@ -7864,7 +7801,7 @@ function get_ip_location_from_geoip($ip): bool|array
 
 function msgalert($url, $text, $bgcolor = "red")
 {
-    print("<table class=\"msg-alert\" border=\"0\" cellspacing=\"0\" cellpadding=\"10\" style=\"margin: 0 auto;\"><tr><td style='border: none; padding: 10px; background: ".$bgcolor."; text-align: center;'>\n");
+    print("<table border=\"0\" cellspacing=\"0\" cellpadding=\"10\" style=\"margin: 0 auto;\"><tr><td style='border: none; padding: 10px; background: ".$bgcolor."; text-align: center;'>\n");
     if (!empty($url)) {
         print("<b><a href=\"".$url."\" target='_blank'><font color=\"white\">".$text."</font></a></b>");
     } else {
