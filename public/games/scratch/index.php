@@ -353,6 +353,8 @@ $myRes = sql_query("SELECT * FROM `" . SC_TABLE . "` WHERE `uid` = " . (int)$CUR
 $sumRes = sql_query("SELECT COUNT(*) AS n, SUM(`delta`) AS net FROM `" . SC_TABLE . "` WHERE `uid` = " . (int)$CURUSER['id']) or sqlerr(__FILE__, __LINE__);
 $sum = mysql_fetch_assoc($sumRes);
 
+if (empty($_GET['pc']) && preg_match('/Mobile|Android|iPhone|iPod|Windows Phone|BlackBerry|webOS|HarmonyOS/i', (string)($_SERVER['HTTP_USER_AGENT'] ?? ''))) { require __DIR__ . '/mobile.php'; exit; }
+
 stdhead("刮刮乐");
 echo game_back_link();
 ?>

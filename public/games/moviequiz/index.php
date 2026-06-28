@@ -383,6 +383,9 @@ $isAdmin = mq_is_admin();
 $qCount = mq_question_count();
 $myState = mq_get_state((int)$CURUSER['id']);
 
+// 手机版：玩家答题界面（管理界面请用 ?pc=1）。管理 view 仍走桌面版。
+if ($view !== 'admin' && empty($_GET['pc']) && preg_match('/Mobile|Android|iPhone|iPod|Windows Phone|BlackBerry|webOS|HarmonyOS/i', (string)($_SERVER['HTTP_USER_AGENT'] ?? ''))) { require __DIR__ . '/mobile.php'; exit; }
+
 stdhead("猜电影");
 echo game_back_link();
 ?>

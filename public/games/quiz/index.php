@@ -236,6 +236,8 @@ $isAdmin = qz_is_admin();
 $qCount = qz_question_count();
 $myState = qz_get_state((int)$CURUSER['id']);
 
+if (empty($_GET['pc']) && preg_match('/Mobile|Android|iPhone|iPod|Windows Phone|BlackBerry|webOS|HarmonyOS/i', (string)($_SERVER['HTTP_USER_AGENT'] ?? ''))) { require __DIR__ . '/mobile.php'; exit; }
+
 stdhead("答题挑战");
 echo game_back_link();
 ?>

@@ -162,6 +162,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'open'
 $state = ch_state((int)$CURUSER['id'], $streakStart);
 $mask = (int)$state['claimed_mask'];
 
+if (empty($_GET['pc']) && preg_match('/Mobile|Android|iPhone|iPod|Windows Phone|BlackBerry|webOS|HarmonyOS/i', (string)($_SERVER['HTTP_USER_AGENT'] ?? ''))) { require __DIR__ . '/mobile.php'; exit; }
+
 stdhead("签到宝箱");
 echo game_back_link();
 ?>
