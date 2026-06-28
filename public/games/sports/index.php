@@ -876,6 +876,14 @@ if (!isset($navItems[$view])) {
 }
 $page = max(1, (int)($_GET['page'] ?? 1));
 
+// 手机端：普通玩家视图走独立的手机版竞猜页面（自带头尾、榜单收进悬浮按钮）。
+// 管理视图（admin）仍走电脑版；?pc=1 也可强制电脑版。所有数据在 mobile.php 内自行查询。
+if (empty($isAdmin) && $view !== 'admin' && empty($_GET['pc'])
+    && preg_match('/Mobile|Android|iPhone|iPod|Windows Phone|BlackBerry|webOS|HarmonyOS/i', (string)($_SERVER['HTTP_USER_AGENT'] ?? ''))) {
+    require __DIR__ . '/mobile.php';
+    exit;
+}
+
 stdhead("菠菜系统");
 echo game_back_link();
 ?>
