@@ -2675,19 +2675,36 @@ if ($GLOBALS['nexus_is_game_page']){
 ?>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
-/* 手机端游戏板块：隐藏全站顶部导航/账户/通知区，做成 App 式纯净界面（注意只隐藏导航相关块，
-   不能动 .mainouter——它同时是正文容器#outer的外层；导航用 #nav_block 精确定位）。 */
+/* 手机端游戏板块：隐藏全站顶部导航/账户/通知区，右侧悬浮工具条改为底部横向导航栏（仿手机 App）。
+   注意只隐藏导航相关块，不能动 .mainouter——它同时是正文容器#outer的外层；导航用 #nav_block 精确定位。 */
 @media (max-width: 768px) {
     body.page-games table.head, body.page-games #nav_block, body.page-games #top-account-widget,
-    body.page-games #info_block, body.page-games #global-top-banner, body.page-games #qd-side-tools,
+    body.page-games #info_block, body.page-games #global-top-banner,
     body.page-games-php table.head, body.page-games-php #nav_block, body.page-games-php #top-account-widget,
-    body.page-games-php #info_block, body.page-games-php #global-top-banner, body.page-games-php #qd-side-tools { display: none !important; }
-    body.page-games #outer, body.page-games-php #outer { padding: 6px 0 !important; }
+    body.page-games-php #info_block, body.page-games-php #global-top-banner { display: none !important; }
+    body.page-games #outer, body.page-games-php #outer { padding: 6px 0 66px !important; }
+
+    /* 右侧竖直悬浮工具条 → 底部横向导航栏 */
+    body.page-games #qd-side-tools, body.page-games-php #qd-side-tools {
+        top: auto !important; bottom: 0 !important; left: 0 !important; right: 0 !important;
+        transform: none !important; width: 100% !important; flex-direction: row !important;
+        justify-content: space-around !important; align-items: stretch !important;
+        border-radius: 0 !important; box-shadow: 0 -2px 10px rgba(0,0,0,.28) !important;
+        z-index: 9991 !important; padding-bottom: env(safe-area-inset-bottom) !important;
+    }
+    body.page-games #qd-side-tools .qd-side-btn, body.page-games-php #qd-side-tools .qd-side-btn { flex: 1 1 0 !important; width: auto !important; height: 54px !important; border-top: 0 !important; }
+    body.page-games #qd-side-tools .qd-side-text, body.page-games-php #qd-side-tools .qd-side-text { display: none !important; }
+    body.page-games #qd-side-tools .qd-side-submenu, body.page-games-php #qd-side-tools .qd-side-submenu { display: none !important; }
+    body.page-games #qd-side-tools .qd-side-msg-wrap, body.page-games-php #qd-side-tools .qd-side-msg-wrap { flex: 1 1 0 !important; display: flex !important; }
+    body.page-games #qd-side-tools .qd-side-msg-wrap .qd-side-btn, body.page-games-php #qd-side-tools .qd-side-msg-wrap .qd-side-btn { width: 100% !important; }
+    /* 消息按钮在底栏改用铃铛图标 */
+    body.page-games #qd-side-tools .qd-side-env, body.page-games-php #qd-side-tools .qd-side-env { display: none !important; }
+    body.page-games #qd-side-tools .qd-side-bell, body.page-games-php #qd-side-tools .qd-side-bell { display: block !important; }
+
+    /* 横屏按钮：悬浮在底栏上方右侧 */
     .gm-float { position: fixed; z-index: 9992; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 50%; background: rgba(18,38,60,.86); color: #fff; border: 1px solid rgba(140,180,225,.3); box-shadow: 0 2px 9px rgba(0,0,0,.4); text-decoration: none; cursor: pointer; }
     .gm-float svg { width: 22px; height: 22px; }
-    .gm-bell { right: 14px; bottom: 16px; }
-    .gm-land { right: 14px; bottom: 68px; }
-    .gm-bell-badge { position: absolute; top: -3px; right: -3px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: #e8453c; color: #fff; font-size: 11px; font-weight: 800; line-height: 18px; text-align: center; box-sizing: border-box; }
+    .gm-land { right: 14px; bottom: 70px; }
 }
 .gm-float { display: none; }
 </style>
@@ -3192,6 +3209,7 @@ else {
 .qd-side-btn:hover{background:var(--bili-surface-soft,#f2f3f5);color:var(--bili-primary-hover,#38bff2);}
 .qd-side-btn svg{width:21px;height:21px;margin-bottom:3px;}
 .qd-side-btn .qd-side-text{font-size:10px;white-space:nowrap;}
+.qd-side-bell{display:none;}
 @media (max-width:768px){.qd-side-tools{right:8px;}.qd-side-btn{width:50px;height:50px;}.qd-side-btn svg{width:18px;height:18px;}}
 .qd-modal{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;}
 .qd-modal[hidden]{display:none;}
@@ -3225,7 +3243,8 @@ else {
 	</a>
 	<div class="qd-side-msg-wrap">
 	<a class="qd-side-btn" href="messages.php" title="消息">
-		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"></rect><path d="M3.5 6.5l8.5 6 8.5-6"></path></svg>
+		<svg class="qd-side-env" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"></rect><path d="M3.5 6.5l8.5 6 8.5-6"></path></svg>
+		<svg class="qd-side-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
 		<span class="qd-side-text">消息</span>
 <?php if (isset($topUnreadCount) && $topUnreadCount > 0) { ?>		<span class="qd-side-badge"><?php echo $topUnreadCount > 99 ? '99+' : $topUnreadCount ?></span>
 <?php } ?>	</a>
@@ -3260,10 +3279,6 @@ else {
 <button type="button" class="gm-float gm-land" id="gmLandBtn" title="横屏" aria-label="横屏">
 	<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M3 16v3a2 2 0 0 1 2 2h3"></path></svg>
 </button>
-<a class="gm-float gm-bell" href="messages.php" title="通知" aria-label="通知">
-	<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-<?php if (isset($topUnreadCount) && $topUnreadCount > 0) { ?>	<span class="gm-bell-badge"><?php echo $topUnreadCount > 99 ? '99+' : $topUnreadCount ?></span>
-<?php } ?></a>
 <script>
 (function () {
 	var b = document.getElementById('gmLandBtn');
