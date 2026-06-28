@@ -2668,6 +2668,31 @@ function stdhead($title = "", $msgalert = true, $script = "", $place = "")
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <?php
+// 游戏板块（/games/...）做手机端适配：仅在游戏页输出 viewport + App 式纯净界面，避免影响站点其他未适配页面。
+$GLOBALS['nexus_is_game_page'] = (strpos((string)($_SERVER['SCRIPT_NAME'] ?? ''), '/games/') !== false
+    || strpos((string)($_SERVER['REQUEST_URI'] ?? ''), '/games/') !== false);
+if ($GLOBALS['nexus_is_game_page']){
+?>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+/* 手机端游戏板块：隐藏全站顶部导航/账户/通知区，做成 App 式纯净界面（注意只隐藏导航相关块，
+   不能动 .mainouter——它同时是正文容器#outer的外层；导航用 #nav_block 精确定位）。 */
+@media (max-width: 768px) {
+    body.page-games table.head, body.page-games #nav_block, body.page-games #top-account-widget,
+    body.page-games #info_block, body.page-games #global-top-banner, body.page-games #qd-side-tools,
+    body.page-games-php table.head, body.page-games-php #nav_block, body.page-games-php #top-account-widget,
+    body.page-games-php #info_block, body.page-games-php #global-top-banner, body.page-games-php #qd-side-tools { display: none !important; }
+    body.page-games #outer, body.page-games-php #outer { padding: 6px 0 !important; }
+    .gm-float { position: fixed; z-index: 9992; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 50%; background: rgba(18,38,60,.86); color: #fff; border: 1px solid rgba(140,180,225,.3); box-shadow: 0 2px 9px rgba(0,0,0,.4); text-decoration: none; cursor: pointer; }
+    .gm-float svg { width: 22px; height: 22px; }
+    .gm-bell { right: 14px; bottom: 16px; }
+    .gm-land { right: 14px; bottom: 68px; }
+    .gm-bell-badge { position: absolute; top: -3px; right: -3px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: #e8453c; color: #fff; font-size: 11px; font-weight: 800; line-height: 18px; text-align: center; box-sizing: border-box; }
+}
+.gm-float { display: none; }
+</style>
+<?php
+}
 if ($metakeywords_tweak){
 ?>
 <meta name="keywords" content="<?php echo htmlspecialchars($metakeywords_tweak)?>" />
@@ -3231,6 +3256,35 @@ else {
 		<span class="qd-side-text">游戏大厅</span>
 	</a>
 </div>
+<?php if (!empty($GLOBALS['nexus_is_game_page'])) { ?>
+<button type="button" class="gm-float gm-land" id="gmLandBtn" title="横屏" aria-label="横屏">
+	<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M3 16v3a2 2 0 0 1 2 2h3"></path></svg>
+</button>
+<a class="gm-float gm-bell" href="messages.php" title="通知" aria-label="通知">
+	<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+<?php if (isset($topUnreadCount) && $topUnreadCount > 0) { ?>	<span class="gm-bell-badge"><?php echo $topUnreadCount > 99 ? '99+' : $topUnreadCount ?></span>
+<?php } ?></a>
+<script>
+(function () {
+	var b = document.getElementById('gmLandBtn');
+	if (!b) return;
+	b.addEventListener('click', function () {
+		var doc = document, el = doc.documentElement;
+		var fs = doc.fullscreenElement || doc.webkitFullscreenElement;
+		var lock = function () { try { if (screen.orientation && screen.orientation.lock) { screen.orientation.lock('landscape').catch(function () {}); } } catch (e) {} };
+		if (!fs) {
+			var req = el.requestFullscreen || el.webkitRequestFullscreen;
+			if (req) { var p = req.call(el); if (p && p.then) { p.then(lock).catch(lock); } else { lock(); } }
+			else { lock(); }
+		} else {
+			try { if (screen.orientation && screen.orientation.unlock) { screen.orientation.unlock(); } } catch (e) {}
+			var ex = doc.exitFullscreen || doc.webkitExitFullscreen;
+			if (ex) { ex.call(doc); }
+		}
+	});
+})();
+</script>
+<?php } ?>
 <style>
 .qd-bank-bal{display:flex;gap:10px;margin:6px 0 12px;}
 .qd-bank-bal div{flex:1;text-align:center;background:var(--bili-surface-soft,#f2f3f5);border-radius:10px;padding:9px 6px;}

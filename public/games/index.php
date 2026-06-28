@@ -513,7 +513,65 @@ body.page-games-php:not(.inframe) {
         height: 132px;
     }
 }
+
+@media (max-width: 430px) {
+    .steam-games { padding: 6px 6px 22px; }
+    .steam-game-row { grid-template-columns: 100px minmax(0, 1fr); }
+    .steam-capsule { min-height: 84px; }
+    .steam-game-title { font-size: 16px; }
+    .steam-game-subtitle { font-size: 12px; }
+    .steam-tabs { gap: 14px; font-size: 15px; }
+    .steam-board-title { font-size: 18px; }
+    .steam-board-sub { display: block; font-size: 12px; font-weight: 400; }
+}
+
+/* ============ 手机端独立布局（仿手机游戏中心 App） ============ */
+.games-mobile { display: none; }
+@media (max-width: 768px) {
+    .games-desktop { display: none !important; }
+    .games-mobile { display: block !important; }
+}
+.gm { max-width: 560px; margin: 0 auto; padding: 8px 12px 34px; }
+.gm-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 2px 14px; }
+.gm-top-title { font-size: 20px; font-weight: 800; color: #eaf2fb; }
+.gm-top-bal { font-size: 13px; color: #9fb6cf; background: rgba(120,150,190,.14); border: 1px solid rgba(120,150,190,.3); padding: 5px 11px; border-radius: 999px; white-space: nowrap; }
+.gm-top-bal b { color: #ffd770; }
+.gm-feature { display: flex; align-items: center; gap: 12px; background: linear-gradient(135deg,#16324f,#0b1c2e); border: 1px solid rgba(91,160,230,.32); border-radius: 16px; padding: 13px; text-decoration: none; }
+.gm-feature-icon { width: 56px; height: 56px; border-radius: 14px; background: #1c3550 center/cover no-repeat; flex: none; box-shadow: 0 3px 9px rgba(0,0,0,.35); }
+.gm-feature-txt { min-width: 0; flex: 1; }
+.gm-feature-name { font-size: 16px; font-weight: 800; color: #eef4fb; }
+.gm-feature-sub { font-size: 12px; color: #90a6bf; margin-top: 3px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.gm-feature-go { flex: none; color: #5bb8f1; font-size: 13px; font-weight: 800; }
+.gm-sec-title { font-size: 15px; font-weight: 800; color: #d4e3f4; margin: 18px 2px 11px; }
+.gm-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.gm-tile { display: flex; flex-direction: column; align-items: center; text-align: center; text-decoration: none; background: rgba(255,255,255,.045); border: 1px solid rgba(120,150,190,.2); border-radius: 16px; padding: 13px 6px 11px; transition: transform .12s ease; }
+.gm-tile:active { transform: scale(.95); }
+.gm-tile-icon { width: 58px; height: 58px; border-radius: 16px; background: linear-gradient(135deg,#33567c,#1d3450) center/cover no-repeat; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 800; color: #fff; box-shadow: 0 3px 9px rgba(0,0,0,.32); }
+.gm-tile-name { font-size: 13px; font-weight: 700; color: #e8eff8; margin-top: 9px; line-height: 1.2; }
+.gm-tile-tag { font-size: 10px; color: #8aa0b6; margin-top: 3px; }
+.gm-tile.is-disabled { opacity: .5; }
+.gm-tile.is-disabled .gm-tile-tag { color: #ff9d9d; }
+.gm-board { margin-top: 4px; }
 </style>
+<?php
+// 总榜数据：桌面版与手机版两套布局共用，避免重复查询。
+$hallProfit = game_lb_bonus('profit', null, 10);
+$hallProfitLow = game_lb_bonus('profit', null, 10, 'ASC');
+$hallActive = game_lb_bonus('active', null, 10);
+$hallWin    = game_lb_bonus('wincount', null, 10);
+echo game_lb_css();
+$renderBoards = function () use ($hallProfit, $hallProfitLow, $hallActive, $hallWin) {
+    echo game_lb_table('💰 盈亏榜', $hallProfit, '净盈亏',
+        function ($r) { return ((float)$r['amt'] >= 0 ? '+' : '') . game_lb_money($r['amt']); },
+        function ($r) { return (float)$r['amt'] >= 0 ? 'glb-pos' : 'glb-neg'; }, $hallProfitLow);
+    echo game_lb_table('🔥 活跃榜', $hallActive, '参与次数',
+        function ($r) { return number_format((int)$r['amt']) . ' 次'; });
+    echo game_lb_table('🎉 中奖榜', $hallWin, '中奖次数',
+        function ($r) { return number_format((int)$r['amt']) . ' 次'; },
+        function ($r) { return 'glb-pos'; });
+};
+?>
+<div class="games-desktop">
 <div class="steam-games">
     <nav class="steam-tabs" aria-label="游戏分类">
         <span class="steam-tab is-active">热门新品</span>
@@ -557,27 +615,9 @@ body.page-games-php:not(.inframe) {
         </section>
     </div>
 
-    <?php
-    $hallProfit = game_lb_bonus('profit', null, 10);
-    $hallProfitLow = game_lb_bonus('profit', null, 10, 'ASC');
-    $hallActive = game_lb_bonus('active', null, 10);
-    $hallWin    = game_lb_bonus('wincount', null, 10);
-    echo game_lb_css();
-    ?>
     <section class="steam-board" aria-label="游戏大厅总榜">
         <h2 class="steam-board-title">🏆 游戏大厅总榜 <span class="steam-board-sub">汇总全部游戏（电影票）</span></h2>
-        <div class="glb-grid">
-            <?php
-            echo game_lb_table('💰 盈亏榜', $hallProfit, '净盈亏',
-                function ($r) { return ((float)$r['amt'] >= 0 ? '+' : '') . game_lb_money($r['amt']); },
-                function ($r) { return (float)$r['amt'] >= 0 ? 'glb-pos' : 'glb-neg'; }, $hallProfitLow);
-            echo game_lb_table('🔥 活跃榜', $hallActive, '参与次数',
-                function ($r) { return number_format((int)$r['amt']) . ' 次'; });
-            echo game_lb_table('🎉 中奖榜', $hallWin, '中奖次数',
-                function ($r) { return number_format((int)$r['amt']) . ' 次'; },
-                function ($r) { return 'glb-pos'; });
-            ?>
-        </div>
+        <div class="glb-grid"><?php $renderBoards(); ?></div>
     </section>
 
     <div class="steam-more">
@@ -585,6 +625,59 @@ body.page-games-php:not(.inframe) {
         <button type="button">热门新品</button>
         <span>或</span>
         <button type="button">全部游戏</button>
+    </div>
+</div>
+</div><!-- /.games-desktop -->
+
+<div class="games-mobile">
+    <div class="gm">
+        <div class="gm-top">
+            <div class="gm-top-title">🎮 游戏中心</div>
+            <div class="gm-top-bal">电影票 <b><?php echo number_format(floor((float)($CURUSER['seedbonus'] ?? 0))) ?></b></div>
+        </div>
+
+        <?php
+        $f = $games[0];
+        $fIcon = is_file(__DIR__ . '/icons/' . $f['theme'] . '.png');
+        ?>
+        <a class="gm-feature" href="<?php echo htmlspecialchars($f['href']) ?>">
+            <div class="gm-feature-icon"<?php if ($fIcon) { echo ' style="background-image:url(\'/games/icons/' . htmlspecialchars($f['theme']) . '.png?v=2\')"'; } ?>></div>
+            <div class="gm-feature-txt">
+                <div class="gm-feature-name"><?php echo htmlspecialchars($f['title']) ?></div>
+                <div class="gm-feature-sub"><?php echo htmlspecialchars($f['subtitle']) ?></div>
+            </div>
+            <span class="gm-feature-go">进入 ›</span>
+        </a>
+
+        <div class="gm-sec-title">全部游戏</div>
+        <div class="gm-grid">
+            <?php foreach ($games as $game) {
+                $ctrlKey = preg_match('#^/games/([^/]+)/#', $game['href'], $m) ? $m[1] : null;
+                $gClosed = $ctrlKey ? !game_is_open($ctrlKey) : false;
+                $gCanAccess = $ctrlKey ? game_user_can_access($ctrlKey) : true;
+                $gBlocked = $gClosed && !$gCanAccess;
+                $disabled = $game['href'] === '#' || $gBlocked;
+                $rowHref = $disabled ? '#' : $game['href'];
+                $hasIcon = is_file(__DIR__ . '/icons/' . $game['theme'] . '.png');
+                $tag = '';
+                if ($gClosed) {
+                    $tag = $gCanAccess ? '可预览' : '未开放';
+                } elseif (($game['status'] ?? '') !== '可玩') {
+                    $tag = $game['status'] ?? '';
+                }
+                ?>
+                <a class="gm-tile<?php echo $disabled ? ' is-disabled' : '' ?>" href="<?php echo htmlspecialchars($rowHref) ?>"<?php echo $disabled ? ' onclick="return false;"' : '' ?>>
+                    <div class="gm-tile-icon"<?php if ($hasIcon) { echo ' style="background-image:url(\'/games/icons/' . htmlspecialchars($game['theme']) . '.png?v=2\')"'; } ?>><?php echo $hasIcon ? '' : htmlspecialchars(mb_substr($game['title'], 0, 1)) ?></div>
+                    <div class="gm-tile-name"><?php echo htmlspecialchars($game['title']) ?></div>
+                    <?php if ($tag !== '') { ?><div class="gm-tile-tag"><?php echo htmlspecialchars($tag) ?></div><?php } ?>
+                </a>
+            <?php } ?>
+        </div>
+
+        <div class="gm-sec-title">🏆 游戏大厅总榜</div>
+        <div class="gm-board">
+            <div class="glb-grid"><?php $renderBoards(); ?></div>
+        </div>
     </div>
 </div>
 <?php
