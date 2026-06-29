@@ -15,16 +15,22 @@ $ratio = $down > 0 ? number_format($up / $down, 2) : ($up > 0 ? '∞' : '---');
 $bonus = number_format(floor((float)($CURUSER['seedbonus'] ?? 0)));
 $classText = function_exists('get_user_class_name') ? get_user_class_name((int)($CURUSER['class'] ?? 0)) : '';
 
-// 个性化配色：取 PC 端账号设置的个性化主色/背景色（UserMeta PERSONALIZE）
-$mhPrimary = '#3a6df0';
-$mhBg = '';
+// 个性化配色：完全对齐 PC 端映射（UserMeta PERSONALIZE）：
+//   --bili-bg=页面背景, --bili-surface=卡片/栏面板, --bili-primary=强调色(文字/图标/选中)
+$mhPrimary = '#00aeec';
+$mhBg = '#f6f7fb';
+$mhSurface = '#ffffff';
+$mhText = '#1b2230';
 try {
     $pm = \App\Models\UserMeta::query()->where('uid', $uid)->where('meta_key', 'PERSONALIZE')->where('status', 0)->value('meta_value');
     if ($pm) {
         $arr = json_decode($pm, true);
         if (is_array($arr)) {
-            if (isset($arr['--bili-primary']) && preg_match('/^#[0-9a-fA-F]{6}$/', $arr['--bili-primary'])) $mhPrimary = $arr['--bili-primary'];
-            if (isset($arr['--bili-bg']) && preg_match('/^#[0-9a-fA-F]{6}$/', $arr['--bili-bg'])) $mhBg = $arr['--bili-bg'];
+            $re = '/^#[0-9a-fA-F]{6}$/';
+            if (isset($arr['--bili-primary']) && preg_match($re, $arr['--bili-primary'])) $mhPrimary = $arr['--bili-primary'];
+            if (isset($arr['--bili-bg']) && preg_match($re, $arr['--bili-bg'])) $mhBg = $arr['--bili-bg'];
+            if (isset($arr['--bili-surface']) && preg_match($re, $arr['--bili-surface'])) $mhSurface = $arr['--bili-surface'];
+            if (isset($arr['--bili-text']) && preg_match($re, $arr['--bili-text'])) $mhText = $arr['--bili-text'];
         }
     }
 } catch (\Throwable $e) {}
@@ -35,9 +41,7 @@ function mh_lighten($hex, $pct) {
     $r = (int)round($r + (255 - $r) * $pct); $g = (int)round($g + (255 - $g) * $pct); $b = (int)round($b + (255 - $b) * $pct);
     return sprintf('#%02x%02x%02x', $r, $g, $b);
 }
-$mhGradEnd = mh_lighten($mhPrimary, 0.40);
-$mhSoft = mh_lighten($mhPrimary, 0.86);
-if ($mhBg === '') $mhBg = mh_lighten($mhPrimary, 0.90); // 没设置个性化背景则用主色淡化版
+$mhSoft = mh_lighten($mhPrimary, 0.86); // 主色淡化版：图标底/头像底/标签底/选中底
 
 $unread = 0;
 try { $unread = (int)get_row_count('messages', "WHERE receiver = " . $uid . " AND unread = 'yes' AND location != 0"); } catch (\Throwable $e) {}
@@ -93,20 +97,20 @@ $navItems = [
 <meta name="mobile-web-app-capable" content="yes" />
 <title><?php echo htmlspecialchars(($SITENAME ?? 'HDvideo')) ?> · 首页</title>
 <style>
-:root { --mh-primary: <?php echo $mhPrimary ?>; --mh-grad-end: <?php echo $mhGradEnd ?>; --mh-soft: <?php echo $mhSoft ?>; --mh-bg: <?php echo $mhBg ?>; }
+:root { --mh-primary: <?php echo $mhPrimary ?>; --mh-soft: <?php echo $mhSoft ?>; --mh-bg: <?php echo $mhBg ?>; --mh-surface: <?php echo $mhSurface ?>; --mh-text: <?php echo $mhText ?>; }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; padding: 0; }
-body { background: var(--mh-bg); color: #1b2230; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", Helvetica, Arial, sans-serif; padding-bottom: calc(64px + env(safe-area-inset-bottom)); min-height: 100vh; min-height: 100dvh; }
+body { background: var(--mh-bg); color: var(--mh-text); font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", Helvetica, Arial, sans-serif; padding-bottom: calc(64px + env(safe-area-inset-bottom)); min-height: 100vh; min-height: 100dvh; }
 a { color: inherit; text-decoration: none; }
 img { max-width: 100%; height: auto; }
 
 .m-top { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; gap: 10px;
     padding: calc(10px + env(safe-area-inset-top)) 14px 10px;
-    background: linear-gradient(135deg, var(--mh-primary), var(--mh-grad-end)); color: #fff; box-shadow: 0 2px 10px rgba(20,40,90,.25); }
-.m-brand { font-size: 20px; font-weight: 900; letter-spacing: .5px; }
-.m-brand span { opacity: .85; font-weight: 700; }
-.m-burger { margin-left: auto; width: 40px; height: 40px; border: none; background: rgba(255,255,255,.22); border-radius: 11px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; padding: 0; }
-.m-burger span { width: 20px; height: 2px; background: #fff; border-radius: 2px; transition: transform .25s ease, opacity .2s ease; }
+    background: var(--mh-surface); color: var(--mh-primary); box-shadow: 0 1px 10px rgba(20,40,90,.10); border-bottom: 1px solid rgba(20,40,90,.06); }
+.m-brand { font-size: 20px; font-weight: 900; letter-spacing: .5px; color: var(--mh-primary); }
+.m-brand span { opacity: .7; font-weight: 700; }
+.m-burger { margin-left: auto; width: 40px; height: 40px; border: none; background: var(--mh-soft); border-radius: 11px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; padding: 0; }
+.m-burger span { width: 20px; height: 2px; background: var(--mh-primary); border-radius: 2px; transition: transform .25s ease, opacity .2s ease; }
 body.menu-open .m-burger span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
 body.menu-open .m-burger span:nth-child(2) { opacity: 0; }
 body.menu-open .m-burger span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
@@ -114,30 +118,30 @@ body.menu-open .m-burger span:nth-child(3) { transform: translateY(-6px) rotate(
 /* 顶部下拉导航抽屉 */
 .m-mask { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,.45); opacity: 0; visibility: hidden; transition: opacity .25s ease; }
 body.menu-open .m-mask { opacity: 1; visibility: visible; }
-.m-drawer { position: fixed; left: 0; right: 0; top: 0; z-index: 45; background: #fff; border-radius: 0 0 18px 18px;
-    padding: calc(60px + env(safe-area-inset-top)) 14px 18px; box-shadow: 0 14px 28px rgba(20,40,90,.22);
+.m-drawer { position: fixed; left: 0; right: 0; top: 0; z-index: 45; background: var(--mh-surface); border-radius: 0 0 18px 18px;
+    padding: calc(60px + env(safe-area-inset-top)) 14px 18px; box-shadow: 0 14px 28px rgba(20,40,90,.18);
     transform: translateY(-100%); transition: transform .3s ease; }
 body.menu-open .m-drawer { transform: translateY(0); }
 .m-drawer .m-grid { margin: 0; }
 
-.m-stat { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin: 12px; background: linear-gradient(135deg, var(--mh-primary), var(--mh-grad-end)); border-radius: 16px; overflow: hidden; box-shadow: 0 6px 16px rgba(20,40,90,.22); }
-.m-stat > div { background: transparent; color: #fff; text-align: center; padding: 12px 4px; }
-.m-stat b { display: block; font-size: 15px; font-weight: 800; }
-.m-stat span { font-size: 11px; opacity: .85; }
-.m-stat .uname { grid-column: 1 / -1; text-align: left; padding: 12px 14px 6px; display: flex; align-items: center; gap: 10px; }
-.m-stat .av { flex: none; width: 44px; height: 44px; border-radius: 50%; overflow: hidden; background: rgba(255,255,255,.25); display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 19px; color: #fff; box-shadow: 0 0 0 2px rgba(255,255,255,.55); }
+.m-stat { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px 4px; margin: 12px; background: var(--mh-surface); border: 1px solid rgba(20,40,90,.06); border-radius: 16px; padding: 6px 4px 12px; box-shadow: 0 4px 14px rgba(20,40,90,.08); }
+.m-stat > div { background: transparent; color: var(--mh-text); text-align: center; padding: 6px 2px; }
+.m-stat b { display: block; font-size: 15px; font-weight: 800; color: var(--mh-primary); }
+.m-stat span { font-size: 11px; color: #8a96ad; }
+.m-stat .uname { grid-column: 1 / -1; text-align: left; padding: 10px 12px 8px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(20,40,90,.06); margin-bottom: 4px; }
+.m-stat .av { flex: none; width: 44px; height: 44px; border-radius: 50%; overflow: hidden; background: var(--mh-soft); display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 19px; color: var(--mh-primary); box-shadow: 0 0 0 2px var(--mh-soft); }
 .m-stat .av img { width: 100%; height: 100%; object-fit: cover; }
 .m-stat .who { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.m-stat .who b { font-size: 16px; }
-.m-stat .uname .tag { font-size: 11px; background: rgba(255,255,255,.22); padding: 2px 8px; border-radius: 999px; font-weight: 700; align-self: flex-start; }
+.m-stat .who b { font-size: 16px; color: var(--mh-text); }
+.m-stat .uname .tag { font-size: 11px; background: var(--mh-soft); color: var(--mh-primary); padding: 2px 8px; border-radius: 999px; font-weight: 700; align-self: flex-start; }
 
 .m-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 0 12px 12px; }
-.m-grid a { background: #fff; border-radius: 14px; padding: 12px 4px; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #2b3550; box-shadow: 0 2px 8px rgba(30,50,100,.06); position: relative; }
+.m-grid a { background: var(--mh-bg); border-radius: 14px; padding: 12px 4px; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--mh-text); position: relative; }
 .m-grid a .ic { width: 38px; height: 38px; border-radius: 12px; background: var(--mh-soft); display: flex; align-items: center; justify-content: center; }
 .m-grid a .ic svg { width: 21px; height: 21px; fill: none; stroke: var(--mh-primary); stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .m-grid a .badge { position: absolute; top: 6px; right: 12px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: #ff4d5e; color: #fff; font-size: 10px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
 
-.m-card { background: #fff; border-radius: 16px; margin: 0 12px 12px; padding: 4px 14px 10px; box-shadow: 0 2px 10px rgba(30,50,100,.06); }
+.m-card { background: var(--mh-surface); border-radius: 16px; margin: 0 12px 12px; padding: 4px 14px 10px; border: 1px solid rgba(20,40,90,.06); box-shadow: 0 2px 10px rgba(20,40,90,.06); }
 .m-card h3 { font-size: 15px; margin: 12px 0 6px; display: flex; align-items: center; }
 .m-card h3 .more { margin-left: auto; font-size: 12px; color: var(--mh-primary); font-weight: 600; }
 .m-card h3::before { content: ""; width: 4px; height: 15px; border-radius: 2px; background: var(--mh-primary); margin-right: 8px; }
@@ -164,8 +168,8 @@ body.menu-open .m-drawer { transform: translateY(0); }
 .m-pcfoot { text-align: center; margin: 4px 12px 18px; }
 .m-pcfoot a { font-size: 12px; color: #8f9bb3; }
 
-.m-tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; background: #fff;
-    border-top: 1px solid #e6eaf2; padding-bottom: env(safe-area-inset-bottom); box-shadow: 0 -2px 12px rgba(30,50,100,.08); }
+.m-tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; background: var(--mh-surface);
+    border-top: 1px solid rgba(20,40,90,.08); padding-bottom: env(safe-area-inset-bottom); box-shadow: 0 -2px 12px rgba(20,40,90,.08); }
 .m-tabbar a { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0 6px; font-size: 11px; color: #8b96ad; position: relative; }
 .m-tabbar a.on { color: var(--mh-primary); }
 .m-tabbar a svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
