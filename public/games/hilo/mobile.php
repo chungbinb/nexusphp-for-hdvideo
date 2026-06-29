@@ -19,14 +19,17 @@ $hlStreak = game_lb_run("SELECT `s`.`uid` AS uid, `u`.`username` AS username, MA
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <title>猜高低</title>
 <style>
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { margin: 0; padding: 0; min-height: 100%; }
+html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
 body { background: #160b22; color: #efe6f7; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", Helvetica, Arial, sans-serif; }
 a { color: inherit; text-decoration: none; }
 
-.hl-app { min-height: 100vh; display: flex; flex-direction: column; background: radial-gradient(ellipse 120% 80% at 50% -10%, #3a2350 0%, #2a1640 40%, #190c28 70%, #120819 100%); }
+.hl-app { position: fixed; top: 0; left: 0; right: 0; height: 100vh; height: 100dvh; display: flex; flex-direction: column; background: radial-gradient(ellipse 120% 80% at 50% -10%, #3a2350 0%, #2a1640 40%, #190c28 70%, #120819 100%); }
 
 /* 顶栏 */
 .hl-top { position: relative; z-index: 5; display: flex; align-items: center; justify-content: space-between; padding: 12px 14px calc(10px + env(safe-area-inset-top)); padding-top: calc(12px + env(safe-area-inset-top)); }
@@ -54,7 +57,7 @@ a { color: inherit; text-decoration: none; }
 .hl-pos { color: #6ee7a0; } .hl-neg { color: #ff9a9a; }
 
 /* 底部操作区 */
-.hl-bar { position: relative; z-index: 5; padding: 10px 16px calc(14px + env(safe-area-inset-bottom)); background: linear-gradient(180deg, rgba(18,8,25,0), rgba(12,5,17,.85) 40%); }
+.hl-bar { position: relative; z-index: 5; padding: 10px 16px calc(14px + env(safe-area-inset-bottom)); background: transparent; }
 .hl-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 .hl-btn { flex: 1; min-width: 92px; max-width: 160px; padding: 15px 10px; font-weight: 900; cursor: pointer; border-radius: 12px; border: none; background: #8e44ad; color: #fff; font-size: 17px; box-shadow: 0 4px 10px rgba(0,0,0,.4); }
 .hl-btn small { display: block; font-size: 12px; opacity: .85; font-weight: 700; margin-top: 2px; }
@@ -69,6 +72,21 @@ a { color: inherit; text-decoration: none; }
 .hl-chip.sel { outline: 3px solid #ffd770; outline-offset: 1px; }
 .hl-bet { display: none; }
 .hl-betwrap { display: flex; align-items: center; justify-content: center; gap: 10px; }
+
+/* 横屏：下注区(筹码/开始)仍在底部不动；只把「猜牌中」的高/低/收手移到屏幕左右两侧，
+   避免被浏览器上下地址栏/工具栏遮挡。猜牌行 display:none 时按钮随之隐藏。 */
+@media (orientation: landscape) {
+    .hl-rules { display: none; }                     /* 横屏隐藏规则文字，腾出空间 */
+    .hl-stage { padding: 4px 130px; }                /* 牌区两侧留出按钮空间 */
+    .hl-card { width: 104px; height: 144px; font-size: 30px; }
+    .hl-info { margin: 10px 0 4px; }
+    .hl-btn { flex: 0 0 auto; min-width: 120px; }
+    /* 收手：左侧居中 */
+    #hlGuessRow #hlCash { position: fixed; left: calc(10px + env(safe-area-inset-left)); top: 50%; transform: translateY(-50%); z-index: 9; }
+    /* 高 / 低：右侧上下排 */
+    #hlGuessRow #hlHi { position: fixed; right: calc(10px + env(safe-area-inset-right)); top: calc(50% - 42px); transform: translateY(-50%); z-index: 9; }
+    #hlGuessRow #hlLo { position: fixed; right: calc(10px + env(safe-area-inset-right)); top: calc(50% + 42px); transform: translateY(-50%); z-index: 9; }
+}
 
 /* 榜单弹窗 */
 .hl-modal { position: fixed; inset: 0; z-index: 300; display: none; }
@@ -251,16 +269,28 @@ a { color: inherit; text-decoration: none; }
     document.getElementById('hlLbBtn').addEventListener('click', function () { modal.classList.add('show'); });
     modal.addEventListener('click', function (e) { if (e.target.getAttribute('data-close')) modal.classList.remove('show'); });
 
-    // 横屏
-    document.getElementById('hlFsBtn').addEventListener('click', function () {
+    // 顶部「全屏」按钮：进入/退出全屏（安卓 Chrome 有效；iPhone Safari 不支持网页全屏，给出提示）
+    var fsBtn = document.getElementById('hlFsBtn');
+    if (fsBtn) fsBtn.addEventListener('click', function () {
         var el = document.documentElement;
-        var req = el.requestFullscreen || el.webkitRequestFullscreen;
-        try {
-            var p = req ? req.call(el) : null;
-            Promise.resolve(p).then(function () {
-                if (screen.orientation && screen.orientation.lock) return screen.orientation.lock('landscape');
-            }).catch(function () {});
-        } catch (e) {}
+        var fs = document.fullscreenElement || document.webkitFullscreenElement;
+        if (!fs) {
+            var req = el.requestFullscreen || el.webkitRequestFullscreen;
+            if (req) {
+                try {
+                    var p = req.call(el);
+                    Promise.resolve(p).then(function () {
+                        if (screen.orientation && screen.orientation.lock) return screen.orientation.lock('landscape');
+                    }).catch(function () {});
+                } catch (e) {}
+            } else {
+                alert('当前浏览器不支持网页全屏（iPhone Safari 限制）。已把操作按钮放到屏幕左右两侧，横屏也不会被地址栏挡住；想要真全屏可用安卓 Chrome，或把页面「添加到主屏幕」后从图标打开。');
+            }
+        } else {
+            try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {}
+            var ex = document.exitFullscreen || document.webkitExitFullscreen;
+            if (ex) ex.call(document);
+        }
     });
 })();
 </script>

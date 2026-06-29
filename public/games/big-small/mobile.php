@@ -15,6 +15,14 @@ $drawRes = sql_query("SELECT * FROM `" . GAME_BS_ROUND_TABLE . "` WHERE `status`
 $draws = [];
 while ($d = mysql_fetch_assoc($drawRes)) { $draws[] = $d; }
 
+// 我在这些开奖期里中过奖的期号（用于给开奖条上的对应期加红框）
+$wonRounds = [];
+$drawIds = array_map(function ($d) { return (int)$d['id']; }, $draws);
+if ($drawIds) {
+    $wr = sql_query("SELECT DISTINCT `round_id` FROM `" . GAME_BS_BET_TABLE . "` WHERE `uid` = $uid AND `status` = 'won' AND `round_id` IN (" . implode(',', $drawIds) . ")") or sqlerr(__FILE__, __LINE__);
+    while ($wr && ($w = mysql_fetch_assoc($wr))) { $wonRounds[(int)$w['round_id']] = true; }
+}
+
 // 我的最近押注
 $myRes = sql_query("SELECT * FROM `" . GAME_BS_BET_TABLE . "` WHERE `uid` = $uid ORDER BY `id` DESC LIMIT 12") or sqlerr(__FILE__, __LINE__);
 
@@ -39,6 +47,9 @@ function bs_draw_badge($d) {
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <title>压大小</title>
 <style>
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -46,12 +57,12 @@ html, body { margin: 0; padding: 0; min-height: 100%; }
 body { background: #07140d; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", Helvetica, Arial, sans-serif; }
 a { color: inherit; text-decoration: none; }
 
-.bz { position: relative; min-height: 100vh; display: flex; flex-direction: column;
+.bz { position: fixed; top: 0; left: 0; right: 0; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow-y: auto;
     background: radial-gradient(ellipse 120% 90% at 50% -16%, #2f9b72 0%, #14785a 40%, #0c5740 64%, #073f2d 100%); }
 .bz::after { content: ""; position: fixed; inset: 0; border: 12px solid #2a1a0e; pointer-events: none;
     box-shadow: inset 0 0 0 2px #6b4a2b, inset 0 0 36px rgba(0,0,0,.5); z-index: 30; }
 
-.bz-top { position: relative; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 16px 4px; }
+.bz-top { position: relative; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: calc(20px + env(safe-area-inset-top)) 16px 4px; }
 .bz-tbtn { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; color: #d8e6df; }
 .bz-tbtn svg { width: 21px; height: 21px; }
 .bz-mid { text-align: center; flex: 1; }
@@ -64,12 +75,16 @@ a { color: inherit; text-decoration: none; }
 /* 最近开奖条 */
 .bz-draws { position: relative; z-index: 5; display: flex; gap: 6px; overflow-x: auto; padding: 6px 14px; scrollbar-width: none; }
 .bz-draws::-webkit-scrollbar { display: none; }
-.bz-draw { flex: none; min-width: 46px; text-align: center; background: rgba(0,0,0,.28); border-radius: 8px; padding: 4px 0; }
+.bz-draw { position: relative; flex: none; min-width: 46px; text-align: center; background: rgba(0,0,0,.28); border-radius: 8px; padding: 4px 0; }
+.bz-draw--win { outline: 2px solid #ff3b3b; outline-offset: -1px; box-shadow: 0 0 7px rgba(255,59,59,.55); }
+.bz-win-tag { position: absolute; top: 1px; right: 1px; background: #ff3b3b; color: #fff; font-size: 9px; font-weight: 800; line-height: 1; padding: 1px 3px; border-radius: 5px; }
+.bz-drawcol { flex: none; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.bz-draw-iss { font-size: 10px; font-weight: 700; color: #cfe0d6; line-height: 1; }
 .bz-draw .n { font-size: 14px; font-weight: 800; }
 .bz-draw .t { font-size: 11px; font-weight: 800; }
 
 /* 押注区 */
-.bz-felt { position: relative; z-index: 4; flex: 1; padding: 6px 14px 4px; }
+.bz-felt { position: relative; z-index: 4; flex: 1; display: flex; flex-direction: column; padding: 6px 14px 4px; }
 .bz-totals { text-align: center; font-size: 12px; color: rgba(255,255,255,.75); margin-bottom: 6px; }
 .bz-spots { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .bz-spot { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 14px 8px; border-radius: 12px; border: 2px solid rgba(255,235,170,.35); background: rgba(0,0,0,.2); cursor: pointer; }
@@ -89,14 +104,30 @@ a { color: inherit; text-decoration: none; }
 .bz-num input { width: 150px; max-width: 60%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,235,170,.5); background: #0e2419; color: #fff; font-size: 18px; text-align: center; letter-spacing: 4px; }
 
 /* 底栏 */
-.bz-bar { position: relative; z-index: 5; display: flex; align-items: center; gap: 8px; padding: 8px 16px calc(8px + env(safe-area-inset-bottom)); background: linear-gradient(180deg, rgba(6,16,11,0), rgba(4,10,7,.85) 45%); }
-.bz-money { flex: none; min-width: 84px; }
-.bz-money .v { font-size: 17px; font-weight: 900; color: #ffd86b; } .bz-money .k { font-size: 10px; color: #9fb6a8; }
-.bz-chips { flex: 1; display: flex; gap: 8px; overflow-x: auto; align-items: center; scrollbar-width: none; }
-.bz-chips::-webkit-scrollbar { display: none; }
-.bz-chip { flex: none; width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; color: #fff; cursor: pointer; border: 3px dashed rgba(255,255,255,.85); text-shadow: 0 1px 2px rgba(0,0,0,.5); }
-.bz-amt { flex: none; min-width: 66px; text-align: center; font-weight: 900; color: #ffd86b; font-size: 15px; }
-.bz-deal { flex: none; padding: 0 18px; height: 56px; border-radius: 12px; background: linear-gradient(180deg,#e0a82c,#a9781a); border: 2px solid #ffe9a8; color: #2a1c02; font-weight: 900; font-size: 16px; cursor: pointer; }
+.bz-bar { position: relative; z-index: 5; margin-top: auto; display: flex; flex-direction: column; gap: 11px; padding: 10px 16px calc(14px + env(safe-area-inset-bottom)); background: transparent; }
+.bz-money { display: flex; align-items: baseline; gap: 6px; }
+.bz-money .v { font-size: 18px; font-weight: 900; color: #ffd86b; } .bz-money .k { font-size: 11px; color: #9fb6a8; }
+.bz-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.bz-chip { flex: none; width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 900; color: #fff; cursor: pointer; border: 3px dashed rgba(255,255,255,.85); text-shadow: 0 1px 2px rgba(0,0,0,.5); }
+.bz-chip.sel { outline: 3px solid #ffd86b; outline-offset: 2px; }
+.bz-betline { display: flex; gap: 10px; align-items: stretch; }
+.bz-amtinput { flex: 1; min-width: 0; height: 54px; padding: 0 14px; border-radius: 12px; border: 1px solid rgba(255,235,170,.5); background: #0e2419; color: #ffd86b; font-size: 18px; font-weight: 800; text-align: center; }
+.bz-amtinput::placeholder { color: #6f8a7e; font-weight: 600; font-size: 14px; }
+.bz-deal { flex: none; padding: 0 28px; height: 54px; border-radius: 12px; background: linear-gradient(180deg,#e0a82c,#a9781a); border: 2px solid #ffe9a8; color: #2a1c02; font-weight: 900; font-size: 17px; cursor: pointer; }
+
+/* 横屏：腾出竖向空间，让押注区 + 底部控制条都能落在可见区域，不被地址栏/工具栏裁掉。 */
+@media (orientation: landscape) {
+    .bz::after { border-width: 6px; }          /* 减薄桌沿，少点黑边 */
+    .bz-totals { display: none; }              /* 隐藏装饰性「本期合计」文字，腾出竖向空间 */
+    .bz-top { padding: 4px 16px 2px; }
+    .bz-draws { padding: 3px 14px; }
+    .bz-felt { padding: 4px 14px 2px; }
+    .bz-spot { padding: 9px 8px; }
+    .bz-spot .big { font-size: 22px; }
+    .bz-opt { padding: 7px 6px; }
+    .bz-mini { margin-top: 7px; }
+    .bz-num { margin-top: 7px; }
+}
 
 /* 弹窗 */
 .bz-modal { position: fixed; inset: 0; z-index: 100; display: none; }
@@ -126,6 +157,9 @@ a { color: inherit; text-decoration: none; }
             <div class="bz-issue">第 <?php echo $issueNo ?> 期 · 每分钟开奖</div>
             <div class="bz-timer" id="bsRemain"><?php echo floor($remain / 60) ?>:<?php echo str_pad((string)($remain % 60), 2, '0', STR_PAD_LEFT) ?></div>
         </div>
+        <span class="bz-tbtn" id="bzFsBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M3 16v3a2 2 0 0 1 2 2h3"></path></svg>全屏
+        </span>
         <span class="bz-tbtn" id="bzLbBtn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"></path></svg>排行榜
         </span>
@@ -135,9 +169,12 @@ a { color: inherit; text-decoration: none; }
     <?php if ($error) { ?><div class="bz-msg err"><?php echo htmlspecialchars($error) ?></div><?php } ?>
 
     <div class="bz-draws">
-        <?php foreach ($draws as $d) { [$n, $t, $c] = bs_draw_badge($d); ?>
-            <div class="bz-draw"><div class="n"><?php echo $n ?></div><div class="t" style="color:<?php echo $c ?>"><?php echo $t ?></div></div>
-        <?php } if (!$draws) { echo '<div class="bz-draw"><div class="t">暂无</div></div>'; } ?>
+        <?php foreach ($draws as $d) { [$n, $t, $c] = bs_draw_badge($d); $won = isset($wonRounds[(int)$d['id']]); $iss = $d['status'] === 'cancelled' ? '' : game_bs_issue_no($d['id']); ?>
+            <div class="bz-drawcol">
+                <div class="bz-draw<?php echo $won ? ' bz-draw--win' : '' ?>"><?php if ($won) { ?><span class="bz-win-tag">中</span><?php } ?><div class="n"><?php echo $n ?></div><div class="t" style="color:<?php echo $c ?>"><?php echo $t ?></div></div>
+                <div class="bz-draw-iss"><?php echo $iss !== '' ? $iss . '期' : '&nbsp;' ?></div>
+            </div>
+        <?php } if (!$draws) { echo '<div class="bz-drawcol"><div class="bz-draw"><div class="t">暂无</div></div></div>'; } ?>
     </div>
 
     <form class="bz-felt" method="post" action="/games/big-small/" id="bsForm">
@@ -156,16 +193,17 @@ a { color: inherit; text-decoration: none; }
         </div>
 
         <div class="bz-bar">
-            <div class="bz-money"><div class="v" id="bsBal"><?php echo $mBal ?></div><div class="k">电影票</div></div>
+            <div class="bz-money"><span class="v" id="bsBal"><?php echo $mBal ?></span><span class="k">电影票</span></div>
             <div class="bz-chips">
                 <?php $cc = ['#7f8c8d','#c0392b','#2e86c1','#8e44ad','#d4a017']; foreach ($chips as $i => $c) { ?>
                     <span class="bz-chip" data-amt="<?php echo $c ?>" style="background:<?php echo $cc[$i] ?>"><?php echo bs_chip_label($c) ?></span>
                 <?php } ?>
                 <span class="bz-chip" data-amt="all" style="background:#16a085">梭哈</span>
             </div>
-            <div class="bz-amt" id="bsAmtShow">0</div>
-            <input type="hidden" name="amount" id="bsAmount" value="">
-            <button type="submit" class="bz-deal">押注</button>
+            <div class="bz-betline">
+                <input type="number" name="amount" id="bsAmount" class="bz-amtinput" min="1" step="1" inputmode="numeric" placeholder="自定义电影票数量">
+                <button type="submit" class="bz-deal">押注</button>
+            </div>
         </div>
     </form>
 </div>
@@ -192,7 +230,7 @@ a { color: inherit; text-decoration: none; }
                 <?php while ($b = mysql_fetch_assoc($myRes)) {
                     $c = $b['choice']; $cl = $c === 'big' ? '大' : ($c === 'small' ? '小' : ($c === 'triple' ? '豹子' : ($c === 'straight' ? '顺子' : '数字' . (int)$b['bet_number'])));
                     $stm = ['pending' => '待开', 'won' => '中', 'lost' => '未中', 'refunded' => '退回'][$b['status']] ?? $b['status']; ?>
-                    <tr><td><?php echo game_bs_issue_no($b['round_id']) ?></td><td><?php echo $cl ?></td><td><?php echo game_bs_money($b['amount']) ?></td>
+                    <tr><td><?php echo game_bs_issue_full($b['round_id']) ?></td><td><?php echo $cl ?></td><td><?php echo game_bs_money($b['amount']) ?></td>
                         <td><?php echo $stm ?></td><td class="<?php echo (float)$b['payout'] > 0 ? 'bz-pos' : '' ?>"><?php echo game_bs_money($b['payout']) ?></td></tr>
                 <?php } ?>
             </table>
@@ -224,13 +262,18 @@ a { color: inherit; text-decoration: none; }
     })();
 
     var balInt = <?php echo $mBalInt ?>;
-    var amountEl = document.getElementById('bsAmount'), amtShow = document.getElementById('bsAmtShow');
+    var amountEl = document.getElementById('bsAmount');
     document.querySelectorAll('.bz-chip').forEach(function (chip) {
         chip.addEventListener('click', function () {
             var a = chip.getAttribute('data-amt');
-            var v = a === 'all' ? balInt : parseInt(a, 10);
-            amountEl.value = v; amtShow.textContent = v.toLocaleString();
+            amountEl.value = a === 'all' ? balInt : parseInt(a, 10);
+            document.querySelectorAll('.bz-chip').forEach(function (x) { x.classList.remove('sel'); });
+            chip.classList.add('sel');
         });
+    });
+    // 手动输入自定义金额时取消筹码选中态
+    amountEl.addEventListener('input', function () {
+        document.querySelectorAll('.bz-chip').forEach(function (x) { x.classList.remove('sel'); });
     });
 
     // 选中押注区高亮
@@ -267,6 +310,30 @@ a { color: inherit; text-decoration: none; }
             var p = t.getAttribute('data-pane');
             document.querySelectorAll('.bz-pane').forEach(function (pane) { pane.classList.toggle('on', pane.getAttribute('data-pane') === p); });
         });
+    });
+
+    // 顶部「全屏」按钮：进入/退出全屏（安卓 Chrome 有效；iPhone Safari 不支持网页全屏，给出提示）
+    var fsBtn = document.getElementById('bzFsBtn');
+    if (fsBtn) fsBtn.addEventListener('click', function () {
+        var el = document.documentElement;
+        var fs = document.fullscreenElement || document.webkitFullscreenElement;
+        if (!fs) {
+            var req = el.requestFullscreen || el.webkitRequestFullscreen;
+            if (req) {
+                try {
+                    var p = req.call(el);
+                    Promise.resolve(p).then(function () {
+                        if (screen.orientation && screen.orientation.lock) return screen.orientation.lock('landscape');
+                    }).catch(function () {});
+                } catch (e) {}
+            } else {
+                alert('当前浏览器不支持网页全屏（iPhone Safari 限制）。想要真全屏可用安卓 Chrome，或把页面「添加到主屏幕」后从图标打开。');
+            }
+        } else {
+            try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {}
+            var ex = document.exitFullscreen || document.webkitExitFullscreen;
+            if (ex) ex.call(document);
+        }
     });
 })();
 </script>

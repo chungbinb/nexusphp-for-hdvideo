@@ -77,7 +77,7 @@ a { color: inherit; text-decoration: none; }
 .cz-result.push { color: #2a2009; background: linear-gradient(180deg,#ffd86b,#d9a93a); box-shadow: 0 8px 24px rgba(0,0,0,.5); }
 
 /* 底栏 */
-.cz-bar { position: relative; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 16px calc(8px + env(safe-area-inset-bottom)); background: linear-gradient(180deg, rgba(6,16,11,0), rgba(4,10,7,.85) 40%); }
+.cz-bar { position: relative; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 16px calc(8px + env(safe-area-inset-bottom)); background: transparent; }
 .cz-money { flex: none; min-width: 96px; }
 .cz-money .v { font-size: 19px; font-weight: 900; color: #ffd86b; }
 .cz-money .k { font-size: 10px; color: #9fb6a8; }
@@ -100,10 +100,10 @@ a { color: inherit; text-decoration: none; }
 /* 横屏：下注区(筹码/余额/发牌)仍在底部不动；只把「下注后」的要牌/停牌/加倍移到屏幕左右两侧，
    避免被浏览器上下地址栏/工具栏遮挡。牌区两侧留出空间。 */
 @media (orientation: landscape) {
-    .cz-arc { top: 2%; width: 52%; }
-    .cz-arc text { font-size: 25px; }
-    .cz-rules { top: calc(2% + 46px); }
-    .cz-dealer { margin-top: 26px; }
+    .cz-arc, .cz-rules { display: none; }           /* 横屏隐藏装饰弧字/规则，腾出顶部空间 */
+    .cz::after { border-width: 7px; }               /* 减薄桌沿，少点黑边 */
+    .cz-top { padding-top: 4px; }
+    .cz-dealer { margin-top: 8px; }
     .bj-card { width: 54px; height: 78px; font-size: 17px; }
     .cz-felt { padding: 0 124px; }
     .cz-act { min-width: 110px; height: 54px; }

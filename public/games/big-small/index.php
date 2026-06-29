@@ -141,19 +141,44 @@ function game_bs_type_label($number)
     }
 }
 
-function game_bs_issue_no($roundId)
+/**
+ * 期号按「自然月」编号：同一月内（以 round_start 计）id<=该期的非取消期数即为当月第几期，
+ * 每月 1 号 0 点重新从 1 计数。返回 [YYYYMM, 当月序号]。取消（无人押注）的期不占号。
+ */
+function game_bs_issue_parts($roundId)
 {
     static $cache = [];
     $roundId = (int)$roundId;
     if ($roundId <= 0) {
-        return 0;
+        return ['', 0];
     }
     if (!isset($cache[$roundId])) {
-        // Cancelled rounds (no bets, no draw) do not consume an issue number.
-        $res = sql_query("SELECT COUNT(*) AS c FROM `" . GAME_BS_ROUND_TABLE . "` WHERE `id` <= $roundId AND `status` != 'cancelled'") or sqlerr(__FILE__, __LINE__);
-        $cache[$roundId] = (int)mysql_fetch_assoc($res)['c'];
+        $r = sql_query("SELECT `round_start` FROM `" . GAME_BS_ROUND_TABLE . "` WHERE `id` = $roundId") or sqlerr(__FILE__, __LINE__);
+        $row = mysql_fetch_assoc($r);
+        if (!$row) {
+            $cache[$roundId] = ['', 0];
+        } else {
+            $ts = strtotime($row['round_start']);
+            $monthStart = date('Y-m-01 00:00:00', $ts);
+            // 取消（无人押注）的期不占号。
+            $res = sql_query("SELECT COUNT(*) AS c FROM `" . GAME_BS_ROUND_TABLE . "` WHERE `status` != 'cancelled' AND `round_start` >= " . sqlesc($monthStart) . " AND `id` <= $roundId") or sqlerr(__FILE__, __LINE__);
+            $cache[$roundId] = [date('Ym', $ts), (int)mysql_fetch_assoc($res)['c']];
+        }
     }
     return $cache[$roundId];
+}
+
+/** 当月序号（如 207），用于「第X期」「开奖条下方」等短显示。 */
+function game_bs_issue_no($roundId)
+{
+    return game_bs_issue_parts($roundId)[1];
+}
+
+/** 完整期号（如 202606-207），3 位补零、超过 999 自动加长，用于历史记录。 */
+function game_bs_issue_full($roundId)
+{
+    [$m, $s] = game_bs_issue_parts($roundId);
+    return $m === '' ? '-' : ($m . '-' . str_pad((string)$s, 3, '0', STR_PAD_LEFT));
 }
 
 function game_bs_bonus_log($uid, $old, $delta, $new, $comment)
@@ -424,7 +449,7 @@ echo game_back_link();
                 <tr><th>期号</th><th>截止时间</th><th>数字</th><th>结果</th><th>我的押注</th></tr>
                 <?php while ($item = mysql_fetch_assoc($res)) { ?>
                     <tr>
-                        <td><?php echo game_bs_issue_no($item['id']) ?></td>
+                        <td><?php echo game_bs_issue_full($item['id']) ?></td>
                         <td><?php echo htmlspecialchars($item['round_end']) ?></td>
                         <td><?php echo (int)$item['result_number'] ?></td>
                         <td><?php
@@ -488,7 +513,7 @@ echo game_back_link();
                 <tr><th>期号</th><th>选择</th><th>押注</th><th>状态</th><th>返还</th></tr>
                 <?php while ($bet = mysql_fetch_assoc($res)) { ?>
                     <tr>
-                        <td><?php echo game_bs_issue_no($bet['round_id']) ?></td>
+                        <td><?php echo game_bs_issue_full($bet['round_id']) ?></td>
                         <td><?php $c = $bet['choice']; echo $c === 'big' ? '大' : ($c === 'small' ? '小' : ($c === 'triple' ? '豹子' : ($c === 'straight' ? '顺子' : '数字 ' . (int)$bet['bet_number']))) ?></td>
                         <td><?php echo game_bs_money($bet['amount']) ?></td>
                         <td><?php echo $statusMap[$bet['status']] ?? htmlspecialchars($bet['status']) ?></td>
@@ -856,7 +881,7 @@ echo game_back_link();
                 <tr><th>期号</th><th>选择</th><th>押注</th><th>状态</th><th>返还</th></tr>
                 <?php while ($bet = mysql_fetch_assoc($myBetsRes)) { ?>
                     <tr>
-                        <td><?php echo game_bs_issue_no($bet['round_id']) ?></td>
+                        <td><?php echo game_bs_issue_full($bet['round_id']) ?></td>
                         <td><?php $c = $bet['choice']; echo $c === 'big' ? '大' : ($c === 'small' ? '小' : ($c === 'triple' ? '豹子' : ($c === 'straight' ? '顺子' : '数字 ' . (int)$bet['bet_number']))) ?></td>
                         <td><?php echo game_bs_money($bet['amount']) ?></td>
                         <td><?php echo ['pending' => '待开奖', 'won' => '中奖', 'lost' => '未中', 'refunded' => '已退回'][$bet['status']] ?? htmlspecialchars($bet['status']) ?></td>
@@ -871,7 +896,7 @@ echo game_back_link();
                 <tr><th>期号</th><th>截止时间</th><th>数字</th><th>结果</th></tr>
                 <?php while ($item = mysql_fetch_assoc($historyRes)) { ?>
                     <tr>
-                        <td><?php echo $item['status'] === 'cancelled' ? '-' : game_bs_issue_no($item['id']) ?></td>
+                        <td><?php echo $item['status'] === 'cancelled' ? '-' : game_bs_issue_full($item['id']) ?></td>
                         <td><?php echo htmlspecialchars($item['round_end']) ?></td>
                         <td><?php echo $item['status'] === 'cancelled' ? '-' : (int)$item['result_number'] ?></td>
                         <td><?php
