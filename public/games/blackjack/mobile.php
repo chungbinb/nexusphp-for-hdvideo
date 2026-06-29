@@ -97,26 +97,21 @@ a { color: inherit; text-decoration: none; }
 .cz-deal .sub { font-size: 10px; opacity: .85; font-weight: 700; }
 .cz-deal:disabled { opacity: .5; }
 
-/* 横屏：操作按钮移到左右两侧竖排（避免被浏览器上下地址栏/工具栏遮挡），牌区居中 */
+/* 横屏：下注区(筹码/余额/发牌)仍在底部不动；只把「下注后」的要牌/停牌/加倍移到屏幕左右两侧，
+   避免被浏览器上下地址栏/工具栏遮挡。牌区两侧留出空间。 */
 @media (orientation: landscape) {
-    .cz-top { padding: calc(4px + env(safe-area-inset-top)) 12px 0; }
     .cz-arc { top: 2%; width: 52%; }
     .cz-arc text { font-size: 25px; }
     .cz-rules { top: calc(2% + 46px); }
     .cz-dealer { margin-top: 26px; }
     .bj-card { width: 54px; height: 78px; font-size: 17px; }
-    .cz-felt { padding: 0 104px; }
-
-    .cz-bar { position: static; background: none; padding: 0; }
-    .cz-money { position: absolute; left: calc(10px + env(safe-area-inset-left)); bottom: calc(8px + env(safe-area-inset-bottom)); min-width: 0; z-index: 8; }
-    /* 左侧竖排：下注筹码 */
-    #bjBetRow { position: absolute; left: calc(8px + env(safe-area-inset-left)); top: 50%; transform: translateY(-50%); flex-direction: column; gap: 8px; width: auto; z-index: 8; }
-    /* 右侧竖排：要牌/停牌/加倍 */
-    #bjActionRow { position: absolute; right: calc(8px + env(safe-area-inset-right)); top: 50%; transform: translateY(-50%); flex-direction: column; gap: 12px; width: auto; z-index: 8; }
-    /* 右侧：发牌按钮（与动作按钮错时显示，不冲突） */
-    .cz-deal { position: absolute; right: calc(12px + env(safe-area-inset-right)); top: 50%; transform: translateY(-50%); z-index: 8; }
-    .cz-chip { width: 46px; height: 46px; font-size: 12px; }
-    .cz-act { min-width: 104px; height: 52px; }
+    .cz-felt { padding: 0 124px; }
+    .cz-act { min-width: 110px; height: 54px; }
+    /* 停牌：左侧居中 */
+    #bjActionRow #bjStand { position: fixed; left: calc(10px + env(safe-area-inset-left)); top: 50%; transform: translateY(-50%); z-index: 9; }
+    /* 要牌 / 加倍：右侧上下排 */
+    #bjActionRow #bjHit { position: fixed; right: calc(10px + env(safe-area-inset-right)); top: calc(50% - 36px); transform: translateY(-50%); z-index: 9; }
+    #bjActionRow #bjDouble { position: fixed; right: calc(10px + env(safe-area-inset-right)); top: calc(50% + 36px); transform: translateY(-50%); z-index: 9; }
 }
 
 /* 竖屏提示 */
