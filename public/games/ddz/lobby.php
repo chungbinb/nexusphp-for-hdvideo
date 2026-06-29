@@ -14,6 +14,19 @@ $rankRows = ddz_leaderboard('games DESC, net DESC', 12, 1);
 $pnlRows  = ddz_leaderboard('net DESC', 12, 1, 'net > 0');
 $my = ddz_my_stats($uid);
 $tables = ddz_list_tables();
+
+// 取榜上玩家头像（收起时只显示头像，展开再显示名字/战绩）
+$dlAvatars = [];
+$dlIds = array_filter(array_map('intval', array_merge(array_column($rankRows, 'uid'), array_column($pnlRows, 'uid'))));
+if ($dlIds) {
+    $ar = sql_query("SELECT `id`,`avatar` FROM `users` WHERE `id` IN (" . implode(',', array_unique($dlIds)) . ")");
+    while ($ar && ($a = mysql_fetch_assoc($ar))) { $dlAvatars[(int)$a['id']] = trim((string)$a['avatar']); }
+}
+function dl_avatar($uid, $uname, $avatars) {
+    $av = $avatars[(int)$uid] ?? '';
+    if ($av !== '') return '<img src="' . htmlspecialchars($av) . '" alt="" loading="lazy" onerror="this.style.display=\'none\'">';
+    return '<b>' . htmlspecialchars(mb_substr($uname !== '' ? $uname : '?', 0, 1)) . '</b>';
+}
 ?><!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -51,10 +64,10 @@ a { color: inherit; text-decoration: none; }
 .dl-stage { position: relative; z-index: 4; flex: 1; min-height: 0; display: flex; }
 
 /* 左侧排行榜：收起=竖排小按钮；展开=面板 */
-.dl-side { position: relative; z-index: 5; flex: none; width: 0; overflow: hidden; transition: width .22s ease; display: flex; flex-direction: column; align-items: stretch; padding: 0; gap: 8px; }
+.dl-side { position: relative; z-index: 5; flex: none; width: 60px; overflow: hidden; transition: width .22s ease; display: flex; flex-direction: column; align-items: stretch; padding: 6px; gap: 8px; }
 .dl.is-rank .dl-side { width: min(72vw, 300px); padding: 8px; }
 /* 左侧榜单的 展开/收起 把手（V 形箭头，随面板滑动、收起朝右展开朝左） */
-.dl-handle { position: absolute; left: 0; top: 50%; transform: translateY(-50%); z-index: 6; width: 22px; height: 58px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.1); border: 1px solid rgba(150,180,255,.3); border-left: none; border-radius: 0 12px 12px 0; cursor: pointer; transition: left .22s ease; }
+.dl-handle { position: absolute; left: 60px; top: 50%; transform: translateY(-50%); z-index: 6; width: 22px; height: 58px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.1); border: 1px solid rgba(150,180,255,.3); border-left: none; border-radius: 0 12px 12px 0; cursor: pointer; transition: left .22s ease; }
 .dl.is-rank .dl-handle { left: min(72vw, 300px); }
 .dl-handle svg { width: 16px; height: 16px; transition: transform .22s ease; }
 .dl.is-rank .dl-handle svg { transform: rotate(180deg); }
@@ -65,22 +78,23 @@ a { color: inherit; text-decoration: none; }
 .dl-railbtn { display: flex; flex-direction: column; align-items: center; gap: 2px; background: rgba(255,255,255,.06); border: 1px solid rgba(150,180,255,.22); border-radius: 12px; padding: 8px 4px; font-size: 11px; color: #cdd9f7; cursor: pointer; }
 .dl-railbtn .ic { font-size: 18px; }
 .dl-railbtn.on { background: linear-gradient(135deg,#ffce4f,#f08a1e); color: #3a2400; border-color: #ffce4f; }
-.dl-rankpanel { display: none; flex: 1; min-height: 0; background: rgba(8,16,40,.72); border: 1px solid rgba(150,180,255,.25); border-radius: 14px; overflow: hidden; flex-direction: column; }
-.dl.is-rank .dl-rankpanel { display: flex; }
-.dl.is-rank .dl-railicons { display: none; }
-.dl-railicons { display: flex; flex-direction: column; gap: 8px; }
-.dl-rank-tabs { display: flex; }
+.dl-rankpanel { display: flex; flex: 1; min-height: 0; background: rgba(8,16,40,.72); border: 1px solid rgba(150,180,255,.25); border-radius: 14px; overflow: hidden; flex-direction: column; }
+.dl-rank-tabs { display: none; }
+.dl.is-rank .dl-rank-tabs { display: flex; }
 .dl-rank-tab { flex: 1; text-align: center; padding: 9px 0; font-size: 13px; font-weight: 800; color: #aebbe2; cursor: pointer; border-bottom: 2px solid transparent; }
 .dl-rank-tab.on { color: #ffd86b; border-bottom-color: #ffd86b; }
 .dl-rank-list { flex: 1; overflow-y: auto; padding: 6px; }
 .dl-rank-pane { display: none; } .dl-rank-pane.on { display: block; }
-.dl-rk { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 8px; }
+.dl-rk { display: flex; align-items: center; justify-content: center; gap: 9px; padding: 5px 4px; border-radius: 10px; }
+.dl.is-rank .dl-rk { justify-content: flex-start; padding: 5px 6px; }
 .dl-rk:nth-child(odd) { background: rgba(255,255,255,.04); }
-.dl-rk .no { width: 18px; text-align: center; font-weight: 900; color: #8fa0cc; font-size: 12px; }
-.dl-rk .no.top { color: #ffce4f; }
-.dl-rk .nm { flex: 1; min-width: 0; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dl-rk .vv { font-size: 12px; font-weight: 800; color: #9ad7a0; }
-.dl-rk .vv.neg { color: #f5a3a3; }
+.dl-rk .av { flex: none; width: 40px; height: 40px; border-radius: 11px; overflow: hidden; background: linear-gradient(135deg,#5566cc,#7c6cff); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 900; font-size: 16px; box-shadow: 0 0 0 2px rgba(255,255,255,.15); }
+.dl-rk .av img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dl-rk .av.top { box-shadow: 0 0 0 2px #ffce4f; }
+.dl-rk .bd { display: none; min-width: 0; flex: 1; flex-direction: column; }
+.dl.is-rank .dl-rk .bd { display: flex; }
+.dl-rk .nm { font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dl-rk .vv { font-size: 11px; color: #9ad7a0; margin-top: 2px; }
 
 /* 角色立绘占位 */
 .dl-char { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); width: 44%; max-width: 360px; height: 90%; z-index: 3; pointer-events: none; display: none;
@@ -182,12 +196,12 @@ a { color: inherit; text-decoration: none; }
                 <div class="dl-rank-list">
                     <div class="dl-rank-pane on" data-rk="win">
                         <?php foreach ($rankRows as $i => $r) { ?>
-                            <div class="dl-rk"><span class="no<?php echo $i < 3 ? ' top' : '' ?>"><?php echo $i + 1 ?></span><span class="nm"><?php echo htmlspecialchars($r['username']) ?></span><span class="vv"><?php echo (int)$r['wins'] ?>胜/<?php echo (int)$r['games'] ?>局</span></div>
+                            <div class="dl-rk"><span class="av<?php echo $i < 3 ? ' top' : '' ?>"><?php echo dl_avatar($r['uid'], $r['username'], $dlAvatars) ?></span><div class="bd"><span class="nm"><?php echo htmlspecialchars($r['username']) ?></span><span class="vv">胜局：<?php echo (int)$r['wins'] ?> · 共 <?php echo (int)$r['games'] ?> 局</span></div></div>
                         <?php } if (!$rankRows) { echo '<div class="dl-empty">暂无战绩，快开一局吧。</div>'; } ?>
                     </div>
                     <div class="dl-rank-pane" data-rk="pnl">
                         <?php foreach ($pnlRows as $i => $r) { ?>
-                            <div class="dl-rk"><span class="no<?php echo $i < 3 ? ' top' : '' ?>"><?php echo $i + 1 ?></span><span class="nm"><?php echo htmlspecialchars($r['username']) ?></span><span class="vv"><?php echo ddz_points($r['net'], true) ?></span></div>
+                            <div class="dl-rk"><span class="av<?php echo $i < 3 ? ' top' : '' ?>"><?php echo dl_avatar($r['uid'], $r['username'], $dlAvatars) ?></span><div class="bd"><span class="nm"><?php echo htmlspecialchars($r['username']) ?></span><span class="vv">净盈亏：<?php echo ddz_points($r['net'], true) ?></span></div></div>
                         <?php } if (!$pnlRows) { echo '<div class="dl-empty">暂无盈利玩家。</div>'; } ?>
                     </div>
                 </div>
