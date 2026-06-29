@@ -43,6 +43,7 @@ body { background: #0a1430; color: #eaf0ff; font-family: -apple-system, BlinkMac
 a { color: inherit; text-decoration: none; }
 
 .dl { position: fixed; inset: 0; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden;
+    padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right);
     background:
       radial-gradient(120% 80% at 80% 0%, rgba(94,84,200,.5), transparent 55%),
       radial-gradient(120% 90% at 0% 100%, rgba(40,120,200,.45), transparent 55%),

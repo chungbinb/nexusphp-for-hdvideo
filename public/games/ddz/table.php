@@ -28,6 +28,7 @@ body { background: #0a1430; color: #fff; font-family: -apple-system, BlinkMacSys
 a { color: inherit; text-decoration: none; }
 
 .gt { position: fixed; inset: 0; height: 100vh; height: 100dvh; overflow: hidden; display: flex; flex-direction: column;
+    padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right);
     background:
       linear-gradient(180deg, #2a3a6e 0%, #243358 14%, #14224a 30%, #0e1838 60%);
 }
