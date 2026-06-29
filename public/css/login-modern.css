@@ -478,6 +478,11 @@ body.page-login.login-theme-night #footer a {
 }
 
 @media (max-width: 960px) {
+    /* 手机端登录页：隐藏顶部桌面 logo 横条，去掉大片空白 */
+    body.page-login table.head {
+        display: none;
+    }
+
     .login-page-wrap {
         padding: 18px;
     }
@@ -495,12 +500,62 @@ body.page-login.login-theme-night #footer a {
         padding: 30px 24px;
     }
 
-    #login-form .rowhead,
-    #login-form .rowfollow,
-    #login-form .toolbox {
+    /* 登录表单：从两列表格改为整齐的竖向堆叠（标签左对齐，输入框全宽对齐） */
+    #login-form table,
+    #login-form tbody,
+    #login-form tr {
         display: block;
         width: 100%;
-        padding-right: 0;
+    }
+
+    #login-form td.rowhead,
+    #login-form td.rowfollow,
+    #login-form td.toolbox {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+        text-align: left;
+        background: transparent;
+        border: none;
+        padding: 0;
+    }
+
+    #login-form td.rowhead {
+        font-weight: 600;
+        margin: 14px 0 6px;
+    }
+
+    #login-form td.toolbox {
+        text-align: center;
+        margin-top: 18px;
+    }
+
+    #login-form td.toolbox[align="left"] {
+        text-align: left;
+        font-weight: 700;
+        margin-top: 16px;
+    }
+
+    #login-form input[type="text"],
+    #login-form input[type="password"],
+    #login-form .username,
+    #login-form .password {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box;
+        padding: 11px 12px;
+        font-size: 16px;
+        border-radius: 8px;
+    }
+
+    #login-form img {
+        max-width: 100%;
+        height: auto;
+    }
+
+    #login-form .btn {
+        padding: 10px 22px;
+        font-size: 15px;
     }
 }
 
@@ -512,6 +567,32 @@ body.page-login.login-theme-night #footer a {
 
     .login-shell {
         border-radius: 14px;
+    }
+
+    /* 手机端：压缩营销 hero，让登录表单成为主角 */
+    .login-hero {
+        min-height: auto;
+        padding: 18px 20px;
+    }
+
+    .login-hero-copy {
+        display: none;
+    }
+
+    .login-panel {
+        padding: 22px 18px;
+    }
+
+    #login-form table {
+        width: 100%;
+    }
+
+    #login-form .username,
+    #login-form .password,
+    #login-form input[type="text"],
+    #login-form input[type="password"] {
+        width: 100% !important;
+        max-width: 100% !important;
     }
 
     .login-brand-title {

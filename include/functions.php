@@ -2670,11 +2670,18 @@ function stdhead($title = "", $msgalert = true, $script = "", $place = "")
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <?php
-// 游戏板块(/games/...)做手机端适配：仅游戏页输出 viewport，不影响站点其他未适配页面。
-if (strpos((string)($_SERVER['SCRIPT_NAME'] ?? ''), '/games/') !== false
-    || strpos((string)($_SERVER['REQUEST_URI'] ?? ''), '/games/') !== false){
+// 手机端适配：仅“已适配”的页面输出 viewport，其余未适配页面不受影响（避免缩成桌面版）。
+// 已适配：游戏板块(/games/...)、登录页(login.php)、首页(index.php)。响应式样式已在
+// modern-refresh.css / login-modern.css 中就绪，输出 viewport 后即生效。
+$qdScriptName = (string)($_SERVER['SCRIPT_NAME'] ?? '');
+$qdRequestUri = (string)($_SERVER['REQUEST_URI'] ?? '');
+$qdPageBase = strtolower(basename((string)(parse_url($qdScriptName, PHP_URL_PATH) ?: $qdScriptName)));
+$qdMobileAdapted = strpos($qdScriptName, '/games/') !== false
+    || strpos($qdRequestUri, '/games/') !== false
+    || in_array($qdPageBase, ['login.php', 'index.php'], true);
+if ($qdMobileAdapted){
 ?>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <?php
 }
 if ($metakeywords_tweak){
