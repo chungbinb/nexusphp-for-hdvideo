@@ -836,6 +836,12 @@ $room = $tableId ? ddz_room_get($tableId) : null;
 $mySeat = $room ? ddz_seat_of($room, $CURUSER['id']) : -1;
 $inRoom = $mySeat >= 0;
 
+// 大厅（未进桌、非子页、非轮询）走独立的全屏「游戏中心」式页面（电脑+手机自适应）。
+if ($view === '' && $tableId === 0 && empty($_GET['ajax'])) {
+    require __DIR__ . '/lobby.php';
+    exit;
+}
+
 stdhead("斗地主");
 echo game_back_link();
 ?>
