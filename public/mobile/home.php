@@ -18,6 +18,7 @@ $classText = function_exists('get_user_class_name') ? get_user_class_name((int)(
 // 个性化配色：完全对齐 PC 端映射（UserMeta PERSONALIZE）：
 //   --bili-bg=页面背景, --bili-surface=卡片/栏面板, --bili-primary=强调色(文字/图标/选中)
 $mhPrimary = '#00aeec';
+$mhAccent = '#fb7299';
 $mhBg = '#f6f7fb';
 $mhSurface = '#ffffff';
 $mhText = '#1b2230';
@@ -28,12 +29,15 @@ try {
         if (is_array($arr)) {
             $re = '/^#[0-9a-fA-F]{6}$/';
             if (isset($arr['--bili-primary']) && preg_match($re, $arr['--bili-primary'])) $mhPrimary = $arr['--bili-primary'];
+            if (isset($arr['--bili-accent']) && preg_match($re, $arr['--bili-accent'])) $mhAccent = $arr['--bili-accent'];
             if (isset($arr['--bili-bg']) && preg_match($re, $arr['--bili-bg'])) $mhBg = $arr['--bili-bg'];
             if (isset($arr['--bili-surface']) && preg_match($re, $arr['--bili-surface'])) $mhSurface = $arr['--bili-surface'];
             if (isset($arr['--bili-text']) && preg_match($re, $arr['--bili-text'])) $mhText = $arr['--bili-text'];
         }
     }
 } catch (\Throwable $e) {}
+$mhPrimary = strtolower($mhPrimary); $mhAccent = strtolower($mhAccent);
+$mhBg = strtolower($mhBg); $mhSurface = strtolower($mhSurface); $mhText = strtolower($mhText);
 function mh_lighten($hex, $pct) {
     $hex = ltrim((string)$hex, '#');
     if (strlen($hex) !== 6) return '#' . $hex;
@@ -109,7 +113,10 @@ img { max-width: 100%; height: auto; }
     background: var(--mh-surface); color: var(--mh-primary); box-shadow: 0 1px 10px rgba(20,40,90,.10); border-bottom: 1px solid rgba(20,40,90,.06); }
 .m-brand { font-size: 20px; font-weight: 900; letter-spacing: .5px; color: var(--mh-primary); }
 .m-brand span { opacity: .7; font-weight: 700; }
-.m-burger { margin-left: auto; width: 40px; height: 40px; border: none; background: var(--mh-soft); border-radius: 11px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; padding: 0; }
+.m-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.m-iconbtn { width: 40px; height: 40px; border: none; background: var(--mh-soft); border-radius: 11px; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+.m-iconbtn svg { width: 22px; height: 22px; fill: none; stroke: var(--mh-primary); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.m-burger { width: 40px; height: 40px; border: none; background: var(--mh-soft); border-radius: 11px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; padding: 0; }
 .m-burger span { width: 20px; height: 2px; background: var(--mh-primary); border-radius: 2px; transition: transform .25s ease, opacity .2s ease; }
 body.menu-open .m-burger span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
 body.menu-open .m-burger span:nth-child(2) { opacity: 0; }
@@ -175,12 +182,34 @@ body.menu-open .m-drawer { transform: translateY(0); }
 .m-tabbar a svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .m-tabbar a .badge { position: absolute; top: 4px; right: 50%; margin-right: -22px; min-width: 15px; height: 15px; padding: 0 4px; border-radius: 999px; background: #ff4d5e; color: #fff; font-size: 9px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
 .m-empty { color: #9aa6bd; font-size: 13px; padding: 10px 0; }
+
+/* 个性化配色弹层（底部抽屉式） */
+.m-modal { position: fixed; inset: 0; z-index: 60; display: none; }
+.m-modal.open { display: block; }
+.m-modal-mask { position: absolute; inset: 0; background: rgba(0,0,0,.5); }
+.m-modal-card { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); width: 100%; max-width: 480px;
+    background: var(--mh-surface); color: var(--mh-text); border-radius: 18px 18px 0 0;
+    padding: 16px 18px calc(18px + env(safe-area-inset-bottom)); box-shadow: 0 -8px 30px rgba(0,0,0,.28); }
+.m-modal-h { display: flex; align-items: center; justify-content: space-between; font-size: 17px; font-weight: 800; margin-bottom: 8px; }
+.m-modal-x { font-size: 20px; color: #9aa6bd; padding: 2px 8px; cursor: pointer; }
+.m-pz-row { display: flex; align-items: center; justify-content: space-between; padding: 11px 2px; border-bottom: 1px solid rgba(20,40,90,.07); }
+.m-pz-row label { font-size: 14px; font-weight: 600; }
+.m-pz-row input[type="color"] { width: 52px; height: 34px; border: 1px solid rgba(20,40,90,.18); border-radius: 8px; background: none; padding: 2px; cursor: pointer; }
+.m-pz-btns { display: flex; gap: 12px; margin-top: 16px; }
+.m-pz-btns button { flex: 1; height: 46px; border: none; border-radius: 12px; font-size: 15px; font-weight: 800; cursor: pointer; }
+.m-pz-reset { background: var(--mh-bg); color: var(--mh-text); }
+.m-pz-save { background: var(--mh-primary); color: #fff; }
 </style>
 </head>
 <body>
 <header class="m-top">
     <div class="m-brand">HD<span>VIDEO</span></div>
-    <button class="m-burger" id="mhMenuBtn" type="button" aria-label="导航菜单"><span></span><span></span><span></span></button>
+    <div class="m-actions">
+        <button class="m-iconbtn" id="mhPzBtn" type="button" aria-label="个性化配色">
+            <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-.95-.5-1.3-.3-.35-.5-.8-.5-1.2 0-.83.67-1.5 1.5-1.5H16a5 5 0 0 0 5-5c0-3.87-4.03-7-9-7z"/><circle cx="7.5" cy="11" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="7.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="16.5" cy="11" r="1.1" fill="currentColor" stroke="none"/></svg>
+        </button>
+        <button class="m-burger" id="mhMenuBtn" type="button" aria-label="导航菜单"><span></span><span></span><span></span></button>
+    </div>
 </header>
 
 <div class="m-mask" id="mhMask"></div>
@@ -264,6 +293,22 @@ body.menu-open .m-drawer { transform: translateY(0); }
     <a href="messages.php"><svg viewBox="0 0 24 24"><path d="M4 5h16v12H8l-4 4z"/></svg>消息<?php if ($unread > 0) { ?><span class="badge"><?php echo $unread > 99 ? '99+' : $unread ?></span><?php } ?></a>
     <a href="usercp.php"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>我的</a>
 </nav>
+<div class="m-modal" id="mhPzModal">
+    <div class="m-modal-mask" data-pz-close></div>
+    <div class="m-modal-card">
+        <div class="m-modal-h"><span>个性化配色</span><span class="m-modal-x" data-pz-close>✕</span></div>
+        <div class="m-pz-row"><label>主色调</label><input type="color" data-var="--bili-primary" value="<?php echo $mhPrimary ?>"></div>
+        <div class="m-pz-row"><label>强调色</label><input type="color" data-var="--bili-accent" value="<?php echo $mhAccent ?>"></div>
+        <div class="m-pz-row"><label>背景色</label><input type="color" data-var="--bili-bg" value="<?php echo $mhBg ?>"></div>
+        <div class="m-pz-row"><label>面板色</label><input type="color" data-var="--bili-surface" value="<?php echo $mhSurface ?>"></div>
+        <div class="m-pz-row"><label>文字色</label><input type="color" data-var="--bili-text" value="<?php echo $mhText ?>"></div>
+        <div class="m-pz-btns">
+            <button type="button" class="m-pz-reset" id="mhPzReset">恢复默认</button>
+            <button type="button" class="m-pz-save" id="mhPzSave">保存</button>
+        </div>
+    </div>
+</div>
+
 <script>
 (function () {
     var btn = document.getElementById('mhMenuBtn'), mask = document.getElementById('mhMask');
@@ -271,6 +316,38 @@ body.menu-open .m-drawer { transform: translateY(0); }
     if (btn) btn.addEventListener('click', function () { document.body.classList.toggle('menu-open'); });
     if (mask) mask.addEventListener('click', close);
     document.querySelectorAll('#mhDrawer a').forEach(function (a) { a.addEventListener('click', close); });
+})();
+(function () {
+    var modal = document.getElementById('mhPzModal'), openBtn = document.getElementById('mhPzBtn');
+    if (!modal || !openBtn) return;
+    var root = document.documentElement;
+    function lighten(hex, pct) {
+        hex = hex.replace('#', '');
+        var r = parseInt(hex.substr(0,2),16), g = parseInt(hex.substr(2,2),16), b = parseInt(hex.substr(4,2),16);
+        r = Math.round(r+(255-r)*pct); g = Math.round(g+(255-g)*pct); b = Math.round(b+(255-b)*pct);
+        return '#' + [r,g,b].map(function (x) { return ('0'+x.toString(16)).slice(-2); }).join('');
+    }
+    function applyVar(v, hex) {
+        if (v === '--bili-primary') { root.style.setProperty('--mh-primary', hex); root.style.setProperty('--mh-soft', lighten(hex, 0.86)); }
+        else if (v === '--bili-bg') { root.style.setProperty('--mh-bg', hex); }
+        else if (v === '--bili-surface') { root.style.setProperty('--mh-surface', hex); }
+        else if (v === '--bili-text') { root.style.setProperty('--mh-text', hex); }
+    }
+    function closeModal() { modal.classList.remove('open'); }
+    openBtn.addEventListener('click', function () { modal.classList.add('open'); });
+    modal.querySelectorAll('[data-pz-close]').forEach(function (el) { el.addEventListener('click', closeModal); });
+    var inputs = modal.querySelectorAll('input[type=color]');
+    inputs.forEach(function (inp) { inp.addEventListener('input', function () { applyVar(inp.getAttribute('data-var'), inp.value); }); });
+    document.getElementById('mhPzSave').addEventListener('click', function () {
+        var data = {};
+        inputs.forEach(function (inp) { data[inp.getAttribute('data-var')] = inp.value; });
+        fetch('ajax.php', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'action=savePersonalize&params%5Bdata%5D=' + encodeURIComponent(JSON.stringify(data)) })
+            .then(function () { closeModal(); }).catch(function () { closeModal(); });
+    });
+    document.getElementById('mhPzReset').addEventListener('click', function () {
+        fetch('ajax.php', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'action=clearPersonalize&params%5Bx%5D=1' })
+            .then(function () { location.reload(); }).catch(function () { location.reload(); });
+    });
 })();
 </script>
 </body>
