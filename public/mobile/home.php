@@ -15,14 +15,16 @@ $ratio = $down > 0 ? number_format($up / $down, 2) : ($up > 0 ? '∞' : '---');
 $bonus = number_format(floor((float)($CURUSER['seedbonus'] ?? 0)));
 $classText = function_exists('get_user_class_name') ? get_user_class_name((int)($CURUSER['class'] ?? 0)) : '';
 
-// 个性化配色：取 PC 端账号设置的个性化主色（UserMeta PERSONALIZE 的 --bili-primary）
+// 个性化配色：取 PC 端账号设置的个性化主色/背景色（UserMeta PERSONALIZE）
 $mhPrimary = '#3a6df0';
+$mhBg = '';
 try {
     $pm = \App\Models\UserMeta::query()->where('uid', $uid)->where('meta_key', 'PERSONALIZE')->where('status', 0)->value('meta_value');
     if ($pm) {
         $arr = json_decode($pm, true);
-        if (is_array($arr) && isset($arr['--bili-primary']) && preg_match('/^#[0-9a-fA-F]{6}$/', $arr['--bili-primary'])) {
-            $mhPrimary = $arr['--bili-primary'];
+        if (is_array($arr)) {
+            if (isset($arr['--bili-primary']) && preg_match('/^#[0-9a-fA-F]{6}$/', $arr['--bili-primary'])) $mhPrimary = $arr['--bili-primary'];
+            if (isset($arr['--bili-bg']) && preg_match('/^#[0-9a-fA-F]{6}$/', $arr['--bili-bg'])) $mhBg = $arr['--bili-bg'];
         }
     }
 } catch (\Throwable $e) {}
@@ -35,9 +37,17 @@ function mh_lighten($hex, $pct) {
 }
 $mhGradEnd = mh_lighten($mhPrimary, 0.40);
 $mhSoft = mh_lighten($mhPrimary, 0.86);
+if ($mhBg === '') $mhBg = mh_lighten($mhPrimary, 0.90); // 没设置个性化背景则用主色淡化版
 
 $unread = 0;
 try { $unread = (int)get_row_count('messages', "WHERE receiver = " . $uid . " AND unread = 'yes' AND location != 0"); } catch (\Throwable $e) {}
+
+// 更多个人数据（对齐电脑版右上角用户栏）
+$invites = (int)($CURUSER['invites'] ?? 0);
+$activeSeed = $activeLeech = $hrCount = 0;
+try { $activeSeed = (int)get_row_count('peers', "WHERE userid = $uid AND seeder = 'yes'"); } catch (\Throwable $e) {}
+try { $activeLeech = (int)get_row_count('peers', "WHERE userid = $uid AND seeder = 'no'"); } catch (\Throwable $e) {}
+try { $hrCount = (int)\App\Models\HitAndRun::query()->where('uid', $uid)->where('status', \App\Models\HitAndRun::STATUS_INSPECTING)->count(); } catch (\Throwable $e) {}
 
 // 公告
 $newsRows = [];
@@ -83,10 +93,10 @@ $navItems = [
 <meta name="mobile-web-app-capable" content="yes" />
 <title><?php echo htmlspecialchars(($SITENAME ?? 'HDvideo')) ?> · 首页</title>
 <style>
-:root { --mh-primary: <?php echo $mhPrimary ?>; --mh-grad-end: <?php echo $mhGradEnd ?>; --mh-soft: <?php echo $mhSoft ?>; }
+:root { --mh-primary: <?php echo $mhPrimary ?>; --mh-grad-end: <?php echo $mhGradEnd ?>; --mh-soft: <?php echo $mhSoft ?>; --mh-bg: <?php echo $mhBg ?>; }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; padding: 0; }
-body { background: #eef1f7; color: #1b2230; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", Helvetica, Arial, sans-serif; padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+body { background: var(--mh-bg); color: #1b2230; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", Helvetica, Arial, sans-serif; padding-bottom: calc(64px + env(safe-area-inset-bottom)); min-height: 100vh; min-height: 100dvh; }
 a { color: inherit; text-decoration: none; }
 img { max-width: 100%; height: auto; }
 
@@ -191,6 +201,10 @@ body.menu-open .m-drawer { transform: translateY(0); }
     <div><b>↓<?php echo mksize($down) ?></b><span>下载</span></div>
     <div><b><?php echo $ratio ?></b><span>分享率</span></div>
     <div><b><?php echo $bonus ?></b><span>魔力</span></div>
+    <div><b><?php echo $invites ?></b><span>邀请</span></div>
+    <div><b><?php echo $activeSeed ?></b><span>做种</span></div>
+    <div><b><?php echo $activeLeech ?></b><span>下载中</span></div>
+    <div><b><?php echo $hrCount ?></b><span>待考核</span></div>
 </section>
 
 <?php if ($newsRows) { ?>
