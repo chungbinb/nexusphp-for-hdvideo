@@ -87,7 +87,11 @@ a { color: inherit; text-decoration: none; }
 /* 模式卡：电影海报式（竖版，高而窄）。收起时横排居中，展开时靠右。 */
 .dl-modes { position: relative; z-index: 5; flex: 1; display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: center; gap: 18px; padding: 10px 16px; }
 .dl-card { position: relative; flex: 0 0 auto; width: clamp(140px, 44vw, 184px); aspect-ratio: 2 / 3; border-radius: 18px; padding: 14px; cursor: pointer; overflow: hidden; border: 1px solid rgba(255,255,255,.2); box-shadow: 0 10px 26px rgba(0,0,0,.5); transition: transform .12s ease; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; text-align: center; }
-.dl.is-rank .dl-modes { justify-content: flex-end; }
+/* 展开排行榜：恢复成之前的样子——卡片竖排靠右、宽矮横版(图标在右)，中间露出扑克扇 */
+.dl.is-rank .dl-modes { flex: none; flex-direction: column; flex-wrap: nowrap; align-items: stretch; justify-content: center; margin-left: auto; }
+.dl.is-rank .dl-card { display: block; width: min(56vw, 300px); aspect-ratio: auto; padding: 16px 18px; text-align: left; }
+.dl.is-rank .dl-card .ic { left: auto; right: 14px; top: 50%; transform: translateY(-50%); }
+.dl.is-rank .dl-card .ic svg { width: 52px; height: 52px; }
 .dl-card:active { transform: scale(.97); }
 .dl-card .nm { font-size: 21px; font-weight: 900; text-shadow: 0 2px 6px rgba(0,0,0,.45); }
 .dl-card .sub { font-size: 12px; margin-top: 4px; opacity: .92; line-height: 1.35; }
