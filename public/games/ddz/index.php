@@ -1199,7 +1199,7 @@ echo game_back_link();
 <div class="ddz-wrap">
     <div class="ddz-head">
         <div>
-            <div class="ddz-title">斗地主 <span class="ddz-badge">开发中 v0.1</span></div>
+            <div class="ddz-title">斗地主 <span class="ddz-badge">内测0.1</span></div>
             <div class="ddz-muted">三人对战，满 3 人或匹配超时补机器人开局。用电影票计分（结算时扣）。</div>
         </div>
         <div class="ddz-balance">我的电影票：<?php echo number_format((float)$CURUSER['seedbonus'], 1) ?> 张</div>
