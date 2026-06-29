@@ -55,6 +55,8 @@ a { color: inherit; text-decoration: none; }
 .dl.is-rank .dl-side { width: min(72vw, 300px); padding: 8px; }
 .dl-coin.on { background: linear-gradient(135deg,#ffce4f,#f08a1e); color: #3a2400; border-color: #ffce4f; }
 .dl-coin.on svg { stroke: #5a3a00; }
+.dl-chev { width: 13px; height: 13px; margin-left: 1px; transition: transform .22s ease; }
+.dl-coin.on .dl-chev { transform: rotate(180deg); }
 .dl-railbtn { display: flex; flex-direction: column; align-items: center; gap: 2px; background: rgba(255,255,255,.06); border: 1px solid rgba(150,180,255,.22); border-radius: 12px; padding: 8px 4px; font-size: 11px; color: #cdd9f7; cursor: pointer; }
 .dl-railbtn .ic { font-size: 18px; }
 .dl-railbtn.on { background: linear-gradient(135deg,#ffce4f,#f08a1e); color: #3a2400; border-color: #ffce4f; }
@@ -160,7 +162,7 @@ a { color: inherit; text-decoration: none; }
         </div>
         <div class="dl-coins">
             <span class="dl-coin"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#f6c544" stroke="#a9760a" stroke-width="1.5"/><circle cx="12" cy="12" r="6.4" fill="none" stroke="#a9760a" stroke-width="1.2"/></svg></span><?php echo $bal ?><span class="plus">+</span></span>
-            <div class="dl-coin" id="dlRankBtn" style="cursor:pointer"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="#ffe08a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v4a5 5 0 0 1-10 0V4zM7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3M9 17h6M12 13v4M8 21h8"/></svg></span>排行榜</div>
+            <div class="dl-coin" id="dlRankBtn" style="cursor:pointer"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="#ffe08a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v4a5 5 0 0 1-10 0V4zM7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3M9 17h6M12 13v4M8 21h8"/></svg></span>排行榜<svg class="dl-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></div>
         </div>
     </div>
 
