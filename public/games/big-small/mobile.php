@@ -75,8 +75,9 @@ a { color: inherit; text-decoration: none; }
 /* 最近开奖条 */
 .bz-draws { position: relative; z-index: 5; display: flex; gap: 6px; overflow-x: auto; padding: 6px 14px; scrollbar-width: none; }
 .bz-draws::-webkit-scrollbar { display: none; }
-.bz-draw { flex: none; min-width: 46px; text-align: center; background: rgba(0,0,0,.28); border-radius: 8px; padding: 4px 0; }
+.bz-draw { position: relative; flex: none; min-width: 46px; text-align: center; background: rgba(0,0,0,.28); border-radius: 8px; padding: 4px 0; }
 .bz-draw--win { outline: 2px solid #ff3b3b; outline-offset: -1px; box-shadow: 0 0 7px rgba(255,59,59,.55); }
+.bz-win-tag { position: absolute; top: 1px; right: 1px; background: #ff3b3b; color: #fff; font-size: 9px; font-weight: 800; line-height: 1; padding: 1px 3px; border-radius: 5px; }
 .bz-draw .n { font-size: 14px; font-weight: 800; }
 .bz-draw .t { font-size: 11px; font-weight: 800; }
 
@@ -167,7 +168,7 @@ a { color: inherit; text-decoration: none; }
 
     <div class="bz-draws">
         <?php foreach ($draws as $d) { [$n, $t, $c] = bs_draw_badge($d); $won = isset($wonRounds[(int)$d['id']]); ?>
-            <div class="bz-draw<?php echo $won ? ' bz-draw--win' : '' ?>"><div class="n"><?php echo $n ?></div><div class="t" style="color:<?php echo $c ?>"><?php echo $t ?></div></div>
+            <div class="bz-draw<?php echo $won ? ' bz-draw--win' : '' ?>"><?php if ($won) { ?><span class="bz-win-tag">中</span><?php } ?><div class="n"><?php echo $n ?></div><div class="t" style="color:<?php echo $c ?>"><?php echo $t ?></div></div>
         <?php } if (!$draws) { echo '<div class="bz-draw"><div class="t">暂无</div></div>'; } ?>
     </div>
 
