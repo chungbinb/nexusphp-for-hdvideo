@@ -15,6 +15,14 @@ $drawRes = sql_query("SELECT * FROM `" . GAME_BS_ROUND_TABLE . "` WHERE `status`
 $draws = [];
 while ($d = mysql_fetch_assoc($drawRes)) { $draws[] = $d; }
 
+// 我在这些开奖期里中过奖的期号（用于给开奖条上的对应期加红框）
+$wonRounds = [];
+$drawIds = array_map(function ($d) { return (int)$d['id']; }, $draws);
+if ($drawIds) {
+    $wr = sql_query("SELECT DISTINCT `round_id` FROM `" . GAME_BS_BET_TABLE . "` WHERE `uid` = $uid AND `status` = 'won' AND `round_id` IN (" . implode(',', $drawIds) . ")") or sqlerr(__FILE__, __LINE__);
+    while ($wr && ($w = mysql_fetch_assoc($wr))) { $wonRounds[(int)$w['round_id']] = true; }
+}
+
 // 我的最近押注
 $myRes = sql_query("SELECT * FROM `" . GAME_BS_BET_TABLE . "` WHERE `uid` = $uid ORDER BY `id` DESC LIMIT 12") or sqlerr(__FILE__, __LINE__);
 
@@ -54,7 +62,7 @@ a { color: inherit; text-decoration: none; }
 .bz::after { content: ""; position: fixed; inset: 0; border: 12px solid #2a1a0e; pointer-events: none;
     box-shadow: inset 0 0 0 2px #6b4a2b, inset 0 0 36px rgba(0,0,0,.5); z-index: 30; }
 
-.bz-top { position: relative; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 16px 4px; }
+.bz-top { position: relative; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: calc(20px + env(safe-area-inset-top)) 16px 4px; }
 .bz-tbtn { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; color: #d8e6df; }
 .bz-tbtn svg { width: 21px; height: 21px; }
 .bz-mid { text-align: center; flex: 1; }
@@ -68,6 +76,7 @@ a { color: inherit; text-decoration: none; }
 .bz-draws { position: relative; z-index: 5; display: flex; gap: 6px; overflow-x: auto; padding: 6px 14px; scrollbar-width: none; }
 .bz-draws::-webkit-scrollbar { display: none; }
 .bz-draw { flex: none; min-width: 46px; text-align: center; background: rgba(0,0,0,.28); border-radius: 8px; padding: 4px 0; }
+.bz-draw--win { outline: 2px solid #ff3b3b; outline-offset: -1px; box-shadow: 0 0 7px rgba(255,59,59,.55); }
 .bz-draw .n { font-size: 14px; font-weight: 800; }
 .bz-draw .t { font-size: 11px; font-weight: 800; }
 
@@ -157,8 +166,8 @@ a { color: inherit; text-decoration: none; }
     <?php if ($error) { ?><div class="bz-msg err"><?php echo htmlspecialchars($error) ?></div><?php } ?>
 
     <div class="bz-draws">
-        <?php foreach ($draws as $d) { [$n, $t, $c] = bs_draw_badge($d); ?>
-            <div class="bz-draw"><div class="n"><?php echo $n ?></div><div class="t" style="color:<?php echo $c ?>"><?php echo $t ?></div></div>
+        <?php foreach ($draws as $d) { [$n, $t, $c] = bs_draw_badge($d); $won = isset($wonRounds[(int)$d['id']]); ?>
+            <div class="bz-draw<?php echo $won ? ' bz-draw--win' : '' ?>"><div class="n"><?php echo $n ?></div><div class="t" style="color:<?php echo $c ?>"><?php echo $t ?></div></div>
         <?php } if (!$draws) { echo '<div class="bz-draw"><div class="t">暂无</div></div>'; } ?>
     </div>
 
