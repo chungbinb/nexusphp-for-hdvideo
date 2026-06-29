@@ -166,6 +166,11 @@ a { color: inherit; text-decoration: none; }
 @media (min-width: 760px) {
     .dl { max-width: 1000px; margin: 0 auto; left: 0; right: 0; box-shadow: 0 0 40px rgba(0,0,0,.5); }
 }
+/* 横屏/矮屏（手机横放）：收起态的模式卡降低高度，避免被底部导航遮挡 */
+@media (max-height: 560px) {
+    .dl:not(.is-rank) .dl-card { aspect-ratio: auto; height: clamp(132px, 50vh, 210px); width: clamp(124px, 30vw, 176px); }
+    .dl-modes { padding: 6px 16px; gap: 14px; }
+}
 
 /* —— 纯 SVG/CSS 质感（不用图片） —— */
 .dl-card::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 46%; background: linear-gradient(180deg, rgba(255,255,255,.32), rgba(255,255,255,0)); pointer-events: none; }

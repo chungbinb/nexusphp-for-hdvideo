@@ -61,12 +61,6 @@ a { color: inherit; text-decoration: none; }
 
 /* 牌桌区 */
 .gt-table { position: relative; z-index: 2; flex: 1; min-height: 0; margin: 2px 8px 0; }
-.gt-felt { position: absolute; left: 3%; right: 3%; top: 14%; bottom: 6%; border-radius: 50%/40%;
-    background:
-      radial-gradient(120% 100% at 50% 30%, #2aa05a 0%, #1f8a4d 40%, #15613a 80%, #0f4a2c 100%);
-    box-shadow: inset 0 0 0 6px rgba(255,255,255,.06), inset 0 10px 40px rgba(0,0,0,.45), 0 14px 40px rgba(0,0,0,.5);
-    border: 3px solid rgba(255,215,120,.25); }
-.gt-felt::before { content: ""; position: absolute; inset: 12px; border-radius: 50%/42%; border: 1px dashed rgba(255,255,255,.14); }
 
 /* 座位 */
 .gt-seat { position: absolute; z-index: 4; display: flex; align-items: center; gap: 8px; }
@@ -203,8 +197,6 @@ a { color: inherit; text-decoration: none; }
     </div>
 
     <div class="gt-table">
-        <div class="gt-felt"></div>
-
         <div class="gt-seat left" id="gtSeatLeft">
             <div class="gt-ava"><b>?</b></div>
             <div class="gt-meta"><span class="gt-nm">等待中</span><span class="gt-cnt" style="display:none">剩 0</span></div>
