@@ -74,14 +74,21 @@ a { color: inherit; text-decoration: none; }
 .dl-rk .vv.neg { color: #f5a3a3; }
 
 /* 角色立绘占位 */
-.dl-char { position: absolute; left: 50%; bottom: 0; transform: translateX(-58%); width: 46%; max-width: 360px; height: 86%; z-index: 3; pointer-events: none;
-    background: radial-gradient(60% 70% at 50% 40%, rgba(120,150,255,.28), transparent 70%);
-    display: flex; align-items: flex-end; justify-content: center; }
-.dl-char .ph { font-size: 120px; filter: drop-shadow(0 8px 20px rgba(0,0,0,.5)); opacity: .9; }
+.dl-char { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); width: 44%; max-width: 360px; height: 90%; z-index: 3; pointer-events: none; display: none;
+    background: radial-gradient(55% 65% at 50% 45%, rgba(120,150,255,.3), transparent 70%);
+    align-items: flex-end; justify-content: center; }
+.dl.is-rank .dl-char { display: flex; }
+.dl-char .ph { font-size: 130px; filter: drop-shadow(0 8px 20px rgba(0,0,0,.5)); opacity: .92; }
 
 /* 右侧模式卡 */
-.dl-modes { position: relative; z-index: 5; margin-left: auto; display: flex; flex-direction: column; justify-content: center; gap: 14px; padding: 8px 14px; }
-.dl-card { position: relative; width: min(58vw, 280px); border-radius: 16px; padding: 16px 18px; cursor: pointer; overflow: hidden; border: 1px solid rgba(255,255,255,.18); box-shadow: 0 6px 18px rgba(0,0,0,.4); transition: transform .12s ease; }
+/* 默认（收起）：三张卡横排居中 */
+.dl-modes { position: relative; z-index: 5; flex: 1; display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px; padding: 10px 16px; }
+.dl-card { position: relative; flex: 1 1 0; min-width: 200px; max-width: 300px; border-radius: 16px; padding: 18px; cursor: pointer; overflow: hidden; border: 1px solid rgba(255,255,255,.18); box-shadow: 0 6px 18px rgba(0,0,0,.4); transition: transform .12s ease; }
+/* 展开排行榜：三张卡竖排靠右（角色立绘居中露出） */
+.dl.is-rank .dl-modes { flex: none; flex-direction: column; flex-wrap: nowrap; align-items: stretch; justify-content: center; margin-left: auto; }
+.dl.is-rank .dl-card { flex: none; width: min(56vw, 300px); }
+/* 窄屏：竖排堆叠 */
+@media (max-width: 760px) { .dl-modes { flex-direction: column; flex-wrap: nowrap; } .dl-card { flex: none; width: 100%; max-width: 380px; } }
 .dl-card:active { transform: scale(.97); }
 .dl-card .nm { font-size: 22px; font-weight: 900; text-shadow: 0 2px 6px rgba(0,0,0,.45); }
 .dl-card .sub { font-size: 12px; margin-top: 3px; opacity: .9; }
