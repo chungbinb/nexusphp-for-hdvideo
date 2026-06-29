@@ -38,6 +38,20 @@ try {
 } catch (\Throwable $e) {}
 $mhPrimary = strtolower($mhPrimary); $mhAccent = strtolower($mhAccent);
 $mhBg = strtolower($mhBg); $mhSurface = strtolower($mhSurface); $mhText = strtolower($mhText);
+
+// 预设配色（与电脑版一致）：[名称, 主色, 强调, 背景, 面板, 文字]
+$mhPresets = [
+    ['默认', '#00aeec', '#fb7299', '#f6f7fb', '#ffffff', '#18191c'],
+    ['樱花粉', '#fb7299', '#f8a5c2', '#fcdfe9', '#fbcfdf', '#5a3a44'],
+    ['抹茶绿', '#689f38', '#9ccc65', '#d3e8bb', '#c6e0a8', '#2e3d22'],
+    ['海洋蓝', '#1976d2', '#4fc3f7', '#cfe5f6', '#bfddf2', '#13314a'],
+    ['暮光紫', '#7c4dff', '#b388ff', '#ddd0f5', '#cfbef0', '#2a2340'],
+    ['落日橙', '#f4511e', '#ff8a65', '#ffdcc9', '#ffceb6', '#4a2818'],
+    ['性感紫', '#9c27b0', '#ff4081', '#ecd6f4', '#ddbbeb', '#3b1d49'],
+    ['妖娆紫', '#ba68c8', '#f06292', '#f2e2f7', '#e6cdf0', '#45284f'],
+    ['魅惑紫', '#6a1b9a', '#c2185b', '#e3cbee', '#cfaae2', '#2f1340'],
+    ['清纯粉', '#f48fb1', '#f8bbd0', '#fdf0f5', '#fcdde9', '#5a3a48'],
+];
 function mh_lighten($hex, $pct) {
     $hex = ltrim((string)$hex, '#');
     if (strlen($hex) !== 6) return '#' . $hex;
@@ -187,11 +201,15 @@ body.menu-open .m-drawer { transform: translateY(0); }
 .m-modal { position: fixed; inset: 0; z-index: 60; display: none; }
 .m-modal.open { display: block; }
 .m-modal-mask { position: absolute; inset: 0; background: rgba(0,0,0,.5); }
-.m-modal-card { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); width: 100%; max-width: 480px;
-    background: var(--mh-surface); color: var(--mh-text); border-radius: 18px 18px 0 0;
-    padding: 16px 18px calc(18px + env(safe-area-inset-bottom)); box-shadow: 0 -8px 30px rgba(0,0,0,.28); }
+.m-modal-card { position: absolute; left: 50%; top: 0; transform: translateX(-50%); width: 100%; max-width: 480px;
+    max-height: 92vh; overflow-y: auto; background: var(--mh-surface); color: var(--mh-text); border-radius: 0 0 18px 18px;
+    padding: calc(14px + env(safe-area-inset-top)) 18px 18px; box-shadow: 0 8px 30px rgba(0,0,0,.28); }
 .m-modal-h { display: flex; align-items: center; justify-content: space-between; font-size: 17px; font-weight: 800; margin-bottom: 8px; }
 .m-modal-x { font-size: 20px; color: #9aa6bd; padding: 2px 8px; cursor: pointer; }
+.m-pz-label { font-size: 13px; font-weight: 700; color: #8a96ad; margin: 4px 2px 2px; }
+.m-pz-presets { display: flex; gap: 8px; overflow-x: auto; padding: 6px 0 10px; -webkit-overflow-scrolling: touch; }
+.m-pz-preset { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid rgba(20,40,90,.14); border-radius: 999px; background: var(--mh-bg); color: var(--mh-text); font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.m-pz-preset .dot { width: 14px; height: 14px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 1px rgba(0,0,0,.12); }
 .m-pz-row { display: flex; align-items: center; justify-content: space-between; padding: 11px 2px; border-bottom: 1px solid rgba(20,40,90,.07); }
 .m-pz-row label { font-size: 14px; font-weight: 600; }
 .m-pz-row input[type="color"] { width: 52px; height: 34px; border: 1px solid rgba(20,40,90,.18); border-radius: 8px; background: none; padding: 2px; cursor: pointer; }
@@ -297,6 +315,12 @@ body.menu-open .m-drawer { transform: translateY(0); }
     <div class="m-modal-mask" data-pz-close></div>
     <div class="m-modal-card">
         <div class="m-modal-h"><span>个性化配色</span><span class="m-modal-x" data-pz-close>✕</span></div>
+        <div class="m-pz-label">预设配色</div>
+        <div class="m-pz-presets">
+            <?php foreach ($mhPresets as $i => $p) { ?>
+            <button type="button" class="m-pz-preset" data-preset="<?php echo $i ?>" style="--c: <?php echo $p[1] ?>"><span class="dot"></span><?php echo $p[0] ?></button>
+            <?php } ?>
+        </div>
         <div class="m-pz-row"><label>主色调</label><input type="color" data-var="--bili-primary" value="<?php echo $mhPrimary ?>"></div>
         <div class="m-pz-row"><label>强调色</label><input type="color" data-var="--bili-accent" value="<?php echo $mhAccent ?>"></div>
         <div class="m-pz-row"><label>背景色</label><input type="color" data-var="--bili-bg" value="<?php echo $mhBg ?>"></div>
@@ -338,6 +362,20 @@ body.menu-open .m-drawer { transform: translateY(0); }
     modal.querySelectorAll('[data-pz-close]').forEach(function (el) { el.addEventListener('click', closeModal); });
     var inputs = modal.querySelectorAll('input[type=color]');
     inputs.forEach(function (inp) { inp.addEventListener('input', function () { applyVar(inp.getAttribute('data-var'), inp.value); }); });
+    // 预设：[主色,强调,背景,面板,文字]
+    var MH_PRESETS = <?php echo json_encode(array_map(fn($p) => array_slice($p, 1), $mhPresets)) ?>;
+    var PZ_VARS = ['--bili-primary', '--bili-accent', '--bili-bg', '--bili-surface', '--bili-text'];
+    modal.querySelectorAll('.m-pz-preset').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var p = MH_PRESETS[parseInt(btn.getAttribute('data-preset'), 10)];
+            if (!p) return;
+            PZ_VARS.forEach(function (v, idx) {
+                var inp = modal.querySelector('input[data-var="' + v + '"]');
+                if (inp) inp.value = p[idx];
+                applyVar(v, p[idx]);
+            });
+        });
+    });
     document.getElementById('mhPzSave').addEventListener('click', function () {
         var data = {};
         inputs.forEach(function (inp) { data[inp.getAttribute('data-var')] = inp.value; });
