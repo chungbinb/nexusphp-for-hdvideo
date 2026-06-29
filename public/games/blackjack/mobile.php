@@ -26,6 +26,9 @@ function bj_chip_label($v) {
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <title>二十一点</title>
 <style>
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -33,7 +36,7 @@ html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
 body { background: #07120d; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", Helvetica, Arial, sans-serif; }
 a { color: inherit; text-decoration: none; }
 
-.cz { position: fixed; inset: 0; display: flex; flex-direction: column; background:
+.cz { position: fixed; top: 0; left: 0; right: 0; height: 100vh; height: 100dvh; display: flex; flex-direction: column; background:
     radial-gradient(ellipse 120% 90% at 50% -16%, #2f9b72 0%, #14785a 38%, #0c5740 62%, #073f2d 100%);
 }
 .cz::after { content: ""; position: absolute; inset: 0; border: 14px solid #2a1a0e; border-radius: 0; pointer-events: none;
@@ -94,6 +97,23 @@ a { color: inherit; text-decoration: none; }
 .cz-deal .sub { font-size: 10px; opacity: .85; font-weight: 700; }
 .cz-deal:disabled { opacity: .5; }
 
+/* 横屏：下注区(筹码/余额/发牌)仍在底部不动；只把「下注后」的要牌/停牌/加倍移到屏幕左右两侧，
+   避免被浏览器上下地址栏/工具栏遮挡。牌区两侧留出空间。 */
+@media (orientation: landscape) {
+    .cz-arc { top: 2%; width: 52%; }
+    .cz-arc text { font-size: 25px; }
+    .cz-rules { top: calc(2% + 46px); }
+    .cz-dealer { margin-top: 26px; }
+    .bj-card { width: 54px; height: 78px; font-size: 17px; }
+    .cz-felt { padding: 0 124px; }
+    .cz-act { min-width: 110px; height: 54px; }
+    /* 停牌：左侧居中 */
+    #bjActionRow #bjStand { position: fixed; left: calc(10px + env(safe-area-inset-left)); top: 50%; transform: translateY(-50%); z-index: 9; }
+    /* 要牌 / 加倍：右侧上下排 */
+    #bjActionRow #bjHit { position: fixed; right: calc(10px + env(safe-area-inset-right)); top: calc(50% - 36px); transform: translateY(-50%); z-index: 9; }
+    #bjActionRow #bjDouble { position: fixed; right: calc(10px + env(safe-area-inset-right)); top: calc(50% + 36px); transform: translateY(-50%); z-index: 9; }
+}
+
 /* 竖屏提示 */
 .cz-rotate { position: fixed; inset: 0; z-index: 200; background: #07120d; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 18px; text-align: center; padding: 30px; }
 @media (orientation: portrait) { body:not(.force-portrait) .cz-rotate { display: flex; } }
@@ -130,6 +150,10 @@ a { color: inherit; text-decoration: none; }
             <div class="cz-minmax">Min/Max <?php echo bj_chip_label(BJ_CHIPS[0]) ?> - <?php echo bj_chip_label(BJ_CHIPS[count(BJ_CHIPS) - 1]) ?></div>
             <div class="cz-tnum">二十一点 · 黑杰克 1.5 倍</div>
         </div>
+        <span class="cz-tbtn" id="bjFsBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M3 16v3a2 2 0 0 1 2 2h3"></path></svg>
+            全屏
+        </span>
         <span class="cz-tbtn" id="bjLbBtn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3"></path></svg>
             排行榜
@@ -326,6 +350,30 @@ a { color: inherit; text-decoration: none; }
     }
     document.getElementById('bjGoLand').addEventListener('click', goLandscape);
     document.getElementById('bjStayPort').addEventListener('click', function () { document.body.classList.add('force-portrait'); });
+
+    // 顶部「全屏」按钮：进入/退出全屏（安卓 Chrome 有效；iPhone Safari 不支持网页全屏，给出提示）
+    var fsBtn = document.getElementById('bjFsBtn');
+    if (fsBtn) fsBtn.addEventListener('click', function () {
+        var el = document.documentElement;
+        var fs = document.fullscreenElement || document.webkitFullscreenElement;
+        if (!fs) {
+            var req = el.requestFullscreen || el.webkitRequestFullscreen;
+            if (req) {
+                try {
+                    var p = req.call(el);
+                    Promise.resolve(p).then(function () {
+                        if (screen.orientation && screen.orientation.lock) return screen.orientation.lock('landscape');
+                    }).catch(function () {});
+                } catch (e) {}
+            } else {
+                alert('当前浏览器不支持网页全屏（iPhone Safari 限制）。已把操作按钮放到屏幕左右两侧，横屏也不会被地址栏挡住；想要真全屏可用安卓 Chrome，或把页面「添加到主屏幕」后从图标打开。');
+            }
+        } else {
+            try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {}
+            var ex = document.exitFullscreen || document.webkitExitFullscreen;
+            if (ex) ex.call(document);
+        }
+    });
 })();
 </script>
 </body>

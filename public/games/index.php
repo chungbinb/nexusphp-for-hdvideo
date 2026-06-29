@@ -208,7 +208,7 @@ body.page-games-php:not(.inframe) {
     right: 0;
     bottom: 0;
     height: 3px;
-    background: #35b8f1;
+    background: var(--bili-primary, #35b8f1);
 }
 
 .steam-layout {
@@ -352,7 +352,7 @@ body.page-games-php:not(.inframe) {
 .steam-price-pill {
     min-width: 78px;
     padding: 8px 10px;
-    background: #0f1d2b;
+    background: var(--bili-primary, #0f1d2b);
     color: #fff;
     text-align: center;
     font-weight: 700;
@@ -480,7 +480,7 @@ body.page-games-php:not(.inframe) {
 }
 
 .steam-board .glb-card-title {
-    background: rgba(53, 184, 241, 0.14);
+    background: color-mix(in srgb, var(--bili-primary, #35b8f1) 16%, transparent);
     color: #fff;
 }
 
