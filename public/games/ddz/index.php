@@ -401,7 +401,7 @@ function ddz_create_table($base)
     $id = (int)ddz_redis()->incr("ddz:next_id");
     $room = [
         'id' => $id, 'base' => $base, 'status' => 'waiting', 'owner' => (int)$CURUSER['id'],
-        'seats' => [['uid' => (int)$CURUSER['id'], 'username' => $CURUSER['username']], null, null],
+        'seats' => [['uid' => (int)$CURUSER['id'], 'username' => $CURUSER['username'], 'avatar' => (string)($CURUSER['avatar'] ?? '')], null, null],
         'created_at' => TIMENOW, 'updated_at' => TIMENOW,
     ];
     ddz_room_put($room);
@@ -424,7 +424,7 @@ function ddz_join_table($id)
         $need = $room['base'] * DDZ_JOIN_BALANCE_FACTOR;
         if ((float)$CURUSER['seedbonus'] < $need) return [null, "余额不足，该底分桌需至少 {$need} 张电影票。"];
         foreach ($room['seats'] as $i => $s) {
-            if (!$s) { $room['seats'][$i] = ['uid' => (int)$CURUSER['id'], 'username' => $CURUSER['username']]; break; }
+            if (!$s) { $room['seats'][$i] = ['uid' => (int)$CURUSER['id'], 'username' => $CURUSER['username'], 'avatar' => (string)($CURUSER['avatar'] ?? '')]; break; }
         }
         $room['updated_at'] = TIMENOW;
         if (ddz_player_count($room) >= DDZ_SEATS) {
@@ -698,7 +698,7 @@ function ddz_matchmake($base)
     $room = [
         'id' => $id, 'base' => $base, 'status' => 'waiting', 'owner' => (int)$CURUSER['id'],
         'mm' => true, 'field' => 'classic', 'mm_deadline' => TIMENOW + DDZ_MATCH_WAIT,
-        'seats' => [['uid' => (int)$CURUSER['id'], 'username' => $CURUSER['username']], null, null],
+        'seats' => [['uid' => (int)$CURUSER['id'], 'username' => $CURUSER['username'], 'avatar' => (string)($CURUSER['avatar'] ?? '')], null, null],
         'created_at' => TIMENOW, 'updated_at' => TIMENOW,
     ];
     ddz_room_put($room);
@@ -1034,7 +1034,7 @@ if (($_GET['ajax'] ?? '') === 'poll') {
         'mmLeft' => (!empty($room['mm']) && isset($room['mm_deadline'])) ? max(0, (int)$room['mm_deadline'] - TIMENOW) : null,
     ];
     foreach ($room['seats'] as $i => $s) {
-        $out['seats'][$i] = $s ? ['username' => $s['username'], 'cards' => isset($room['hands'][$i]) ? count($room['hands'][$i]) : 0] : null;
+        $out['seats'][$i] = $s ? ['username' => $s['username'], 'avatar' => (string)($s['avatar'] ?? ''), 'bot' => !empty($s['bot']), 'cards' => isset($room['hands'][$i]) ? count($room['hands'][$i]) : 0] : null;
     }
     if (in_array($room['status'], ['bidding', 'playing', 'finished'], true)) {
         $out['bid'] = $room['bid'] ?? null;
@@ -1063,6 +1063,29 @@ if (($_GET['ajax'] ?? '') === 'poll') {
         }
     }
     echo json_encode($out, JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// ---- 提示：返回一手建议出牌 ----
+if (($_GET['ajax'] ?? '') === 'hint') {
+    header('Content-Type: application/json');
+    $id = (int)($_GET['table'] ?? 0);
+    $room = ddz_room_get($id);
+    $seat = $room ? ddz_seat_of($room, $CURUSER['id']) : -1;
+    if (!$room || $room['status'] !== 'playing' || $seat < 0 || (int)$room['turn'] !== $seat) {
+        echo json_encode(['ok' => false, 'cards' => []]);
+        exit;
+    }
+    $hand = $room['hands'][$seat];
+    $last = $room['lastPlay'] ?? null;
+    $lastSeat = (int)($room['lastSeat'] ?? -1);
+    $leading = ($last === null) || ($lastSeat === $seat);
+    if ($leading) {
+        $cards = [$hand[count($hand) - 1]]; // 最小单张
+    } else {
+        $cards = ddz_find_beat($hand, $last, true) ?: [];
+    }
+    echo json_encode(['ok' => (bool)$cards, 'cards' => array_values(array_map('intval', $cards))], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -1118,6 +1141,12 @@ $inRoom = $mySeat >= 0;
 // 大厅（未进桌、非子页、非轮询）走独立的全屏「游戏中心」式页面（电脑+手机自适应）。
 if ($view === '' && $tableId === 0 && empty($_GET['ajax'])) {
     require __DIR__ . '/lobby.php';
+    exit;
+}
+
+// 进桌（等待/匹配/叫分/出牌/结算）走全屏「欢乐斗地主」式牌桌（电脑+手机自适应）。
+if ($tableId && $room && $view === '' && empty($_GET['ajax'])) {
+    require __DIR__ . '/table.php';
     exit;
 }
 
