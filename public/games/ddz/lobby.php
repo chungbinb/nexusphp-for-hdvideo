@@ -191,7 +191,7 @@ a { color: inherit; text-decoration: none; }
             <div class="dl-ava"><?php if ($myAvatar !== '') { ?><img src="<?php echo htmlspecialchars($myAvatar) ?>" alt="" onerror="this.style.display='none'"><?php } else { echo htmlspecialchars(mb_substr($uname !== '' ? $uname : '玩', 0, 1)); } ?></div>
             <div>
                 <div class="dl-uname"><?php echo htmlspecialchars($uname) ?></div>
-                <div class="dl-lv">斗地主 · 内测0.1</div>
+                <div class="dl-lv">斗地主 · 内测中 v0.1</div>
             </div>
         </div>
         <div class="dl-coins">
