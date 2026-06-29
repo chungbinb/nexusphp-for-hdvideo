@@ -51,8 +51,10 @@ a { color: inherit; text-decoration: none; }
 .dl-stage { position: relative; z-index: 4; flex: 1; min-height: 0; display: flex; }
 
 /* 左侧排行榜：收起=竖排小按钮；展开=面板 */
-.dl-side { position: relative; z-index: 5; flex: none; width: 64px; transition: width .22s ease; display: flex; flex-direction: column; align-items: stretch; padding: 6px; gap: 8px; }
-.dl.is-rank .dl-side { width: min(64vw, 280px); }
+.dl-side { position: relative; z-index: 5; flex: none; width: 0; overflow: hidden; transition: width .22s ease; display: flex; flex-direction: column; align-items: stretch; padding: 0; gap: 8px; }
+.dl.is-rank .dl-side { width: min(72vw, 300px); padding: 8px; }
+.dl-coin.on { background: linear-gradient(135deg,#ffce4f,#f08a1e); color: #3a2400; border-color: #ffce4f; }
+.dl-coin.on svg { stroke: #5a3a00; }
 .dl-railbtn { display: flex; flex-direction: column; align-items: center; gap: 2px; background: rgba(255,255,255,.06); border: 1px solid rgba(150,180,255,.22); border-radius: 12px; padding: 8px 4px; font-size: 11px; color: #cdd9f7; cursor: pointer; }
 .dl-railbtn .ic { font-size: 18px; }
 .dl-railbtn.on { background: linear-gradient(135deg,#ffce4f,#f08a1e); color: #3a2400; border-color: #ffce4f; }
@@ -157,17 +159,12 @@ a { color: inherit; text-decoration: none; }
         </div>
         <div class="dl-coins">
             <span class="dl-coin"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#f6c544" stroke="#a9760a" stroke-width="1.5"/><circle cx="12" cy="12" r="6.4" fill="none" stroke="#a9760a" stroke-width="1.2"/></svg></span><?php echo $bal ?><span class="plus">+</span></span>
-            <a class="dl-icobtn" href="/games/" title="返回游戏大厅"><svg viewBox="0 0 24 24" fill="none" stroke="#cdd9f7" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></a>
+            <div class="dl-coin" id="dlRankBtn" style="cursor:pointer"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="#ffe08a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v4a5 5 0 0 1-10 0V4zM7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3M9 17h6M12 13v4M8 21h8"/></svg></span>排行榜</div>
         </div>
     </div>
 
     <div class="dl-stage">
         <div class="dl-side">
-            <div class="dl-railicons">
-                <div class="dl-railbtn" id="dlRankBtn"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v4a5 5 0 0 1-10 0V4zM7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3M9 17h6M12 13v4M8 21h8"/></svg></span>排行榜</div>
-                <a class="dl-railbtn" href="/attendance.php"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg></span>签到</a>
-                <a class="dl-railbtn" href="/games/chest/"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="9" width="18" height="12" rx="2"/><path d="M3 13h18M12 9v12M12 9c-2-4-7-3.5-7-1 0 1.8 4 1 7 1zM12 9c2-4 7-3.5 7-1 0 1.8-4 1-7 1z"/></svg></span>礼包</a>
-            </div>
             <div class="dl-rankpanel">
                 <div class="dl-rank-tabs">
                     <div class="dl-rank-tab on" data-rk="win">战绩榜</div>
@@ -193,16 +190,12 @@ a { color: inherit; text-decoration: none; }
         <div class="dl-modes">
             <div class="dl-card coin" id="dlCoinCard"><div class="nm">金币模式</div><div class="sub">电影票对局 · 满3人开局</div><div class="ic"><svg viewBox="0 0 64 64"><rect x="7" y="7" width="50" height="50" rx="12" fill="#fff" stroke="#d8dce6" stroke-width="2"/><circle cx="21" cy="21" r="5" fill="#c0392b"/><circle cx="43" cy="21" r="5" fill="#1b2b3a"/><circle cx="32" cy="32" r="5" fill="#1b2b3a"/><circle cx="21" cy="43" r="5" fill="#1b2b3a"/><circle cx="43" cy="43" r="5" fill="#c0392b"/></svg></div></div>
             <div class="dl-card rank" data-soon><div class="tag">敬请期待</div><div class="nm">排位模式</div><div class="sub">段位赛 · 即将开放</div><div class="ic"><svg viewBox="0 0 64 64" fill="none"><path d="M18 10h28v9a14 14 0 0 1-28 0v-9z" fill="#ffd86b" stroke="#9a6c0a" stroke-width="2"/><path d="M18 14h-8v3a8 8 0 0 0 8 8M46 14h8v3a8 8 0 0 1-8 8" stroke="#ffe9a8" stroke-width="3"/><rect x="28" y="34" width="8" height="9" fill="#d9a93a"/><rect x="20" y="46" width="24" height="6" rx="2" fill="#d9a93a"/></svg></div></div>
-            <div class="dl-card show" data-soon><div class="tag">敬请期待</div><div class="nm">擂台秀</div><div class="sub">表演赛 · 即将开放</div><div class="ic"><svg viewBox="0 0 64 64"><path d="M32 6l7.7 16.6L57.5 24.5 44.5 37l3.4 18L32 46.3 16.1 55l3.4-18L6.5 24.5l17.8-1.9z" fill="#ffe14d" stroke="#cf8a1e" stroke-width="2"/></svg></div></div>
         </div>
     </div>
 
     <nav class="dl-bottom">
         <a class="dl-nav" href="/games/"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7M6 10v9h12v-9"/></svg></span>大厅</a>
         <div class="dl-nav" data-soon><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg></span>社交</div>
-        <div class="dl-nav" data-soon><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg></span>任务</div>
-        <a class="dl-nav" href="/games/chest/"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M3 12h18M12 8v13"/></svg></span>宝箱</a>
-        <div class="dl-nav" data-soon><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14l-1 13H6L5 7zM9 7a3 3 0 0 1 6 0"/></svg></span>商城</div>
     </nav>
 </div>
 
