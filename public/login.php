@@ -20,6 +20,14 @@ require_once(get_langfile_path("", false, $CURLANGDIR));
 
 failedloginscheck ();
 cur_user_check () ;
+
+// 手机端：走独立的手机版登录页（完全自带头尾，不经过桌面 stdhead，无站点外框）；?pc=1 强制电脑版。
+if (empty($_GET['pc'])
+    && preg_match('/Mobile|Android|iPhone|iPod|Windows Phone|BlackBerry|webOS|HarmonyOS/i', (string)($_SERVER['HTTP_USER_AGENT'] ?? ''))) {
+    require __DIR__ . '/mobile/login.php';
+    exit;
+}
+
 $loginTheme = $_GET['theme'] ?? 'modern';
 if ($loginTheme === 'modern') {
 	\Nexus\Nexus::css('css/login-modern.css?v=20260610-login7', 'header', true);
