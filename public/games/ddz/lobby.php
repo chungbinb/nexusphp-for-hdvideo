@@ -13,7 +13,6 @@ $bal = number_format(floor((float)($CURUSER['seedbonus'] ?? 0)));
 $rankRows = ddz_leaderboard('games DESC, net DESC', 12, 1);
 $pnlRows  = ddz_leaderboard('net DESC', 12, 1, 'net > 0');
 $my = ddz_my_stats($uid);
-$tables = ddz_list_tables();
 
 // 取榜上玩家头像（收起时只显示头像，展开再显示名字/战绩）
 $dlAvatars = [];
@@ -142,6 +141,20 @@ a { color: inherit; text-decoration: none; }
 .dl-trow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border: 1px solid rgba(150,180,255,.22); border-radius: 10px; margin-bottom: 8px; font-size: 13px; }
 .dl-join { margin-left: auto; padding: 0 14px; height: 36px; border-radius: 8px; border: none; background: #2ecc71; color: #fff; font-weight: 800; cursor: pointer; }
 .dl-empty { color: #9fb0da; padding: 10px; }
+.dl-base { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: rgba(0,0,0,.2); border-radius: 12px; padding: 12px; margin-bottom: 14px; }
+.dl-base select { padding: 9px; border-radius: 8px; background: #0c1a3e; color: #fff; border: 1px solid rgba(150,180,255,.4); font-size: 15px; }
+.dl-fields { display: flex; gap: 12px; flex-wrap: wrap; }
+.dl-field { flex: 1 1 200px; display: flex; }
+.dl-field form, .dl-field { min-width: 0; }
+.dl-field-btn { position: relative; width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left; cursor: pointer; border: 1px solid rgba(255,255,255,.18); border-radius: 14px; padding: 18px 16px; color: #fff; overflow: hidden; }
+.dl-field-btn .t { font-size: 19px; font-weight: 900; text-shadow: 0 2px 5px rgba(0,0,0,.4); }
+.dl-field-btn .d { font-size: 12px; opacity: .92; line-height: 1.35; }
+.dl-field-btn.classic { background: linear-gradient(135deg,#f6a623,#c9760a); }
+.dl-field-btn.laizi { background: linear-gradient(135deg,#5b6bd6,#3a47a8); opacity: .85; }
+.dl-field-btn .soon { position: absolute; right: 10px; top: 10px; font-size: 10px; font-weight: 800; background: linear-gradient(135deg,#ff5d6c,#c8324a); padding: 2px 8px; border-radius: 999px; box-shadow: 0 2px 5px rgba(0,0,0,.35); }
+.dl-field-btn:active { transform: scale(.98); }
+.dl-tip { margin-top: 14px; font-size: 12px; color: #9fb0da; line-height: 1.5; }
+.dl-field form { width: 100%; padding: 0; background: none; margin: 0; border: 0; }
 
 /* 提示气泡 */
 .dl-toast { position: fixed; left: 50%; bottom: 80px; transform: translateX(-50%); z-index: 99; background: rgba(0,0,0,.85); color: #fff; padding: 10px 18px; border-radius: 999px; font-size: 14px; font-weight: 700; opacity: 0; transition: opacity .2s ease; pointer-events: none; }
@@ -211,7 +224,7 @@ a { color: inherit; text-decoration: none; }
         <div class="dl-char"><div class="dl-fan"><div class="pc l"><small>♦</small>K</div><div class="pc m"><small>♠</small>A</div><div class="pc r"><small>♥</small>Q</div></div></div>
 
         <div class="dl-modes">
-            <div class="dl-card coin" id="dlCoinCard"><div class="nm">金币模式</div><div class="sub">电影票对局 · 满3人开局</div><div class="ic"><svg viewBox="0 0 64 64"><rect x="7" y="7" width="50" height="50" rx="12" fill="#fff" stroke="#d8dce6" stroke-width="2"/><circle cx="21" cy="21" r="5" fill="#c0392b"/><circle cx="43" cy="21" r="5" fill="#1b2b3a"/><circle cx="32" cy="32" r="5" fill="#1b2b3a"/><circle cx="21" cy="43" r="5" fill="#1b2b3a"/><circle cx="43" cy="43" r="5" fill="#c0392b"/></svg></div></div>
+            <div class="dl-card coin" id="dlCoinCard"><div class="nm">匹配模式</div><div class="sub">经典 / 癞子 · 满3人或补机器人</div><div class="ic"><svg viewBox="0 0 64 64"><rect x="7" y="7" width="50" height="50" rx="12" fill="#fff" stroke="#d8dce6" stroke-width="2"/><circle cx="21" cy="21" r="5" fill="#c0392b"/><circle cx="43" cy="21" r="5" fill="#1b2b3a"/><circle cx="32" cy="32" r="5" fill="#1b2b3a"/><circle cx="21" cy="43" r="5" fill="#1b2b3a"/><circle cx="43" cy="43" r="5" fill="#c0392b"/></svg></div></div>
             <div class="dl-card rank" data-soon><div class="tag">敬请期待</div><div class="nm">排位模式</div><div class="sub">段位赛 · 即将开放</div><div class="ic"><svg viewBox="0 0 64 64" fill="none"><path d="M18 10h28v9a14 14 0 0 1-28 0v-9z" fill="#ffd86b" stroke="#9a6c0a" stroke-width="2"/><path d="M18 14h-8v3a8 8 0 0 0 8 8M46 14h8v3a8 8 0 0 1-8 8" stroke="#ffe9a8" stroke-width="3"/><rect x="28" y="34" width="8" height="9" fill="#d9a93a"/><rect x="20" y="46" width="24" height="6" rx="2" fill="#d9a93a"/></svg></div></div>
         </div>
     </div>
@@ -225,36 +238,32 @@ a { color: inherit; text-decoration: none; }
 <div class="dl-modal" id="dlCoinModal">
     <div class="dl-mask" data-close="1"></div>
     <div class="dl-card2">
-        <div class="dl-mh"><h3>🎲 金币模式 · 选择桌子</h3><span class="dl-x" data-close="1">✕</span></div>
-        <div class="dl-create">
-            <form method="post" action="/games/ddz/" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;width:100%">
-                <input type="hidden" name="action" value="create">
-                <span style="font-weight:700">底分</span>
-                <select name="base">
-                    <?php foreach (DDZ_BASE_OPTIONS as $b) { ?><option value="<?php echo $b ?>"><?php echo $b ?> 电影票</option><?php } ?>
-                </select>
-                <button type="submit" class="dl-go">创建并入座</button>
-                <span style="font-size:12px;color:#9fb0da">入座需余额 ≥ 底分 × <?php echo DDZ_JOIN_BALANCE_FACTOR ?></span>
-            </form>
+        <div class="dl-mh"><h3>🎲 匹配模式 · 选择场次</h3><span class="dl-x" data-close="1">✕</span></div>
+        <div class="dl-base">
+            <span style="font-weight:700">底分</span>
+            <select id="dlBase">
+                <?php foreach (DDZ_BASE_OPTIONS as $b) { ?><option value="<?php echo $b ?>"><?php echo $b ?> 电影票</option><?php } ?>
+            </select>
+            <span style="font-size:12px;color:#9fb0da">入座需余额 ≥ 底分 × <?php echo DDZ_JOIN_BALANCE_FACTOR ?></span>
         </div>
-        <div style="font-weight:800;margin:6px 2px 8px">等待中的桌子</div>
-        <?php if (!$tables) { ?><div class="dl-empty">暂无等待中的桌子，创建一个吧。</div><?php } ?>
-        <?php foreach ($tables as $t) {
-            $names = [];
-            foreach ($t['seats'] as $s) { if ($s) { $names[] = htmlspecialchars($s['username']); } }
-        ?>
-            <div class="dl-trow">
-                <b>桌 #<?php echo (int)$t['id'] ?></b>
-                <span>底分 <?php echo (int)$t['base'] ?></span>
-                <span style="color:#9fb0da"><?php echo ddz_player_count($t) ?>/3 人</span>
-                <span style="color:#9fb0da">：<?php echo implode('、', $names) ?></span>
-                <form method="post" action="/games/ddz/" style="margin-left:auto">
-                    <input type="hidden" name="action" value="join">
-                    <input type="hidden" name="table" value="<?php echo (int)$t['id'] ?>">
-                    <button type="submit" class="dl-join">加入</button>
-                </form>
+        <div class="dl-fields">
+            <form method="post" action="/games/ddz/" class="dl-field" id="dlFieldClassic">
+                <input type="hidden" name="action" value="match">
+                <input type="hidden" name="base" id="dlBaseClassic" value="<?php echo (int)DDZ_BASE_OPTIONS[0] ?>">
+                <button type="submit" class="dl-field-btn classic">
+                    <span class="t">经典场</span>
+                    <span class="d">标准斗地主 · 满3人开局，10 秒无人则补机器人</span>
+                </button>
+            </form>
+            <div class="dl-field">
+                <div class="dl-field-btn laizi" data-soon>
+                    <span class="soon">敬请期待</span>
+                    <span class="t">癞子场</span>
+                    <span class="d">含癞子玩法 · 即将开放</span>
+                </div>
             </div>
-        <?php } ?>
+        </div>
+        <div class="dl-tip">匹配后进入牌桌等待，10 秒内没有真人加入将自动补机器人立即开局。</div>
     </div>
 </div>
 
@@ -279,10 +288,13 @@ a { color: inherit; text-decoration: none; }
             document.querySelectorAll('.dl-rank-pane').forEach(function (p) { p.classList.toggle('on', p.getAttribute('data-rk') === k); });
         });
     });
-    // 金币模式弹层
+    // 匹配模式弹层
     var modal = document.getElementById('dlCoinModal');
     document.getElementById('dlCoinCard').addEventListener('click', function () { modal.classList.add('show'); });
     modal.addEventListener('click', function (e) { if (e.target.getAttribute('data-close')) modal.classList.remove('show'); });
+    // 底分选择 → 同步到经典场表单
+    var baseSel = document.getElementById('dlBase'), baseClassic = document.getElementById('dlBaseClassic');
+    if (baseSel && baseClassic) { baseSel.addEventListener('change', function () { baseClassic.value = baseSel.value; }); }
     // 敬请期待提示
     var toast = document.getElementById('dlToast'), tt;
     document.querySelectorAll('[data-soon]').forEach(function (el) {
