@@ -50,6 +50,13 @@ a { color: inherit; text-decoration: none; }
 .gt-top .sp { margin-left: auto; }
 .gt-iconbtn { width: 32px; height: 32px; border-radius: 50%; background: rgba(0,0,0,.4); border: 1px solid rgba(150,180,255,.3); display: flex; align-items: center; justify-content: center; cursor: pointer; }
 .gt-iconbtn svg { width: 16px; height: 16px; }
+.gt-pill { display: inline-flex; align-items: center; gap: 5px; height: 32px; padding: 0 12px; border-radius: 999px; cursor: pointer; font-size: 13px; font-weight: 800; color: #cfe0ff; background: rgba(0,0,0,.4); border: 1px solid rgba(150,180,255,.3); }
+.gt-pill svg { width: 16px; height: 16px; }
+.gt-pill.on { color: #3a2400; background: linear-gradient(135deg,#ffce4f,#f0980c); border-color: #ffce4f; }
+/* 左下/右下角 HUD */
+.gt-hud { position: absolute; z-index: 6; bottom: calc(12px + env(safe-area-inset-bottom)); display: flex; gap: 6px; }
+.gt-hud.bl { left: 12px; }
+.gt-hud.br { right: 12px; }
 
 /* 牌桌区 */
 .gt-table { position: relative; z-index: 2; flex: 1; min-height: 0; margin: 2px 8px 0; }
@@ -93,7 +100,7 @@ a { color: inherit; text-decoration: none; }
 .gt-pass.left { left: 13%; top: 44%; }
 .gt-pass.right { right: 13%; top: 44%; }
 /* 底牌 */
-.gt-bottom3 { position: absolute; z-index: 4; left: 50%; top: 8%; transform: translateX(-50%); display: flex; gap: 4px; align-items: center; }
+.gt-bottom3 { position: absolute; z-index: 4; left: 50%; top: 1%; transform: translateX(-50%); display: flex; gap: 4px; align-items: center; }
 .gt-bottom3 .lab { font-size: 11px; color: #ffe08a; margin-right: 4px; }
 
 /* 中央状态/匹配 */
@@ -117,11 +124,14 @@ a { color: inherit; text-decoration: none; }
 /* 我的手牌 */
 .gt-hand-wrap { position: relative; z-index: 5; padding: 0 10px calc(6px + env(safe-area-inset-bottom)); }
 .gt-hand { display: flex; justify-content: center; min-height: 70px; padding-top: 16px; }
-.gt-hand .gt-card { width: 46px; height: 66px; margin-right: -24px; cursor: pointer; transition: transform .1s ease; }
+.gt-hand .gt-card { width: 46px; height: 66px; margin-right: -24px; cursor: pointer; transition: transform .1s ease; touch-action: none; user-select: none; -webkit-user-select: none; }
 .gt-hand .gt-card:last-child { margin-right: 0; }
 .gt-hand .gt-card .r { font-size: 18px; }
 .gt-hand .gt-card .s { font-size: 16px; }
 .gt-hand .gt-card.sel { transform: translateY(-18px); box-shadow: 0 8px 14px rgba(0,0,0,.4); border-color: #2ecc71; }
+/* 发牌动画：一张一张飞入 */
+.gt-hand .gt-card.deal { animation: gtdeal .34s cubic-bezier(.2,.7,.3,1) backwards; }
+@keyframes gtdeal { from { transform: translate(-40vw, -150px) rotate(-25deg) scale(.5); opacity: 0; } to { transform: none; opacity: 1; } }
 
 /* 操作区 */
 .gt-actions { position: relative; z-index: 6; display: flex; align-items: center; justify-content: center; gap: 14px; min-height: 50px; padding: 0 12px 4px; }
@@ -185,12 +195,10 @@ a { color: inherit; text-decoration: none; }
     <div class="gt-sky"></div>
 
     <div class="gt-top">
-        <span class="gt-chip">底分 <b><?php echo $base ?></b></span>
-        <span class="gt-chip" id="gtMult" style="display:none">倍数 <b>1</b></span>
-        <span class="gt-chip">🎟️ <b id="gtBean"><?php echo number_format($myBean) ?></b></span>
-        <span class="sp"></span>
-        <div class="gt-iconbtn" id="gtInvite" title="复制邀请链接"><svg viewBox="0 0 24 24" fill="none" stroke="#cfe0ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4M18 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 22a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg></div>
         <div class="gt-iconbtn" id="gtExit" title="退出"><svg viewBox="0 0 24 24" fill="none" stroke="#ffb4b4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg></div>
+        <span class="sp"></span>
+        <div class="gt-pill" id="gtTrustee" title="托管给机器人代打"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="11" rx="3"/><path d="M12 8V4M9 4h6M8.5 13h.01M15.5 13h.01M9 16.5h6"/></svg>托管</div>
+        <div class="gt-iconbtn" id="gtInvite" title="复制邀请链接"><svg viewBox="0 0 24 24" fill="none" stroke="#cfe0ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4M18 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 22a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg></div>
     </div>
 
     <div class="gt-table">
@@ -220,6 +228,12 @@ a { color: inherit; text-decoration: none; }
     <div class="gt-hand-wrap">
         <div class="gt-actions" id="gtActions"></div>
         <div class="gt-hand" id="gtHand"></div>
+    </div>
+
+    <div class="gt-hud bl"><span class="gt-chip">🎟️ <b id="gtBean"><?php echo number_format($myBean) ?></b></span></div>
+    <div class="gt-hud br">
+        <span class="gt-chip">底分 <b><?php echo $base ?></b></span>
+        <span class="gt-chip" id="gtMult" style="display:none">倍数 <b>1</b></span>
     </div>
 </div>
 
@@ -253,6 +267,9 @@ a { color: inherit; text-decoration: none; }
     var myBean = <?php echo (int)$myBean ?>;
     var $ = function (id) { return document.getElementById(id); };
     var busy = false, handKey = '', selected = {}, finishedShown = false;
+    var cur = null, prevStatus = '', dealAnim = false;
+    var dragging = false, dragMode = false;
+    var trustee = false, autoKey = '';
 
     function esc(s) { return (s || '').replace(/[&<>"]/g, function (c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]); }); }
     function toast(t) { var el = $('gtToast'); el.textContent = t; el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(function () { el.classList.remove('show'); }, 1500); }
@@ -343,16 +360,63 @@ a { color: inherit; text-decoration: none; }
         if (key === handKey) { return; }
         handKey = key; selected = {};
         if (!d.myHand || !d.myHand.length) { handEl.innerHTML = ''; return; }
+        var deal = dealAnim; dealAnim = false;
         handEl.innerHTML = d.myHand.map(function (c) {
-            return cardFace(c).replace('<span class="gt-card', '<span data-id="' + c.id + '" class="gt-card');
+            return cardFace(c).replace('<span class="gt-card', '<span data-id="' + c.id + '" class="gt-card' + (deal ? ' deal' : ''));
         }).join('');
-        handEl.querySelectorAll('.gt-card').forEach(function (el) {
-            el.addEventListener('click', function () {
-                var id = el.getAttribute('data-id');
-                if (selected[id]) { delete selected[id]; el.classList.remove('sel'); }
-                else { selected[id] = 1; el.classList.add('sel'); }
-            });
+        if (deal) handEl.querySelectorAll('.gt-card').forEach(function (el, i) { el.style.animationDelay = (i * 45) + 'ms'; });
+    }
+
+    // —— 出牌/过牌/选牌 ——
+    function doPlay() {
+        var ids = Object.keys(selected);
+        if (!ids.length) { toast('请先点选要出的牌'); return; }
+        post('play', '&cards=' + ids.join(','));
+    }
+    function doPass() { post('pass', ''); }
+    function applyCard(el) {
+        if (!el) return; var id = el.getAttribute('data-id'); if (!id) return;
+        if (dragMode) { selected[id] = 1; el.classList.add('sel'); }
+        else { delete selected[id]; el.classList.remove('sel'); }
+    }
+
+    // —— 托管代打 ——
+    function clientBid(d) {
+        var rk = { '3':0,'4':1,'5':2,'6':3,'7':4,'8':5,'9':6,'10':7,'J':8,'Q':9,'K':10,'A':11,'2':12 };
+        var cnt = {};
+        (d.myHand || []).forEach(function (c) {
+            var r = c.label === '小王' ? 13 : (c.label === '大王' ? 14 : rk[c.label.slice(1)]);
+            cnt[r] = (cnt[r] || 0) + 1;
         });
+        var score = 0;
+        if (cnt[13] && cnt[14]) score += 7; else { if (cnt[14]) score += 3.5; if (cnt[13]) score += 2.5; }
+        Object.keys(cnt).forEach(function (r) { r = +r; var c = cnt[r]; if (c === 4) score += 6; if (r === 12) score += c * 1.6; if (r === 11) score += c * 0.8; });
+        var high = d.bid ? d.bid.high : 0;
+        var want = score >= 9 ? 3 : (score >= 5.5 ? 2 : (score >= 3 ? 1 : 0));
+        if (want > 0 && want <= high) want = 0;
+        return want;
+    }
+    function maybeAuto(d) {
+        if (busy) return;
+        if (d.status === 'bidding' && d.bid && d.mySeat === d.bid.turn) {
+            var k = 'b' + d.bid.acted;
+            if (k === autoKey) return; autoKey = k;
+            var sc = clientBid(d);
+            setTimeout(function () { if (trustee && cur && cur.status === 'bidding' && cur.mySeat === cur.bid.turn) post('bid', '&score=' + sc); }, 700);
+        } else if (d.status === 'playing' && d.mySeat === d.turn) {
+            var leading = (!d.lastPlay) || (d.lastPlay.seat === d.mySeat);
+            var k2 = 'p' + (d.myHand ? d.myHand.length : 0) + '_' + (d.lastPlay ? d.lastPlay.seat + 'x' + d.lastPlay.cards.length : 'L');
+            if (k2 === autoKey) return; autoKey = k2;
+            setTimeout(function () {
+                if (!trustee || !cur || cur.status !== 'playing' || cur.mySeat !== cur.turn) return;
+                fetch('/games/ddz/?ajax=hint&table=' + tableId, { credentials: 'same-origin' })
+                    .then(function (r) { return r.json(); })
+                    .then(function (j) {
+                        if (j.ok && j.cards.length) post('play', '&cards=' + j.cards.join(','));
+                        else if (!leading) post('pass', '');
+                    }).catch(function () {});
+            }, 700);
+        }
     }
 
     function renderActions(d) {
@@ -380,13 +444,9 @@ a { color: inherit; text-decoration: none; }
                 (d.timeLeft != null ? '<span class="gt-actbtn-timer">' + d.timeLeft + '</span>' : '') +
                 '<button class="gt-btn hint" id="gtHint">提示</button>' +
                 '<button class="gt-btn play" id="gtPlay">出牌</button>';
-            $('gtPlay').addEventListener('click', function () {
-                var ids = Object.keys(selected);
-                if (!ids.length) { toast('请先点选要出的牌'); return; }
-                post('play', '&cards=' + ids.join(','));
-            });
+            $('gtPlay').addEventListener('click', doPlay);
             $('gtHint').addEventListener('click', hint);
-            if (!leading) $('gtPass').addEventListener('click', function () { post('pass', ''); });
+            if (!leading) $('gtPass').addEventListener('click', doPass);
         } else if (d.status === 'waiting') {
             act.innerHTML = '<span class="gt-actlabel">' + (d.mm ? (d.mmLeft > 0 ? '匹配中…' + d.mmLeft + ' 秒后补机器人' : '正在加入机器人…') : '等待玩家加入 ' + d.count + '/3') + '</span>';
         } else {
@@ -435,6 +495,8 @@ a { color: inherit; text-decoration: none; }
     }
 
     function render(d) {
+        cur = d;
+        if (d.status === 'bidding' && prevStatus !== 'bidding') dealAnim = true;
         var mySeat = d.mySeat;
         var lord = d.landlord != null ? d.landlord : -1, turn = d.turn != null ? d.turn : -1;
         var bidTurn = d.bid ? d.bid.turn : -1;
@@ -459,6 +521,8 @@ a { color: inherit; text-decoration: none; }
         renderHand(d);
 
         if (d.status === 'finished') { showResult(d); }
+        if (trustee && d.mySeat >= 0) maybeAuto(d);
+        prevStatus = d.status;
     }
 
     function poll() {
@@ -486,6 +550,41 @@ a { color: inherit; text-decoration: none; }
     $('gtRReplay').addEventListener('click', function () {
         $('gtResult').classList.remove('show'); finishedShown = false; handKey = '';
         post('replay', '');
+    });
+
+    // 拖动多选（指针/触摸通用）
+    $('gtHand').addEventListener('pointerdown', function (e) {
+        if (e.button && e.button !== 0) return; // 右键留给出牌
+        var el = e.target.closest ? e.target.closest('.gt-card') : null;
+        if (!el) return;
+        dragging = true;
+        dragMode = !selected[el.getAttribute('data-id')];
+        applyCard(el);
+        e.preventDefault();
+    });
+    document.addEventListener('pointermove', function (e) {
+        if (!dragging) return;
+        var t = document.elementFromPoint(e.clientX, e.clientY);
+        var el = t && t.closest ? t.closest('.gt-card') : null;
+        if (el && el.parentNode === $('gtHand')) applyCard(el);
+    });
+    document.addEventListener('pointerup', function () { dragging = false; });
+
+    // 右键出牌
+    $('gt').addEventListener('contextmenu', function (e) {
+        if (cur && cur.status === 'playing' && cur.mySeat >= 0 && cur.mySeat === cur.turn) {
+            e.preventDefault();
+            doPlay();
+        }
+    });
+
+    // 托管代打
+    $('gtTrustee').addEventListener('click', function () {
+        trustee = !trustee;
+        this.classList.toggle('on', trustee);
+        autoKey = '';
+        toast(trustee ? '已托管，机器人代打' : '已取消托管');
+        if (trustee && cur) maybeAuto(cur);
     });
 
     poll();
