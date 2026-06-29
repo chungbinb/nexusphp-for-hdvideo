@@ -78,6 +78,8 @@ a { color: inherit; text-decoration: none; }
 .bz-draw { position: relative; flex: none; min-width: 46px; text-align: center; background: rgba(0,0,0,.28); border-radius: 8px; padding: 4px 0; }
 .bz-draw--win { outline: 2px solid #ff3b3b; outline-offset: -1px; box-shadow: 0 0 7px rgba(255,59,59,.55); }
 .bz-win-tag { position: absolute; top: 1px; right: 1px; background: #ff3b3b; color: #fff; font-size: 9px; font-weight: 800; line-height: 1; padding: 1px 3px; border-radius: 5px; }
+.bz-drawcol { flex: none; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.bz-draw-iss { font-size: 10px; font-weight: 700; color: #cfe0d6; line-height: 1; }
 .bz-draw .n { font-size: 14px; font-weight: 800; }
 .bz-draw .t { font-size: 11px; font-weight: 800; }
 
@@ -167,9 +169,12 @@ a { color: inherit; text-decoration: none; }
     <?php if ($error) { ?><div class="bz-msg err"><?php echo htmlspecialchars($error) ?></div><?php } ?>
 
     <div class="bz-draws">
-        <?php foreach ($draws as $d) { [$n, $t, $c] = bs_draw_badge($d); $won = isset($wonRounds[(int)$d['id']]); ?>
-            <div class="bz-draw<?php echo $won ? ' bz-draw--win' : '' ?>"><?php if ($won) { ?><span class="bz-win-tag">中</span><?php } ?><div class="n"><?php echo $n ?></div><div class="t" style="color:<?php echo $c ?>"><?php echo $t ?></div></div>
-        <?php } if (!$draws) { echo '<div class="bz-draw"><div class="t">暂无</div></div>'; } ?>
+        <?php foreach ($draws as $d) { [$n, $t, $c] = bs_draw_badge($d); $won = isset($wonRounds[(int)$d['id']]); $iss = $d['status'] === 'cancelled' ? '' : game_bs_issue_no($d['id']); ?>
+            <div class="bz-drawcol">
+                <div class="bz-draw<?php echo $won ? ' bz-draw--win' : '' ?>"><?php if ($won) { ?><span class="bz-win-tag">中</span><?php } ?><div class="n"><?php echo $n ?></div><div class="t" style="color:<?php echo $c ?>"><?php echo $t ?></div></div>
+                <div class="bz-draw-iss"><?php echo $iss !== '' ? $iss . '期' : '&nbsp;' ?></div>
+            </div>
+        <?php } if (!$draws) { echo '<div class="bz-drawcol"><div class="bz-draw"><div class="t">暂无</div></div></div>'; } ?>
     </div>
 
     <form class="bz-felt" method="post" action="/games/big-small/" id="bsForm">
@@ -225,7 +230,7 @@ a { color: inherit; text-decoration: none; }
                 <?php while ($b = mysql_fetch_assoc($myRes)) {
                     $c = $b['choice']; $cl = $c === 'big' ? '大' : ($c === 'small' ? '小' : ($c === 'triple' ? '豹子' : ($c === 'straight' ? '顺子' : '数字' . (int)$b['bet_number'])));
                     $stm = ['pending' => '待开', 'won' => '中', 'lost' => '未中', 'refunded' => '退回'][$b['status']] ?? $b['status']; ?>
-                    <tr><td><?php echo game_bs_issue_no($b['round_id']) ?></td><td><?php echo $cl ?></td><td><?php echo game_bs_money($b['amount']) ?></td>
+                    <tr><td><?php echo game_bs_issue_full($b['round_id']) ?></td><td><?php echo $cl ?></td><td><?php echo game_bs_money($b['amount']) ?></td>
                         <td><?php echo $stm ?></td><td class="<?php echo (float)$b['payout'] > 0 ? 'bz-pos' : '' ?>"><?php echo game_bs_money($b['payout']) ?></td></tr>
                 <?php } ?>
             </table>
