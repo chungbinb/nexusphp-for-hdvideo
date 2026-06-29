@@ -39,6 +39,9 @@ function bs_draw_badge($d) {
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <title>压大小</title>
 <style>
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -46,7 +49,7 @@ html, body { margin: 0; padding: 0; min-height: 100%; }
 body { background: #07140d; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", Helvetica, Arial, sans-serif; }
 a { color: inherit; text-decoration: none; }
 
-.bz { position: relative; min-height: 100vh; display: flex; flex-direction: column;
+.bz { position: fixed; top: 0; left: 0; right: 0; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow-y: auto;
     background: radial-gradient(ellipse 120% 90% at 50% -16%, #2f9b72 0%, #14785a 40%, #0c5740 64%, #073f2d 100%); }
 .bz::after { content: ""; position: fixed; inset: 0; border: 12px solid #2a1a0e; pointer-events: none;
     box-shadow: inset 0 0 0 2px #6b4a2b, inset 0 0 36px rgba(0,0,0,.5); z-index: 30; }
@@ -89,7 +92,7 @@ a { color: inherit; text-decoration: none; }
 .bz-num input { width: 150px; max-width: 60%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,235,170,.5); background: #0e2419; color: #fff; font-size: 18px; text-align: center; letter-spacing: 4px; }
 
 /* 底栏 */
-.bz-bar { position: relative; z-index: 5; display: flex; align-items: center; gap: 8px; padding: 8px 16px calc(8px + env(safe-area-inset-bottom)); background: linear-gradient(180deg, rgba(6,16,11,0), rgba(4,10,7,.85) 45%); }
+.bz-bar { position: relative; z-index: 5; display: flex; align-items: center; gap: 8px; padding: 8px 16px calc(14px + env(safe-area-inset-bottom)); background: transparent; }
 .bz-money { flex: none; min-width: 84px; }
 .bz-money .v { font-size: 17px; font-weight: 900; color: #ffd86b; } .bz-money .k { font-size: 10px; color: #9fb6a8; }
 .bz-chips { flex: 1; display: flex; gap: 8px; overflow-x: auto; align-items: center; scrollbar-width: none; }
@@ -97,6 +100,20 @@ a { color: inherit; text-decoration: none; }
 .bz-chip { flex: none; width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; color: #fff; cursor: pointer; border: 3px dashed rgba(255,255,255,.85); text-shadow: 0 1px 2px rgba(0,0,0,.5); }
 .bz-amt { flex: none; min-width: 66px; text-align: center; font-weight: 900; color: #ffd86b; font-size: 15px; }
 .bz-deal { flex: none; padding: 0 18px; height: 56px; border-radius: 12px; background: linear-gradient(180deg,#e0a82c,#a9781a); border: 2px solid #ffe9a8; color: #2a1c02; font-weight: 900; font-size: 16px; cursor: pointer; }
+
+/* 横屏：腾出竖向空间，让押注区 + 底部控制条都能落在可见区域，不被地址栏/工具栏裁掉。 */
+@media (orientation: landscape) {
+    .bz::after { border-width: 6px; }          /* 减薄桌沿，少点黑边 */
+    .bz-totals { display: none; }              /* 隐藏装饰性「本期合计」文字，腾出竖向空间 */
+    .bz-top { padding: 4px 16px 2px; }
+    .bz-draws { padding: 3px 14px; }
+    .bz-felt { padding: 4px 14px 2px; }
+    .bz-spot { padding: 9px 8px; }
+    .bz-spot .big { font-size: 22px; }
+    .bz-opt { padding: 7px 6px; }
+    .bz-mini { margin-top: 7px; }
+    .bz-num { margin-top: 7px; }
+}
 
 /* 弹窗 */
 .bz-modal { position: fixed; inset: 0; z-index: 100; display: none; }
@@ -126,6 +143,9 @@ a { color: inherit; text-decoration: none; }
             <div class="bz-issue">第 <?php echo $issueNo ?> 期 · 每分钟开奖</div>
             <div class="bz-timer" id="bsRemain"><?php echo floor($remain / 60) ?>:<?php echo str_pad((string)($remain % 60), 2, '0', STR_PAD_LEFT) ?></div>
         </div>
+        <span class="bz-tbtn" id="bzFsBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M3 16v3a2 2 0 0 1 2 2h3"></path></svg>全屏
+        </span>
         <span class="bz-tbtn" id="bzLbBtn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"></path></svg>排行榜
         </span>
@@ -267,6 +287,30 @@ a { color: inherit; text-decoration: none; }
             var p = t.getAttribute('data-pane');
             document.querySelectorAll('.bz-pane').forEach(function (pane) { pane.classList.toggle('on', pane.getAttribute('data-pane') === p); });
         });
+    });
+
+    // 顶部「全屏」按钮：进入/退出全屏（安卓 Chrome 有效；iPhone Safari 不支持网页全屏，给出提示）
+    var fsBtn = document.getElementById('bzFsBtn');
+    if (fsBtn) fsBtn.addEventListener('click', function () {
+        var el = document.documentElement;
+        var fs = document.fullscreenElement || document.webkitFullscreenElement;
+        if (!fs) {
+            var req = el.requestFullscreen || el.webkitRequestFullscreen;
+            if (req) {
+                try {
+                    var p = req.call(el);
+                    Promise.resolve(p).then(function () {
+                        if (screen.orientation && screen.orientation.lock) return screen.orientation.lock('landscape');
+                    }).catch(function () {});
+                } catch (e) {}
+            } else {
+                alert('当前浏览器不支持网页全屏（iPhone Safari 限制）。想要真全屏可用安卓 Chrome，或把页面「添加到主屏幕」后从图标打开。');
+            }
+        } else {
+            try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {}
+            var ex = document.exitFullscreen || document.webkitExitFullscreen;
+            if (ex) ex.call(document);
+        }
     });
 })();
 </script>
