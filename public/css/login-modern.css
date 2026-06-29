@@ -477,6 +477,16 @@ body.page-login.login-theme-night #footer a {
     color: var(--login-text);
 }
 
+/* 登录页：内容区 #outer 默认有 72px 顶部留白(为固定导航预留)，但登录页没有固定导航，
+   表现为顶部一大片空白；登录页去掉该留白，并隐藏访客的 登录/注册 导航条。 */
+body.page-login #outer.outer {
+    padding-top: 14px !important;
+}
+
+body.page-login #nav_block {
+    display: none !important;
+}
+
 @media (max-width: 960px) {
     /* 手机端登录页：隐藏顶部桌面 logo 横条，去掉大片空白 */
     body.page-login table.head {
