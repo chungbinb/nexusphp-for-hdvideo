@@ -270,45 +270,77 @@ class SeedBoxRepository extends BaseRepository
 
     public static function isSeedBoxFromUserRecords(int $userId, string $ip): array
     {
+        // 结果短缓存，避免 announce 高频重复查询；命中后 300 秒内复用
+        $cacheKey = "IS_SEED_BOX_RESULT:uid:$userId:ip:$ip";
+        $cached = NexusDB::cache_get($cacheKey);
+        if (in_array($cached, [0, 1, '0', '1'], true)) {
+            return self::buildCheckResult((bool)$cached, "userId: $userId, ip: $ip, from cache: $cached");
+        }
+        $result = self::resolveSeedBoxFromDb($userId, $ip);
+        NexusDB::cache_put($cacheKey, $result['result'] ? 1 : 0, 300);
+        return $result;
+    }
+
+    /**
+     * 直接查库判定是否为（已备案/允许的）盒子 IP。
+     * 用 DECIMAL 数值区间匹配，正确支持 单 IP / CIDR 网段 / IPv6；不依赖可能为空或过期的 Redis 集合缓存。
+     */
+    private static function resolveSeedBoxFromDb(int $userId, string $ip): array
+    {
         $logPrefix = "userId: $userId, ip: $ip";
-        $redis = NexusDB::redis();
-        //first check from asn field
+        try {
+            $ipObj = IP::create($ip);
+            $ipNumeric = $ipObj->numeric();      // 纯数字字符串
+            $version = (int)$ipObj->getVersion();
+        } catch (\Throwable $e) {
+            return self::buildCheckResult(false, "$logPrefix, invalid ip: " . $e->getMessage());
+        }
+        $statusAllowed = (int)SeedBoxRecord::STATUS_ALLOWED;
+        $userId = (int)$userId;
+
+        // IP 数值区间条件（DECIMAL 比较，VARCHAR 存储下也能正确按数值比较）
+        $rangeCond = sprintf(
+            'version = %d and ip_begin_numeric <> \'\' and cast(ip_begin_numeric as decimal(39,0)) <= cast(\'%s\' as decimal(39,0)) and cast(ip_end_numeric as decimal(39,0)) >= cast(\'%s\' as decimal(39,0))',
+            $version, $ipNumeric, $ipNumeric
+        );
+
+        // 1) 白名单（is_allowed=1）：明确判定“不是盒子”，优先级最高
+        $sqlAllow = "select id from seed_box_records where status = $statusAllowed and is_allowed = 1 and (asn is null or asn = 0) and $rangeCond limit 1";
+        if (!empty(NexusDB::select($sqlAllow))) {
+            return self::buildCheckResult(false, "$logPrefix, matched allow-list(is_allowed=1), result: false");
+        }
+
+        // 2) ASN 命中（管理员全局 或 用户自己的 ASN 记录）
         $asn = self::getAsnFromIp($ip);
-        $uidArr = [0, $userId];
         if ($asn > 0) {
-            //check if allowed by asn
-            $logPrefix .= ", asn: $asn";
-            foreach($uidArr as $uid) {
-                $key = self::getCacheKey($uid, IsAllowedEnum::YES, IpAsnEnum::ASN);
-                if ($redis->sismember($key, $asn)) {
-                    $desc = "$logPrefix, asn $asn in allowed $key, result: false";
-                    return self::buildCheckResult(false, $desc);
-                }
-            }
-            foreach($uidArr as $uid) {
-                $key = self::getCacheKey($uid, IsAllowedEnum::NO, IpAsnEnum::ASN);
-                if ($redis->sismember($key, $asn)) {
-                    $desc = ("$logPrefix, asn $asn in $key, result: true");
-                    return self::buildCheckResult(true, $desc);
-                }
+            $sqlAsn = sprintf(
+                "select id from seed_box_records where status = %d and is_allowed = 0 and asn = %d and (type = %d or uid = %d) limit 1",
+                $statusAllowed, $asn, (int)SeedBoxRecord::TYPE_ADMIN, $userId
+            );
+            if (!empty(NexusDB::select($sqlAsn))) {
+                return self::buildCheckResult(true, "$logPrefix, matched asn $asn, result: true");
             }
         }
-        //then check from ip field
-        foreach($uidArr as $uid) {
-            $key = self::getCacheKey($uid, IsAllowedEnum::YES, IpAsnEnum::IP);
-            if ($redis->sismember($key, $ip)) {
-                $desc = ("$logPrefix, ip $ip in allowed $key, result: false");
-                return self::buildCheckResult(false, $desc);
-            }
+
+        // 3) 管理员 IP/网段（全局）
+        $sqlAdmin = sprintf(
+            "select id from seed_box_records where status = %d and is_allowed = 0 and type = %d and (asn is null or asn = 0) and %s limit 1",
+            $statusAllowed, (int)SeedBoxRecord::TYPE_ADMIN, $rangeCond
+        );
+        if (!empty(NexusDB::select($sqlAdmin))) {
+            return self::buildCheckResult(true, "$logPrefix, matched admin record, result: true");
         }
-        foreach($uidArr as $uid) {
-            $key = self::getCacheKey($uid, IsAllowedEnum::NO, IpAsnEnum::IP);
-            if ($redis->sismember($key, $ip)) {
-                $desc = ("$logPrefix, ip $ip in $key, result: true");
-                return self::buildCheckResult(true, $desc);
-            }
+
+        // 4) 用户本人备案的 IP/网段
+        $sqlUser = sprintf(
+            "select id from seed_box_records where status = %d and is_allowed = 0 and type = %d and uid = %d and (asn is null or asn = 0) and %s limit 1",
+            $statusAllowed, (int)SeedBoxRecord::TYPE_USER, $userId, $rangeCond
+        );
+        if (!empty(NexusDB::select($sqlUser))) {
+            return self::buildCheckResult(true, "$logPrefix, matched user record, result: true");
         }
-        return self::buildCheckResult(false, "not match any record, result: false");
+
+        return self::buildCheckResult(false, "$logPrefix, no match, result: false");
     }
 
     private static function buildCheckResult(bool $isSeedBox, string $desc): array
