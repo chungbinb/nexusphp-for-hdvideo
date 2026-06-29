@@ -15,6 +15,27 @@ $ratio = $down > 0 ? number_format($up / $down, 2) : ($up > 0 ? '∞' : '---');
 $bonus = number_format(floor((float)($CURUSER['seedbonus'] ?? 0)));
 $classText = function_exists('get_user_class_name') ? get_user_class_name((int)($CURUSER['class'] ?? 0)) : '';
 
+// 个性化配色：取 PC 端账号设置的个性化主色（UserMeta PERSONALIZE 的 --bili-primary）
+$mhPrimary = '#3a6df0';
+try {
+    $pm = \App\Models\UserMeta::query()->where('uid', $uid)->where('meta_key', 'PERSONALIZE')->where('status', 0)->value('meta_value');
+    if ($pm) {
+        $arr = json_decode($pm, true);
+        if (is_array($arr) && isset($arr['--bili-primary']) && preg_match('/^#[0-9a-fA-F]{6}$/', $arr['--bili-primary'])) {
+            $mhPrimary = $arr['--bili-primary'];
+        }
+    }
+} catch (\Throwable $e) {}
+function mh_lighten($hex, $pct) {
+    $hex = ltrim((string)$hex, '#');
+    if (strlen($hex) !== 6) return '#' . $hex;
+    $r = hexdec(substr($hex, 0, 2)); $g = hexdec(substr($hex, 2, 2)); $b = hexdec(substr($hex, 4, 2));
+    $r = (int)round($r + (255 - $r) * $pct); $g = (int)round($g + (255 - $g) * $pct); $b = (int)round($b + (255 - $b) * $pct);
+    return sprintf('#%02x%02x%02x', $r, $g, $b);
+}
+$mhGradEnd = mh_lighten($mhPrimary, 0.40);
+$mhSoft = mh_lighten($mhPrimary, 0.86);
+
 $unread = 0;
 try { $unread = (int)get_row_count('messages', "WHERE receiver = " . $uid . " AND unread = 'yes' AND location != 0"); } catch (\Throwable $e) {}
 
@@ -62,38 +83,54 @@ $navItems = [
 <meta name="mobile-web-app-capable" content="yes" />
 <title><?php echo htmlspecialchars(($SITENAME ?? 'HDvideo')) ?> · 首页</title>
 <style>
+:root { --mh-primary: <?php echo $mhPrimary ?>; --mh-grad-end: <?php echo $mhGradEnd ?>; --mh-soft: <?php echo $mhSoft ?>; }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; padding: 0; }
 body { background: #eef1f7; color: #1b2230; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", Helvetica, Arial, sans-serif; padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
 a { color: inherit; text-decoration: none; }
 img { max-width: 100%; height: auto; }
 
-.m-top { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 10px;
+.m-top { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; gap: 10px;
     padding: calc(10px + env(safe-area-inset-top)) 14px 10px;
-    background: linear-gradient(135deg, #3a6df0, #5b86ff); color: #fff; box-shadow: 0 2px 10px rgba(40,80,180,.25); }
+    background: linear-gradient(135deg, var(--mh-primary), var(--mh-grad-end)); color: #fff; box-shadow: 0 2px 10px rgba(20,40,90,.25); }
 .m-brand { font-size: 20px; font-weight: 900; letter-spacing: .5px; }
 .m-brand span { opacity: .85; font-weight: 700; }
-.m-top .ava { margin-left: auto; width: 38px; height: 38px; border-radius: 50%; overflow: hidden; background: rgba(255,255,255,.25); display: flex; align-items: center; justify-content: center; font-weight: 900; box-shadow: 0 0 0 2px rgba(255,255,255,.5); }
-.m-top .ava img { width: 100%; height: 100%; object-fit: cover; }
+.m-burger { margin-left: auto; width: 40px; height: 40px; border: none; background: rgba(255,255,255,.22); border-radius: 11px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; padding: 0; }
+.m-burger span { width: 20px; height: 2px; background: #fff; border-radius: 2px; transition: transform .25s ease, opacity .2s ease; }
+body.menu-open .m-burger span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+body.menu-open .m-burger span:nth-child(2) { opacity: 0; }
+body.menu-open .m-burger span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
 
-.m-stat { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin: 12px; background: linear-gradient(135deg,#3a6df0,#5b86ff); border-radius: 16px; overflow: hidden; box-shadow: 0 6px 16px rgba(40,80,180,.22); }
+/* 顶部下拉导航抽屉 */
+.m-mask { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,.45); opacity: 0; visibility: hidden; transition: opacity .25s ease; }
+body.menu-open .m-mask { opacity: 1; visibility: visible; }
+.m-drawer { position: fixed; left: 0; right: 0; top: 0; z-index: 45; background: #fff; border-radius: 0 0 18px 18px;
+    padding: calc(60px + env(safe-area-inset-top)) 14px 18px; box-shadow: 0 14px 28px rgba(20,40,90,.22);
+    transform: translateY(-100%); transition: transform .3s ease; }
+body.menu-open .m-drawer { transform: translateY(0); }
+.m-drawer .m-grid { margin: 0; }
+
+.m-stat { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin: 12px; background: linear-gradient(135deg, var(--mh-primary), var(--mh-grad-end)); border-radius: 16px; overflow: hidden; box-shadow: 0 6px 16px rgba(20,40,90,.22); }
 .m-stat > div { background: transparent; color: #fff; text-align: center; padding: 12px 4px; }
 .m-stat b { display: block; font-size: 15px; font-weight: 800; }
 .m-stat span { font-size: 11px; opacity: .85; }
-.m-stat .uname { grid-column: 1 / -1; text-align: left; padding: 12px 14px 4px; display: flex; align-items: center; gap: 8px; }
-.m-stat .uname b { font-size: 16px; }
-.m-stat .uname .tag { font-size: 11px; background: rgba(255,255,255,.22); padding: 2px 8px; border-radius: 999px; font-weight: 700; }
+.m-stat .uname { grid-column: 1 / -1; text-align: left; padding: 12px 14px 6px; display: flex; align-items: center; gap: 10px; }
+.m-stat .av { flex: none; width: 44px; height: 44px; border-radius: 50%; overflow: hidden; background: rgba(255,255,255,.25); display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 19px; color: #fff; box-shadow: 0 0 0 2px rgba(255,255,255,.55); }
+.m-stat .av img { width: 100%; height: 100%; object-fit: cover; }
+.m-stat .who { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.m-stat .who b { font-size: 16px; }
+.m-stat .uname .tag { font-size: 11px; background: rgba(255,255,255,.22); padding: 2px 8px; border-radius: 999px; font-weight: 700; align-self: flex-start; }
 
 .m-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 0 12px 12px; }
 .m-grid a { background: #fff; border-radius: 14px; padding: 12px 4px; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #2b3550; box-shadow: 0 2px 8px rgba(30,50,100,.06); position: relative; }
-.m-grid a .ic { width: 38px; height: 38px; border-radius: 12px; background: linear-gradient(135deg,#eaf0ff,#dbe6ff); display: flex; align-items: center; justify-content: center; }
-.m-grid a .ic svg { width: 21px; height: 21px; fill: none; stroke: #3a6df0; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.m-grid a .ic { width: 38px; height: 38px; border-radius: 12px; background: var(--mh-soft); display: flex; align-items: center; justify-content: center; }
+.m-grid a .ic svg { width: 21px; height: 21px; fill: none; stroke: var(--mh-primary); stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .m-grid a .badge { position: absolute; top: 6px; right: 12px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: #ff4d5e; color: #fff; font-size: 10px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
 
 .m-card { background: #fff; border-radius: 16px; margin: 0 12px 12px; padding: 4px 14px 10px; box-shadow: 0 2px 10px rgba(30,50,100,.06); }
 .m-card h3 { font-size: 15px; margin: 12px 0 6px; display: flex; align-items: center; }
-.m-card h3 .more { margin-left: auto; font-size: 12px; color: #3a6df0; font-weight: 600; }
-.m-card h3::before { content: ""; width: 4px; height: 15px; border-radius: 2px; background: #3a6df0; margin-right: 8px; }
+.m-card h3 .more { margin-left: auto; font-size: 12px; color: var(--mh-primary); font-weight: 600; }
+.m-card h3::before { content: ""; width: 4px; height: 15px; border-radius: 2px; background: var(--mh-primary); margin-right: 8px; }
 
 .m-news { border-top: 1px solid #eef1f7; padding: 9px 0; }
 .m-news:first-of-type { border-top: none; }
@@ -120,7 +157,7 @@ img { max-width: 100%; height: auto; }
 .m-tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; background: #fff;
     border-top: 1px solid #e6eaf2; padding-bottom: env(safe-area-inset-bottom); box-shadow: 0 -2px 12px rgba(30,50,100,.08); }
 .m-tabbar a { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0 6px; font-size: 11px; color: #8b96ad; position: relative; }
-.m-tabbar a.on { color: #3a6df0; }
+.m-tabbar a.on { color: var(--mh-primary); }
 .m-tabbar a svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .m-tabbar a .badge { position: absolute; top: 4px; right: 50%; margin-right: -22px; min-width: 15px; height: 15px; padding: 0 4px; border-radius: 999px; background: #ff4d5e; color: #fff; font-size: 9px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
 .m-empty { color: #9aa6bd; font-size: 13px; padding: 10px 0; }
@@ -129,26 +166,32 @@ img { max-width: 100%; height: auto; }
 <body>
 <header class="m-top">
     <div class="m-brand">HD<span>VIDEO</span></div>
-    <a class="ava" href="usercp.php"><?php echo mh_avatar($avatar, $uname) ?></a>
+    <button class="m-burger" id="mhMenuBtn" type="button" aria-label="导航菜单"><span></span><span></span><span></span></button>
 </header>
 
+<div class="m-mask" id="mhMask"></div>
+<nav class="m-drawer" id="mhDrawer">
+    <div class="m-grid">
+        <?php foreach ($navItems as $it) { ?>
+        <a href="<?php echo $it[0] ?>">
+            <span class="ic"><svg viewBox="0 0 24 24"><?php echo $it[2] ?></svg></span>
+            <?php echo $it[1] ?>
+            <?php if ($it[0] === 'messages.php' && $unread > 0) { ?><span class="badge"><?php echo $unread > 99 ? '99+' : $unread ?></span><?php } ?>
+        </a>
+        <?php } ?>
+    </div>
+</nav>
+
 <section class="m-stat">
-    <div class="uname"><b><?php echo htmlspecialchars($uname) ?></b><?php if ($classText !== '') { ?><span class="tag"><?php echo strip_tags($classText) ?></span><?php } ?></div>
+    <div class="uname">
+        <a class="av" href="usercp.php"><?php echo mh_avatar($avatar, $uname) ?></a>
+        <div class="who"><b><?php echo htmlspecialchars($uname) ?></b><?php if ($classText !== '') { ?><span class="tag"><?php echo strip_tags($classText) ?></span><?php } ?></div>
+    </div>
     <div><b>↑<?php echo mksize($up) ?></b><span>上传</span></div>
     <div><b>↓<?php echo mksize($down) ?></b><span>下载</span></div>
     <div><b><?php echo $ratio ?></b><span>分享率</span></div>
     <div><b><?php echo $bonus ?></b><span>魔力</span></div>
 </section>
-
-<nav class="m-grid">
-    <?php foreach ($navItems as $it) { ?>
-    <a href="<?php echo $it[0] ?>">
-        <span class="ic"><svg viewBox="0 0 24 24"><?php echo $it[2] ?></svg></span>
-        <?php echo $it[1] ?>
-        <?php if ($it[0] === 'messages.php' && $unread > 0) { ?><span class="badge"><?php echo $unread > 99 ? '99+' : $unread ?></span><?php } ?>
-    </a>
-    <?php } ?>
-</nav>
 
 <?php if ($newsRows) { ?>
 <section class="m-card">
@@ -203,5 +246,14 @@ img { max-width: 100%; height: auto; }
     <a href="messages.php"><svg viewBox="0 0 24 24"><path d="M4 5h16v12H8l-4 4z"/></svg>消息<?php if ($unread > 0) { ?><span class="badge"><?php echo $unread > 99 ? '99+' : $unread ?></span><?php } ?></a>
     <a href="usercp.php"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>我的</a>
 </nav>
+<script>
+(function () {
+    var btn = document.getElementById('mhMenuBtn'), mask = document.getElementById('mhMask');
+    function close() { document.body.classList.remove('menu-open'); }
+    if (btn) btn.addEventListener('click', function () { document.body.classList.toggle('menu-open'); });
+    if (mask) mask.addEventListener('click', close);
+    document.querySelectorAll('#mhDrawer a').forEach(function (a) { a.addEventListener('click', close); });
+})();
+</script>
 </body>
 </html>
