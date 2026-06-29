@@ -90,6 +90,24 @@ $rp = sql_query("SELECT posts.id AS pid, topics.id AS tid, topics.subject, topic
     ORDER BY posts.id DESC LIMIT 5");
 while ($rp && ($a = mysql_fetch_assoc($rp))) { $postRows[] = $a; }
 
+// 投票（最新一条）
+$pollRow = null; $pollVoted = null; $pollCounts = []; $pollTotal = 0; $pollOpts = [];
+if (($showpolls_main ?? '') === 'yes') {
+    $pr = sql_query("SELECT * FROM polls ORDER BY id DESC LIMIT 1");
+    $pollRow = $pr ? mysql_fetch_assoc($pr) : null;
+    if ($pollRow) {
+        $pid = (int)$pollRow['id'];
+        for ($i = 0; $i < 20; $i++) { $k = 'option' . $i; if (isset($pollRow[$k]) && trim((string)$pollRow[$k]) !== '') $pollOpts[$i] = $pollRow[$k]; }
+        $vr = sql_query("SELECT selection FROM pollanswers WHERE pollid = $pid AND userid = $uid LIMIT 1");
+        $vv = $vr ? mysql_fetch_assoc($vr) : null;
+        $pollVoted = $vv ? (int)$vv['selection'] : null;
+        if ($pollVoted !== null) {
+            $cr = sql_query("SELECT selection, COUNT(*) AS c FROM pollanswers WHERE pollid = $pid AND selection < 20 GROUP BY selection");
+            while ($cr && ($cc = mysql_fetch_assoc($cr))) { $pollCounts[(int)$cc['selection']] = (int)$cc['c']; $pollTotal += (int)$cc['c']; }
+        }
+    }
+}
+
 function mh_avatar($avatar, $uname)
 {
     if ($avatar !== '') return '<img src="' . htmlspecialchars($avatar) . '" alt="" onerror="this.style.display=\'none\'">';
@@ -197,6 +215,24 @@ body.menu-open .m-drawer { transform: translateY(0); }
 .m-tabbar a .badge { position: absolute; top: 4px; right: 50%; margin-right: -22px; min-width: 15px; height: 15px; padding: 0 4px; border-radius: 999px; background: #ff4d5e; color: #fff; font-size: 9px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
 .m-empty { color: #9aa6bd; font-size: 13px; padding: 10px 0; }
 
+/* 趣味盒 / 群聊区 iframe */
+.m-frame { width: 100%; height: 230px; border: 1px solid rgba(20,40,90,.1); border-radius: 10px; background: #fff; display: block; }
+.m-sbox-form { display: flex; gap: 8px; margin-top: 8px; }
+.m-sbox-form input[type="text"] { flex: 1; min-width: 0; padding: 10px 12px; font-size: 15px; border: 1px solid rgba(20,40,90,.15); border-radius: 10px; background: var(--mh-bg); color: var(--mh-text); }
+.m-sbox-form button { flex: none; padding: 0 16px; border: none; border-radius: 10px; background: var(--mh-primary); color: #fff; font-weight: 700; cursor: pointer; }
+
+/* 投票 */
+.m-poll-q { font-weight: 700; font-size: 14px; margin: 6px 0 10px; line-height: 1.5; }
+.m-poll-opt { display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid rgba(20,40,90,.1); border-radius: 10px; margin-bottom: 8px; font-size: 14px; cursor: pointer; }
+.m-poll-opt input { width: 18px; height: 18px; flex: none; }
+.m-poll-btn { width: 100%; height: 44px; border: none; border-radius: 10px; background: var(--mh-primary); color: #fff; font-weight: 800; font-size: 15px; margin-top: 4px; cursor: pointer; }
+.m-poll-res { margin-bottom: 11px; }
+.m-poll-res-h { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px; }
+.m-poll-res.me .m-poll-res-h { color: var(--mh-primary); font-weight: 700; }
+.m-poll-bar { height: 8px; background: var(--mh-bg); border-radius: 999px; overflow: hidden; }
+.m-poll-bar i { display: block; height: 100%; background: var(--mh-primary); }
+.m-poll-total { font-size: 12px; color: #8a96ad; text-align: right; margin-top: 4px; }
+
 /* 个性化配色弹层（底部抽屉式） */
 .m-modal { position: fixed; inset: 0; z-index: 60; display: none; }
 .m-modal.open { display: block; }
@@ -270,6 +306,49 @@ body.menu-open .m-drawer { transform: translateY(0); }
         </div>
         <div class="nb"><?php echo format_comment($n['body'], 0) ?></div>
     </div>
+    <?php } ?>
+</section>
+<?php } ?>
+
+<?php if (($showfunbox_main ?? '') === 'yes' && (($CURUSER['showfb'] ?? '') === 'yes')) { ?>
+<section class="m-card">
+    <h3>趣味盒</h3>
+    <iframe class="m-frame" src="fun.php?action=view" frameborder="0" scrolling="auto"></iframe>
+</section>
+<?php } ?>
+
+<?php if (($showshoutbox_main ?? '') === 'yes') { ?>
+<section class="m-card">
+    <h3>群聊区</h3>
+    <iframe class="m-frame" id="mhSbox" name="mhSbox" src="shoutbox.php?type=shoutbox" frameborder="0" scrolling="auto"></iframe>
+    <form class="m-sbox-form" action="shoutbox.php" method="get" target="mhSbox">
+        <input type="text" name="shbox_text" placeholder="说点什么…" autocomplete="off" maxlength="250">
+        <input type="hidden" name="sent" value="yes">
+        <input type="hidden" name="type" value="shoutbox">
+        <button type="submit" name="shout" value="发送">发送</button>
+    </form>
+</section>
+<?php } ?>
+
+<?php if ($pollRow && $pollOpts) { ?>
+<section class="m-card">
+    <h3>投票</h3>
+    <div class="m-poll-q"><?php echo htmlspecialchars($pollRow['question']) ?></div>
+    <?php if ($pollVoted === null) { ?>
+    <form class="m-poll-form" method="post" action="index.php">
+        <?php foreach ($pollOpts as $i => $o) { ?>
+        <label class="m-poll-opt"><input type="radio" name="choice" value="<?php echo $i ?>"><span><?php echo htmlspecialchars($o) ?></span></label>
+        <?php } ?>
+        <button type="submit" class="m-poll-btn">投票</button>
+    </form>
+    <?php } else { ?>
+        <?php foreach ($pollOpts as $i => $o) { $c = $pollCounts[$i] ?? 0; $pct = $pollTotal > 0 ? round($c * 100 / $pollTotal) : 0; ?>
+        <div class="m-poll-res<?php echo $i === $pollVoted ? ' me' : '' ?>">
+            <div class="m-poll-res-h"><span><?php echo htmlspecialchars($o) ?><?php echo $i === $pollVoted ? ' ✓' : '' ?></span><span><?php echo $pct ?>% · <?php echo $c ?></span></div>
+            <div class="m-poll-bar"><i style="width:<?php echo $pct ?>%"></i></div>
+        </div>
+        <?php } ?>
+        <div class="m-poll-total">共 <?php echo $pollTotal ?> 票</div>
     <?php } ?>
 </section>
 <?php } ?>
