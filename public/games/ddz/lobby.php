@@ -53,6 +53,11 @@ a { color: inherit; text-decoration: none; }
 /* 左侧排行榜：收起=竖排小按钮；展开=面板 */
 .dl-side { position: relative; z-index: 5; flex: none; width: 0; overflow: hidden; transition: width .22s ease; display: flex; flex-direction: column; align-items: stretch; padding: 0; gap: 8px; }
 .dl.is-rank .dl-side { width: min(72vw, 300px); padding: 8px; }
+/* 左侧榜单的 展开/收起 把手（V 形箭头，随面板滑动、收起朝右展开朝左） */
+.dl-handle { position: absolute; left: 0; top: 50%; transform: translateY(-50%); z-index: 6; width: 22px; height: 58px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.1); border: 1px solid rgba(150,180,255,.3); border-left: none; border-radius: 0 12px 12px 0; cursor: pointer; transition: left .22s ease; }
+.dl.is-rank .dl-handle { left: min(72vw, 300px); }
+.dl-handle svg { width: 16px; height: 16px; transition: transform .22s ease; }
+.dl.is-rank .dl-handle svg { transform: rotate(180deg); }
 .dl-coin.on { background: linear-gradient(135deg,#ffce4f,#f08a1e); color: #3a2400; border-color: #ffce4f; }
 .dl-coin.on svg { stroke: #5a3a00; }
 .dl-chev { width: 13px; height: 13px; margin-left: 1px; transition: transform .22s ease; }
@@ -167,6 +172,7 @@ a { color: inherit; text-decoration: none; }
     </div>
 
     <div class="dl-stage">
+        <div class="dl-handle" id="dlHandle" title="展开/收起排行榜"><svg viewBox="0 0 24 24" fill="none" stroke="#cdd9f7" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></div>
         <div class="dl-side">
             <div class="dl-rankpanel">
                 <div class="dl-rank-tabs">
@@ -243,11 +249,14 @@ a { color: inherit; text-decoration: none; }
 <script>
 (function () {
     var dl = document.getElementById('dl');
-    // 排行榜 收起/展开
-    document.getElementById('dlRankBtn').addEventListener('click', function () {
-        dl.classList.toggle('is-rank');
-        this.classList.toggle('on', dl.classList.contains('is-rank'));
-    });
+    // 排行榜 收起/展开（右上角按钮 + 左侧把手 都可切换）
+    var rankBtn = document.getElementById('dlRankBtn');
+    function toggleRank() {
+        var on = dl.classList.toggle('is-rank');
+        rankBtn.classList.toggle('on', on);
+    }
+    rankBtn.addEventListener('click', toggleRank);
+    document.getElementById('dlHandle').addEventListener('click', toggleRank);
     // 榜单 tab
     document.querySelectorAll('.dl-rank-tab').forEach(function (t) {
         t.addEventListener('click', function () {
