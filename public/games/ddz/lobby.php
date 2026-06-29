@@ -9,6 +9,7 @@ if (!defined('DDZ_BUSINESS_TYPE')) { return; }
 
 $uid = (int)$CURUSER['id'];
 $uname = (string)($CURUSER['username'] ?? '');
+$myAvatar = trim((string)($CURUSER['avatar'] ?? ''));
 $bal = number_format(floor((float)($CURUSER['seedbonus'] ?? 0)));
 $rankRows = ddz_leaderboard('games DESC, net DESC', 12, 1);
 $pnlRows  = ddz_leaderboard('net DESC', 12, 1, 'net > 0');
@@ -50,7 +51,8 @@ a { color: inherit; text-decoration: none; }
 /* 顶部货币栏 */
 .dl-top { position: relative; z-index: 6; display: flex; align-items: center; gap: 10px; padding: calc(8px + env(safe-area-inset-top)) 14px 8px; }
 .dl-user { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.dl-ava { width: 38px; height: 38px; border-radius: 50%; flex: none; background: linear-gradient(135deg,#7c6cff,#3aa0ff); display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 17px; color: #fff; box-shadow: 0 0 0 2px rgba(255,255,255,.3); }
+.dl-ava { width: 38px; height: 38px; border-radius: 50%; flex: none; overflow: hidden; background: linear-gradient(135deg,#7c6cff,#3aa0ff); display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 17px; color: #fff; box-shadow: 0 0 0 2px rgba(255,255,255,.3); }
+.dl-ava img { width: 100%; height: 100%; object-fit: cover; }
 .dl-uname { font-size: 13px; font-weight: 700; max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dl-lv { font-size: 10px; color: #b9c6ee; }
 .dl-coins { margin-left: auto; display: flex; align-items: center; gap: 8px; }
@@ -186,7 +188,7 @@ a { color: inherit; text-decoration: none; }
 <div class="dl" id="dl">
     <div class="dl-top">
         <div class="dl-user">
-            <div class="dl-ava"><?php echo htmlspecialchars(mb_substr($uname !== '' ? $uname : '玩', 0, 1)) ?></div>
+            <div class="dl-ava"><?php if ($myAvatar !== '') { ?><img src="<?php echo htmlspecialchars($myAvatar) ?>" alt="" onerror="this.style.display='none'"><?php } else { echo htmlspecialchars(mb_substr($uname !== '' ? $uname : '玩', 0, 1)); } ?></div>
             <div>
                 <div class="dl-uname"><?php echo htmlspecialchars($uname) ?></div>
                 <div class="dl-lv">斗地主 · 内测</div>
