@@ -514,6 +514,32 @@ body.page-login.login-theme-night #footer a {
         border-radius: 14px;
     }
 
+    /* 手机端：压缩营销 hero，让登录表单成为主角 */
+    .login-hero {
+        min-height: auto;
+        padding: 18px 20px;
+    }
+
+    .login-hero-copy {
+        display: none;
+    }
+
+    .login-panel {
+        padding: 22px 18px;
+    }
+
+    #login-form table {
+        width: 100%;
+    }
+
+    #login-form .username,
+    #login-form .password,
+    #login-form input[type="text"],
+    #login-form input[type="password"] {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
     .login-brand-title {
         font-size: 28px;
     }

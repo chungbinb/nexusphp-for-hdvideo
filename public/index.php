@@ -33,6 +33,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST")
 		stderr($lang_index['std_error'], $lang_index['std_option_unselected']);
 	}
 }
+// 手机端访问：走独立的手机版首页（自带头/尾，不经过桌面版 stdhead）；?pc=1 强制看电脑版。
+if (empty($_GET['pc'])
+    && preg_match('/Mobile|Android|iPhone|iPod|Windows Phone|BlackBerry|webOS|HarmonyOS/i', (string)($_SERVER['HTTP_USER_AGENT'] ?? ''))) {
+    require __DIR__ . '/mobile/home.php';
+    exit;
+}
+
 stdhead($lang_index['head_home']);
 begin_main_frame();
 
