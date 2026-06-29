@@ -24,6 +24,8 @@ $loginTheme = $_GET['theme'] ?? 'modern';
 if ($loginTheme === 'modern') {
 	\Nexus\Nexus::css('css/login-modern.css?v=20260610-login7', 'header', true);
 }
+// 登录页不显示顶部海报轮播（对访客是一片空白「广告区」）。
+$GLOBALS['nexus_hide_top_banner'] = true;
 stdhead($lang_login['head_login']);
 
 $s = "<select name=\"sitelanguage\" onchange='submit()'>\n";
