@@ -84,17 +84,14 @@ a { color: inherit; text-decoration: none; }
 
 /* 右侧模式卡 */
 /* 默认（收起）：三张卡横排居中 */
-.dl-modes { position: relative; z-index: 5; flex: 1; display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px; padding: 10px 16px; }
-.dl-card { position: relative; flex: 1 1 0; min-width: 200px; max-width: 300px; border-radius: 16px; padding: 18px; cursor: pointer; overflow: hidden; border: 1px solid rgba(255,255,255,.18); box-shadow: 0 6px 18px rgba(0,0,0,.4); transition: transform .12s ease; }
-/* 展开排行榜：三张卡竖排靠右（角色立绘居中露出） */
-.dl.is-rank .dl-modes { flex: none; flex-direction: column; flex-wrap: nowrap; align-items: stretch; justify-content: center; margin-left: auto; }
-.dl.is-rank .dl-card { flex: none; width: min(56vw, 300px); }
-/* 窄屏：竖排堆叠 */
-@media (max-width: 760px) { .dl-modes { flex-direction: column; flex-wrap: nowrap; } .dl-card { flex: none; width: 100%; max-width: 380px; } }
+/* 模式卡：电影海报式（竖版，高而窄）。收起时横排居中，展开时靠右。 */
+.dl-modes { position: relative; z-index: 5; flex: 1; display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: center; gap: 18px; padding: 10px 16px; }
+.dl-card { position: relative; flex: 0 0 auto; width: clamp(140px, 44vw, 184px); aspect-ratio: 2 / 3; border-radius: 18px; padding: 14px; cursor: pointer; overflow: hidden; border: 1px solid rgba(255,255,255,.2); box-shadow: 0 10px 26px rgba(0,0,0,.5); transition: transform .12s ease; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; text-align: center; }
+.dl.is-rank .dl-modes { justify-content: flex-end; }
 .dl-card:active { transform: scale(.97); }
-.dl-card .nm { font-size: 22px; font-weight: 900; text-shadow: 0 2px 6px rgba(0,0,0,.45); }
-.dl-card .sub { font-size: 12px; margin-top: 3px; opacity: .9; }
-.dl-card .ic { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 46px; filter: drop-shadow(0 3px 6px rgba(0,0,0,.4)); }
+.dl-card .nm { font-size: 21px; font-weight: 900; text-shadow: 0 2px 6px rgba(0,0,0,.45); }
+.dl-card .sub { font-size: 12px; margin-top: 4px; opacity: .92; line-height: 1.35; }
+.dl-card .ic { position: absolute; left: 50%; top: 34%; transform: translate(-50%,-50%); filter: drop-shadow(0 3px 6px rgba(0,0,0,.4)); }
 .dl-card.coin { background: linear-gradient(135deg,#f6a623,#c9760a); }
 .dl-card.rank { background: linear-gradient(135deg,#7b8cff,#4150c8); }
 .dl-card.show { background: linear-gradient(135deg,#ff7eb3,#a13bd6); }
@@ -131,7 +128,7 @@ a { color: inherit; text-decoration: none; }
 
 /* —— 纯 SVG/CSS 质感（不用图片） —— */
 .dl-card::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 46%; background: linear-gradient(180deg, rgba(255,255,255,.32), rgba(255,255,255,0)); pointer-events: none; }
-.dl-card .ic svg { width: 56px; height: 56px; display: block; filter: drop-shadow(0 3px 5px rgba(0,0,0,.35)); }
+.dl-card .ic svg { width: 88px; height: 88px; display: block; filter: drop-shadow(0 3px 5px rgba(0,0,0,.35)); }
 .dl-coin .ic { display: flex; }
 .dl-coin .ic svg { width: 16px; height: 16px; display: block; }
 .dl-icobtn svg { width: 16px; height: 16px; }
