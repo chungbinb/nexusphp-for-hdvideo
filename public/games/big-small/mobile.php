@@ -72,7 +72,7 @@ a { color: inherit; text-decoration: none; }
 .bz-draw .t { font-size: 11px; font-weight: 800; }
 
 /* 押注区 */
-.bz-felt { position: relative; z-index: 4; flex: 1; padding: 6px 14px 4px; }
+.bz-felt { position: relative; z-index: 4; flex: 1; display: flex; flex-direction: column; padding: 6px 14px 4px; }
 .bz-totals { text-align: center; font-size: 12px; color: rgba(255,255,255,.75); margin-bottom: 6px; }
 .bz-spots { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .bz-spot { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 14px 8px; border-radius: 12px; border: 2px solid rgba(255,235,170,.35); background: rgba(0,0,0,.2); cursor: pointer; }
@@ -92,14 +92,16 @@ a { color: inherit; text-decoration: none; }
 .bz-num input { width: 150px; max-width: 60%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,235,170,.5); background: #0e2419; color: #fff; font-size: 18px; text-align: center; letter-spacing: 4px; }
 
 /* 底栏 */
-.bz-bar { position: relative; z-index: 5; display: flex; align-items: center; gap: 8px; padding: 8px 16px calc(14px + env(safe-area-inset-bottom)); background: transparent; }
-.bz-money { flex: none; min-width: 84px; }
-.bz-money .v { font-size: 17px; font-weight: 900; color: #ffd86b; } .bz-money .k { font-size: 10px; color: #9fb6a8; }
-.bz-chips { flex: 1; display: flex; gap: 8px; overflow-x: auto; align-items: center; scrollbar-width: none; }
-.bz-chips::-webkit-scrollbar { display: none; }
-.bz-chip { flex: none; width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; color: #fff; cursor: pointer; border: 3px dashed rgba(255,255,255,.85); text-shadow: 0 1px 2px rgba(0,0,0,.5); }
-.bz-amt { flex: none; min-width: 66px; text-align: center; font-weight: 900; color: #ffd86b; font-size: 15px; }
-.bz-deal { flex: none; padding: 0 18px; height: 56px; border-radius: 12px; background: linear-gradient(180deg,#e0a82c,#a9781a); border: 2px solid #ffe9a8; color: #2a1c02; font-weight: 900; font-size: 16px; cursor: pointer; }
+.bz-bar { position: relative; z-index: 5; margin-top: auto; display: flex; flex-direction: column; gap: 11px; padding: 10px 16px calc(14px + env(safe-area-inset-bottom)); background: transparent; }
+.bz-money { display: flex; align-items: baseline; gap: 6px; }
+.bz-money .v { font-size: 18px; font-weight: 900; color: #ffd86b; } .bz-money .k { font-size: 11px; color: #9fb6a8; }
+.bz-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.bz-chip { flex: none; width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 900; color: #fff; cursor: pointer; border: 3px dashed rgba(255,255,255,.85); text-shadow: 0 1px 2px rgba(0,0,0,.5); }
+.bz-chip.sel { outline: 3px solid #ffd86b; outline-offset: 2px; }
+.bz-betline { display: flex; gap: 10px; align-items: stretch; }
+.bz-amtinput { flex: 1; min-width: 0; height: 54px; padding: 0 14px; border-radius: 12px; border: 1px solid rgba(255,235,170,.5); background: #0e2419; color: #ffd86b; font-size: 18px; font-weight: 800; text-align: center; }
+.bz-amtinput::placeholder { color: #6f8a7e; font-weight: 600; font-size: 14px; }
+.bz-deal { flex: none; padding: 0 28px; height: 54px; border-radius: 12px; background: linear-gradient(180deg,#e0a82c,#a9781a); border: 2px solid #ffe9a8; color: #2a1c02; font-weight: 900; font-size: 17px; cursor: pointer; }
 
 /* 横屏：腾出竖向空间，让押注区 + 底部控制条都能落在可见区域，不被地址栏/工具栏裁掉。 */
 @media (orientation: landscape) {
@@ -176,16 +178,17 @@ a { color: inherit; text-decoration: none; }
         </div>
 
         <div class="bz-bar">
-            <div class="bz-money"><div class="v" id="bsBal"><?php echo $mBal ?></div><div class="k">电影票</div></div>
+            <div class="bz-money"><span class="v" id="bsBal"><?php echo $mBal ?></span><span class="k">电影票</span></div>
             <div class="bz-chips">
                 <?php $cc = ['#7f8c8d','#c0392b','#2e86c1','#8e44ad','#d4a017']; foreach ($chips as $i => $c) { ?>
                     <span class="bz-chip" data-amt="<?php echo $c ?>" style="background:<?php echo $cc[$i] ?>"><?php echo bs_chip_label($c) ?></span>
                 <?php } ?>
                 <span class="bz-chip" data-amt="all" style="background:#16a085">梭哈</span>
             </div>
-            <div class="bz-amt" id="bsAmtShow">0</div>
-            <input type="hidden" name="amount" id="bsAmount" value="">
-            <button type="submit" class="bz-deal">押注</button>
+            <div class="bz-betline">
+                <input type="number" name="amount" id="bsAmount" class="bz-amtinput" min="1" step="1" inputmode="numeric" placeholder="自定义电影票数量">
+                <button type="submit" class="bz-deal">押注</button>
+            </div>
         </div>
     </form>
 </div>
@@ -244,13 +247,18 @@ a { color: inherit; text-decoration: none; }
     })();
 
     var balInt = <?php echo $mBalInt ?>;
-    var amountEl = document.getElementById('bsAmount'), amtShow = document.getElementById('bsAmtShow');
+    var amountEl = document.getElementById('bsAmount');
     document.querySelectorAll('.bz-chip').forEach(function (chip) {
         chip.addEventListener('click', function () {
             var a = chip.getAttribute('data-amt');
-            var v = a === 'all' ? balInt : parseInt(a, 10);
-            amountEl.value = v; amtShow.textContent = v.toLocaleString();
+            amountEl.value = a === 'all' ? balInt : parseInt(a, 10);
+            document.querySelectorAll('.bz-chip').forEach(function (x) { x.classList.remove('sel'); });
+            chip.classList.add('sel');
         });
+    });
+    // 手动输入自定义金额时取消筹码选中态
+    amountEl.addEventListener('input', function () {
+        document.querySelectorAll('.bz-chip').forEach(function (x) { x.classList.remove('sel'); });
     });
 
     // 选中押注区高亮
