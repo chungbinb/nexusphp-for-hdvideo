@@ -1,0 +1,223 @@
+<?php
+/**
+ * 手机版统一外壳：顶栏(品牌+管理/联系+个性化+三横杆) + 抽屉导航 + 底部Tab + 我的/管理弹层 + 个性化弹层。
+ * 用于在 stdhead 页面(如 usercp)上叠加与首页一致的手机外壳；配套 styles/mobile-shell.css。
+ * mobile_shell_render($active) 直接 echo 全部外壳标记与脚本（这些元素均 fixed/sticky，放在页面任意处即可）。
+ */
+if (!function_exists('mobile_shell_render')) {
+
+function mobile_shell_colors(): array
+{
+    global $CURUSER;
+    $c = ['primary' => '#00aeec', 'accent' => '#fb7299', 'bg' => '#f6f7fb', 'surface' => '#ffffff', 'text' => '#18191c'];
+    try {
+        $uid = (int)$CURUSER['id'];
+        $pm = \App\Models\UserMeta::query()->where('uid', $uid)->where('meta_key', 'PERSONALIZE')->where('status', 0)->value('meta_value');
+        if ($pm) {
+            $a = json_decode($pm, true);
+            if (is_array($a)) {
+                $re = '/^#[0-9a-fA-F]{6}$/';
+                $map = ['primary' => '--bili-primary', 'accent' => '--bili-accent', 'bg' => '--bili-bg', 'surface' => '--bili-surface', 'text' => '--bili-text'];
+                foreach ($map as $k => $v) { if (isset($a[$v]) && preg_match($re, $a[$v])) $c[$k] = strtolower($a[$v]); }
+            }
+        }
+    } catch (\Throwable $e) {}
+    return $c;
+}
+
+function mobile_shell_render(string $active = ''): void
+{
+    global $CURUSER;
+    $uid = (int)$CURUSER['id'];
+    $unread = 0;
+    try { $unread = (int)get_row_count('messages', "WHERE receiver = $uid AND unread = 'yes' AND location != 0"); } catch (\Throwable $e) {}
+
+    $navItems = [
+        ['torrents.php?requireseed=1', '保种区', '<path d="M12 3l8 3v6c0 4.2-3.1 6.3-8 8-4.9-1.7-8-3.8-8-8V6z"/>'],
+    ];
+    if (($GLOBALS['enableoffer'] ?? '') === 'yes') $navItems[] = ['offers.php', '候选', '<path d="M5 6h14M5 12h14M5 18h9"/><path d="M3 6h.01M3 12h.01M3 18h.01"/>'];
+    $navItems[] = ['viewrequests.php', '求种', '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/>'];
+    $navItems[] = ['subtitles.php', '字幕', '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 14h4M13 14h4M7 10h2"/>'];
+    $navItems[] = ['upload.php', '发布', '<path d="M12 19V7M6 11l6-6 6 6M5 21h14"/>'];
+    $navItems[] = ['topten.php', '排行', '<path d="M5 21V9M12 21V4M19 21v-7"/>'];
+    $navItems[] = ['myhr.php', '考核', '<path d="M9 11l3 3 6-6M5 5h9M5 12h3M5 19h6"/>'];
+    $navItems[] = ['rules.php', '规则', '<path d="M6 3h9l4 4v14H6z"/><path d="M9 9h6M9 13h6M9 17h4"/>'];
+    $navItems[] = ['faq.php', '常见问题', '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.5a2.4 2.4 0 1 1 3.3 2.2c-.8.4-1.4 1-1.4 1.9v.3"/><path d="M12 17h.01"/>'];
+    if (function_exists('user_can') && user_can('log')) $navItems[] = ['log.php', '日志', '<path d="M3 12a9 9 0 1 0 3-6.7M3 5v4h4"/><path d="M12 8v4l3 2"/>'];
+    $navItems[] = ['user-ban-log.php', '封禁记录', '<circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/>'];
+    $navItems[] = ['index.php', '首页', '<path d="M4 11l8-7 8 7M6 10v9h12v-9"/>'];
+
+    $meItems = [
+        ['usercp.php', '个人中心', '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>', false],
+        ['messages.php', '消息', '<path d="M4 5h16v12H8l-4 4z"/>', true],
+        ['attendance.php', '签到', '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 9h18M9 15l2 2 4-4"/>', false],
+        ['mybonus.php', '魔力', '<circle cx="12" cy="12" r="8"/><path d="M9.5 12h5"/>', false],
+        ['invite.php', '邀请', '<circle cx="9" cy="8" r="4"/><path d="M3 20c0-3.5 3-5 6-5s6 1.5 6 5M19 8v6M16 11h6"/>', false],
+        ['medal.php', '勋章', '<circle cx="12" cy="9" r="5"/><path d="M9 13l-2 8 5-3 5 3-2-8"/>', false],
+        ['logout.php', '退出登录', '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>', false],
+    ];
+
+    $adminItems = [];
+    if (function_exists('user_can')) {
+        $uclass = function_exists('get_user_class') ? (int)get_user_class() : (int)($CURUSER['class'] ?? 0);
+        if (user_can('viewstaff') || (defined('UC_MODERATOR') && $uclass >= UC_MODERATOR)) $adminItems[] = ['staff.php', '管理组', '<path d="M12 3l8 3v6c0 4-3 6.3-8 8-5-1.7-8-4-8-8V6z"/>'];
+        if (user_can('staffmem')) {
+            $adminItems[] = ['staffbox.php', '管理组信箱', '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>'];
+            $adminItems[] = ['reports.php', '举报信箱', '<path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17h.01"/>'];
+            $adminItems[] = ['cheaterbox.php', '作弊者', '<circle cx="9" cy="8" r="4"/><path d="M3 20c0-3.4 3-5 6-5"/><path d="M15.5 9.5l5 5M20.5 9.5l-5 5"/>'];
+            $adminItems[] = ['complains.php?action=list', '申诉处理', '<path d="M4 5h16v11H8l-4 4z"/><path d="M9 9h6M9 12h4"/>'];
+        }
+        if (defined('UC_MODERATOR') && $uclass >= UC_MODERATOR) $adminItems[] = ['staffpanel.php', '管理组面板', '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/>'];
+        if (defined('UC_SYSOP') && $uclass >= UC_SYSOP) $adminItems[] = ['settings.php', '站点设定', '<circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.8 7.8 0 0 0 0-2l2-1.5-2-3.4-2.4 1a7 7 0 0 0-1.7-1L15 3.5h-4l-.3 2.6a7 7 0 0 0-1.7 1l-2.4-1-2 3.4L4.6 11a7.8 7.8 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.3 2.6h4l.3-2.6a7 7 0 0 0 1.7-1l2.4 1 2-3.4z"/>'];
+        try { if ($uclass >= \App\Models\User::getAccessAdminClassMin()) $adminItems[] = [nexus_env('FILAMENT_PATH', 'nexusphp'), '管理系统', '<rect x="3" y="4" width="18" height="7" rx="1"/><rect x="3" y="13" width="18" height="7" rx="1"/><path d="M7 7.5h.01M7 16.5h.01"/>', true]; } catch (\Throwable $e) {}
+    }
+
+    $presets = [
+        ['默认', '#00aeec', '#fb7299', '#f6f7fb', '#ffffff', '#18191c'],
+        ['樱花粉', '#fb7299', '#f8a5c2', '#fcdfe9', '#fbcfdf', '#5a3a44'],
+        ['抹茶绿', '#689f38', '#9ccc65', '#d3e8bb', '#c6e0a8', '#2e3d22'],
+        ['海洋蓝', '#1976d2', '#4fc3f7', '#cfe5f6', '#bfddf2', '#13314a'],
+        ['暮光紫', '#7c4dff', '#b388ff', '#ddd0f5', '#cfbef0', '#2a2340'],
+        ['落日橙', '#f4511e', '#ff8a65', '#ffdcc9', '#ffceb6', '#4a2818'],
+        ['性感紫', '#9c27b0', '#ff4081', '#ecd6f4', '#ddbbeb', '#3b1d49'],
+        ['妖娆紫', '#ba68c8', '#f06292', '#f2e2f7', '#e6cdf0', '#45284f'],
+        ['魅惑紫', '#6a1b9a', '#c2185b', '#e3cbee', '#cfaae2', '#2f1340'],
+        ['清纯粉', '#f48fb1', '#f8bbd0', '#fdf0f5', '#fcdde9', '#5a3a48'],
+    ];
+    $col = mobile_shell_colors();
+    $badge = $unread > 99 ? '99+' : (string)$unread;
+    $tab = function ($key, $href, $svg, $label) use ($active, $unread, $badge) {
+        $on = $key === $active ? ' class="on"' : '';
+        $b = ($key === 'me' && $unread > 0) ? '<span class="badge">' . $badge . '</span>' : '';
+        return '<a' . $on . ' href="' . $href . '"><svg viewBox="0 0 24 24">' . $svg . '</svg>' . $label . $b . '</a>';
+    };
+    ?>
+<div id="mhShell">
+<header class="m-top">
+    <a class="m-brand" href="index.php">HD<span>VIDEO</span></a>
+    <div class="m-actions">
+        <?php if ($adminItems) { ?>
+        <button class="m-iconbtn" id="mhAdminBtn" type="button" aria-label="管理"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.8 7.8 0 0 0 0-2l2-1.5-2-3.4-2.4 1a7 7 0 0 0-1.7-1L15 3.5h-4l-.3 2.6a7 7 0 0 0-1.7 1l-2.4-1-2 3.4L4.6 11a7.8 7.8 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.3 2.6h4l.3-2.6a7 7 0 0 0 1.7-1l2.4 1 2-3.4z"/></svg></button>
+        <?php } else { ?>
+        <a class="m-iconbtn" href="contactstaff.php" aria-label="联系管理组"><svg viewBox="0 0 24 24"><path d="M5 13v-1a7 7 0 0 1 14 0v1"/><rect x="3" y="13" width="4" height="6" rx="1.6"/><rect x="17" y="13" width="4" height="6" rx="1.6"/><path d="M19 19a3.5 3.5 0 0 1-3.5 3H13"/></svg></a>
+        <?php } ?>
+        <button class="m-iconbtn" id="mhPzBtn" type="button" aria-label="个性化配色"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-.95-.5-1.3-.3-.35-.5-.8-.5-1.2 0-.83.67-1.5 1.5-1.5H16a5 5 0 0 0 5-5c0-3.87-4.03-7-9-7z"/><circle cx="7.5" cy="11" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="7.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="16.5" cy="11" r="1.1" fill="currentColor" stroke="none"/></svg></button>
+        <button class="m-burger" id="mhMenuBtn" type="button" aria-label="导航菜单"><span></span><span></span><span></span></button>
+    </div>
+</header>
+
+<div class="m-mask" id="mhMask"></div>
+<nav class="m-drawer" id="mhDrawer">
+    <div class="m-grid">
+        <?php foreach ($navItems as $it) { ?>
+        <a href="<?php echo $it[0] ?>"><span class="ic"><svg viewBox="0 0 24 24"><?php echo $it[2] ?></svg></span><?php echo $it[1] ?></a>
+        <?php } ?>
+    </div>
+</nav>
+
+<nav class="m-tabbar">
+    <?php
+    echo $tab('home', 'index.php', '<path d="M4 11l8-7 8 7M6 10v9h12v-9"/>', '首页');
+    echo $tab('torrents', 'torrents.php', '<path d="M4 7h16M4 12h16M4 17h10"/>', '种子');
+    echo $tab('forums', 'forums.php', '<path d="M4 5h16v10H9l-4 4z"/>', '论坛');
+    echo $tab('games', 'games/', '<rect x="3" y="8" width="18" height="9" rx="4"/><path d="M8 12.5h2M9 11.5v2"/>', '游戏');
+    ?>
+    <button type="button" id="mhMeBtn"<?php echo $active === 'me' ? ' class="on"' : '' ?>><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>我的<?php if ($unread > 0) { ?><span class="badge"><?php echo $badge ?></span><?php } ?></button>
+</nav>
+
+<div class="m-sheet" id="mhMeSheet">
+    <div class="m-sheet-mask" data-me-close></div>
+    <div class="m-sheet-card">
+        <div class="m-sheet-handle"></div>
+        <?php foreach ($meItems as $mi) { ?>
+        <a class="m-me-item" href="<?php echo $mi[0] ?>"><span class="ic"><svg viewBox="0 0 24 24"><?php echo $mi[2] ?></svg></span><span class="t"><?php echo $mi[1] ?></span><?php if ($mi[3] && $unread > 0) { ?><span class="badge"><?php echo $badge ?></span><?php } ?><span class="arr">›</span></a>
+        <?php } ?>
+    </div>
+</div>
+
+<?php if ($adminItems) { ?>
+<div class="m-sheet" id="mhAdminSheet">
+    <div class="m-sheet-mask" data-admin-close></div>
+    <div class="m-sheet-card">
+        <div class="m-sheet-handle"></div>
+        <?php foreach ($adminItems as $ai) { ?>
+        <a class="m-me-item" href="<?php echo htmlspecialchars($ai[0]) ?>"<?php echo !empty($ai[3]) ? ' target="_blank"' : '' ?>><span class="ic"><svg viewBox="0 0 24 24"><?php echo $ai[2] ?></svg></span><span class="t"><?php echo $ai[1] ?></span><span class="arr">›</span></a>
+        <?php } ?>
+    </div>
+</div>
+<?php } ?>
+
+<div class="m-modal" id="mhPzModal" data-shell-modal>
+    <div class="m-modal-mask" data-pz-close></div>
+    <div class="m-modal-card">
+        <div class="m-modal-h"><span>个性化配色</span><span class="m-modal-x" data-pz-close>✕</span></div>
+        <div class="m-pz-label">预设配色</div>
+        <div class="m-pz-presets">
+            <?php foreach ($presets as $i => $p) { ?>
+            <button type="button" class="m-pz-preset" data-preset="<?php echo $i ?>" style="--c: <?php echo $p[1] ?>"><span class="dot"></span><?php echo $p[0] ?></button>
+            <?php } ?>
+        </div>
+        <div class="m-pz-row"><label>主色调</label><input type="color" data-var="--bili-primary" value="<?php echo $col['primary'] ?>"></div>
+        <div class="m-pz-row"><label>强调色</label><input type="color" data-var="--bili-accent" value="<?php echo $col['accent'] ?>"></div>
+        <div class="m-pz-row"><label>背景色</label><input type="color" data-var="--bili-bg" value="<?php echo $col['bg'] ?>"></div>
+        <div class="m-pz-row"><label>面板色</label><input type="color" data-var="--bili-surface" value="<?php echo $col['surface'] ?>"></div>
+        <div class="m-pz-row"><label>文字色</label><input type="color" data-var="--bili-text" value="<?php echo $col['text'] ?>"></div>
+        <div class="m-pz-btns">
+            <button type="button" class="m-pz-reset" id="mhPzReset">恢复默认</button>
+            <button type="button" class="m-pz-save" id="mhPzSave">保存</button>
+        </div>
+    </div>
+</div>
+</div><!-- /#mhShell -->
+
+<script>
+(function () {
+    var body = document.body;
+    body.classList.add('m-shell');
+    // 把外壳提到 body 顶层，避免被有 transform 的祖先困住导致 fixed 失效
+    var shell = document.getElementById('mhShell');
+    if (shell && shell.parentNode !== body) body.appendChild(shell);
+    var menuBtn = document.getElementById('mhMenuBtn'), mask = document.getElementById('mhMask');
+    if (menuBtn) menuBtn.addEventListener('click', function () { body.classList.toggle('menu-open'); });
+    if (mask) mask.addEventListener('click', function () { body.classList.remove('menu-open'); });
+    function bindSheet(sheetId, btnId, closeAttr) {
+        var sheet = document.getElementById(sheetId), btn = document.getElementById(btnId);
+        if (!sheet || !btn) return;
+        btn.addEventListener('click', function () { sheet.classList.add('open'); });
+        sheet.querySelectorAll('[' + closeAttr + ']').forEach(function (el) { el.addEventListener('click', function () { sheet.classList.remove('open'); }); });
+    }
+    bindSheet('mhMeSheet', 'mhMeBtn', 'data-me-close');
+    bindSheet('mhAdminSheet', 'mhAdminBtn', 'data-admin-close');
+
+    var modal = document.getElementById('mhPzModal'), pzBtn = document.getElementById('mhPzBtn');
+    if (modal && pzBtn) {
+        var root = document.documentElement;
+        function lighten(hex, pct) { hex = hex.replace('#', ''); var r = parseInt(hex.substr(0,2),16), g = parseInt(hex.substr(2,2),16), b = parseInt(hex.substr(4,2),16); r = Math.round(r+(255-r)*pct); g = Math.round(g+(255-g)*pct); b = Math.round(b+(255-b)*pct); return '#' + [r,g,b].map(function (x) { return ('0'+x.toString(16)).slice(-2); }).join(''); }
+        function applyVar(v, hex) { root.style.setProperty(v, hex); if (v === '--bili-primary') root.style.setProperty('--mh-soft', lighten(hex, 0.86)); }
+        function closeModal() { modal.classList.remove('open'); }
+        pzBtn.addEventListener('click', function () { modal.classList.add('open'); });
+        modal.querySelectorAll('[data-pz-close]').forEach(function (el) { el.addEventListener('click', closeModal); });
+        var inputs = modal.querySelectorAll('input[type=color]');
+        inputs.forEach(function (inp) { inp.addEventListener('input', function () { applyVar(inp.getAttribute('data-var'), inp.value); }); });
+        var MH_PRESETS = <?php echo json_encode(array_map(fn($p) => array_slice($p, 1), $presets)) ?>;
+        var PZ_VARS = ['--bili-primary', '--bili-accent', '--bili-bg', '--bili-surface', '--bili-text'];
+        modal.querySelectorAll('.m-pz-preset').forEach(function (b) {
+            b.addEventListener('click', function () {
+                var p = MH_PRESETS[parseInt(b.getAttribute('data-preset'), 10)]; if (!p) return;
+                PZ_VARS.forEach(function (v, idx) { var inp = modal.querySelector('input[data-var="' + v + '"]'); if (inp) inp.value = p[idx]; applyVar(v, p[idx]); });
+            });
+        });
+        document.getElementById('mhPzSave').addEventListener('click', function () {
+            var data = {}; inputs.forEach(function (inp) { data[inp.getAttribute('data-var')] = inp.value; });
+            fetch('ajax.php', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'action=savePersonalize&params%5Bdata%5D=' + encodeURIComponent(JSON.stringify(data)) }).then(function () { closeModal(); }).catch(function () { closeModal(); });
+        });
+        document.getElementById('mhPzReset').addEventListener('click', function () {
+            fetch('ajax.php', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'action=clearPersonalize&params%5Bx%5D=1' }).then(function () { location.reload(); }).catch(function () { location.reload(); });
+        });
+    }
+})();
+</script>
+    <?php
+}
+
+}

@@ -5,7 +5,13 @@ require_once(get_langfile_path());
 loggedinorreturn();
 $userInfo = \App\Models\User::query()->findOrFail($CURUSER["id"]);
 $siteName = \App\Models\Setting::getSiteName();
-\Nexus\Nexus::css('styles/usercp-mobile.css?v=20260630', 'header', true); // 手机端适配(仅手机断点生效)
+// 手机端：套用与首页一致的手机外壳；?pc=1 强制电脑版
+$GLOBALS['UCP_MOBILE'] = empty($_GET['pc']) && preg_match('/Mobile|Android|iPhone|iPod|Windows Phone|BlackBerry|webOS|HarmonyOS/i', (string)($_SERVER['HTTP_USER_AGENT'] ?? ''));
+\Nexus\Nexus::css('styles/usercp-mobile.css?v=20260630b', 'header', true);
+if ($GLOBALS['UCP_MOBILE']) {
+    \Nexus\Nexus::css('styles/mobile-shell.css?v=20260630', 'header', true);
+    require_once ROOT_PATH . 'include/mobile_shell.php';
+}
 $hdvideoUnifiedStylesheetId = 6;
 $hdvideoUnifiedStylesheetName = 'HDvideo 现代风格';
 function bark($msg) {
@@ -17,6 +23,20 @@ function bark($msg) {
 }
 function usercpmenu ($selected = "home") {
 	global $lang_usercp;
+	if (!empty($GLOBALS['UCP_MOBILE']) && function_exists('mobile_shell_render')) {
+		mobile_shell_render('me');
+		$tabs = [
+			['usercp.php', $lang_usercp['text_user_cp_home'], 'home'],
+			['?action=personal', $lang_usercp['text_personal_settings'], 'personal'],
+			['?action=tracker', $lang_usercp['text_tracker_settings'], 'tracker'],
+			['?action=forum', $lang_usercp['text_forum_settings'], 'forum'],
+			['?action=security', $lang_usercp['text_security_settings'], 'security'],
+		];
+		echo '<div class="m-subnav">';
+		foreach ($tabs as $t) { echo '<a' . ($t[2] === $selected ? ' class="on"' : '') . ' href="' . $t[0] . '">' . htmlspecialchars($t[1]) . '</a>'; }
+		echo '</div>';
+		return;
+	}
 	begin_main_frame();
 	print ("<div id=\"usercpnav\"><ul id=\"usercpmenu\" class=\"menu\">");
 	print ("<li" . ($selected == "home" ? " class=selected" : "") . "><a href=\"usercp.php\">".$lang_usercp['text_user_cp_home']."</a></li>");

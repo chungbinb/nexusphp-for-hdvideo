@@ -1,52 +1,73 @@
-/* 个人中心(usercp.php) 手机端适配：保留全部表单功能，仅把两列表格布局改为竖向堆叠、控件全宽。
-   全部规则限定 body.page-usercp + 手机断点，不影响电脑端与其它页面。 */
-@media (max-width: 820px) {
-    /* 去掉为固定导航预留的顶部留白、隐藏电脑版顶部账户栏与 logo 横条，让内容顶上去 */
-    body.page-usercp #outer.outer { padding-top: 14px !important; }
-    body.page-usercp #top-account-widget { display: none !important; }
-    body.page-usercp table.head { display: none !important; }
+/* 个人中心(usercp.php) 手机端：套用与首页一致的手机外壳(mobile-shell.css)，隐藏电脑版外框，
+   设置表单改为卡片+竖向堆叠。全部规则限定 body.page-usercp.m-shell（m-shell 由外壳脚本仅在手机注入），
+   电脑版 usercp 完全不受影响。 */
 
-    /* 区段导航(总览/个人/Tracker/论坛/安全)：横向滚动标签 */
-    body.page-usercp #usercpmenu.menu {
-        display: flex !important; flex-wrap: nowrap !important; overflow-x: auto;
-        -webkit-overflow-scrolling: touch; white-space: nowrap; gap: 8px;
-        padding: 0 !important; margin: 0 0 12px !important;
-    }
-    body.page-usercp #usercpmenu.menu li { float: none !important; clear: none !important; flex: 0 0 auto !important; }
-
-    /* 设置表单：标签/控件两列 → 竖向堆叠（仅命中含 rowhead 的行，多列表格不受影响） */
-    body.page-usercp tr:has(> td.rowhead) { display: block; width: 100%; }
-    body.page-usercp td.rowhead,
-    body.page-usercp td.rowfollow {
-        display: block; width: 100% !important; box-sizing: border-box;
-        text-align: left !important; white-space: normal !important;
-        border: none; padding: 4px 10px;
-    }
-    body.page-usercp td.rowhead { font-weight: 700; padding-top: 14px; }
-    body.page-usercp td.rowfollow { padding-bottom: 12px; }
-
-    /* 控件全宽、加大触摸高度、字号 16 防 iOS 聚焦缩放 */
-    body.page-usercp input[type="text"],
-    body.page-usercp input[type="password"],
-    body.page-usercp input[type="number"],
-    body.page-usercp input[type="email"],
-    body.page-usercp select,
-    body.page-usercp textarea {
-        width: 100% !important; max-width: 100% !important; box-sizing: border-box;
-        font-size: 16px; padding: 10px 11px;
-    }
-    body.page-usercp textarea { min-height: 120px; }
-    body.page-usercp input[type="checkbox"],
-    body.page-usercp input[type="radio"] { width: 18px; height: 18px; vertical-align: middle; }
-    body.page-usercp .password, body.page-usercp .passagain { width: 100% !important; }
-
-    /* 保存按钮加大 */
-    body.page-usercp td.rowfollow input[type="submit"],
-    body.page-usercp td.rowfollow input[type="button"] { min-height: 42px; padding: 0 22px; font-size: 15px; }
-
-    /* 头像预览不溢出 */
-    body.page-usercp img[name="avatarimg"] { max-width: 100%; height: auto; }
-
-    /* 多列表格(做种盒子/令牌)允许横向滚动，不挤压 */
-    body.page-usercp #seed-box-table, body.page-usercp #token-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+/* 页面底色 + 为固定顶栏/底部Tab留白 */
+body.page-usercp.m-shell {
+    background: var(--mh-bg) !important;
+    padding-top: calc(56px + env(safe-area-inset-top)) !important;
+    padding-bottom: calc(72px + env(safe-area-inset-bottom)) !important;
 }
+
+/* 隐藏电脑版外框/工具 */
+body.page-usercp.m-shell table.head,
+body.page-usercp.m-shell #nav,
+body.page-usercp.m-shell #top-nav-search,
+body.page-usercp.m-shell #top-account-widget,
+body.page-usercp.m-shell #qd-side-tools,
+body.page-usercp.m-shell #global-top-banner,
+body.page-usercp.m-shell #info_block { display: none !important; }
+
+/* 内容容器全宽、去固定留白 */
+body.page-usercp.m-shell table.mainouter,
+body.page-usercp.m-shell #outer.outer {
+    width: 100% !important; max-width: 100% !important; margin: 0 !important; background: transparent !important;
+}
+body.page-usercp.m-shell #outer.outer { padding: 10px 10px 0 !important; }
+
+/* 区段子导航(设定首页/个人/Tracker/论坛/安全)：横向滚动胶囊 */
+body.page-usercp.m-shell .m-subnav { display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; white-space: nowrap; margin: 0 0 12px; padding-bottom: 2px; }
+body.page-usercp.m-shell .m-subnav a { flex: 0 0 auto; padding: 8px 14px; border-radius: 999px; background: var(--mh-surface); color: var(--mh-text); font-size: 13px; font-weight: 600; border: 1px solid rgba(20,40,90,.12); text-decoration: none; }
+body.page-usercp.m-shell .m-subnav a.on { background: var(--mh-primary); color: #fff; border-color: var(--mh-primary); }
+
+/* 设置表单：表格→白卡片，行→竖向堆叠 */
+body.page-usercp.m-shell h2 { font-size: 16px; margin: 14px 4px 8px; color: var(--mh-text); }
+body.page-usercp.m-shell table { width: 100% !important; max-width: 100% !important; border: none !important; border-collapse: collapse; background: var(--mh-surface) !important; border-radius: 14px; margin: 0 0 12px; box-shadow: 0 2px 10px rgba(20,40,90,.06); overflow: hidden; }
+body.page-usercp.m-shell td.embedded { display: block; padding: 4px 6px !important; }
+body.page-usercp.m-shell tr:has(> td.rowhead) { display: block; width: 100%; border-bottom: 1px solid rgba(20,40,90,.06); }
+body.page-usercp.m-shell tr:has(> td.rowhead):last-child { border-bottom: none; }
+body.page-usercp.m-shell td.rowhead,
+body.page-usercp.m-shell td.rowfollow {
+    display: block; width: 100% !important; box-sizing: border-box;
+    text-align: left !important; white-space: normal !important; border: none !important; padding: 4px 12px;
+    color: var(--mh-text);
+}
+body.page-usercp.m-shell td.rowhead { font-weight: 700; padding-top: 12px; }
+body.page-usercp.m-shell td.rowfollow { padding-bottom: 12px; }
+
+/* 控件全宽、加大触摸高度、字号16防缩放 */
+body.page-usercp.m-shell input[type="text"],
+body.page-usercp.m-shell input[type="password"],
+body.page-usercp.m-shell input[type="number"],
+body.page-usercp.m-shell input[type="email"],
+body.page-usercp.m-shell select,
+body.page-usercp.m-shell textarea {
+    width: 100% !important; max-width: 100% !important; box-sizing: border-box; font-size: 16px; padding: 10px 11px;
+    border: 1px solid rgba(20,40,90,.18); border-radius: 8px; background: #fff;
+}
+body.page-usercp.m-shell textarea { min-height: 120px; }
+body.page-usercp.m-shell input[type="checkbox"],
+body.page-usercp.m-shell input[type="radio"] { width: 18px; height: 18px; vertical-align: middle; }
+body.page-usercp.m-shell .password, body.page-usercp.m-shell .passagain { width: 100% !important; }
+body.page-usercp.m-shell input[type="submit"],
+body.page-usercp.m-shell input[type="button"] { min-height: 42px; padding: 0 22px; font-size: 15px; border-radius: 10px; }
+
+body.page-usercp.m-shell img[name="avatarimg"] { max-width: 100%; height: auto; border-radius: 10px; }
+
+/* 多列表格(做种盒子/令牌)横向滚动 */
+body.page-usercp.m-shell #seed-box-table,
+body.page-usercp.m-shell #token-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; box-shadow: none; }
+body.page-usercp.m-shell #seed-box-table tr,
+body.page-usercp.m-shell #token-table tr { display: table-row; }
+body.page-usercp.m-shell #seed-box-table td,
+body.page-usercp.m-shell #token-table td { display: table-cell; width: auto !important; white-space: nowrap; }
