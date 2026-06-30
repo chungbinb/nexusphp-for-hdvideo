@@ -124,7 +124,11 @@ $navItems[] = ['subtitles.php', '字幕', '<rect x="3" y="5" width="18" height="
 $navItems[] = ['upload.php', '发布', '<path d="M12 19V7M6 11l6-6 6 6M5 21h14"/>'];
 $navItems[] = ['topten.php', '排行', '<path d="M5 21V9M12 21V4M19 21v-7"/>'];
 $navItems[] = ['myhr.php', '考核', '<path d="M9 11l3 3 6-6M5 5h9M5 12h3M5 19h6"/>'];
-$navItems[] = ['games/', '游戏', '<rect x="3" y="8" width="18" height="9" rx="4"/><path d="M8 12.5h2M9 11.5v2"/>'];
+$navItems[] = ['rules.php', '规则', '<path d="M6 3h9l4 4v14H6z"/><path d="M9 9h6M9 13h6M9 17h4"/>'];
+$navItems[] = ['faq.php', '常见问题', '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.5a2.4 2.4 0 1 1 3.3 2.2c-.8.4-1.4 1-1.4 1.9v.3"/><path d="M12 17h.01"/>'];
+if (function_exists('user_can') && user_can('log')) $navItems[] = ['log.php', '日志', '<path d="M3 12a9 9 0 1 0 3-6.7M3 5v4h4"/><path d="M12 8v4l3 2"/>'];
+$navItems[] = ['user-ban-log.php', '封禁记录', '<circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/>'];
+$navItems[] = ['?pc=1', '返回旧版', '<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>'];
 
 // 「我的」底部上弹菜单
 $meItems = [
