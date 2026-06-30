@@ -1014,6 +1014,12 @@ EOD;
 }
 }
 
+// 手机端总览(个人中心)走独立手机页；设置子页(action=xxx)仍走 stdhead+外壳，POST 照常处理。
+if (!empty($GLOBALS['UCP_MOBILE']) && empty($action)) {
+    require ROOT_PATH . 'public/mobile/usercp.php';
+    exit;
+}
+
 stdhead($lang_usercp['head_control_panel'].$lang_usercp['head_home']);
 \Nexus\Nexus::js('vendor/jquery-loading/jquery.loading.min.js', 'footer', true);
 usercpmenu ();
