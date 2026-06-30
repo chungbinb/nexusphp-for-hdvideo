@@ -422,6 +422,14 @@ function f_mfoot() {
         stdfoot();
     }
 }
+// 手机端：返回带等级配色的用户名(<span>，非<a>，避免嵌套在卡片链接里把布局撑破)。
+function f_author_html($uid, $anon, $post) {
+    if ($anon) { return forum_strip_username_medals(forum_post_author_name($post, false)); }
+    $arr = get_user_row((int)$uid);
+    if (!$arr) { return '<span class="User_Name">' . htmlspecialchars((string)($post['username'] ?? '')) . '</span>'; }
+    $cls = get_user_class_name($arr['class'], true, false, false) . '_Name';
+    return '<span class="' . $cls . '"><b>' . htmlspecialchars($arr['username']) . '</b></span>';
+}
 
 //-------- Action: New topic
 if ($action == "newtopic")
@@ -933,7 +941,7 @@ if ($action == "viewtopic")
 			$puid = (int)$p['userid'];
 			$anon = function_exists('forum_post_is_anonymous') && forum_post_is_anonymous($p);
 			$u = $mUserInfo->get($puid);
-			$pnameHtml = $anon ? forum_post_author_name($p, false) : forum_strip_username_medals(get_username($puid, false, true, true, false, false, false));
+			$pnameHtml = f_author_html($puid, $anon, $p);
 			$pname = trim(strip_tags($pnameHtml));
 			$pav = (!$anon && $u && !empty($u->avatar)) ? '<img src="' . htmlspecialchars($u->avatar) . '" alt="" onerror="this.style.display=\'none\'">' : '<b>' . htmlspecialchars(mb_substr($pname !== '' ? $pname : '?', 0, 1)) . '</b>';
 			$pdate = gettime($p['added'], true, false);
@@ -1687,7 +1695,7 @@ if ($action == "viewforum")
 				$fp = get_post_row($topicarr['firstpost']);
 				$fpuid = (int)($fp["userid"] ?? 0);
 				$anon = function_exists('forum_post_is_anonymous') && forum_post_is_anonymous($fp);
-				$fpnameHtml = $anon ? forum_post_author_name($fp, false) : forum_strip_username_medals(get_username($fpuid, false, true, true, false, false, false));
+				$fpnameHtml = f_author_html($fpuid, $anon, $fp);
 				$fpname = trim(strip_tags($fpnameHtml));
 				$fpdate = substr((string)($fp['added'] ?? ''), 0, 10);
 				$fpavatar = '';
