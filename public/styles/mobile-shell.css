@@ -100,6 +100,8 @@ body.m-page { margin: 0; background: var(--mh-bg); color: var(--mh-text); -webki
     min-height: 100vh; min-height: 100dvh;
     padding-top: calc(54px + env(safe-area-inset-top)); padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
 body.m-page * { box-sizing: border-box; }
+/* 弹层/抽屉/弹窗打开时锁住背景滚动 */
+body.m-locked { overflow: hidden !important; touch-action: none; }
 body.m-page a { color: inherit; text-decoration: none; }
 body.m-page img { max-width: 100%; height: auto; }
 .m-main { padding: 8px 0; }
