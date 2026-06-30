@@ -8,8 +8,8 @@ body.page-torrents.m-shell .m-main { padding: 6px 8px 0; max-width: 100vw; box-s
 
 /* 外壳顶/底栏：modern-refresh.css 的通用 button/a 规则会污染外壳导航(图标按钮变蓝、底部Tab变蓝块)。
    这里把外壳导航元素强制还原成 mobile-shell.css 的样式，确保与首页/论坛完全一致。 */
-body.page-torrents.m-shell .m-top { background: var(--mh-surface) !important; }
-body.page-torrents.m-shell .m-tabbar { background: var(--mh-surface) !important; }
+body.page-torrents.m-shell .m-top { background: var(--mh-surface) !important; z-index: 3000 !important; }
+body.page-torrents.m-shell .m-tabbar { background: var(--mh-surface) !important; z-index: 2990 !important; }
 body.page-torrents.m-shell .m-brand { color: var(--mh-primary) !important; background: none !important; }
 
 /* 顶部图标按钮 / 汉堡按钮：浅色底、图标用主色描边，去掉桌面按钮的蓝底/渐变/阴影 */
@@ -56,8 +56,8 @@ body.page-torrents.m-shell .qd-torrent-search {
 body.page-torrents.m-shell .qd-torrent-search input[type="text"] {
     flex: 1 1 100%; min-width: 0; box-sizing: border-box;
     height: 40px; padding: 0 14px; font-size: 15px;
-    border-radius: 10px; border: 1px solid rgba(124,148,196,.32);
-    background: rgba(13,21,36,.85); color: #eaf2ff;
+    border-radius: 10px; border: 1px solid rgba(20,40,90,.18);
+    background: var(--mh-surface); color: var(--mh-text);
 }
 body.page-torrents.m-shell .qd-torrent-search button {
     flex: 1 1 0; min-height: 40px; border-radius: 10px; font-size: 15px;
@@ -120,3 +120,30 @@ body.page-torrents.m-shell .searchbox td { display: block; width: 100% !importan
 body.page-torrents.m-shell .searchbox input[type="text"],
 body.page-torrents.m-shell .searchbox select,
 body.page-torrents.m-shell .searchbox textarea { width: 100% !important; box-sizing: border-box; }
+
+/* —— 手机端用个性化浅色主题，覆盖 modern-refresh 的深色"海报墙"，与首页/论坛一致 —— */
+body.page-torrents.m-shell { background: var(--mh-bg) !important; color: var(--mh-text) !important; }
+/* 卡片网格 / 工具条 / 快速筛选 面板改浅色 */
+body.page-torrents.m-shell.view-card .torrent-card-grid { background: transparent !important; padding: 10px 4px !important; }
+body.page-torrents.m-shell .torrent-view-toolbar,
+body.page-torrents.m-shell .torrent-quick-filters {
+    background: var(--mh-surface) !important; border: 1px solid rgba(20,40,90,.1) !important;
+    box-shadow: 0 2px 10px rgba(20,40,90,.06) !important;
+}
+/* 文字色：标题/分组标题用文字色，未选项用次级灰，选中用主色 */
+body.page-torrents.m-shell .torrent-view-title,
+body.page-torrents.m-shell .torrent-quick-filter-heading,
+body.page-torrents.m-shell .torrent-quick-filter-heading span,
+body.page-torrents.m-shell .torrent-poster-title,
+body.page-torrents.m-shell .torrent-poster-card { color: var(--mh-text) !important; }
+body.page-torrents.m-shell .torrent-quick-filter-heading a,
+body.page-torrents.m-shell .torrent-quick-filter-links a { color: #6a7589 !important; }
+body.page-torrents.m-shell .torrent-quick-filter-heading a.is-active,
+body.page-torrents.m-shell .torrent-quick-filter-links a.is-active { color: var(--mh-primary) !important; }
+body.page-torrents.m-shell .torrent-poster-desc,
+body.page-torrents.m-shell .torrent-poster-tagline,
+body.page-torrents.m-shell .torrent-poster-text-tag { color: #8a96ad !important; }
+/* 分页文字改深色 */
+body.page-torrents.m-shell .torrent-view-pager .nexus-pagination a,
+body.page-torrents.m-shell .torrent-view-pager .nexus-pagination b,
+body.page-torrents.m-shell .torrent-view-pager .nexus-pagination font.gray b { color: var(--mh-text) !important; }
