@@ -31,6 +31,14 @@ function mobile_shell_render(string $active = ''): void
     $uid = (int)$CURUSER['id'];
     $unread = 0;
     try { $unread = (int)get_row_count('messages', "WHERE receiver = $uid AND unread = 'yes' AND location != 0"); } catch (\Throwable $e) {}
+    // 底部"种子"点击弹出的分类列表(后台配置的浏览分类，用站点的浏览模式 $browsecatmode)
+    $torrentCats = [];
+    try {
+        global $browsecatmode;
+        $bcm = (int)($browsecatmode ?? 0);
+        if ($bcm <= 0) $bcm = 1;
+        if (function_exists('genrelist')) $torrentCats = genrelist($bcm);
+    } catch (\Throwable $e) {}
 
     $navItems = [
         ['torrents.php?requireseed=1', '保种区', '<path d="M12 3l8 3v6c0 4.2-3.1 6.3-8 8-4.9-1.7-8-3.8-8-8V6z"/>'],
@@ -89,17 +97,17 @@ function mobile_shell_render(string $active = ''): void
     $tab = function ($key, $href, $svg, $label) use ($active, $unread, $badge) {
         $on = $key === $active ? ' class="on"' : '';
         $b = ($key === 'me' && $unread > 0) ? '<span class="badge">' . $badge . '</span>' : '';
-        return '<a' . $on . ' href="' . $href . '"><svg viewBox="0 0 24 24">' . $svg . '</svg>' . $label . $b . '</a>';
+        return '<a' . $on . ' href="/' . ltrim($href, '/') . '"><svg viewBox="0 0 24 24">' . $svg . '</svg>' . $label . $b . '</a>';
     };
     ?>
 <div id="mhShell">
 <header class="m-top">
-    <a class="m-brand" href="index.php">HD<span>VIDEO</span></a>
+    <a class="m-brand" href="/index.php">HD<span>VIDEO</span></a>
     <div class="m-actions">
         <?php if ($adminItems) { ?>
         <button class="m-iconbtn" id="mhAdminBtn" type="button" aria-label="管理"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.8 7.8 0 0 0 0-2l2-1.5-2-3.4-2.4 1a7 7 0 0 0-1.7-1L15 3.5h-4l-.3 2.6a7 7 0 0 0-1.7 1l-2.4-1-2 3.4L4.6 11a7.8 7.8 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.3 2.6h4l.3-2.6a7 7 0 0 0 1.7-1l2.4 1 2-3.4z"/></svg></button>
         <?php } else { ?>
-        <a class="m-iconbtn" href="contactstaff.php" aria-label="联系管理组"><svg viewBox="0 0 24 24"><path d="M5 13v-1a7 7 0 0 1 14 0v1"/><rect x="3" y="13" width="4" height="6" rx="1.6"/><rect x="17" y="13" width="4" height="6" rx="1.6"/><path d="M19 19a3.5 3.5 0 0 1-3.5 3H13"/></svg></a>
+        <a class="m-iconbtn" href="/contactstaff.php" aria-label="联系管理组"><svg viewBox="0 0 24 24"><path d="M5 13v-1a7 7 0 0 1 14 0v1"/><rect x="3" y="13" width="4" height="6" rx="1.6"/><rect x="17" y="13" width="4" height="6" rx="1.6"/><path d="M19 19a3.5 3.5 0 0 1-3.5 3H13"/></svg></a>
         <?php } ?>
         <button class="m-iconbtn" id="mhPzBtn" type="button" aria-label="个性化配色"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-.95-.5-1.3-.3-.35-.5-.8-.5-1.2 0-.83.67-1.5 1.5-1.5H16a5 5 0 0 0 5-5c0-3.87-4.03-7-9-7z"/><circle cx="7.5" cy="11" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="7.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="16.5" cy="11" r="1.1" fill="currentColor" stroke="none"/></svg></button>
         <button class="m-burger" id="mhMenuBtn" type="button" aria-label="导航菜单"><span></span><span></span><span></span></button>
@@ -110,7 +118,7 @@ function mobile_shell_render(string $active = ''): void
 <nav class="m-drawer" id="mhDrawer">
     <div class="m-grid">
         <?php foreach ($navItems as $it) { ?>
-        <a href="<?php echo $it[0] ?>"><span class="ic"><svg viewBox="0 0 24 24"><?php echo $it[2] ?></svg></span><?php echo $it[1] ?></a>
+        <a href="/<?php echo ltrim($it[0], '/') ?>"><span class="ic"><svg viewBox="0 0 24 24"><?php echo $it[2] ?></svg></span><?php echo $it[1] ?></a>
         <?php } ?>
     </div>
 </nav>
@@ -118,19 +126,32 @@ function mobile_shell_render(string $active = ''): void
 <nav class="m-tabbar">
     <?php
     echo $tab('home', 'index.php', '<path d="M4 11l8-7 8 7M6 10v9h12v-9"/>', '首页');
-    echo $tab('torrents', 'torrents.php', '<path d="M4 7h16M4 12h16M4 17h10"/>', '种子');
+    ?>
+    <button type="button" id="mhTorrentBtn"<?php echo $active === 'torrents' ? ' class="on"' : '' ?>><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg>种子</button>
+    <?php
     echo $tab('forums', 'forums.php', '<path d="M4 5h16v10H9l-4 4z"/>', '论坛');
     echo $tab('games', 'games/', '<rect x="3" y="8" width="18" height="9" rx="4"/><path d="M8 12.5h2M9 11.5v2"/>', '游戏');
     ?>
     <button type="button" id="mhMeBtn"<?php echo $active === 'me' ? ' class="on"' : '' ?>><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>我的<?php if ($unread > 0) { ?><span class="badge"><?php echo $badge ?></span><?php } ?></button>
 </nav>
 
+<div class="m-sheet" id="mhTorrentSheet">
+    <div class="m-sheet-mask" data-torrent-close></div>
+    <div class="m-sheet-card">
+        <div class="m-sheet-handle"></div>
+        <a class="m-me-item" href="/torrents.php"><span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span><span class="t">全部分类</span><span class="arr">›</span></a>
+        <?php foreach ($torrentCats as $tcat) { ?>
+        <a class="m-me-item" href="/torrents.php?cat=<?php echo (int)$tcat['id'] ?>"><span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3 9h18M8 5v14"/></svg></span><span class="t"><?php echo htmlspecialchars($tcat['name']) ?></span><span class="arr">›</span></a>
+        <?php } ?>
+    </div>
+</div>
+
 <div class="m-sheet" id="mhMeSheet">
     <div class="m-sheet-mask" data-me-close></div>
     <div class="m-sheet-card">
         <div class="m-sheet-handle"></div>
         <?php foreach ($meItems as $mi) { ?>
-        <a class="m-me-item" href="<?php echo $mi[0] ?>"><span class="ic"><svg viewBox="0 0 24 24"><?php echo $mi[2] ?></svg></span><span class="t"><?php echo $mi[1] ?></span><?php if ($mi[3] && $unread > 0) { ?><span class="badge"><?php echo $badge ?></span><?php } ?><span class="arr">›</span></a>
+        <a class="m-me-item" href="/<?php echo ltrim($mi[0], '/') ?>"><span class="ic"><svg viewBox="0 0 24 24"><?php echo $mi[2] ?></svg></span><span class="t"><?php echo $mi[1] ?></span><?php if ($mi[3] && $unread > 0) { ?><span class="badge"><?php echo $badge ?></span><?php } ?><span class="arr">›</span></a>
         <?php } ?>
     </div>
 </div>
@@ -141,7 +162,7 @@ function mobile_shell_render(string $active = ''): void
     <div class="m-sheet-card">
         <div class="m-sheet-handle"></div>
         <?php foreach ($adminItems as $ai) { ?>
-        <a class="m-me-item" href="<?php echo htmlspecialchars($ai[0]) ?>"<?php echo !empty($ai[3]) ? ' target="_blank"' : '' ?>><span class="ic"><svg viewBox="0 0 24 24"><?php echo $ai[2] ?></svg></span><span class="t"><?php echo $ai[1] ?></span><span class="arr">›</span></a>
+        <a class="m-me-item" href="<?php echo htmlspecialchars(preg_match('#^https?://#i', (string)$ai[0]) ? $ai[0] : '/' . ltrim((string)$ai[0], '/')) ?>"<?php echo !empty($ai[3]) ? ' target="_blank"' : '' ?>><span class="ic"><svg viewBox="0 0 24 24"><?php echo $ai[2] ?></svg></span><span class="t"><?php echo $ai[1] ?></span><span class="arr">›</span></a>
         <?php } ?>
     </div>
 </div>
@@ -177,16 +198,35 @@ function mobile_shell_render(string $active = ''): void
     // 把外壳提到 body 顶层，避免被有 transform 的祖先困住导致 fixed 失效
     var shell = document.getElementById('mhShell');
     if (shell && shell.parentNode !== body) body.appendChild(shell);
+    // 任一弹层/抽屉/弹窗打开时锁住背景滚动；全部关闭时解锁
+    function syncLock() {
+        var anyOpen = body.classList.contains('menu-open')
+            || document.querySelector('.m-sheet.open')
+            || document.querySelector('.m-modal.open');
+        body.classList.toggle('m-locked', !!anyOpen);
+    }
+    function closeSheets(except) {
+        document.querySelectorAll('.m-sheet.open').forEach(function (s) { if (s !== except) s.classList.remove('open'); });
+    }
     var menuBtn = document.getElementById('mhMenuBtn'), mask = document.getElementById('mhMask');
-    if (menuBtn) menuBtn.addEventListener('click', function () { body.classList.toggle('menu-open'); });
-    if (mask) mask.addEventListener('click', function () { body.classList.remove('menu-open'); });
+    if (menuBtn) menuBtn.addEventListener('click', function () { closeSheets(null); body.classList.toggle('menu-open'); syncLock(); });
+    if (mask) mask.addEventListener('click', function () { body.classList.remove('menu-open'); syncLock(); });
     function bindSheet(sheetId, btnId, closeAttr) {
         var sheet = document.getElementById(sheetId), btn = document.getElementById(btnId);
         if (!sheet || !btn) return;
-        btn.addEventListener('click', function () { sheet.classList.add('open'); });
-        sheet.querySelectorAll('[' + closeAttr + ']').forEach(function (el) { el.addEventListener('click', function () { sheet.classList.remove('open'); }); });
+        // 再次点击同一按钮收起；打开时关闭其它弹层/抽屉
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            var willOpen = !sheet.classList.contains('open');
+            closeSheets(sheet);
+            body.classList.remove('menu-open');
+            sheet.classList.toggle('open', willOpen);
+            syncLock();
+        });
+        sheet.querySelectorAll('[' + closeAttr + ']').forEach(function (el) { el.addEventListener('click', function () { sheet.classList.remove('open'); syncLock(); }); });
     }
     bindSheet('mhMeSheet', 'mhMeBtn', 'data-me-close');
+    bindSheet('mhTorrentSheet', 'mhTorrentBtn', 'data-torrent-close');
     bindSheet('mhAdminSheet', 'mhAdminBtn', 'data-admin-close');
 
     var modal = document.getElementById('mhPzModal'), pzBtn = document.getElementById('mhPzBtn');
@@ -194,8 +234,8 @@ function mobile_shell_render(string $active = ''): void
         var root = document.documentElement;
         function lighten(hex, pct) { hex = hex.replace('#', ''); var r = parseInt(hex.substr(0,2),16), g = parseInt(hex.substr(2,2),16), b = parseInt(hex.substr(4,2),16); r = Math.round(r+(255-r)*pct); g = Math.round(g+(255-g)*pct); b = Math.round(b+(255-b)*pct); return '#' + [r,g,b].map(function (x) { return ('0'+x.toString(16)).slice(-2); }).join(''); }
         function applyVar(v, hex) { root.style.setProperty(v, hex); if (v === '--bili-primary') root.style.setProperty('--mh-soft', lighten(hex, 0.86)); }
-        function closeModal() { modal.classList.remove('open'); }
-        pzBtn.addEventListener('click', function () { modal.classList.add('open'); });
+        function closeModal() { modal.classList.remove('open'); syncLock(); }
+        pzBtn.addEventListener('click', function () { closeSheets(null); body.classList.remove('menu-open'); modal.classList.add('open'); syncLock(); });
         modal.querySelectorAll('[data-pz-close]').forEach(function (el) { el.addEventListener('click', closeModal); });
         var inputs = modal.querySelectorAll('input[type=color]');
         inputs.forEach(function (inp) { inp.addEventListener('input', function () { applyVar(inp.getAttribute('data-var'), inp.value); }); });
@@ -209,10 +249,10 @@ function mobile_shell_render(string $active = ''): void
         });
         document.getElementById('mhPzSave').addEventListener('click', function () {
             var data = {}; inputs.forEach(function (inp) { data[inp.getAttribute('data-var')] = inp.value; });
-            fetch('ajax.php', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'action=savePersonalize&params%5Bdata%5D=' + encodeURIComponent(JSON.stringify(data)) }).then(function () { closeModal(); }).catch(function () { closeModal(); });
+            fetch('/ajax.php', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'action=savePersonalize&params%5Bdata%5D=' + encodeURIComponent(JSON.stringify(data)) }).then(function () { closeModal(); }).catch(function () { closeModal(); });
         });
         document.getElementById('mhPzReset').addEventListener('click', function () {
-            fetch('ajax.php', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'action=clearPersonalize&params%5Bx%5D=1' }).then(function () { location.reload(); }).catch(function () { location.reload(); });
+            fetch('/ajax.php', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'action=clearPersonalize&params%5Bx%5D=1' }).then(function () { location.reload(); }).catch(function () { location.reload(); });
         });
     }
 })();
@@ -239,7 +279,7 @@ function mobile_shell_page_head(string $title = '', string $active = '', string 
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="mobile-web-app-capable" content="yes" />
 <title><?php echo htmlspecialchars($t) ?></title>
-<link rel="stylesheet" href="styles/mobile-shell.css?v=20260701a" type="text/css" />
+<link rel="stylesheet" href="/styles/mobile-shell.css?v=20260701e" type="text/css" />
 <style>:root{--bili-primary:<?php echo $col['primary'] ?>;--bili-accent:<?php echo $col['accent'] ?>;--bili-bg:<?php echo $col['bg'] ?>;--bili-surface:<?php echo $col['surface'] ?>;--bili-text:<?php echo $col['text'] ?>;}</style>
 </head>
 <body class="<?php echo htmlspecialchars($bodyClass) ?>">

@@ -35,15 +35,17 @@ body.menu-open .m-drawer { transform: translateY(0); }
 
 .m-tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 980; display: flex; background: var(--mh-surface);
     border-top: 1px solid rgba(20,40,90,.08); padding-bottom: env(safe-area-inset-bottom); box-shadow: 0 -2px 12px rgba(20,40,90,.08); }
-.m-tabbar a, .m-tabbar button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0 6px; font-size: 11px; color: #8b96ad; position: relative; background: none; border: none; cursor: pointer; font-family: inherit; text-decoration: none; }
-.m-tabbar a.on, .m-tabbar button.on { color: var(--mh-primary); }
+/* 用 .m-shell 前缀提高优先级，压过 body.m-page a{color:inherit}，保证未选 Tab 统一灰色(深色页如游戏大厅也不会变白) */
+.m-shell .m-tabbar a, .m-shell .m-tabbar button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0 6px; font-size: 11px; color: #333; position: relative; background: none; border: none; cursor: pointer; font-family: inherit; text-decoration: none; }
+.m-shell .m-tabbar a.on, .m-shell .m-tabbar button.on { color: var(--mh-primary); }
 .m-tabbar a svg, .m-tabbar button svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .m-tabbar .badge { position: absolute; top: 4px; right: 50%; margin-right: -22px; min-width: 15px; height: 15px; padding: 0 4px; border-radius: 999px; background: #ff4d5e; color: #fff; font-size: 9px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
 
-.m-sheet { position: fixed; inset: 0; z-index: 1010; display: none; }
+/* 弹层(我的/种子分类)止于底部Tab上沿，保证底部导航不被遮挡且仍可见 */
+.m-sheet { position: fixed; left: 0; right: 0; top: 0; bottom: calc(54px + env(safe-area-inset-bottom)); z-index: 1010; display: none; }
 .m-sheet.open { display: block; }
 .m-sheet-mask { position: absolute; inset: 0; background: rgba(0,0,0,.45); }
-.m-sheet-card { position: absolute; left: 0; right: 0; bottom: 0; background: var(--mh-surface); color: var(--mh-text); border-radius: 18px 18px 0 0; padding: 8px 14px calc(14px + env(safe-area-inset-bottom)); transform: translateY(100%); transition: transform .3s ease; max-height: 80vh; overflow-y: auto; box-shadow: 0 -8px 30px rgba(0,0,0,.22); }
+.m-sheet-card { position: absolute; left: 0; right: 0; bottom: 0; background: var(--mh-surface); color: var(--mh-text); border-radius: 18px 18px 0 0; padding: 8px 14px 14px; transform: translateY(110%); transition: transform .3s ease; max-height: 100%; overflow-y: auto; box-shadow: 0 -8px 30px rgba(0,0,0,.22); }
 .m-sheet.open .m-sheet-card { transform: translateY(0); }
 .m-sheet-handle { width: 40px; height: 4px; border-radius: 999px; background: rgba(20,40,90,.2); margin: 6px auto 10px; }
 .m-me-item { display: flex; align-items: center; gap: 12px; padding: 13px 8px; border-bottom: 1px solid rgba(20,40,90,.06); color: var(--mh-text); text-decoration: none; }
@@ -99,6 +101,8 @@ body.m-page { margin: 0; background: var(--mh-bg); color: var(--mh-text); -webki
     min-height: 100vh; min-height: 100dvh;
     padding-top: calc(54px + env(safe-area-inset-top)); padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
 body.m-page * { box-sizing: border-box; }
+/* 弹层/抽屉/弹窗打开时锁住背景滚动 */
+body.m-locked { overflow: hidden !important; touch-action: none; }
 body.m-page a { color: inherit; text-decoration: none; }
 body.m-page img { max-width: 100%; height: auto; }
 .m-main { padding: 8px 0; }

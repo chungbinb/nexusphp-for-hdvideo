@@ -6,6 +6,39 @@ require_once(get_langfile_path('special.php'));
 loggedinorreturn();
 parked();
 
+// 手机端：套用与首页/论坛一致的手机外壳，并复用桌面版的卡片视图/筛选(modern-refresh.css + 内联JS)；?pc=1 强制电脑版。
+$GLOBALS['T_MOBILE'] = empty($_GET['pc']) && preg_match('/Mobile|Android|iPhone|iPod|Windows Phone|BlackBerry|webOS|HarmonyOS/i', (string)($_SERVER['HTTP_USER_AGENT'] ?? ''));
+if ($GLOBALS['T_MOBILE']) { require_once ROOT_PATH . 'include/mobile_shell.php'; }
+function t_mhead($title = '') {
+    if (!empty($GLOBALS['T_MOBILE']) && function_exists('mobile_shell_page_head')) {
+        mobile_shell_page_head(trim(strip_tags((string)$title)) ?: '种子', 'torrents', 'page-torrents');
+        $mrv = @filemtime(ROOT_PATH . 'public/styles/modern-refresh.css') ?: 1;
+        echo '<link rel="stylesheet" type="text/css" href="styles/modern-refresh.css?v=' . intval($mrv) . '">';
+        echo '<link rel="stylesheet" type="text/css" href="styles/torrents-mobile.css?v=20260701o">';
+        // modern-refresh.css 的 :root 覆盖了 page_head 注入的个性化 --bili-*；而 --mh-* 在 mobile-shell.css 里是 :root 上 var(--bili-*) 映射，
+        // 只按 :root(html) 上的 --bili-* 计算。必须在 modern-refresh 之后、同样用 :root 重新声明个性化 --bili-*，--mh-* 才会重新算成个性化色。
+        if (function_exists('mobile_shell_colors')) {
+            $tc = mobile_shell_colors();
+            echo '<style>:root{--bili-primary:' . $tc['primary'] . ';--bili-accent:' . $tc['accent'] . ';--bili-bg:' . $tc['bg'] . ';--bili-surface:' . $tc['surface'] . ';--bili-text:' . $tc['text'] . ';}</style>';
+        }
+        echo '<script type="text/javascript" src="js/jquery-1.12.4.min.js"></script>';
+        echo '<script>jQuery.noConflict();window.nexusLayerOptions={confirm:{btnAlign:"c",title:"Confirm",btn:["OK","Cancel"]},alert:{btnAlign:"c",title:"Info",btn:["OK","Cancel"]}};</script>';
+        echo '<script type="text/javascript" src="vendor/layer-v3.5.1/layer/layer.js"></script>';
+        echo '<script type="text/javascript" src="js/common.js"></script>';
+        echo '<script type="text/javascript" src="js/ajaxbasic.js"></script>';
+    } else {
+        stdhead($title);
+    }
+}
+function t_mfoot() {
+    if (!empty($GLOBALS['T_MOBILE']) && function_exists('mobile_shell_page_foot')) {
+        foreach (\Nexus\Nexus::getAppendFooters() as $v) { print($v); }
+        mobile_shell_page_foot('torrents');
+    } else {
+        stdfoot();
+    }
+}
+
 if (!function_exists('hdvideo_torrent_styles')) {
 	function hdvideo_run_schema_sql($sql) {
 		$res = @sql_query($sql);
@@ -1085,10 +1118,10 @@ if ($count)
 }
 
 if (isset($searchstr))
-	stdhead($lang_torrents['head_search_results_for'].$searchstr_ori);
+	t_mhead($lang_torrents['head_search_results_for'].$searchstr_ori);
 elseif ($sectiontype == $browsecatmode)
-	stdhead($lang_torrents['head_torrents']);
-else stdhead($lang_torrents['head_special']);
+	t_mhead($lang_torrents['head_torrents']);
+else t_mhead($lang_torrents['head_special']);
 
 function torrent_quick_filter_url($field, $value = null) {
 	$params = $_GET;
@@ -1185,7 +1218,7 @@ function render_torrent_quick_filters($lang_torrents, $cats, $category_get, $sou
 
 print("<table width=\"97%\" class=\"main\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tr><td class=\"embedded\">");
 
-displayHotAndClassic();
+if (empty($GLOBALS['T_MOBILE'])) displayHotAndClassic(); // 手机端不显示桌面版"热门/经典"海报横排(nowrap会横向溢出)
 $searchBoxRightTdStyle = 'padding: 1px;padding-left: 10px;white-space: nowrap';
 if ($allsec != 1 || $enablespecial != 'yes'){ //do not print searchbox if showing bookmarked torrents from all sections;
 ?>
@@ -1461,7 +1494,7 @@ if ($allTags->isNotEmpty()) {
 </div>
 <?php
 }
-	if ($Advertisement->enable_ad()){
+	if (empty($GLOBALS['T_MOBILE']) && $Advertisement->enable_ad()){ // 手机端不显示搜索框下方广告位(避免顶部黑块)
         $belowsearchboxad = $Advertisement->get_ad('belowsearchbox');
         if (!empty($belowsearchboxad[0])) {
             echo "<div align=\"center\" style=\"margin-top: 10px\" id=\"\">".$belowsearchboxad[0]."</div>";
@@ -2128,9 +2161,10 @@ if ($CURUSER){
 		});
 	}
 
-	var saved = 'list';
+	var defaultView = body.classList.contains('m-shell') ? 'card' : 'list';
+	var saved = defaultView;
 	try {
-		saved = window.localStorage.getItem(storageKey) || 'list';
+		saved = window.localStorage.getItem(storageKey) || defaultView;
 	} catch (e) {}
 	setView(saved);
 })();
@@ -2254,6 +2288,42 @@ if ($CURUSER){
 	});
 })();
 </script>
+<script>
+/* 手机 List 视图：把评分(IMDb/豆)从标题区移到「发布者」那一行右侧，IMDb 优先 */
+(function () {
+	var body = document.body;
+	if (!body || !body.classList.contains('m-shell') || !body.classList.contains('page-torrents')) return;
+	var table = document.querySelector('table.torrents');
+	if (!table) return;
+	function siteRank(d) {
+		var img = d.querySelector('img');
+		var s = img ? ((img.getAttribute('src') || '') + (img.getAttribute('alt') || '')).toLowerCase() : '';
+		if (s.indexOf('imdb') >= 0) return 0;
+		if (s.indexOf('douban') >= 0) return 1;
+		return 2;
+	}
+	var rows = table.querySelectorAll('tbody > tr');
+	for (var i = 0; i < rows.length; i++) {
+		var tr = rows[i];
+		if (tr.querySelector('td.colhead')) continue;
+		var ratingTd = tr.querySelector('.torrentname td[style*="width: 40px"]');
+		var wrap = ratingTd ? ratingTd.querySelector('div') : null;
+		if (!wrap) continue;
+		var ratings = [].slice.call(wrap.children).filter(function (n) { return n.nodeType === 1; });
+		if (!ratings.length) continue;
+		var upLink = tr.querySelector('td[data-label] a[href*="userdetails.php"]');
+		var uploaderTd = upLink ? upLink.closest('td') : null;
+		if (!uploaderTd) continue;
+		ratings.sort(function (a, b) { return siteRank(a) - siteRank(b); });
+		var box = document.createElement('span');
+		box.className = 'tt-rating-inline';
+		ratings.forEach(function (d) { box.appendChild(d); });
+		uploaderTd.classList.add('tt-uploader');
+		uploaderTd.appendChild(box);
+		if (ratingTd) ratingTd.style.display = 'none';
+	}
+})();
+</script>
 <?php
 print("</td></tr></table>");
-stdfoot();
+t_mfoot();
