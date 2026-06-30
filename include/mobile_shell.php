@@ -31,6 +31,9 @@ function mobile_shell_render(string $active = ''): void
     $uid = (int)$CURUSER['id'];
     $unread = 0;
     try { $unread = (int)get_row_count('messages', "WHERE receiver = $uid AND unread = 'yes' AND location != 0"); } catch (\Throwable $e) {}
+    // 底部"种子"点击弹出的分类列表(后台配置的浏览分类，mode=1)
+    $torrentCats = [];
+    try { if (function_exists('genrelist')) $torrentCats = genrelist(1); } catch (\Throwable $e) {}
 
     $navItems = [
         ['torrents.php?requireseed=1', '保种区', '<path d="M12 3l8 3v6c0 4.2-3.1 6.3-8 8-4.9-1.7-8-3.8-8-8V6z"/>'],
@@ -118,12 +121,25 @@ function mobile_shell_render(string $active = ''): void
 <nav class="m-tabbar">
     <?php
     echo $tab('home', 'index.php', '<path d="M4 11l8-7 8 7M6 10v9h12v-9"/>', '首页');
-    echo $tab('torrents', 'torrents.php', '<path d="M4 7h16M4 12h16M4 17h10"/>', '种子');
+    ?>
+    <button type="button" id="mhTorrentBtn"<?php echo $active === 'torrents' ? ' class="on"' : '' ?>><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg>种子</button>
+    <?php
     echo $tab('forums', 'forums.php', '<path d="M4 5h16v10H9l-4 4z"/>', '论坛');
     echo $tab('games', 'games/', '<rect x="3" y="8" width="18" height="9" rx="4"/><path d="M8 12.5h2M9 11.5v2"/>', '游戏');
     ?>
     <button type="button" id="mhMeBtn"<?php echo $active === 'me' ? ' class="on"' : '' ?>><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>我的<?php if ($unread > 0) { ?><span class="badge"><?php echo $badge ?></span><?php } ?></button>
 </nav>
+
+<div class="m-sheet" id="mhTorrentSheet">
+    <div class="m-sheet-mask" data-torrent-close></div>
+    <div class="m-sheet-card">
+        <div class="m-sheet-handle"></div>
+        <a class="m-me-item" href="torrents.php"><span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span><span class="t">全部分类</span><span class="arr">›</span></a>
+        <?php foreach ($torrentCats as $tcat) { ?>
+        <a class="m-me-item" href="torrents.php?cat=<?php echo (int)$tcat['id'] ?>"><span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3 9h18M8 5v14"/></svg></span><span class="t"><?php echo htmlspecialchars($tcat['name']) ?></span><span class="arr">›</span></a>
+        <?php } ?>
+    </div>
+</div>
 
 <div class="m-sheet" id="mhMeSheet">
     <div class="m-sheet-mask" data-me-close></div>
@@ -187,6 +203,7 @@ function mobile_shell_render(string $active = ''): void
         sheet.querySelectorAll('[' + closeAttr + ']').forEach(function (el) { el.addEventListener('click', function () { sheet.classList.remove('open'); }); });
     }
     bindSheet('mhMeSheet', 'mhMeBtn', 'data-me-close');
+    bindSheet('mhTorrentSheet', 'mhTorrentBtn', 'data-torrent-close');
     bindSheet('mhAdminSheet', 'mhAdminBtn', 'data-admin-close');
 
     var modal = document.getElementById('mhPzModal'), pzBtn = document.getElementById('mhPzBtn');
