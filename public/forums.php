@@ -913,9 +913,9 @@ if ($action == "viewtopic")
 		}
 		$mUids = array_keys($mUids);
 		$mUserInfo = $mUids ? \App\Models\User::query()->find($mUids, ['id','class','avatar','username','donor','title'])->keyBy('id') : collect();
-		// 楼层号 = 该帖在整个主题中按发帖先后(id 升序)的序号，与当前排序/分页无关
+		// 楼层号 = 该帖在主题“主楼层”(非楼中楼)中按发帖先后的序号；楼中楼不计楼层、不显示
 		$floorMap = [];
-		$fres = sql_query("SELECT id FROM posts WHERE topicid=" . sqlesc($topicid) . " ORDER BY id ASC");
+		$fres = sql_query("SELECT id FROM posts WHERE topicid=" . sqlesc($topicid) . " AND (reply_to_post_id = 0 OR reply_to_post_id IS NULL) ORDER BY id ASC");
 		$fi = 0;
 		while ($fres && ($fr = mysql_fetch_row($fres))) { $floorMap[(int)$fr[0]] = ++$fi; }
 		// 楼主(主题首帖)固定置顶为 1 楼
@@ -936,11 +936,14 @@ if ($action == "viewtopic")
 			$pname = trim(strip_tags(forum_post_author_name($p, false)));
 			$pav = (!$anon && $u && !empty($u->avatar)) ? '<img src="' . htmlspecialchars($u->avatar) . '" alt="" onerror="this.style.display=\'none\'">' : '<b>' . htmlspecialchars(mb_substr($pname !== '' ? $pname : '?', 0, 1)) . '</b>';
 			$pdate = gettime($p['added'], true, false);
-			$floorLabel = ((int)$p['id'] === (int)$firstPostId) ? '楼主' : (($floorMap[(int)$p['id']] ?? 1) . '楼');
+			$isNested = !empty($p['reply_to_post_id']) && (int)$p['reply_to_post_id'] > 0;
+			if ((int)$p['id'] === (int)$firstPostId) { $floorLabel = '楼主'; }
+			elseif ($isNested) { $floorLabel = ''; }
+			else { $floorLabel = (($floorMap[(int)$p['id']] ?? '') !== '' ? $floorMap[(int)$p['id']] . '楼' : ''); }
 			$body = format_comment($p['body'], 0);
-			echo '<div class="ft-post"><div class="ft-post-head"><span class="f-ava">' . $pav . '</span>'
+			echo '<div class="ft-post' . ($isNested ? ' ft-nested' : '') . '"><div class="ft-post-head"><span class="f-ava">' . $pav . '</span>'
 				. '<span class="ft-pmeta"><span class="ft-pname">' . htmlspecialchars($pname) . '</span><span class="ft-pdate">' . $pdate . '</span></span>'
-				. '<span class="ft-floor">' . $floorLabel . '</span></div>'
+				. ($floorLabel !== '' ? '<span class="ft-floor">' . $floorLabel . '</span>' : '') . '</div>'
 				. '<div class="ft-body">' . $body . '</div></div>';
 		}
 		echo '</div>';
