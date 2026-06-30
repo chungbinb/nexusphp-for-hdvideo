@@ -132,6 +132,9 @@ body.page-torrents.m-shell .searchbox textarea { width: 100% !important; box-siz
 
 /* —— 手机端用个性化浅色主题，覆盖 modern-refresh 的深色"海报墙"，与首页/论坛一致 —— */
 body.page-torrents.m-shell { background: var(--mh-bg) !important; color: var(--mh-text) !important; }
+/* 关键：modern-refresh 的 body::before 是个 position:fixed 深色顶栏背景(给桌面固定头用)，
+   在手机外壳页会变成顶栏下方一条黑色固定遮罩(pointer-events:none，能点到下面的搜索框)。这里去掉。 */
+body.page-torrents.m-shell::before { content: none !important; display: none !important; }
 /* 卡片网格 / 工具条 / 快速筛选 面板改浅色 */
 body.page-torrents.m-shell.view-card .torrent-card-grid { background: transparent !important; padding: 10px 4px !important; }
 body.page-torrents.m-shell .torrent-view-toolbar,
