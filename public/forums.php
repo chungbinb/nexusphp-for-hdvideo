@@ -404,7 +404,7 @@ if ($GLOBALS['F_MOBILE']) { require_once ROOT_PATH . 'include/mobile_shell.php';
 function f_mhead($title = '') {
     if (!empty($GLOBALS['F_MOBILE']) && function_exists('mobile_shell_page_head')) {
         mobile_shell_page_head(trim(strip_tags((string)$title)) ?: '论坛', 'forums', 'page-forums');
-        echo '<link rel="stylesheet" type="text/css" href="styles/forums-mobile.css?v=20260701e">';
+        echo '<link rel="stylesheet" type="text/css" href="styles/forums-mobile.css?v=20260701f">';
         echo '<script type="text/javascript" src="js/jquery-1.12.4.min.js"></script>';
         echo '<script>jQuery.noConflict();window.nexusLayerOptions={confirm:{btnAlign:"c",title:"Confirm",btn:["OK","Cancel"]},alert:{btnAlign:"c",title:"Info",btn:["OK","Cancel"]}};</script>';
         echo '<script type="text/javascript" src="vendor/layer-v3.5.1/layer/layer.js"></script>';
@@ -915,18 +915,22 @@ if ($action == "viewtopic")
 		$mUserInfo = $mUids ? \App\Models\User::query()->find($mUids, ['id','class','avatar','username','donor','title'])->keyBy('id') : collect();
 		echo '<div class="ft-head"><div class="ft-subject">' . ($sticky ? '<span class="f-tag sticky">置顶</span>' : '') . ($locked ? '<span class="f-tag lock">锁</span>' : '') . highlight_topic($subject, $hlcolor) . '</div>';
 		echo '<div class="ft-hits">本主题共 ' . number_format((int)$views) . ' 次浏览' . ($maypost ? ' · <a href="' . htmlspecialchars("?action=reply&topicid=" . $topicid) . '">回复</a>' : '') . '</div></div>';
-		if (trim((string)($pagerstr ?? '')) !== '') echo '<div class="ft-pager">' . $pagerstr . '</div>';
+		$nextSort = $psort === 'desc' ? 'asc' : 'desc';
+		$curSortLabel = $psort === 'desc' ? '倒序' : '正序';
+		$sortUrl = "?action=viewtopic&topicid=" . $topicid . ($authorid ? "&authorid=" . $authorid : "") . "&psort=" . $nextSort;
+		echo '<div class="ft-toolbar"><div class="ft-pager">' . ($pagerstr ?? '') . '</div><a class="ft-sort" href="' . htmlspecialchars($sortUrl) . '">楼层：' . $curSortLabel . ' ⇅</a></div>';
 		echo '<div class="ft-posts">';
-		$floor = (int)$offset;
+		$idx = 0;
 		foreach ($mPosts as $p) {
-			$floor++;
+			$floorNum = ($psort === 'asc') ? ((int)$offset + $idx + 1) : ((int)$postcount - (int)$offset - $idx);
+			$idx++;
 			$puid = (int)$p['userid'];
 			$anon = function_exists('forum_post_is_anonymous') && forum_post_is_anonymous($p);
 			$u = $mUserInfo->get($puid);
 			$pname = trim(strip_tags(forum_post_author_name($p, false)));
 			$pav = (!$anon && $u && !empty($u->avatar)) ? '<img src="' . htmlspecialchars($u->avatar) . '" alt="" onerror="this.style.display=\'none\'">' : '<b>' . htmlspecialchars(mb_substr($pname !== '' ? $pname : '?', 0, 1)) . '</b>';
 			$pdate = gettime($p['added'], true, false);
-			$floorLabel = ((int)$p['id'] === (int)$firstPostId) ? '楼主' : $floor . '楼';
+			$floorLabel = ((int)$p['id'] === (int)$firstPostId) ? '楼主' : (($floorNum > 0 ? $floorNum : 1) . '楼');
 			$body = format_comment($p['body'], 0);
 			echo '<div class="ft-post"><div class="ft-post-head"><span class="f-ava">' . $pav . '</span>'
 				. '<span class="ft-pmeta"><span class="ft-pname">' . htmlspecialchars($pname) . '</span><span class="ft-pdate">' . $pdate . '</span></span>'
