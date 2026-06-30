@@ -1,9 +1,17 @@
 /* 种子页(torrents.php)手机端：在统一手机外壳(.m-shell)内复用桌面卡片视图/筛选(modern-refresh.css)。
    仅限 body.page-torrents.m-shell。整体沿用桌面"海报墙"深色风格，外壳顶/底栏保持浅色。 */
 
-/* 容器：禁止横向溢出，内容满宽 */
-body.page-torrents.m-shell { overflow-x: hidden !important; max-width: 100vw; }
+/* 容器：禁止横向溢出，内容满宽。modern-refresh 给 body 设了 overflow-y:auto!important，
+   会破坏外壳固定顶/底栏，这里改回 visible，让窗口正常滚动。 */
+body.page-torrents.m-shell { overflow-x: hidden !important; overflow-y: visible !important; max-width: 100vw; }
 body.page-torrents.m-shell .m-main { padding: 6px 8px 0; max-width: 100vw; box-sizing: border-box; }
+
+/* 外壳顶/底栏：在深色海报墙之上保持浅色、置顶可见 */
+body.page-torrents.m-shell .m-top { z-index: 3000 !important; background: var(--mh-surface) !important; }
+body.page-torrents.m-shell .m-tabbar { z-index: 2990 !important; background: var(--mh-surface) !important; }
+body.page-torrents.m-shell .m-top .m-brand,
+body.page-torrents.m-shell .m-top .m-iconbtn svg,
+body.page-torrents.m-shell .m-top .m-burger span { color: var(--mh-primary) !important; stroke: var(--mh-primary) !important; }
 
 /* 外层 <table class="main"> 包裹：拆成块级满宽 */
 body.page-torrents.m-shell table.main,
@@ -32,17 +40,26 @@ body.page-torrents.m-shell .qd-torrent-search button {
     flex: 1 1 0; min-height: 40px; border-radius: 10px; font-size: 15px;
 }
 
-/* 快速筛选：单列堆叠，深色面板 */
+/* 快速筛选：每组压成单行横向滚动，避免一上来就是一大片筛选墙 */
 body.page-torrents.m-shell .torrent-quick-filters {
     grid-template-columns: 1fr !important;
-    gap: 12px !important; padding: 12px !important;
-    margin: 0 0 12px !important; border-radius: 12px !important;
+    gap: 8px !important; padding: 10px !important;
+    margin: 0 0 10px !important; border-radius: 12px !important;
 }
-body.page-torrents.m-shell .torrent-quick-filter-heading { font-size: 16px !important; margin-bottom: 8px !important; }
+body.page-torrents.m-shell .torrent-quick-filter-group {
+    display: flex; align-items: center; gap: 10px;
+}
+body.page-torrents.m-shell .torrent-quick-filter-heading {
+    flex: none; font-size: 14px !important; margin-bottom: 0 !important;
+    min-width: 52px; gap: 6px;
+}
 body.page-torrents.m-shell .torrent-quick-filter-links {
-    grid-template-columns: repeat(3, minmax(0,1fr)) !important;
-    gap: 8px 12px !important; max-height: none !important;
+    display: flex !important; flex-wrap: nowrap !important;
+    gap: 14px !important; max-height: none !important;
+    overflow-x: auto !important; -webkit-overflow-scrolling: touch;
+    flex: 1; min-width: 0; padding-bottom: 2px;
 }
+body.page-torrents.m-shell .torrent-quick-filter-links a { flex: none; white-space: nowrap; }
 
 /* 视图工具条：换行紧凑 */
 body.page-torrents.m-shell .torrent-view-toolbar {
