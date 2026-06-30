@@ -55,7 +55,10 @@ function usercpmenu ($selected = "home") {
 			['?action=security', $lang_usercp['text_security_settings'], 'security'],
 		];
 		echo '<div class="m-subnav">';
-		foreach ($tabs as $t) { echo '<a' . ($t[2] === $selected ? ' class="on"' : '') . ' href="' . $t[0] . '">' . htmlspecialchars($t[1]) . '</a>'; }
+		foreach ($tabs as $t) {
+			$label = trim(preg_replace('/\s+/u', '', html_entity_decode((string)$t[1], ENT_QUOTES | ENT_HTML5, 'UTF-8')));
+			echo '<a' . ($t[2] === $selected ? ' class="on"' : '') . ' href="' . $t[0] . '">' . htmlspecialchars($label) . '</a>';
+		}
 		echo '</div>';
 		return;
 	}
