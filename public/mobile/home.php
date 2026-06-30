@@ -311,6 +311,10 @@ body.menu-open .m-drawer { transform: translateY(0); }
         <button class="m-iconbtn" id="mhAdminBtn" type="button" aria-label="管理">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.8 7.8 0 0 0 0-2l2-1.5-2-3.4-2.4 1a7 7 0 0 0-1.7-1L15 3.5h-4l-.3 2.6a7 7 0 0 0-1.7 1l-2.4-1-2 3.4L4.6 11a7.8 7.8 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.3 2.6h4l.3-2.6a7 7 0 0 0 1.7-1l2.4 1 2-3.4z"/></svg>
         </button>
+        <?php } else { ?>
+        <a class="m-iconbtn" href="contactstaff.php" aria-label="联系管理组" title="联系管理组">
+            <svg viewBox="0 0 24 24"><path d="M5 13v-1a7 7 0 0 1 14 0v1"/><rect x="3" y="13" width="4" height="6" rx="1.6"/><rect x="17" y="13" width="4" height="6" rx="1.6"/><path d="M19 19a3.5 3.5 0 0 1-3.5 3H13"/></svg>
+        </a>
         <?php } ?>
         <button class="m-iconbtn" id="mhPzBtn" type="button" aria-label="个性化配色">
             <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-.95-.5-1.3-.3-.35-.5-.8-.5-1.2 0-.83.67-1.5 1.5-1.5H16a5 5 0 0 0 5-5c0-3.87-4.03-7-9-7z"/><circle cx="7.5" cy="11" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="7.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="16.5" cy="11" r="1.1" fill="currentColor" stroke="none"/></svg>
