@@ -151,11 +151,23 @@ body.page-torrents.m-shell.view-list table.torrents .tt-sub {
 /* 文字型元信息列(大小/时间/做种/下载/完成/评论/发布者)排成一行小字 */
 body.page-torrents.m-shell.view-list table.torrents > tbody > tr > td[data-label]:not(:has(table.torrentname)):not(:has(img)) {
     display: inline-flex !important; align-items: center; width: auto !important;
-    margin: 8px 14px 0 0; font-size: 12px; color: var(--mh-text) !important;
+    margin: 8px 14px 0 0; font-size: 12px; color: var(--mh-text) !important; white-space: nowrap !important;
 }
 body.page-torrents.m-shell.view-list table.torrents > tbody > tr > td[data-label]:not(:has(table.torrentname)):not(:has(img))::before {
     content: attr(data-label); margin-right: 4px; font-size: 11px; color: #6a7589; opacity: 1;
 }
+/* 隐藏 # 序号列 */
+body.page-torrents.m-shell.view-list table.torrents > tbody > tr > td:first-child { display: none !important; }
+/* 元信息单元格内的 <br> 不换行(修复发布者括号跑到下一行) */
+body.page-torrents.m-shell.view-list table.torrents > tbody > tr > td[data-label] br { display: none !important; }
+/* 存活时间/大小等数值不换行(一行显示) */
+body.page-torrents.m-shell.view-list table.torrents > tbody > tr > td[data-label] * { white-space: nowrap !important; }
+/* 评分(原竖排40px列)改为横排紧凑，放在卡片底部一行 */
+body.page-torrents.m-shell.view-list table.torrents .torrentname td[style*="width: 40px"] {
+    display: block !important; width: auto !important; text-align: left !important; padding: 6px 0 0 !important;
+}
+body.page-torrents.m-shell.view-list table.torrents .torrentname td[style*="width: 40px"] > div { flex-direction: row !important; gap: 14px; justify-content: flex-start !important; }
+body.page-torrents.m-shell.view-list table.torrents .torrentname td[style*="width: 40px"] > div > div { padding: 0 !important; gap: 4px; }
 
 /* 高级搜索 / 快速筛选弹层对话框适配窄屏 */
 body.page-torrents.m-shell .torrent-advanced-search-dialog,

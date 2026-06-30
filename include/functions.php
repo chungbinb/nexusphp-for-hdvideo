@@ -5493,7 +5493,7 @@ foreach ($rows as $row)
 			$dissmall_descr=mb_substr($dissmall_descr, 0, $max_lenght_of_small_descr-2,"UTF-8") . "..";
 		}
 		$ttSubHtml = $dissmall_descr === "" ? "" : "<span class=\"tt-sub\">".htmlspecialchars($dissmall_descr)."</span>";
-		$descrHtml = $ttTagsHtml . $ttSubHtml;
+		$descrHtml = $ttSubHtml . $ttTagsHtml; // 副标题在前、标签在后(标签独占下一行)
 		print($descrHtml == "" ? "" : "<br />".$descrHtml);
 	} else {
 	    print($ttTagsHtml ? "<br />$ttTagsHtml" : "");
