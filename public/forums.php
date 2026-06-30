@@ -404,7 +404,7 @@ if ($GLOBALS['F_MOBILE']) { require_once ROOT_PATH . 'include/mobile_shell.php';
 function f_mhead($title = '') {
     if (!empty($GLOBALS['F_MOBILE']) && function_exists('mobile_shell_page_head')) {
         mobile_shell_page_head(trim(strip_tags((string)$title)) ?: '论坛', 'forums', 'page-forums');
-        echo '<link rel="stylesheet" type="text/css" href="styles/forums-mobile.css?v=20260701c">';
+        echo '<link rel="stylesheet" type="text/css" href="styles/forums-mobile.css?v=20260701d">';
         echo '<script type="text/javascript" src="js/jquery-1.12.4.min.js"></script>';
         echo '<script>jQuery.noConflict();window.nexusLayerOptions={confirm:{btnAlign:"c",title:"Confirm",btn:["OK","Cancel"]},alert:{btnAlign:"c",title:"Info",btn:["OK","Cancel"]}};</script>';
         echo '<script type="text/javascript" src="vendor/layer-v3.5.1/layer/layer.js"></script>';
@@ -1601,6 +1601,47 @@ if ($action == "viewforum")
 
 	if (!$maypost)
 		print("<p><i>".$lang_forums['text_unpermitted_starting_new_topics']."</i></p>\n");
+
+	// 手机端：主题列表用卡片(头像+作者/日期+浏览/回复+标题)，类似触屏版
+	if (!empty($GLOBALS['F_MOBILE'])) {
+		echo '<div class="f-vf-bar"><div class="f-vf-name">' . htmlspecialchars($forumname) . '<span class="f-vf-sub">主题 ' . number_format((int)$numtopics) . '</span></div>';
+		if ($maypost) echo '<a class="f-vf-new" href="' . htmlspecialchars("?action=newtopic&forumid=" . $forumid) . '">发新主题</a>';
+		echo '</div>';
+		if ($numtopics > 0) {
+			echo '<div class="f-topics">';
+			while ($topicarr = mysql_fetch_assoc($topicsres)) {
+				$topicid = (int)$topicarr["id"];
+				$sticky = $topicarr["sticky"] == "yes";
+				$locked = $topicarr["locked"] == "yes";
+				$views = number_format((int)$topicarr["views"]);
+				if (!$posts = $Cache->get_value('topic_'.$topicid.'_post_count')) {
+					$posts = get_row_count("posts", "WHERE topicid=".sqlesc($topicid));
+					$Cache->cache_value('topic_'.$topicid.'_post_count', $posts, 3600);
+				}
+				$replies = max(0, $posts - 1);
+				$fp = get_post_row($topicarr['firstpost']);
+				$fpuid = (int)($fp["userid"] ?? 0);
+				$anon = function_exists('forum_post_is_anonymous') && forum_post_is_anonymous($fp);
+				$fpname = trim(strip_tags(forum_post_author_name($fp, false)));
+				$fpdate = substr((string)($fp['added'] ?? ''), 0, 10);
+				$fpavatar = '';
+				if (!$anon && $fpuid) { $ur = get_user_row($fpuid); if ($ur && !empty($ur['avatar'])) $fpavatar = trim($ur['avatar']); }
+				$av = $fpavatar !== '' ? '<img src="'.htmlspecialchars($fpavatar).'" alt="" onerror="this.style.display=\'none\'">' : '<b>'.htmlspecialchars(mb_substr($fpname !== '' ? $fpname : '?', 0, 1)).'</b>';
+				$flag = ($sticky ? '<span class="f-tag sticky">置顶</span>' : '') . ($locked ? '<span class="f-tag lock">锁</span>' : '');
+				echo '<a class="f-topic" href="' . htmlspecialchars("?action=viewtopic&forumid=".$forumid."&topicid=".$topicid) . '">'
+					. '<div class="f-topic-top"><span class="f-ava">' . $av . '</span>'
+					. '<span class="f-topic-meta"><span class="f-topic-author">' . htmlspecialchars($fpname) . '</span><span class="f-topic-date">发布于 ' . htmlspecialchars($fpdate) . '</span></span>'
+					. '<span class="f-topic-stats"><span class="st"><svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>' . $views . '</span><span class="st"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/></svg>' . $replies . '</span></span></div>'
+					. '<div class="f-topic-title">' . $flag . highlight_topic(htmlspecialchars($topicarr["subject"]), $topicarr["hlcolor"]) . '</div></a>';
+			}
+			echo '</div>';
+			echo $pagerbottom;
+		} else {
+			echo '<p class="f-empty">' . $lang_forums['text_no_topics_found'] . '</p>';
+		}
+		f_mfoot();
+		die;
+	}
 
 	print("<table border=\"0\" class=\"main\" cellspacing=\"0\" cellpadding=\"5\" width=\"97%\"><tr>\n");
 	print("<td class=\"embedded\" width=\"90%\">");
