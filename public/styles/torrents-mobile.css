@@ -65,9 +65,10 @@ body.page-torrents.m-shell .qd-torrent-search {
 body.page-torrents.m-shell .qd-torrent-search input[type="text"] {
     flex: 1 1 100%; min-width: 0; box-sizing: border-box;
     height: 40px; padding: 0 14px; font-size: 15px;
-    border-radius: 10px; border: 1px solid rgba(20,40,90,.18);
-    background: var(--mh-surface); color: var(--mh-text);
+    border-radius: 10px; border: 1px solid rgba(20,40,90,.18) !important;
+    background: var(--mh-surface) !important; color: var(--mh-text) !important;
 }
+body.page-torrents.m-shell .qd-torrent-search input[type="text"]::placeholder { color: #9aa6bd !important; }
 body.page-torrents.m-shell .qd-torrent-search button {
     flex: 1 1 0; min-height: 40px; border-radius: 10px; font-size: 15px;
 }
