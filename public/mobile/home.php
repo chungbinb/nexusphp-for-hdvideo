@@ -114,16 +114,21 @@ function mh_avatar($avatar, $uname)
     return '<b>' . htmlspecialchars(mb_substr($uname !== '' ? $uname : '?', 0, 1)) . '</b>';
 }
 
+// 顶部抽屉导航：去掉底部 Tab 已有的 种子/论坛/消息，补上 PC 顶部导航里的其它入口
 $navItems = [
-    ['torrents.php', '种子', '<path d="M4 7h16M4 12h16M4 17h10"/>'],
-    ['forums.php', '论坛', '<path d="M4 5h16v10H9l-4 4z"/>'],
-    ['upload.php', '发布', '<path d="M12 19V7M6 11l6-6 6 6M5 21h14"/>'],
-    ['messages.php', '消息', '<path d="M4 5h16v12H8l-4 4z"/>'],
-    ['topten.php', '排行', '<path d="M5 21V9M12 21V4M19 21v-7"/>'],
-    ['mybonus.php', '魔力', '<circle cx="12" cy="12" r="8"/><path d="M9.5 12h5"/>'],
-    ['myhr.php', '考核', '<path d="M9 11l3 3 6-6M5 5h9M5 12h3M5 19h6"/>'],
-    ['games/', '游戏', '<rect x="3" y="8" width="18" height="9" rx="4"/><path d="M8 12.5h2M9 11.5v2"/>'],
+    ['torrents.php?requireseed=1', '保种区', '<path d="M12 3l8 3v6c0 4.2-3.1 6.3-8 8-4.9-1.7-8-3.8-8-8V6z"/>'],
 ];
+if (($enableoffer ?? '') === 'yes') $navItems[] = ['offers.php', '候选', '<path d="M5 6h14M5 12h14M5 18h9"/><path d="M3 6h.01M3 12h.01M3 18h.01"/>'];
+$navItems[] = ['viewrequests.php', '求种', '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/>'];
+$navItems[] = ['subtitles.php', '字幕', '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 14h4M13 14h4M7 10h2"/>'];
+$navItems[] = ['upload.php', '发布', '<path d="M12 19V7M6 11l6-6 6 6M5 21h14"/>'];
+$navItems[] = ['attendance.php', '签到', '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 9h18M9 15l2 2 4-4"/>'];
+$navItems[] = ['invite.php', '邀请', '<circle cx="9" cy="8" r="4"/><path d="M3 20c0-3.5 3-5 6-5s6 1.5 6 5M19 8v6M16 11h6"/>'];
+$navItems[] = ['topten.php', '排行', '<path d="M5 21V9M12 21V4M19 21v-7"/>'];
+$navItems[] = ['mybonus.php', '魔力', '<circle cx="12" cy="12" r="8"/><path d="M9.5 12h5"/>'];
+$navItems[] = ['medal.php', '勋章', '<circle cx="12" cy="9" r="5"/><path d="M9 13l-2 8 5-3 5 3-2-8"/>'];
+$navItems[] = ['myhr.php', '考核', '<path d="M9 11l3 3 6-6M5 5h9M5 12h3M5 19h6"/>'];
+$navItems[] = ['games/', '游戏', '<rect x="3" y="8" width="18" height="9" rx="4"/><path d="M8 12.5h2M9 11.5v2"/>'];
 ?><!DOCTYPE html>
 <html lang="zh-CN">
 <head>
