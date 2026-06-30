@@ -46,6 +46,15 @@ body.page-torrents.m-shell table.main > tbody > tr > td.embedded {
     max-width: 100% !important;
     padding: 0 !important;
     border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+/* 消除桌面深色面板(info_block/td.text/comment/searchbox)在手机浅色页里露出的黑块 */
+body.page-torrents.m-shell #info_block,
+body.page-torrents.m-shell td.text,
+body.page-torrents.m-shell td.comment,
+body.page-torrents.m-shell td.embedded {
+    background: transparent !important; box-shadow: none !important; border: none !important; color: var(--mh-text) !important;
 }
 
 /* 顶部搜索表单 */
