@@ -404,7 +404,7 @@ if ($GLOBALS['F_MOBILE']) { require_once ROOT_PATH . 'include/mobile_shell.php';
 function f_mhead($title = '') {
     if (!empty($GLOBALS['F_MOBILE']) && function_exists('mobile_shell_page_head')) {
         mobile_shell_page_head(trim(strip_tags((string)$title)) ?: '论坛', 'forums', 'page-forums');
-        echo '<link rel="stylesheet" type="text/css" href="styles/forums-mobile.css?v=20260701g">';
+        echo '<link rel="stylesheet" type="text/css" href="styles/forums-mobile.css?v=20260701h">';
         echo '<script type="text/javascript" src="js/jquery-1.12.4.min.js"></script>';
         echo '<script>jQuery.noConflict();window.nexusLayerOptions={confirm:{btnAlign:"c",title:"Confirm",btn:["OK","Cancel"]},alert:{btnAlign:"c",title:"Info",btn:["OK","Cancel"]}};</script>';
         echo '<script type="text/javascript" src="vendor/layer-v3.5.1/layer/layer.js"></script>';
@@ -933,7 +933,7 @@ if ($action == "viewtopic")
 			$puid = (int)$p['userid'];
 			$anon = function_exists('forum_post_is_anonymous') && forum_post_is_anonymous($p);
 			$u = $mUserInfo->get($puid);
-			$pnameHtml = forum_post_author_name($p, false);
+			$pnameHtml = $anon ? forum_post_author_name($p, false) : forum_strip_username_medals(get_username($puid, false, true, true, false, false, false));
 			$pname = trim(strip_tags($pnameHtml));
 			$pav = (!$anon && $u && !empty($u->avatar)) ? '<img src="' . htmlspecialchars($u->avatar) . '" alt="" onerror="this.style.display=\'none\'">' : '<b>' . htmlspecialchars(mb_substr($pname !== '' ? $pname : '?', 0, 1)) . '</b>';
 			$pdate = gettime($p['added'], true, false);
@@ -1687,7 +1687,7 @@ if ($action == "viewforum")
 				$fp = get_post_row($topicarr['firstpost']);
 				$fpuid = (int)($fp["userid"] ?? 0);
 				$anon = function_exists('forum_post_is_anonymous') && forum_post_is_anonymous($fp);
-				$fpnameHtml = forum_post_author_name($fp, false);
+				$fpnameHtml = $anon ? forum_post_author_name($fp, false) : forum_strip_username_medals(get_username($fpuid, false, true, true, false, false, false));
 				$fpname = trim(strip_tags($fpnameHtml));
 				$fpdate = substr((string)($fp['added'] ?? ''), 0, 10);
 				$fpavatar = '';
