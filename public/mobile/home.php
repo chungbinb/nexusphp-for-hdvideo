@@ -114,16 +114,48 @@ function mh_avatar($avatar, $uname)
     return '<b>' . htmlspecialchars(mb_substr($uname !== '' ? $uname : '?', 0, 1)) . '</b>';
 }
 
+// 顶部抽屉导航：去掉底部 Tab 已有的 种子/论坛/消息，补上 PC 顶部导航里的其它入口
 $navItems = [
-    ['torrents.php', '种子', '<path d="M4 7h16M4 12h16M4 17h10"/>'],
-    ['forums.php', '论坛', '<path d="M4 5h16v10H9l-4 4z"/>'],
-    ['upload.php', '发布', '<path d="M12 19V7M6 11l6-6 6 6M5 21h14"/>'],
-    ['messages.php', '消息', '<path d="M4 5h16v12H8l-4 4z"/>'],
-    ['topten.php', '排行', '<path d="M5 21V9M12 21V4M19 21v-7"/>'],
-    ['mybonus.php', '魔力', '<circle cx="12" cy="12" r="8"/><path d="M9.5 12h5"/>'],
-    ['myhr.php', '考核', '<path d="M9 11l3 3 6-6M5 5h9M5 12h3M5 19h6"/>'],
-    ['games/', '游戏', '<rect x="3" y="8" width="18" height="9" rx="4"/><path d="M8 12.5h2M9 11.5v2"/>'],
+    ['torrents.php?requireseed=1', '保种区', '<path d="M12 3l8 3v6c0 4.2-3.1 6.3-8 8-4.9-1.7-8-3.8-8-8V6z"/>'],
 ];
+if (($enableoffer ?? '') === 'yes') $navItems[] = ['offers.php', '候选', '<path d="M5 6h14M5 12h14M5 18h9"/><path d="M3 6h.01M3 12h.01M3 18h.01"/>'];
+$navItems[] = ['viewrequests.php', '求种', '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/>'];
+$navItems[] = ['subtitles.php', '字幕', '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 14h4M13 14h4M7 10h2"/>'];
+$navItems[] = ['upload.php', '发布', '<path d="M12 19V7M6 11l6-6 6 6M5 21h14"/>'];
+$navItems[] = ['topten.php', '排行', '<path d="M5 21V9M12 21V4M19 21v-7"/>'];
+$navItems[] = ['myhr.php', '考核', '<path d="M9 11l3 3 6-6M5 5h9M5 12h3M5 19h6"/>'];
+$navItems[] = ['rules.php', '规则', '<path d="M6 3h9l4 4v14H6z"/><path d="M9 9h6M9 13h6M9 17h4"/>'];
+$navItems[] = ['faq.php', '常见问题', '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.5a2.4 2.4 0 1 1 3.3 2.2c-.8.4-1.4 1-1.4 1.9v.3"/><path d="M12 17h.01"/>'];
+if (function_exists('user_can') && user_can('log')) $navItems[] = ['log.php', '日志', '<path d="M3 12a9 9 0 1 0 3-6.7M3 5v4h4"/><path d="M12 8v4l3 2"/>'];
+$navItems[] = ['user-ban-log.php', '封禁记录', '<circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/>'];
+$navItems[] = ['?pc=1', '返回旧版', '<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>'];
+
+// 「我的」底部上弹菜单
+$meItems = [
+    ['usercp.php', '个人中心', '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>', false],
+    ['messages.php', '消息', '<path d="M4 5h16v12H8l-4 4z"/>', true],
+    ['attendance.php', '签到', '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 9h18M9 15l2 2 4-4"/>', false],
+    ['mybonus.php', '魔力', '<circle cx="12" cy="12" r="8"/><path d="M9.5 12h5"/>', false],
+    ['invite.php', '邀请', '<circle cx="9" cy="8" r="4"/><path d="M3 20c0-3.5 3-5 6-5s6 1.5 6 5M19 8v6M16 11h6"/>', false],
+    ['medal.php', '勋章', '<circle cx="12" cy="9" r="5"/><path d="M9 13l-2 8 5-3 5 3-2-8"/>', false],
+    ['logout.php', '退出登录', '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>', false],
+];
+
+// 管理员齿轮菜单（仅管理组可见，逐项按权限显示）
+$adminItems = [];
+if (function_exists('user_can')) {
+    $uclass = function_exists('get_user_class') ? (int)get_user_class() : (int)($CURUSER['class'] ?? 0);
+    if (user_can('viewstaff') || (defined('UC_MODERATOR') && $uclass >= UC_MODERATOR)) $adminItems[] = ['staff.php', '管理组', '<path d="M12 3l8 3v6c0 4-3 6.3-8 8-5-1.7-8-4-8-8V6z"/>'];
+    if (user_can('staffmem')) {
+        $adminItems[] = ['staffbox.php', '管理组信箱', '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>'];
+        $adminItems[] = ['reports.php', '举报信箱', '<path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17h.01"/>'];
+        $adminItems[] = ['cheaterbox.php', '作弊者', '<circle cx="9" cy="8" r="4"/><path d="M3 20c0-3.4 3-5 6-5"/><path d="M15.5 9.5l5 5M20.5 9.5l-5 5"/>'];
+        $adminItems[] = ['complains.php?action=list', '申诉处理', '<path d="M4 5h16v11H8l-4 4z"/><path d="M9 9h6M9 12h4"/>'];
+    }
+    if (defined('UC_MODERATOR') && $uclass >= UC_MODERATOR) $adminItems[] = ['staffpanel.php', '管理组面板', '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/>'];
+    if (defined('UC_SYSOP') && $uclass >= UC_SYSOP) $adminItems[] = ['settings.php', '站点设定', '<circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.8 7.8 0 0 0 0-2l2-1.5-2-3.4-2.4 1a7 7 0 0 0-1.7-1L15 3.5h-4l-.3 2.6a7 7 0 0 0-1.7 1l-2.4-1-2 3.4L4.6 11a7.8 7.8 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.3 2.6h4l.3-2.6a7 7 0 0 0 1.7-1l2.4 1 2-3.4z"/>'];
+    try { if ($uclass >= \App\Models\User::getAccessAdminClassMin()) $adminItems[] = [nexus_env('FILAMENT_PATH', 'nexusphp'), '管理系统', '<rect x="3" y="4" width="18" height="7" rx="1"/><rect x="3" y="13" width="18" height="7" rx="1"/><path d="M7 7.5h.01M7 16.5h.01"/>', true]; } catch (\Throwable $e) {}
+}
 ?><!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -209,11 +241,27 @@ body.menu-open .m-drawer { transform: translateY(0); }
 
 .m-tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; background: var(--mh-surface);
     border-top: 1px solid rgba(20,40,90,.08); padding-bottom: env(safe-area-inset-bottom); box-shadow: 0 -2px 12px rgba(20,40,90,.08); }
-.m-tabbar a { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0 6px; font-size: 11px; color: #8b96ad; position: relative; }
+.m-tabbar a, .m-tabbar button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0 6px; font-size: 11px; color: #8b96ad; position: relative; background: none; border: none; cursor: pointer; font-family: inherit; }
 .m-tabbar a.on { color: var(--mh-primary); }
-.m-tabbar a svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
-.m-tabbar a .badge { position: absolute; top: 4px; right: 50%; margin-right: -22px; min-width: 15px; height: 15px; padding: 0 4px; border-radius: 999px; background: #ff4d5e; color: #fff; font-size: 9px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.m-tabbar a svg, .m-tabbar button svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.m-tabbar .badge { position: absolute; top: 4px; right: 50%; margin-right: -22px; min-width: 15px; height: 15px; padding: 0 4px; border-radius: 999px; background: #ff4d5e; color: #fff; font-size: 9px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
 .m-empty { color: #9aa6bd; font-size: 13px; padding: 10px 0; }
+
+/* 「我的」底部上弹菜单 */
+.m-sheet { position: fixed; inset: 0; z-index: 55; display: none; }
+.m-sheet.open { display: block; }
+.m-sheet-mask { position: absolute; inset: 0; background: rgba(0,0,0,.45); opacity: 0; transition: opacity .25s ease; }
+.m-sheet.open .m-sheet-mask { opacity: 1; }
+.m-sheet-card { position: absolute; left: 0; right: 0; bottom: 0; background: var(--mh-surface); color: var(--mh-text); border-radius: 18px 18px 0 0; padding: 8px 14px calc(14px + env(safe-area-inset-bottom)); transform: translateY(100%); transition: transform .3s ease; max-height: 80vh; overflow-y: auto; box-shadow: 0 -8px 30px rgba(0,0,0,.22); }
+.m-sheet.open .m-sheet-card { transform: translateY(0); }
+.m-sheet-handle { width: 40px; height: 4px; border-radius: 999px; background: rgba(20,40,90,.2); margin: 6px auto 10px; }
+.m-me-item { display: flex; align-items: center; gap: 12px; padding: 13px 8px; border-bottom: 1px solid rgba(20,40,90,.06); }
+.m-me-item:last-child { border-bottom: none; }
+.m-me-item .ic { width: 36px; height: 36px; border-radius: 10px; background: var(--mh-soft); display: flex; align-items: center; justify-content: center; flex: none; }
+.m-me-item .ic svg { width: 20px; height: 20px; fill: none; stroke: var(--mh-primary); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.m-me-item .t { flex: 1; font-size: 15px; font-weight: 600; }
+.m-me-item .arr { color: #c2cbdc; font-size: 18px; }
+.m-me-item .badge { background: #ff4d5e; color: #fff; font-size: 10px; font-weight: 800; min-width: 16px; height: 16px; padding: 0 5px; border-radius: 999px; display: flex; align-items: center; justify-content: center; }
 
 /* 趣味盒 / 群聊区 iframe */
 .m-frame { width: 100%; height: 230px; border: 1px solid rgba(20,40,90,.1); border-radius: 10px; background: #fff; display: block; }
@@ -259,6 +307,15 @@ body.menu-open .m-drawer { transform: translateY(0); }
 <header class="m-top">
     <div class="m-brand">HD<span>VIDEO</span></div>
     <div class="m-actions">
+        <?php if ($adminItems) { ?>
+        <button class="m-iconbtn" id="mhAdminBtn" type="button" aria-label="管理">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.8 7.8 0 0 0 0-2l2-1.5-2-3.4-2.4 1a7 7 0 0 0-1.7-1L15 3.5h-4l-.3 2.6a7 7 0 0 0-1.7 1l-2.4-1-2 3.4L4.6 11a7.8 7.8 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.3 2.6h4l.3-2.6a7 7 0 0 0 1.7-1l2.4 1 2-3.4z"/></svg>
+        </button>
+        <?php } else { ?>
+        <a class="m-iconbtn" href="contactstaff.php" aria-label="联系管理组" title="联系管理组">
+            <svg viewBox="0 0 24 24"><path d="M5 13v-1a7 7 0 0 1 14 0v1"/><rect x="3" y="13" width="4" height="6" rx="1.6"/><rect x="17" y="13" width="4" height="6" rx="1.6"/><path d="M19 19a3.5 3.5 0 0 1-3.5 3H13"/></svg>
+        </a>
+        <?php } ?>
         <button class="m-iconbtn" id="mhPzBtn" type="button" aria-label="个性化配色">
             <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-.95-.5-1.3-.3-.35-.5-.8-.5-1.2 0-.83.67-1.5 1.5-1.5H16a5 5 0 0 0 5-5c0-3.87-4.03-7-9-7z"/><circle cx="7.5" cy="11" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="7.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="16.5" cy="11" r="1.1" fill="currentColor" stroke="none"/></svg>
         </button>
@@ -387,9 +444,44 @@ body.menu-open .m-drawer { transform: translateY(0); }
     <a class="on" href="index.php"><svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7M6 10v9h12v-9"/></svg>首页</a>
     <a href="torrents.php"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg>种子</a>
     <a href="forums.php"><svg viewBox="0 0 24 24"><path d="M4 5h16v10H9l-4 4z"/></svg>论坛</a>
-    <a href="messages.php"><svg viewBox="0 0 24 24"><path d="M4 5h16v12H8l-4 4z"/></svg>消息<?php if ($unread > 0) { ?><span class="badge"><?php echo $unread > 99 ? '99+' : $unread ?></span><?php } ?></a>
-    <a href="usercp.php"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>我的</a>
+    <a href="games/"><svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="9" rx="4"/><path d="M8 12.5h2M9 11.5v2"/></svg>游戏</a>
+    <button type="button" id="mhMeBtn"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>我的<?php if ($unread > 0) { ?><span class="badge"><?php echo $unread > 99 ? '99+' : $unread ?></span><?php } ?></button>
 </nav>
+
+<div class="m-sheet" id="mhMeSheet">
+    <div class="m-sheet-mask" data-me-close></div>
+    <div class="m-sheet-card">
+        <div class="m-sheet-handle"></div>
+        <div class="m-sheet-list">
+            <?php foreach ($meItems as $mi) { ?>
+            <a class="m-me-item" href="<?php echo $mi[0] ?>">
+                <span class="ic"><svg viewBox="0 0 24 24"><?php echo $mi[2] ?></svg></span>
+                <span class="t"><?php echo $mi[1] ?></span>
+                <?php if ($mi[3] && $unread > 0) { ?><span class="badge"><?php echo $unread > 99 ? '99+' : $unread ?></span><?php } ?>
+                <span class="arr">›</span>
+            </a>
+            <?php } ?>
+        </div>
+    </div>
+</div>
+
+<?php if ($adminItems) { ?>
+<div class="m-sheet" id="mhAdminSheet">
+    <div class="m-sheet-mask" data-admin-close></div>
+    <div class="m-sheet-card">
+        <div class="m-sheet-handle"></div>
+        <div class="m-sheet-list">
+            <?php foreach ($adminItems as $ai) { ?>
+            <a class="m-me-item" href="<?php echo htmlspecialchars($ai[0]) ?>"<?php echo !empty($ai[3]) ? ' target="_blank"' : '' ?>>
+                <span class="ic"><svg viewBox="0 0 24 24"><?php echo $ai[2] ?></svg></span>
+                <span class="t"><?php echo $ai[1] ?></span>
+                <span class="arr">›</span>
+            </a>
+            <?php } ?>
+        </div>
+    </div>
+</div>
+<?php } ?>
 <div class="m-modal" id="mhPzModal">
     <div class="m-modal-mask" data-pz-close></div>
     <div class="m-modal-card">
@@ -419,6 +511,18 @@ body.menu-open .m-drawer { transform: translateY(0); }
     if (btn) btn.addEventListener('click', function () { document.body.classList.toggle('menu-open'); });
     if (mask) mask.addEventListener('click', close);
     document.querySelectorAll('#mhDrawer a').forEach(function (a) { a.addEventListener('click', close); });
+    // 「我的」底部上弹菜单
+    var meSheet = document.getElementById('mhMeSheet'), meBtn = document.getElementById('mhMeBtn');
+    if (meSheet && meBtn) {
+        meBtn.addEventListener('click', function () { meSheet.classList.add('open'); });
+        meSheet.querySelectorAll('[data-me-close]').forEach(function (el) { el.addEventListener('click', function () { meSheet.classList.remove('open'); }); });
+    }
+    // 管理员齿轮菜单
+    var adminSheet = document.getElementById('mhAdminSheet'), adminBtn = document.getElementById('mhAdminBtn');
+    if (adminSheet && adminBtn) {
+        adminBtn.addEventListener('click', function () { adminSheet.classList.add('open'); });
+        adminSheet.querySelectorAll('[data-admin-close]').forEach(function (el) { el.addEventListener('click', function () { adminSheet.classList.remove('open'); }); });
+    }
 })();
 (function () {
     var modal = document.getElementById('mhPzModal'), openBtn = document.getElementById('mhPzBtn');

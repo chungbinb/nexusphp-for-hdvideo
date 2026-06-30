@@ -2678,7 +2678,7 @@ $qdRequestUri = (string)($_SERVER['REQUEST_URI'] ?? '');
 $qdPageBase = strtolower(basename((string)(parse_url($qdScriptName, PHP_URL_PATH) ?: $qdScriptName)));
 $qdMobileAdapted = strpos($qdScriptName, '/games/') !== false
     || strpos($qdRequestUri, '/games/') !== false
-    || in_array($qdPageBase, ['login.php', 'index.php'], true);
+    || in_array($qdPageBase, ['login.php', 'index.php', 'usercp.php'], true);
 if ($qdMobileAdapted){
 ?>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
