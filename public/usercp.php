@@ -12,6 +12,29 @@ if ($GLOBALS['UCP_MOBILE']) {
     \Nexus\Nexus::css('styles/mobile-shell.css?v=20260630', 'header', true);
     require_once ROOT_PATH . 'include/mobile_shell.php';
 }
+// 设置子页：手机端走独立手机外壳(page_head/foot)，并加载表单所需核心脚本、刷出排队的页脚 JS；电脑端照常 stdhead/stdfoot。
+function ucp_mhead($title = '', $sel = '', $stdarg = true) {
+    if (!empty($GLOBALS['UCP_MOBILE']) && function_exists('mobile_shell_page_head')) {
+        $titles = ['personal' => '个人设定', 'tracker' => '网站设定', 'forum' => '论坛设定', 'security' => '安全设定'];
+        mobile_shell_page_head($titles[$sel] ?? '个人中心', 'me');
+        echo '<link rel="stylesheet" type="text/css" href="styles/usercp-mobile.css?v=20260630b">';
+        echo '<script type="text/javascript" src="js/jquery-1.12.4.min.js"></script>';
+        echo '<script>jQuery.noConflict();window.nexusLayerOptions={confirm:{btnAlign:"c",title:"Confirm",btn:["OK","Cancel"]},alert:{btnAlign:"c",title:"Info",btn:["OK","Cancel"]}};</script>';
+        echo '<script type="text/javascript" src="vendor/layer-v3.5.1/layer/layer.js"></script>';
+        echo '<script type="text/javascript" src="js/crypto-js.js"></script>';
+        echo '<script type="text/javascript" src="vendor/jquery-loading/jquery.loading.min.js"></script>';
+    } else {
+        stdhead($title, $stdarg);
+    }
+}
+function ucp_mfoot() {
+    if (!empty($GLOBALS['UCP_MOBILE']) && function_exists('mobile_shell_page_foot')) {
+        foreach (\Nexus\Nexus::getAppendFooters() as $v) { print($v); }
+        mobile_shell_page_foot('me');
+    } else {
+        stdfoot();
+    }
+}
 $hdvideoUnifiedStylesheetId = 6;
 $hdvideoUnifiedStylesheetName = 'HDvideo 现代风格';
 function bark($msg) {
@@ -23,8 +46,7 @@ function bark($msg) {
 }
 function usercpmenu ($selected = "home") {
 	global $lang_usercp;
-	if (!empty($GLOBALS['UCP_MOBILE']) && function_exists('mobile_shell_render')) {
-		mobile_shell_render('me');
+	if (!empty($GLOBALS['UCP_MOBILE'])) {
 		$tabs = [
 			['usercp.php', $lang_usercp['text_user_cp_home'], 'home'],
 			['?action=personal', $lang_usercp['text_personal_settings'], 'personal'],
@@ -189,7 +211,7 @@ if ($action){
                     header("Location: usercp.php?action=personal&type=saved");
                 }
 			}
-			stdhead($lang_usercp['head_control_panel'].$lang_usercp['head_personal_settings'],true);
+			ucp_mhead($lang_usercp["head_personal_settings"], "personal", true);
 
 			$countries = "<option value=0>---- ".$lang_usercp['select_none_selected']." ----</option>\n";
 			$ct_r = sql_query("SELECT id,name FROM countries ORDER BY name") or die;
@@ -266,7 +288,7 @@ tr($lang_usercp['row_school'], "<select name=school>$schools</select>", 1);
   tr($lang_usercp['row_info'], "<textarea name=\"info\" style=\"width:700px\" rows=\"10\" >" . htmlspecialchars($CURUSER["info"]) . "</textarea><br />".$lang_usercp['text_info_note'], 1);
   submit();
   print("</table></form>");
-  stdfoot();
+			ucp_mfoot();
   die;
   break;
 		case "tracker":
@@ -469,7 +491,7 @@ tr($lang_usercp['row_school'], "<select name=school>$schools</select>", 1);
 				$result = sql_query($query) or sqlerr(__FILE__,__LINE__);
 				header("Location: usercp.php?action=tracker&type=saved");
 			}
-			stdhead($lang_usercp['head_control_panel'].$lang_usercp['head_tracker_settings']);
+			ucp_mhead($lang_usercp["head_tracker_settings"], "tracker");
 			usercpmenu ("tracker");
             form ("tracker");
 $brsectiontype = $browsecatmode;
@@ -726,7 +748,7 @@ tr_small($lang_usercp['row_funbox'],"<input type=checkbox name=showfb".($CURUSER
 
 			submit();
 			print("</table></form>");
-			stdfoot();
+			ucp_mfoot();
 			die;
 			break;
 		case "forum":
@@ -758,7 +780,7 @@ tr_small($lang_usercp['row_funbox'],"<input type=checkbox name=showfb".($CURUSER
 				else
 				header("Location: usercp.php?action=forum&type=saved");
 			}
-			stdhead($lang_usercp['head_control_panel'].$lang_usercp['head_forum_settings'],true);
+			ucp_mhead($lang_usercp["head_forum_settings"], "forum", true);
 			usercpmenu ("forum");
             form ("forum");
 			print ("<table border=0 cellspacing=0 cellpadding=5 width=".CONTENT_WIDTH.">");
@@ -775,7 +797,7 @@ tr_small($lang_usercp['row_funbox'],"<input type=checkbox name=showfb".($CURUSER
 			tr_small($lang_usercp['row_forum_signature'], "<textarea name=signature style=\"width:700px\" rows=10>" . $CURUSER['signature'] . "</textarea><br />".$lang_usercp['text_signature_note'],1);
 			submit();
 			print("</table></form>");
-			stdfoot();
+			ucp_mfoot();
 			die;
 			break;
 		case "security":
@@ -931,7 +953,7 @@ EOD;
                 \Nexus\Database\NexusDB::cache_del(get_challenge_key($userInfo->username));
 				header("Location: $to");
 			}
-			stdhead($lang_usercp['head_control_panel'].$lang_usercp['head_security_settings']);
+			ucp_mhead($lang_usercp["head_security_settings"], "security");
 			usercpmenu ("security");
             form ("security", $type == "save" ? "confirm" : "save","security");
 			print ("<table border=0 cellspacing=0 cellpadding=5 width=".CONTENT_WIDTH.">");
@@ -962,7 +984,7 @@ EOD;
                 submit("button");
 				print("</table></form>");
                 render_password_challenge_js("security", "username", "oldpassword");
-				stdfoot();
+			ucp_mfoot();
 				die;
 			}
 			if ($type == 'saved')
@@ -1007,7 +1029,7 @@ EOD;
 			print("</table></form>");
 
             render_password_hash_js("security", "password", "chpassword", false,"passagain");
-			stdfoot();
+			ucp_mfoot();
 			die;
 			break;
 	}
