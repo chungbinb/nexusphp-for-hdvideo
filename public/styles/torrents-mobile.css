@@ -148,27 +148,21 @@ body.page-torrents.m-shell.view-list table.torrents .tt-sub {
     display: -webkit-box !important; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
     margin-top: 7px; font-size: 12px; color: #7a8699; line-height: 1.45;
 }
-/* 文字型元信息列(大小/时间/做种/下载/完成/评论/发布者)排成一行小字 */
-body.page-torrents.m-shell.view-list table.torrents > tbody > tr > td[data-label]:not(:has(table.torrentname)):not(:has(img)) {
+/* 文字型元信息列(大小/时间/做种/下载/完成/评论/发布者)排成一行小字；排除 # 序号列(first-child) */
+body.page-torrents.m-shell.view-list table.torrents > tbody > tr > td[data-label]:not(:first-child):not(:has(table.torrentname)):not(:has(img)) {
     display: inline-flex !important; align-items: center; width: auto !important;
     margin: 8px 14px 0 0; font-size: 12px; color: var(--mh-text) !important; white-space: nowrap !important;
 }
-body.page-torrents.m-shell.view-list table.torrents > tbody > tr > td[data-label]:not(:has(table.torrentname)):not(:has(img))::before {
+body.page-torrents.m-shell.view-list table.torrents > tbody > tr > td[data-label]:not(:first-child):not(:has(table.torrentname)):not(:has(img))::before {
     content: attr(data-label); margin-right: 4px; font-size: 11px; color: #6a7589; opacity: 1;
 }
 /* 隐藏 # 序号列 */
 body.page-torrents.m-shell.view-list table.torrents > tbody > tr > td:first-child { display: none !important; }
 /* 元信息单元格内的 <br> 不换行(修复发布者括号跑到下一行) */
-body.page-torrents.m-shell.view-list table.torrents > tbody > tr > td[data-label] br { display: none !important; }
-/* 存活时间/大小等数值不换行(一行显示) */
-body.page-torrents.m-shell.view-list table.torrents > tbody > tr > td[data-label] * { white-space: nowrap !important; }
-/* 评分由 JS 移到「发布者」行右侧：发布者占整行，用户名居左、评分靠右 */
-body.page-torrents.m-shell.view-list table.torrents > tbody > tr > td.tt-uploader {
-    display: flex !important; width: 100% !important; align-items: center; flex-wrap: nowrap;
-    white-space: nowrap !important; overflow: hidden;
-}
+body.page-torrents.m-shell.view-list table.torrents > tbody > tr > td[data-label]:not(:has(table.torrentname)) br { display: none !important; }
+/* 评分由 JS 移到「发布者」用户名右侧，随元信息一起流式排列(整块元信息最多两行) */
 body.page-torrents.m-shell.view-list table.torrents .tt-rating-inline {
-    margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: 14px; padding-left: 10px;
+    display: inline-flex; align-items: center; gap: 12px; margin-left: 10px;
 }
 body.page-torrents.m-shell.view-list table.torrents .tt-rating-inline > div {
     display: inline-flex !important; flex-direction: row !important; align-items: center; gap: 4px; padding: 0 !important; font-size: 13px; color: var(--mh-text);
