@@ -223,7 +223,11 @@ function mobile_shell_render(string $active = ''): void
 /** 独立手机页头：输出 DOCTYPE/head/body + 打开内容容器 .m-main（外壳的顶栏/底部Tab等由 page_foot 输出，均为 fixed 定位） */
 function mobile_shell_page_head(string $title = '', string $active = '', string $pageClass = ''): void
 {
-    global $SITENAME;
+    global $SITENAME, $CURUSER, $Advertisement;
+    // 独立手机页不走 stdhead，但部分页面(论坛等)依赖 stdhead 初始化的全局对象，这里补上避免致命错误。
+    if (empty($Advertisement) && class_exists('ADVERTISEMENT')) {
+        $Advertisement = new \ADVERTISEMENT($CURUSER['id'] ?? 0);
+    }
     $col = mobile_shell_colors();
     $t = ($title !== '' ? $title . ' · ' : '') . ($SITENAME ?? 'HDvideo');
     $bodyClass = 'm-shell m-page' . ($pageClass !== '' ? ' ' . $pageClass : '');
