@@ -913,6 +913,15 @@ if ($action == "viewtopic")
 		}
 		$mUids = array_keys($mUids);
 		$mUserInfo = $mUids ? \App\Models\User::query()->find($mUids, ['id','class','avatar','username','donor','title'])->keyBy('id') : collect();
+		// 楼层号按发帖先后(id 升序)计算，与排序无关；楼主(主题首帖)固定置顶为 1 楼
+		$byId = $mPosts;
+		usort($byId, fn($a, $b) => (int)$a['id'] - (int)$b['id']);
+		$floorBase = !empty($byId) ? (int)get_single_value("posts", "COUNT(*)", "WHERE topicid=" . sqlesc($topicid) . " AND id < " . (int)$byId[0]['id']) : 0;
+		$floorMap = [];
+		foreach ($byId as $k => $bp) { $floorMap[(int)$bp['id']] = $floorBase + $k + 1; }
+		$opPost = null; $restPosts = [];
+		foreach ($mPosts as $p) { if ((int)$p['id'] === (int)$firstPostId) { $opPost = $p; } else { $restPosts[] = $p; } }
+		$displayPosts = $opPost ? array_merge([$opPost], $restPosts) : $restPosts;
 		echo '<div class="ft-head"><div class="ft-subject">' . ($sticky ? '<span class="f-tag sticky">置顶</span>' : '') . ($locked ? '<span class="f-tag lock">锁</span>' : '') . highlight_topic($subject, $hlcolor) . '</div>';
 		echo '<div class="ft-hits">本主题共 ' . number_format((int)$views) . ' 次浏览' . ($maypost ? ' · <a href="' . htmlspecialchars("?action=reply&topicid=" . $topicid) . '">回复</a>' : '') . '</div></div>';
 		$nextSort = $psort === 'desc' ? 'asc' : 'desc';
@@ -920,17 +929,14 @@ if ($action == "viewtopic")
 		$sortUrl = "?action=viewtopic&topicid=" . $topicid . ($authorid ? "&authorid=" . $authorid : "") . "&psort=" . $nextSort;
 		echo '<div class="ft-toolbar"><div class="ft-pager">' . ($pagerstr ?? '') . '</div><a class="ft-sort" href="' . htmlspecialchars($sortUrl) . '">楼层：' . $curSortLabel . ' ⇅</a></div>';
 		echo '<div class="ft-posts">';
-		$idx = 0;
-		foreach ($mPosts as $p) {
-			$floorNum = ($psort === 'asc') ? ((int)$offset + $idx + 1) : ((int)$postcount - (int)$offset - $idx);
-			$idx++;
+		foreach ($displayPosts as $p) {
 			$puid = (int)$p['userid'];
 			$anon = function_exists('forum_post_is_anonymous') && forum_post_is_anonymous($p);
 			$u = $mUserInfo->get($puid);
 			$pname = trim(strip_tags(forum_post_author_name($p, false)));
 			$pav = (!$anon && $u && !empty($u->avatar)) ? '<img src="' . htmlspecialchars($u->avatar) . '" alt="" onerror="this.style.display=\'none\'">' : '<b>' . htmlspecialchars(mb_substr($pname !== '' ? $pname : '?', 0, 1)) . '</b>';
 			$pdate = gettime($p['added'], true, false);
-			$floorLabel = ((int)$p['id'] === (int)$firstPostId) ? '楼主' : (($floorNum > 0 ? $floorNum : 1) . '楼');
+			$floorLabel = ((int)$p['id'] === (int)$firstPostId) ? '楼主' : (($floorMap[(int)$p['id']] ?? 1) . '楼');
 			$body = format_comment($p['body'], 0);
 			echo '<div class="ft-post"><div class="ft-post-head"><span class="f-ava">' . $pav . '</span>'
 				. '<span class="ft-pmeta"><span class="ft-pname">' . htmlspecialchars($pname) . '</span><span class="ft-pdate">' . $pdate . '</span></span>'
