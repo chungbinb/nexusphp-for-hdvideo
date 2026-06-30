@@ -31,9 +31,14 @@ function mobile_shell_render(string $active = ''): void
     $uid = (int)$CURUSER['id'];
     $unread = 0;
     try { $unread = (int)get_row_count('messages', "WHERE receiver = $uid AND unread = 'yes' AND location != 0"); } catch (\Throwable $e) {}
-    // 底部"种子"点击弹出的分类列表(后台配置的浏览分类，mode=1)
+    // 底部"种子"点击弹出的分类列表(后台配置的浏览分类，用站点的浏览模式 $browsecatmode)
     $torrentCats = [];
-    try { if (function_exists('genrelist')) $torrentCats = genrelist(1); } catch (\Throwable $e) {}
+    try {
+        global $browsecatmode;
+        $bcm = (int)($browsecatmode ?? 0);
+        if ($bcm <= 0) $bcm = 1;
+        if (function_exists('genrelist')) $torrentCats = genrelist($bcm);
+    } catch (\Throwable $e) {}
 
     $navItems = [
         ['torrents.php?requireseed=1', '保种区', '<path d="M12 3l8 3v6c0 4.2-3.1 6.3-8 8-4.9-1.7-8-3.8-8-8V6z"/>'],
