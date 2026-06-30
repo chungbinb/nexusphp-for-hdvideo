@@ -404,7 +404,7 @@ if ($GLOBALS['F_MOBILE']) { require_once ROOT_PATH . 'include/mobile_shell.php';
 function f_mhead($title = '') {
     if (!empty($GLOBALS['F_MOBILE']) && function_exists('mobile_shell_page_head')) {
         mobile_shell_page_head(trim(strip_tags((string)$title)) ?: '论坛', 'forums', 'page-forums');
-        echo '<link rel="stylesheet" type="text/css" href="styles/forums-mobile.css?v=20260701d">';
+        echo '<link rel="stylesheet" type="text/css" href="styles/forums-mobile.css?v=20260701e">';
         echo '<script type="text/javascript" src="js/jquery-1.12.4.min.js"></script>';
         echo '<script>jQuery.noConflict();window.nexusLayerOptions={confirm:{btnAlign:"c",title:"Confirm",btn:["OK","Cancel"]},alert:{btnAlign:"c",title:"Info",btn:["OK","Cancel"]}};</script>';
         echo '<script type="text/javascript" src="vendor/layer-v3.5.1/layer/layer.js"></script>';
@@ -889,6 +889,57 @@ if ($action == "viewtopic")
 	$res = sql_query("SELECT * FROM posts " . ($threadedReplies ? $rootReplyWhere : $where) . " ORDER BY $postOrderBy LIMIT $perpage offset $offset") or sqlerr(__FILE__, __LINE__);
 
 	f_mhead($lang_forums['head_view_topic']." \"".$orgsubject."\"");
+
+	// 手机端：主题帖用紧凑卡片(头像+作者+楼层/时间+正文)，类似触屏版，舍弃电脑版大用户栏
+	if (!empty($GLOBALS['F_MOBILE'])) {
+		$mPosts = []; $mUids = [];
+		while ($p = mysql_fetch_assoc($res)) { $mPosts[] = $p; $mUids[(int)$p['userid']] = 1; }
+		// 楼中楼回复：把嵌套子回复也平铺进来
+		if ($threadedReplies && $mPosts) {
+			$frontier = array_map(fn($x) => (int)$x['id'], $mPosts);
+			$seen = array_fill_keys($frontier, true);
+			for ($d = 0; $d < 20 && $frontier; $d++) {
+				$pin = implode(',', array_map('intval', $frontier));
+				$frontier = [];
+				$cr = sql_query("SELECT * FROM posts WHERE topicid=".sqlesc($topicid)." AND reply_to_post_id IN ($pin) ORDER BY id") or sqlerr(__FILE__, __LINE__);
+				while ($cp = mysql_fetch_assoc($cr)) {
+					$cid = (int)$cp['id'];
+					if (isset($seen[$cid])) continue;
+					$seen[$cid] = true; $frontier[] = $cid;
+					$mPosts[] = $cp; $mUids[(int)$cp['userid']] = 1;
+				}
+			}
+			usort($mPosts, fn($a, $b) => ($psort === 'asc' ? (int)$a['id'] - (int)$b['id'] : (int)$b['id'] - (int)$a['id']));
+		}
+		$mUids = array_keys($mUids);
+		$mUserInfo = $mUids ? \App\Models\User::query()->find($mUids, ['id','class','avatar','username','donor','title'])->keyBy('id') : collect();
+		echo '<div class="ft-head"><div class="ft-subject">' . ($sticky ? '<span class="f-tag sticky">置顶</span>' : '') . ($locked ? '<span class="f-tag lock">锁</span>' : '') . highlight_topic($subject, $hlcolor) . '</div>';
+		echo '<div class="ft-hits">本主题共 ' . number_format((int)$views) . ' 次浏览' . ($maypost ? ' · <a href="' . htmlspecialchars("?action=reply&topicid=" . $topicid) . '">回复</a>' : '') . '</div></div>';
+		if (trim((string)($pagerstr ?? '')) !== '') echo '<div class="ft-pager">' . $pagerstr . '</div>';
+		echo '<div class="ft-posts">';
+		$floor = (int)$offset;
+		foreach ($mPosts as $p) {
+			$floor++;
+			$puid = (int)$p['userid'];
+			$anon = function_exists('forum_post_is_anonymous') && forum_post_is_anonymous($p);
+			$u = $mUserInfo->get($puid);
+			$pname = trim(strip_tags(forum_post_author_name($p, false)));
+			$pav = (!$anon && $u && !empty($u->avatar)) ? '<img src="' . htmlspecialchars($u->avatar) . '" alt="" onerror="this.style.display=\'none\'">' : '<b>' . htmlspecialchars(mb_substr($pname !== '' ? $pname : '?', 0, 1)) . '</b>';
+			$pdate = gettime($p['added'], true, false);
+			$floorLabel = ((int)$p['id'] === (int)$firstPostId) ? '楼主' : $floor . '楼';
+			$body = format_comment($p['body'], 0);
+			echo '<div class="ft-post"><div class="ft-post-head"><span class="f-ava">' . $pav . '</span>'
+				. '<span class="ft-pmeta"><span class="ft-pname">' . htmlspecialchars($pname) . '</span><span class="ft-pdate">' . htmlspecialchars($pdate) . '</span></span>'
+				. '<span class="ft-floor">' . $floorLabel . '</span></div>'
+				. '<div class="ft-body">' . $body . '</div></div>';
+		}
+		echo '</div>';
+		if (trim((string)($pagerstr ?? '')) !== '') echo '<div class="ft-pager">' . $pagerstr . '</div>';
+		if ($maypost) echo '<div class="ft-replybar"><a href="' . htmlspecialchars("?action=reply&topicid=" . $topicid) . '">我也要说两句…</a></div>';
+		f_mfoot();
+		die;
+	}
+
 	begin_main_frame("",true);
 
 	print("<h1 align=\"center\"><a class=\"faqlink\" href=\"forums.php\">".$SITENAME."&nbsp;".$lang_forums['text_forums']."</a>--><a class=\"faqlink\" href=\"".htmlspecialchars("?action=viewforum&forumid=".$forumid)."\">".$forumname."</a><b>--></b><span id=\"top\">".$subject.($locked ? "&nbsp;&nbsp;<b>[<font class=\"striking\">".$lang_forums['text_locked']."</font>]</b>" : "")."</span></h1>\n");
