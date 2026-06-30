@@ -74,6 +74,25 @@ body.menu-open .m-drawer { transform: translateY(0); }
 .m-pz-reset { background: var(--mh-bg); color: var(--mh-text); }
 .m-pz-save { background: var(--mh-primary); color: #fff; }
 
+/* 用户名按等级配色(独立手机页不加载电脑版主题，这里补上) */
+.StaffLeader_Name { color: #8b0000 !important; }
+.SysOp_Name { color: #a0522d !important; }
+.Administrator_Name { color: #4b0082 !important; }
+.Moderator_Name { color: #6495ed !important; }
+.Retiree_Name { color: #1cc6d5 !important; }
+.Uploader_Name { color: #dc143c !important; }
+.VIP_Name { color: #009f00 !important; }
+.NexusMaster_Name { color: #38acec !important; }
+.UltimateUser_Name { color: #006400 !important; }
+.ExtremeUser_Name { color: #ff8c00 !important; }
+.VeteranUser_Name { color: #483d8b !important; }
+.InsaneUser_Name { color: #8b008b !important; }
+.CrazyUser_Name { color: #00bfff !important; }
+.EliteUser_Name { color: #008b8b !important; }
+.PowerUser_Name { color: #daa520 !important; }
+.User_Name { color: #2d3748 !important; }
+.Peasant_Name { color: #708090 !important; }
+
 /* —— 独立手机页(m-page)基础与通用内容卡片 —— */
 body.m-page { margin: 0; background: var(--mh-bg); color: var(--mh-text); -webkit-tap-highlight-color: transparent;
     font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", Helvetica, Arial, sans-serif;

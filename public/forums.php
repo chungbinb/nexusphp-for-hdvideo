@@ -404,7 +404,7 @@ if ($GLOBALS['F_MOBILE']) { require_once ROOT_PATH . 'include/mobile_shell.php';
 function f_mhead($title = '') {
     if (!empty($GLOBALS['F_MOBILE']) && function_exists('mobile_shell_page_head')) {
         mobile_shell_page_head(trim(strip_tags((string)$title)) ?: '论坛', 'forums', 'page-forums');
-        echo '<link rel="stylesheet" type="text/css" href="styles/forums-mobile.css?v=20260701f">';
+        echo '<link rel="stylesheet" type="text/css" href="styles/forums-mobile.css?v=20260701h">';
         echo '<script type="text/javascript" src="js/jquery-1.12.4.min.js"></script>';
         echo '<script>jQuery.noConflict();window.nexusLayerOptions={confirm:{btnAlign:"c",title:"Confirm",btn:["OK","Cancel"]},alert:{btnAlign:"c",title:"Info",btn:["OK","Cancel"]}};</script>';
         echo '<script type="text/javascript" src="vendor/layer-v3.5.1/layer/layer.js"></script>';
@@ -421,6 +421,14 @@ function f_mfoot() {
     } else {
         stdfoot();
     }
+}
+// 手机端：返回带等级配色的用户名(<span>，非<a>，避免嵌套在卡片链接里把布局撑破)。
+function f_author_html($uid, $anon, $post) {
+    if ($anon) { return forum_strip_username_medals(forum_post_author_name($post, false)); }
+    $arr = get_user_row((int)$uid);
+    if (!$arr) { return '<span class="User_Name">' . htmlspecialchars((string)($post['username'] ?? '')) . '</span>'; }
+    $cls = get_user_class_name($arr['class'], true, false, false) . '_Name';
+    return '<span class="' . $cls . '"><b>' . htmlspecialchars($arr['username']) . '</b></span>';
 }
 
 //-------- Action: New topic
@@ -933,7 +941,8 @@ if ($action == "viewtopic")
 			$puid = (int)$p['userid'];
 			$anon = function_exists('forum_post_is_anonymous') && forum_post_is_anonymous($p);
 			$u = $mUserInfo->get($puid);
-			$pname = trim(strip_tags(forum_post_author_name($p, false)));
+			$pnameHtml = f_author_html($puid, $anon, $p);
+			$pname = trim(strip_tags($pnameHtml));
 			$pav = (!$anon && $u && !empty($u->avatar)) ? '<img src="' . htmlspecialchars($u->avatar) . '" alt="" onerror="this.style.display=\'none\'">' : '<b>' . htmlspecialchars(mb_substr($pname !== '' ? $pname : '?', 0, 1)) . '</b>';
 			$pdate = gettime($p['added'], true, false);
 			$isNested = !empty($p['reply_to_post_id']) && (int)$p['reply_to_post_id'] > 0;
@@ -942,7 +951,7 @@ if ($action == "viewtopic")
 			else { $floorLabel = (($floorMap[(int)$p['id']] ?? '') !== '' ? $floorMap[(int)$p['id']] . '楼' : ''); }
 			$body = format_comment($p['body'], 0);
 			echo '<div class="ft-post' . ($isNested ? ' ft-nested' : '') . '"><div class="ft-post-head"><span class="f-ava">' . $pav . '</span>'
-				. '<span class="ft-pmeta"><span class="ft-pname">' . htmlspecialchars($pname) . '</span><span class="ft-pdate">' . $pdate . '</span></span>'
+				. '<span class="ft-pmeta"><span class="ft-pname">' . $pnameHtml . '</span><span class="ft-pdate">' . $pdate . '</span></span>'
 				. ($floorLabel !== '' ? '<span class="ft-floor">' . $floorLabel . '</span>' : '') . '</div>'
 				. '<div class="ft-body">' . $body . '</div></div>';
 		}
@@ -1686,7 +1695,8 @@ if ($action == "viewforum")
 				$fp = get_post_row($topicarr['firstpost']);
 				$fpuid = (int)($fp["userid"] ?? 0);
 				$anon = function_exists('forum_post_is_anonymous') && forum_post_is_anonymous($fp);
-				$fpname = trim(strip_tags(forum_post_author_name($fp, false)));
+				$fpnameHtml = f_author_html($fpuid, $anon, $fp);
+				$fpname = trim(strip_tags($fpnameHtml));
 				$fpdate = substr((string)($fp['added'] ?? ''), 0, 10);
 				$fpavatar = '';
 				if (!$anon && $fpuid) { $ur = get_user_row($fpuid); if ($ur && !empty($ur['avatar'])) $fpavatar = trim($ur['avatar']); }
@@ -1694,7 +1704,7 @@ if ($action == "viewforum")
 				$flag = ($sticky ? '<span class="f-tag sticky">置顶</span>' : '') . ($locked ? '<span class="f-tag lock">锁</span>' : '');
 				echo '<a class="f-topic" href="' . htmlspecialchars("?action=viewtopic&forumid=".$forumid."&topicid=".$topicid) . '">'
 					. '<div class="f-topic-top"><span class="f-ava">' . $av . '</span>'
-					. '<span class="f-topic-meta"><span class="f-topic-author">' . htmlspecialchars($fpname) . '</span><span class="f-topic-date">发布于 ' . htmlspecialchars($fpdate) . '</span></span>'
+					. '<span class="f-topic-meta"><span class="f-topic-author">' . $fpnameHtml . '</span><span class="f-topic-date">发布于 ' . htmlspecialchars($fpdate) . '</span></span>'
 					. '<span class="f-topic-stats"><span class="st"><svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>' . $views . '</span><span class="st"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/></svg>' . $replies . '</span></span></div>'
 					. '<div class="f-topic-title">' . $flag . highlight_topic(htmlspecialchars($topicarr["subject"]), $topicarr["hlcolor"]) . '</div></a>';
 			}
