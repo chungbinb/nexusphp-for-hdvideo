@@ -10,6 +10,30 @@ $PHP_SELF = $_SERVER['PHP_SELF'];
 
 user_can('forummanage', true);
 
+// 手机端：套用统一手机外壳；?pc=1 强制电脑版
+$GLOBALS['F_MOBILE'] = empty($_GET['pc']) && preg_match('/Mobile|Android|iPhone|iPod|Windows Phone|BlackBerry|webOS|HarmonyOS/i', (string)($_SERVER['HTTP_USER_AGENT'] ?? ''));
+if ($GLOBALS['F_MOBILE']) { require_once ROOT_PATH . 'include/mobile_shell.php'; }
+function fm_mhead($title = '') {
+    if (!empty($GLOBALS['F_MOBILE']) && function_exists('mobile_shell_page_head')) {
+        mobile_shell_page_head(trim(strip_tags((string)$title)) ?: '版块管理', 'forums', 'page-forums');
+        echo '<link rel="stylesheet" type="text/css" href="styles/forums-mobile.css?v=20260630">';
+        echo '<script type="text/javascript" src="js/jquery-1.12.4.min.js"></script>';
+        echo '<script>jQuery.noConflict();window.nexusLayerOptions={confirm:{btnAlign:"c",title:"Confirm",btn:["OK","Cancel"]},alert:{btnAlign:"c",title:"Info",btn:["OK","Cancel"]}};</script>';
+        echo '<script type="text/javascript" src="vendor/layer-v3.5.1/layer/layer.js"></script>';
+        echo '<script type="text/javascript" src="js/common.js"></script>';
+    } else {
+        stdhead($title);
+    }
+}
+function fm_mfoot() {
+    if (!empty($GLOBALS['F_MOBILE']) && function_exists('mobile_shell_page_foot')) {
+        foreach (\Nexus\Nexus::getAppendFooters() as $v) { print($v); }
+        mobile_shell_page_foot('forums');
+    } else {
+        stdfoot();
+    }
+}
+
 // DELETE FORUM ACTION
 if (isset($_GET['action']) && $_GET['action'] == "del") {
 	$id = intval($_GET['id'] ?? 0);
@@ -75,7 +99,7 @@ elseif (isset($_POST['action']) && $_POST['action'] == "addforum") {
 }
 
 // SHOW FORUMS WITH FORUM MANAGMENT TOOLS
-stdhead($lang_forummanage['head_forum_management']);
+fm_mhead($lang_forummanage["head_forum_management"]);
 begin_main_frame();
 if (isset($_GET['action']) && $_GET['action'] == "editforum") {
 	//EDIT PAGE FOR THE FORUMS
@@ -299,4 +323,4 @@ echo "</table>";
 }
 
 end_main_frame();
-stdfoot();
+fm_mfoot();
