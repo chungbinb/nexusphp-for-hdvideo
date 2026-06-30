@@ -140,6 +140,22 @@ $meItems = [
     ['medal.php', '勋章', '<circle cx="12" cy="9" r="5"/><path d="M9 13l-2 8 5-3 5 3-2-8"/>', false],
     ['logout.php', '退出登录', '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>', false],
 ];
+
+// 管理员齿轮菜单（仅管理组可见，逐项按权限显示）
+$adminItems = [];
+if (function_exists('user_can')) {
+    $uclass = function_exists('get_user_class') ? (int)get_user_class() : (int)($CURUSER['class'] ?? 0);
+    if (user_can('viewstaff') || (defined('UC_MODERATOR') && $uclass >= UC_MODERATOR)) $adminItems[] = ['staff.php', '管理组', '<path d="M12 3l8 3v6c0 4-3 6.3-8 8-5-1.7-8-4-8-8V6z"/>'];
+    if (user_can('staffmem')) {
+        $adminItems[] = ['staffbox.php', '管理组信箱', '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>'];
+        $adminItems[] = ['reports.php', '举报信箱', '<path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17h.01"/>'];
+        $adminItems[] = ['cheaterbox.php', '作弊者', '<circle cx="9" cy="8" r="4"/><path d="M3 20c0-3.4 3-5 6-5"/><path d="M15.5 9.5l5 5M20.5 9.5l-5 5"/>'];
+        $adminItems[] = ['complains.php?action=list', '申诉处理', '<path d="M4 5h16v11H8l-4 4z"/><path d="M9 9h6M9 12h4"/>'];
+    }
+    if (defined('UC_MODERATOR') && $uclass >= UC_MODERATOR) $adminItems[] = ['staffpanel.php', '管理组面板', '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/>'];
+    if (defined('UC_SYSOP') && $uclass >= UC_SYSOP) $adminItems[] = ['settings.php', '站点设定', '<circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.8 7.8 0 0 0 0-2l2-1.5-2-3.4-2.4 1a7 7 0 0 0-1.7-1L15 3.5h-4l-.3 2.6a7 7 0 0 0-1.7 1l-2.4-1-2 3.4L4.6 11a7.8 7.8 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.3 2.6h4l.3-2.6a7 7 0 0 0 1.7-1l2.4 1 2-3.4z"/>'];
+    try { if ($uclass >= \App\Models\User::getAccessAdminClassMin()) $adminItems[] = [nexus_env('FILAMENT_PATH', 'nexusphp'), '管理系统', '<rect x="3" y="4" width="18" height="7" rx="1"/><rect x="3" y="13" width="18" height="7" rx="1"/><path d="M7 7.5h.01M7 16.5h.01"/>', true]; } catch (\Throwable $e) {}
+}
 ?><!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -291,6 +307,11 @@ body.menu-open .m-drawer { transform: translateY(0); }
 <header class="m-top">
     <div class="m-brand">HD<span>VIDEO</span></div>
     <div class="m-actions">
+        <?php if ($adminItems) { ?>
+        <button class="m-iconbtn" id="mhAdminBtn" type="button" aria-label="管理">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.8 7.8 0 0 0 0-2l2-1.5-2-3.4-2.4 1a7 7 0 0 0-1.7-1L15 3.5h-4l-.3 2.6a7 7 0 0 0-1.7 1l-2.4-1-2 3.4L4.6 11a7.8 7.8 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.3 2.6h4l.3-2.6a7 7 0 0 0 1.7-1l2.4 1 2-3.4z"/></svg>
+        </button>
+        <?php } ?>
         <button class="m-iconbtn" id="mhPzBtn" type="button" aria-label="个性化配色">
             <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-.95-.5-1.3-.3-.35-.5-.8-.5-1.2 0-.83.67-1.5 1.5-1.5H16a5 5 0 0 0 5-5c0-3.87-4.03-7-9-7z"/><circle cx="7.5" cy="11" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="7.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="16.5" cy="11" r="1.1" fill="currentColor" stroke="none"/></svg>
         </button>
@@ -439,6 +460,24 @@ body.menu-open .m-drawer { transform: translateY(0); }
         </div>
     </div>
 </div>
+
+<?php if ($adminItems) { ?>
+<div class="m-sheet" id="mhAdminSheet">
+    <div class="m-sheet-mask" data-admin-close></div>
+    <div class="m-sheet-card">
+        <div class="m-sheet-handle"></div>
+        <div class="m-sheet-list">
+            <?php foreach ($adminItems as $ai) { ?>
+            <a class="m-me-item" href="<?php echo htmlspecialchars($ai[0]) ?>"<?php echo !empty($ai[3]) ? ' target="_blank"' : '' ?>>
+                <span class="ic"><svg viewBox="0 0 24 24"><?php echo $ai[2] ?></svg></span>
+                <span class="t"><?php echo $ai[1] ?></span>
+                <span class="arr">›</span>
+            </a>
+            <?php } ?>
+        </div>
+    </div>
+</div>
+<?php } ?>
 <div class="m-modal" id="mhPzModal">
     <div class="m-modal-mask" data-pz-close></div>
     <div class="m-modal-card">
@@ -473,6 +512,12 @@ body.menu-open .m-drawer { transform: translateY(0); }
     if (meSheet && meBtn) {
         meBtn.addEventListener('click', function () { meSheet.classList.add('open'); });
         meSheet.querySelectorAll('[data-me-close]').forEach(function (el) { el.addEventListener('click', function () { meSheet.classList.remove('open'); }); });
+    }
+    // 管理员齿轮菜单
+    var adminSheet = document.getElementById('mhAdminSheet'), adminBtn = document.getElementById('mhAdminBtn');
+    if (adminSheet && adminBtn) {
+        adminBtn.addEventListener('click', function () { adminSheet.classList.add('open'); });
+        adminSheet.querySelectorAll('[data-admin-close]').forEach(function (el) { el.addEventListener('click', function () { adminSheet.classList.remove('open'); }); });
     }
 })();
 (function () {
