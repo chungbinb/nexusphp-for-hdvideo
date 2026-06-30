@@ -929,7 +929,7 @@ if ($action == "viewtopic")
 			$floorLabel = ((int)$p['id'] === (int)$firstPostId) ? '楼主' : $floor . '楼';
 			$body = format_comment($p['body'], 0);
 			echo '<div class="ft-post"><div class="ft-post-head"><span class="f-ava">' . $pav . '</span>'
-				. '<span class="ft-pmeta"><span class="ft-pname">' . htmlspecialchars($pname) . '</span><span class="ft-pdate">' . htmlspecialchars($pdate) . '</span></span>'
+				. '<span class="ft-pmeta"><span class="ft-pname">' . htmlspecialchars($pname) . '</span><span class="ft-pdate">' . $pdate . '</span></span>'
 				. '<span class="ft-floor">' . $floorLabel . '</span></div>'
 				. '<div class="ft-body">' . $body . '</div></div>';
 		}
