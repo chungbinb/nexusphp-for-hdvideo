@@ -162,12 +162,18 @@ body.page-torrents.m-shell.view-list table.torrents > tbody > tr > td:first-chil
 body.page-torrents.m-shell.view-list table.torrents > tbody > tr > td[data-label] br { display: none !important; }
 /* 存活时间/大小等数值不换行(一行显示) */
 body.page-torrents.m-shell.view-list table.torrents > tbody > tr > td[data-label] * { white-space: nowrap !important; }
-/* 评分(原竖排40px列)改为横排紧凑，放在卡片底部一行 */
-body.page-torrents.m-shell.view-list table.torrents .torrentname td[style*="width: 40px"] {
-    display: block !important; width: auto !important; text-align: left !important; padding: 6px 0 0 !important;
+/* 评分由 JS 移到「发布者」行右侧：发布者占整行，用户名居左、评分靠右 */
+body.page-torrents.m-shell.view-list table.torrents > tbody > tr > td.tt-uploader {
+    display: flex !important; width: 100% !important; align-items: center; flex-wrap: nowrap;
+    white-space: nowrap !important; overflow: hidden;
 }
-body.page-torrents.m-shell.view-list table.torrents .torrentname td[style*="width: 40px"] > div { flex-direction: row !important; gap: 14px; justify-content: flex-start !important; }
-body.page-torrents.m-shell.view-list table.torrents .torrentname td[style*="width: 40px"] > div > div { padding: 0 !important; gap: 4px; }
+body.page-torrents.m-shell.view-list table.torrents .tt-rating-inline {
+    margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: 14px; padding-left: 10px;
+}
+body.page-torrents.m-shell.view-list table.torrents .tt-rating-inline > div {
+    display: inline-flex !important; flex-direction: row !important; align-items: center; gap: 4px; padding: 0 !important; font-size: 13px; color: var(--mh-text);
+}
+body.page-torrents.m-shell.view-list table.torrents .tt-rating-inline img { max-width: 16px; max-height: 16px; }
 
 /* 高级搜索 / 快速筛选弹层对话框适配窄屏 */
 body.page-torrents.m-shell .torrent-advanced-search-dialog,

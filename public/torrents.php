@@ -14,7 +14,7 @@ function t_mhead($title = '') {
         mobile_shell_page_head(trim(strip_tags((string)$title)) ?: '种子', 'torrents', 'page-torrents');
         $mrv = @filemtime(ROOT_PATH . 'public/styles/modern-refresh.css') ?: 1;
         echo '<link rel="stylesheet" type="text/css" href="styles/modern-refresh.css?v=' . intval($mrv) . '">';
-        echo '<link rel="stylesheet" type="text/css" href="styles/torrents-mobile.css?v=20260701m">';
+        echo '<link rel="stylesheet" type="text/css" href="styles/torrents-mobile.css?v=20260701n">';
         // modern-refresh.css 的 :root 覆盖了 page_head 注入的个性化 --bili-*；而 --mh-* 在 mobile-shell.css 里是 :root 上 var(--bili-*) 映射，
         // 只按 :root(html) 上的 --bili-* 计算。必须在 modern-refresh 之后、同样用 :root 重新声明个性化 --bili-*，--mh-* 才会重新算成个性化色。
         if (function_exists('mobile_shell_colors')) {
@@ -2286,6 +2286,42 @@ if ($CURUSER){
 			closeModal();
 		}
 	});
+})();
+</script>
+<script>
+/* 手机 List 视图：把评分(IMDb/豆)从标题区移到「发布者」那一行右侧，IMDb 优先 */
+(function () {
+	var body = document.body;
+	if (!body || !body.classList.contains('m-shell') || !body.classList.contains('page-torrents')) return;
+	var table = document.querySelector('table.torrents');
+	if (!table) return;
+	function siteRank(d) {
+		var img = d.querySelector('img');
+		var s = img ? ((img.getAttribute('src') || '') + (img.getAttribute('alt') || '')).toLowerCase() : '';
+		if (s.indexOf('imdb') >= 0) return 0;
+		if (s.indexOf('douban') >= 0) return 1;
+		return 2;
+	}
+	var rows = table.querySelectorAll('tbody > tr');
+	for (var i = 0; i < rows.length; i++) {
+		var tr = rows[i];
+		if (tr.querySelector('td.colhead')) continue;
+		var ratingTd = tr.querySelector('.torrentname td[style*="width: 40px"]');
+		var wrap = ratingTd ? ratingTd.querySelector('div') : null;
+		if (!wrap) continue;
+		var ratings = [].slice.call(wrap.children).filter(function (n) { return n.nodeType === 1; });
+		if (!ratings.length) continue;
+		var upLink = tr.querySelector('td[data-label] a[href*="userdetails.php"]');
+		var uploaderTd = upLink ? upLink.closest('td') : null;
+		if (!uploaderTd) continue;
+		ratings.sort(function (a, b) { return siteRank(a) - siteRank(b); });
+		var box = document.createElement('span');
+		box.className = 'tt-rating-inline';
+		ratings.forEach(function (d) { box.appendChild(d); });
+		uploaderTd.classList.add('tt-uploader');
+		uploaderTd.appendChild(box);
+		if (ratingTd) ratingTd.style.display = 'none';
+	}
 })();
 </script>
 <?php
