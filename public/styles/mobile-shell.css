@@ -36,7 +36,7 @@ body.menu-open .m-drawer { transform: translateY(0); }
 .m-tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 980; display: flex; background: var(--mh-surface);
     border-top: 1px solid rgba(20,40,90,.08); padding-bottom: env(safe-area-inset-bottom); box-shadow: 0 -2px 12px rgba(20,40,90,.08); }
 /* 用 .m-shell 前缀提高优先级，压过 body.m-page a{color:inherit}，保证未选 Tab 统一灰色(深色页如游戏大厅也不会变白) */
-.m-shell .m-tabbar a, .m-shell .m-tabbar button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0 6px; font-size: 11px; color: #8b96ad; position: relative; background: none; border: none; cursor: pointer; font-family: inherit; text-decoration: none; }
+.m-shell .m-tabbar a, .m-shell .m-tabbar button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0 6px; font-size: 11px; color: #333; position: relative; background: none; border: none; cursor: pointer; font-family: inherit; text-decoration: none; }
 .m-shell .m-tabbar a.on, .m-shell .m-tabbar button.on { color: var(--mh-primary); }
 .m-tabbar a svg, .m-tabbar button svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .m-tabbar .badge { position: absolute; top: 4px; right: 50%; margin-right: -22px; min-width: 15px; height: 15px; padding: 0 4px; border-radius: 999px; background: #ff4d5e; color: #fff; font-size: 9px; font-weight: 800; display: flex; align-items: center; justify-content: center; }

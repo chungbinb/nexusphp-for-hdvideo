@@ -279,7 +279,7 @@ function mobile_shell_page_head(string $title = '', string $active = '', string 
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="mobile-web-app-capable" content="yes" />
 <title><?php echo htmlspecialchars($t) ?></title>
-<link rel="stylesheet" href="/styles/mobile-shell.css?v=20260701d" type="text/css" />
+<link rel="stylesheet" href="/styles/mobile-shell.css?v=20260701e" type="text/css" />
 <style>:root{--bili-primary:<?php echo $col['primary'] ?>;--bili-accent:<?php echo $col['accent'] ?>;--bili-bg:<?php echo $col['bg'] ?>;--bili-surface:<?php echo $col['surface'] ?>;--bili-text:<?php echo $col['text'] ?>;}</style>
 </head>
 <body class="<?php echo htmlspecialchars($bodyClass) ?>">

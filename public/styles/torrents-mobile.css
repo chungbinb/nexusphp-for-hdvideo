@@ -29,7 +29,7 @@ body.page-torrents.m-shell .m-tabbar button {
     flex: 1 !important; min-height: 0 !important;
     padding: 8px 0 6px !important; border: none !important; border-radius: 0 !important;
     background: none !important; background-image: none !important; box-shadow: none !important;
-    color: #8b96ad !important; font-size: 11px !important; font-weight: 400 !important;
+    color: #333 !important; font-size: 11px !important; font-weight: 400 !important;
 }
 body.page-torrents.m-shell .m-tabbar a.on,
 body.page-torrents.m-shell .m-tabbar button.on { color: var(--mh-primary) !important; background: none !important; }
