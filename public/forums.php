@@ -913,12 +913,12 @@ if ($action == "viewtopic")
 		}
 		$mUids = array_keys($mUids);
 		$mUserInfo = $mUids ? \App\Models\User::query()->find($mUids, ['id','class','avatar','username','donor','title'])->keyBy('id') : collect();
-		// 楼层号按发帖先后(id 升序)计算，与排序无关；楼主(主题首帖)固定置顶为 1 楼
-		$byId = $mPosts;
-		usort($byId, fn($a, $b) => (int)$a['id'] - (int)$b['id']);
-		$floorBase = !empty($byId) ? (int)get_single_value("posts", "COUNT(*)", "WHERE topicid=" . sqlesc($topicid) . " AND id < " . (int)$byId[0]['id']) : 0;
+		// 楼层号 = 该帖在整个主题中按发帖先后(id 升序)的序号，与当前排序/分页无关
 		$floorMap = [];
-		foreach ($byId as $k => $bp) { $floorMap[(int)$bp['id']] = $floorBase + $k + 1; }
+		$fres = sql_query("SELECT id FROM posts WHERE topicid=" . sqlesc($topicid) . " ORDER BY id ASC");
+		$fi = 0;
+		while ($fres && ($fr = mysql_fetch_row($fres))) { $floorMap[(int)$fr[0]] = ++$fi; }
+		// 楼主(主题首帖)固定置顶为 1 楼
 		$opPost = null; $restPosts = [];
 		foreach ($mPosts as $p) { if ((int)$p['id'] === (int)$firstPostId) { $opPost = $p; } else { $restPosts[] = $p; } }
 		$displayPosts = $opPost ? array_merge([$opPost], $restPosts) : $restPosts;
