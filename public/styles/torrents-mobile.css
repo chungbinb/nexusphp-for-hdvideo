@@ -111,8 +111,40 @@ body.page-torrents.m-shell .torrent-poster-title { font-size: 13px !important; }
 body.page-torrents.m-shell .torrent-poster-desc { font-size: 11px !important; }
 body.page-torrents.m-shell .torrent-poster-badge { font-size: 10px !important; padding: 2px 5px !important; }
 
-/* 列表视图(表格)在手机上横向滚动，避免撑破 */
-body.page-torrents.m-shell.view-list table.torrents { display: block; overflow-x: auto; width: 100%; }
+/* —— List 视图：把桌面种子表格每行改造成手机卡片 —— */
+body.page-torrents.m-shell.view-list table.torrents,
+body.page-torrents.m-shell.view-list table.torrents > tbody { display: block !important; width: 100% !important; }
+/* 表头行隐藏 */
+body.page-torrents.m-shell.view-list table.torrents > tbody > tr:has(> td.colhead) { display: none !important; }
+/* 每行 = 卡片 */
+body.page-torrents.m-shell.view-list table.torrents > tbody > tr {
+    display: flex !important; flex-wrap: wrap; align-items: center;
+    background: var(--mh-surface) !important; border: 1px solid rgba(20,40,90,.08) !important;
+    border-radius: 12px; margin: 0 0 10px; padding: 10px 12px;
+    box-shadow: 0 2px 8px rgba(20,40,90,.05);
+}
+/* 默认隐藏所有直接单元格，只显出标题块与文字型元信息 */
+body.page-torrents.m-shell.view-list table.torrents > tbody > tr > td {
+    display: none !important; border: none !important; background: transparent !important;
+    padding: 0 !important; text-align: left !important; white-space: normal !important;
+}
+/* 标题主体单元格(含 torrentname 内表)整行显示 */
+body.page-torrents.m-shell.view-list table.torrents > tbody > tr > td:has(table.torrentname) {
+    display: block !important; width: 100% !important;
+}
+body.page-torrents.m-shell.view-list table.torrents td.torrentname,
+body.page-torrents.m-shell.view-list table.torrents table.torrentname,
+body.page-torrents.m-shell.view-list table.torrents table.torrentname > tbody,
+body.page-torrents.m-shell.view-list table.torrents table.torrentname > tbody > tr { display: block !important; width: 100% !important; }
+body.page-torrents.m-shell.view-list table.torrents table.torrentname td { display: inline !important; }
+/* 文字型元信息列(大小/时间/做种/下载/完成/评论/发布者)排成一行小字 */
+body.page-torrents.m-shell.view-list table.torrents > tbody > tr > td[data-label]:not(:has(table.torrentname)):not(:has(img)) {
+    display: inline-flex !important; align-items: center; width: auto !important;
+    margin: 8px 14px 0 0; font-size: 12px; color: #8a96ad;
+}
+body.page-torrents.m-shell.view-list table.torrents > tbody > tr > td[data-label]:not(:has(table.torrentname)):not(:has(img))::before {
+    content: attr(data-label); margin-right: 4px; font-size: 11px; opacity: .6;
+}
 
 /* 高级搜索 / 快速筛选弹层对话框适配窄屏 */
 body.page-torrents.m-shell .torrent-advanced-search-dialog,
