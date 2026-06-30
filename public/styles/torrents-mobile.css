@@ -1,0 +1,82 @@
+/* 种子页(torrents.php)手机端：在统一手机外壳(.m-shell)内复用桌面卡片视图/筛选(modern-refresh.css)。
+   仅限 body.page-torrents.m-shell。整体沿用桌面"海报墙"深色风格，外壳顶/底栏保持浅色。 */
+
+/* 容器：禁止横向溢出，内容满宽 */
+body.page-torrents.m-shell { overflow-x: hidden !important; max-width: 100vw; }
+body.page-torrents.m-shell .m-main { padding: 6px 8px 0; max-width: 100vw; box-sizing: border-box; }
+
+/* 外层 <table class="main"> 包裹：拆成块级满宽 */
+body.page-torrents.m-shell table.main,
+body.page-torrents.m-shell table.main > tbody,
+body.page-torrents.m-shell table.main > tbody > tr,
+body.page-torrents.m-shell table.main > tbody > tr > td.embedded {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    border: none !important;
+}
+
+/* 顶部搜索表单 */
+body.page-torrents.m-shell .qd-torrent-search {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    margin: 8px 0 12px; width: 100%; box-sizing: border-box;
+}
+body.page-torrents.m-shell .qd-torrent-search input[type="text"] {
+    flex: 1 1 100%; min-width: 0; box-sizing: border-box;
+    height: 40px; padding: 0 14px; font-size: 15px;
+    border-radius: 10px; border: 1px solid rgba(124,148,196,.32);
+    background: rgba(13,21,36,.85); color: #eaf2ff;
+}
+body.page-torrents.m-shell .qd-torrent-search button {
+    flex: 1 1 0; min-height: 40px; border-radius: 10px; font-size: 15px;
+}
+
+/* 快速筛选：单列堆叠，深色面板 */
+body.page-torrents.m-shell .torrent-quick-filters {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important; padding: 12px !important;
+    margin: 0 0 12px !important; border-radius: 12px !important;
+}
+body.page-torrents.m-shell .torrent-quick-filter-heading { font-size: 16px !important; margin-bottom: 8px !important; }
+body.page-torrents.m-shell .torrent-quick-filter-links {
+    grid-template-columns: repeat(3, minmax(0,1fr)) !important;
+    gap: 8px 12px !important; max-height: none !important;
+}
+
+/* 视图工具条：换行紧凑 */
+body.page-torrents.m-shell .torrent-view-toolbar {
+    flex-wrap: wrap; gap: 8px; padding: 10px 12px; margin: 8px 0 10px; border-radius: 12px;
+}
+body.page-torrents.m-shell .torrent-view-title { font-size: 13px !important; flex: 1 1 100%; }
+body.page-torrents.m-shell .torrent-view-pager { flex: 1 1 auto; overflow-x: auto; }
+body.page-torrents.m-shell .torrent-view-switch { flex: none; }
+
+/* 卡片(海报)网格：手机每行 3 张 */
+body.page-torrents.m-shell.view-card .torrent-card-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 16px 8px !important; padding: 10px !important; border-radius: 12px !important;
+}
+body.page-torrents.m-shell .torrent-poster-title { font-size: 13px !important; }
+body.page-torrents.m-shell .torrent-poster-desc { font-size: 11px !important; }
+body.page-torrents.m-shell .torrent-poster-badge { font-size: 10px !important; padding: 2px 5px !important; }
+
+/* 列表视图(表格)在手机上横向滚动，避免撑破 */
+body.page-torrents.m-shell.view-list table.torrents { display: block; overflow-x: auto; width: 100%; }
+
+/* 高级搜索 / 快速筛选弹层对话框适配窄屏 */
+body.page-torrents.m-shell .torrent-advanced-search-dialog,
+body.page-torrents.m-shell .torrent-quick-filter-modal-dialog {
+    width: calc(100vw - 20px) !important;
+    max-height: calc(100vh - 90px) !important;
+    margin: 56px auto 0 !important;
+}
+body.page-torrents.m-shell .torrent-quick-filter-modal-list {
+    grid-template-columns: repeat(3, minmax(0,1fr)) !important;
+}
+
+/* 搜索框表格(高级搜索内)输入/下拉满宽 */
+body.page-torrents.m-shell .searchbox td { display: block; width: 100% !important; }
+body.page-torrents.m-shell .searchbox input[type="text"],
+body.page-torrents.m-shell .searchbox select,
+body.page-torrents.m-shell .searchbox textarea { width: 100% !important; box-sizing: border-box; }

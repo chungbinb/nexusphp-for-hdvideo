@@ -6,6 +6,33 @@ require_once(get_langfile_path('special.php'));
 loggedinorreturn();
 parked();
 
+// 手机端：套用与首页/论坛一致的手机外壳，并复用桌面版的卡片视图/筛选(modern-refresh.css + 内联JS)；?pc=1 强制电脑版。
+$GLOBALS['T_MOBILE'] = empty($_GET['pc']) && preg_match('/Mobile|Android|iPhone|iPod|Windows Phone|BlackBerry|webOS|HarmonyOS/i', (string)($_SERVER['HTTP_USER_AGENT'] ?? ''));
+if ($GLOBALS['T_MOBILE']) { require_once ROOT_PATH . 'include/mobile_shell.php'; }
+function t_mhead($title = '') {
+    if (!empty($GLOBALS['T_MOBILE']) && function_exists('mobile_shell_page_head')) {
+        mobile_shell_page_head(trim(strip_tags((string)$title)) ?: '种子', 'torrents', 'page-torrents');
+        $mrv = @filemtime(ROOT_PATH . 'public/styles/modern-refresh.css') ?: 1;
+        echo '<link rel="stylesheet" type="text/css" href="styles/modern-refresh.css?v=' . intval($mrv) . '">';
+        echo '<link rel="stylesheet" type="text/css" href="styles/torrents-mobile.css?v=20260701a">';
+        echo '<script type="text/javascript" src="js/jquery-1.12.4.min.js"></script>';
+        echo '<script>jQuery.noConflict();window.nexusLayerOptions={confirm:{btnAlign:"c",title:"Confirm",btn:["OK","Cancel"]},alert:{btnAlign:"c",title:"Info",btn:["OK","Cancel"]}};</script>';
+        echo '<script type="text/javascript" src="vendor/layer-v3.5.1/layer/layer.js"></script>';
+        echo '<script type="text/javascript" src="js/common.js"></script>';
+        echo '<script type="text/javascript" src="js/ajaxbasic.js"></script>';
+    } else {
+        stdhead($title);
+    }
+}
+function t_mfoot() {
+    if (!empty($GLOBALS['T_MOBILE']) && function_exists('mobile_shell_page_foot')) {
+        foreach (\Nexus\Nexus::getAppendFooters() as $v) { print($v); }
+        mobile_shell_page_foot('torrents');
+    } else {
+        stdfoot();
+    }
+}
+
 if (!function_exists('hdvideo_torrent_styles')) {
 	function hdvideo_run_schema_sql($sql) {
 		$res = @sql_query($sql);
@@ -1085,10 +1112,10 @@ if ($count)
 }
 
 if (isset($searchstr))
-	stdhead($lang_torrents['head_search_results_for'].$searchstr_ori);
+	t_mhead($lang_torrents['head_search_results_for'].$searchstr_ori);
 elseif ($sectiontype == $browsecatmode)
-	stdhead($lang_torrents['head_torrents']);
-else stdhead($lang_torrents['head_special']);
+	t_mhead($lang_torrents['head_torrents']);
+else t_mhead($lang_torrents['head_special']);
 
 function torrent_quick_filter_url($field, $value = null) {
 	$params = $_GET;
@@ -2128,9 +2155,10 @@ if ($CURUSER){
 		});
 	}
 
-	var saved = 'list';
+	var defaultView = body.classList.contains('m-shell') ? 'card' : 'list';
+	var saved = defaultView;
 	try {
-		saved = window.localStorage.getItem(storageKey) || 'list';
+		saved = window.localStorage.getItem(storageKey) || defaultView;
 	} catch (e) {}
 	setView(saved);
 })();
@@ -2256,4 +2284,4 @@ if ($CURUSER){
 </script>
 <?php
 print("</td></tr></table>");
-stdfoot();
+t_mfoot();
