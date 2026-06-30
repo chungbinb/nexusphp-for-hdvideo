@@ -14,7 +14,7 @@ function t_mhead($title = '') {
         mobile_shell_page_head(trim(strip_tags((string)$title)) ?: '种子', 'torrents', 'page-torrents');
         $mrv = @filemtime(ROOT_PATH . 'public/styles/modern-refresh.css') ?: 1;
         echo '<link rel="stylesheet" type="text/css" href="styles/modern-refresh.css?v=' . intval($mrv) . '">';
-        echo '<link rel="stylesheet" type="text/css" href="styles/torrents-mobile.css?v=20260701b">';
+        echo '<link rel="stylesheet" type="text/css" href="styles/torrents-mobile.css?v=20260701c">';
         // modern-refresh.css 的 :root 会覆盖 page_head 里的个性化 --bili-*，在其后用 body.m-shell 重新声明个性化色，让顶/底栏与首页/论坛一致
         if (function_exists('mobile_shell_colors')) {
             $tc = mobile_shell_colors();
