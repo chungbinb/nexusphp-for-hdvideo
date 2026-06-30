@@ -404,7 +404,7 @@ if ($GLOBALS['F_MOBILE']) { require_once ROOT_PATH . 'include/mobile_shell.php';
 function f_mhead($title = '') {
     if (!empty($GLOBALS['F_MOBILE']) && function_exists('mobile_shell_page_head')) {
         mobile_shell_page_head(trim(strip_tags((string)$title)) ?: '论坛', 'forums', 'page-forums');
-        echo '<link rel="stylesheet" type="text/css" href="styles/forums-mobile.css?v=20260701b">';
+        echo '<link rel="stylesheet" type="text/css" href="styles/forums-mobile.css?v=20260701c">';
         echo '<script type="text/javascript" src="js/jquery-1.12.4.min.js"></script>';
         echo '<script>jQuery.noConflict();window.nexusLayerOptions={confirm:{btnAlign:"c",title:"Confirm",btn:["OK","Cancel"]},alert:{btnAlign:"c",title:"Info",btn:["OK","Cancel"]}};</script>';
         echo '<script type="text/javascript" src="vendor/layer-v3.5.1/layer/layer.js"></script>';
@@ -1920,6 +1920,37 @@ f_mhead($lang_forums['head_forums']);
 begin_main_frame();
 print("<h1 align=\"center\">".$SITENAME."&nbsp;".$lang_forums['text_forums']."</h1>");
 print("<p align=\"center\"><a href=\"?action=search\"><b>".$lang_forums['text_search']."</b></a> | <a href=\"?action=viewunread\"><b>".$lang_forums['text_view_unread']."</b></a> | <a href=\"?catchup=1\"><b>".$lang_forums['text_catch_up']."</b></a> ".(user_can('forummanage') ? "| <a href=\"forummanage.php\"><b>".$lang_forums['text_forum_manager']."</b></a>":"")."</p>");
+
+// 手机端：版块首页用「版块名 + 主题/帖子数」的简洁列表(按分区分组)，不用电脑版多列表格。
+if (!empty($GLOBALS['F_MOBILE'])) {
+	if (!$overforums = $Cache->get_value('overforums_list')) {
+		$overforums = array();
+		$res = sql_query("SELECT * FROM overforums ORDER BY sort ASC") or sqlerr(__FILE__, __LINE__);
+		while ($row = mysql_fetch_array($res)) $overforums[] = $row;
+		$Cache->cache_value('overforums_list', $overforums, 86400);
+	}
+	echo '<div class="f-mb-index">';
+	foreach ($overforums as $a) {
+		if (get_user_class() < $a["minclassview"]) continue;
+		$rows = '';
+		foreach (get_forum_row() as $fa) {
+			if ($fa['forid'] != $a['id'] || get_user_class() < $fa["minclassread"]) continue;
+			$desc = trim((string)$fa['description']);
+			$rows .= '<a class="f-forum" href="' . htmlspecialchars("?action=viewforum&forumid=" . $fa['id']) . '">'
+				. '<span class="f-forum-main"><span class="f-forum-name">' . htmlspecialchars($fa['name']) . '</span>'
+				. ($desc !== '' ? '<span class="f-forum-desc">' . htmlspecialchars($desc) . '</span>' : '')
+				. '</span><span class="f-forum-count">' . number_format((int)$fa['topiccount']) . ' / ' . number_format((int)$fa['postcount']) . '</span></a>';
+		}
+		if ($rows === '') continue;
+		echo '<div class="f-cat">' . htmlspecialchars($a["name"]) . '</div>';
+		echo '<div class="f-group">' . $rows . '</div>';
+	}
+	echo '</div>';
+	end_main_frame();
+	f_mfoot();
+	exit;
+}
+
 print("<table border=\"1\" cellspacing=\"0\" cellpadding=\"5\" width=\"100%\">\n");
 
 if (!$overforums = $Cache->get_value('overforums_list')){

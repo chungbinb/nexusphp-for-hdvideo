@@ -36,6 +36,18 @@ body.page-forums.m-shell { overflow-x: hidden !important; max-width: 100vw; }
 .page-forums .m-main table[border="1"] td table { display: table; width: auto !important; margin: 0; }
 .page-forums .m-main table[border="1"] td table td { display: table-cell; padding: 0 6px 0 0 !important; }
 
+/* 版块首页(手机专用列表)：分区标题 + 版块行(名+主题/帖子数) */
+.page-forums .f-mb-index { margin: 4px 0 14px; }
+.page-forums .f-cat { padding: 16px 14px 6px; font-size: 13px; font-weight: 700; color: #8a96ad; }
+.page-forums .f-group { background: var(--mh-surface); border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(20,40,90,.05); margin: 0 8px; }
+.page-forums .f-forum { display: flex; align-items: center; gap: 12px; padding: 13px 14px; border-top: 1px solid rgba(20,40,90,.07); color: var(--mh-text); text-decoration: none; }
+.page-forums .f-group .f-forum:first-child { border-top: none; }
+.page-forums .f-forum:active { background: rgba(0,0,0,.03); }
+.page-forums .f-forum-main { flex: 1; min-width: 0; }
+.page-forums .f-forum-name { display: block; font-size: 15px; font-weight: 600; color: var(--mh-text); }
+.page-forums .f-forum-desc { display: block; font-size: 12px; color: #8a96ad; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.page-forums .f-forum-count { flex: none; font-size: 13px; color: #8a96ad; white-space: nowrap; }
+
 /* 发帖/回复 编辑器与表单全宽 */
 .page-forums .m-main textarea, .page-forums .m-main input[type="text"], .page-forums .m-main select { width: 100% !important; max-width: 100% !important; box-sizing: border-box; font-size: 16px; padding: 9px 11px; }
 .page-forums .m-main textarea { min-height: 140px; }
