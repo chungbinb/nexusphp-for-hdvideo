@@ -5446,7 +5446,7 @@ foreach ($rows as $row)
 		);
 	}
 
-	print("<td class=\"rowfollow\" width=\"100%\" align=\"left\" style='padding: 0px'><table class=\"torrentname\" width=\"100%\"><tr" . $sphighlight . ">$tdCover<td class=\"embedded\" style='padding-left: 5px'>".$cardMetaSource.$cardCoverSource.$cardRatingSource.$stickyicon."<a $short_torrent_name_alt $mouseovertorrent href=\"details.php?id=".$id."&amp;hit=1\"><b>".htmlspecialchars($dispname)."</b></a>");
+	print("<td class=\"rowfollow\" width=\"100%\" align=\"left\" style='padding: 0px'><table class=\"torrentname\" width=\"100%\"><tr" . $sphighlight . ">$tdCover<td class=\"embedded\" style='padding-left: 5px'>".$cardMetaSource.$cardCoverSource.$cardRatingSource.$stickyicon."<span class=\"tt-name\"><a $short_torrent_name_alt $mouseovertorrent href=\"details.php?id=".$id."&amp;hit=1\"><b>".htmlspecialchars($dispname)."</b></a>");
 	$picked_torrent = "";
 	if ($CURUSER['appendpicked'] != 'no'){
 	if($row['picktype']=="hot")
@@ -5481,6 +5481,8 @@ foreach ($rows as $row)
         $tags = '';
     }
 
+	print('</span>'); // 关闭 .tt-name(标题行)
+	$ttTagsHtml = $tags ? "<span class=\"tt-tags\">$tags</span>" : "";
 	if ($displaysmalldescr){
 		//small descr
 		$dissmall_descr = trim($row["small_descr"]);
@@ -5490,10 +5492,11 @@ foreach ($rows as $row)
 		{
 			$dissmall_descr=mb_substr($dissmall_descr, 0, $max_lenght_of_small_descr-2,"UTF-8") . "..";
 		}
-		$dissmall_descr = $tags . htmlspecialchars($dissmall_descr);
-		print($dissmall_descr == "" ? "" : "<br />".$dissmall_descr);
+		$ttSubHtml = $dissmall_descr === "" ? "" : "<span class=\"tt-sub\">".htmlspecialchars($dissmall_descr)."</span>";
+		$descrHtml = $ttTagsHtml . $ttSubHtml;
+		print($descrHtml == "" ? "" : "<br />".$descrHtml);
 	} else {
-	    print($tags ? "<br />$tags" : "");
+	    print($ttTagsHtml ? "<br />$ttTagsHtml" : "");
     }
 	//progress bar
 	if (isset($torrentSeedingLeechingStatus[$row['id']])) {
