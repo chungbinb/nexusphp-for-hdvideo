@@ -8,8 +8,8 @@ body.page-torrents.m-shell .m-main { padding: 6px 8px 0; max-width: 100vw; box-s
 
 /* 外壳顶/底栏：modern-refresh.css 的通用 button/a 规则会污染外壳导航(图标按钮变蓝、底部Tab变蓝块)。
    这里把外壳导航元素强制还原成 mobile-shell.css 的样式，确保与首页/论坛完全一致。 */
-body.page-torrents.m-shell .m-top { z-index: 3000 !important; background: var(--mh-surface) !important; }
-body.page-torrents.m-shell .m-tabbar { z-index: 2990 !important; background: var(--mh-surface) !important; }
+body.page-torrents.m-shell .m-top { background: var(--mh-surface) !important; }
+body.page-torrents.m-shell .m-tabbar { background: var(--mh-surface) !important; }
 body.page-torrents.m-shell .m-brand { color: var(--mh-primary) !important; background: none !important; }
 
 /* 顶部图标按钮 / 汉堡按钮：浅色底、图标用主色描边，去掉桌面按钮的蓝底/渐变/阴影 */
