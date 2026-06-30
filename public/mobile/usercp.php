@@ -34,7 +34,7 @@ $settingLinks = [
     ['usercp.php?action=security', '安全设定', '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>'],
 ];
 
-mobile_shell_page_head('个人中心', 'me');
+mobile_shell_page_head('个人中心', 'me', 'page-usercp');
 ?>
 <div class="m-prof">
     <span class="av"><?php echo mu_avatar($avatar, $uname) ?></span>

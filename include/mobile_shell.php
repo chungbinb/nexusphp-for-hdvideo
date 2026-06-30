@@ -221,11 +221,12 @@ function mobile_shell_render(string $active = ''): void
 }
 
 /** 独立手机页头：输出 DOCTYPE/head/body + 打开内容容器 .m-main（外壳的顶栏/底部Tab等由 page_foot 输出，均为 fixed 定位） */
-function mobile_shell_page_head(string $title = '', string $active = ''): void
+function mobile_shell_page_head(string $title = '', string $active = '', string $pageClass = ''): void
 {
     global $SITENAME;
     $col = mobile_shell_colors();
     $t = ($title !== '' ? $title . ' · ' : '') . ($SITENAME ?? 'HDvideo');
+    $bodyClass = 'm-shell m-page' . ($pageClass !== '' ? ' ' . $pageClass : '');
     ?><!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -237,7 +238,7 @@ function mobile_shell_page_head(string $title = '', string $active = ''): void
 <link rel="stylesheet" href="styles/mobile-shell.css?v=20260630b" type="text/css" />
 <style>:root{--bili-primary:<?php echo $col['primary'] ?>;--bili-accent:<?php echo $col['accent'] ?>;--bili-bg:<?php echo $col['bg'] ?>;--bili-surface:<?php echo $col['surface'] ?>;--bili-text:<?php echo $col['text'] ?>;}</style>
 </head>
-<body class="m-shell m-page page-usercp">
+<body class="<?php echo htmlspecialchars($bodyClass) ?>">
 <main class="m-main">
 <?php
 }

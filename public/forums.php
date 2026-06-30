@@ -398,16 +398,41 @@ $today_date = date("Y-m-d",TIMENOW);
 
 $action = htmlspecialchars(trim($_GET["action"] ?? ''));
 
+// 手机端：套用与首页一致的手机外壳；?pc=1 强制电脑版。设置 f_mhead/f_mfoot 包装 stdhead/stdfoot。
+$GLOBALS['F_MOBILE'] = empty($_GET['pc']) && preg_match('/Mobile|Android|iPhone|iPod|Windows Phone|BlackBerry|webOS|HarmonyOS/i', (string)($_SERVER['HTTP_USER_AGENT'] ?? ''));
+if ($GLOBALS['F_MOBILE']) { require_once ROOT_PATH . 'include/mobile_shell.php'; }
+function f_mhead($title = '') {
+    if (!empty($GLOBALS['F_MOBILE']) && function_exists('mobile_shell_page_head')) {
+        mobile_shell_page_head(trim(strip_tags((string)$title)) ?: '论坛', 'forums', 'page-forums');
+        echo '<link rel="stylesheet" type="text/css" href="styles/forums-mobile.css?v=20260630">';
+        echo '<script type="text/javascript" src="js/jquery-1.12.4.min.js"></script>';
+        echo '<script>jQuery.noConflict();window.nexusLayerOptions={confirm:{btnAlign:"c",title:"Confirm",btn:["OK","Cancel"]},alert:{btnAlign:"c",title:"Info",btn:["OK","Cancel"]}};</script>';
+        echo '<script type="text/javascript" src="vendor/layer-v3.5.1/layer/layer.js"></script>';
+        echo '<script type="text/javascript" src="js/common.js"></script>';
+        echo '<script type="text/javascript" src="js/ajaxbasic.js"></script>';
+    } else {
+        stdhead($title);
+    }
+}
+function f_mfoot() {
+    if (!empty($GLOBALS['F_MOBILE']) && function_exists('mobile_shell_page_foot')) {
+        foreach (\Nexus\Nexus::getAppendFooters() as $v) { print($v); }
+        mobile_shell_page_foot('forums');
+    } else {
+        stdfoot();
+    }
+}
+
 //-------- Action: New topic
 if ($action == "newtopic")
 {
 	$forumid = intval($_GET["forumid"] ?? 0);
 	check_whether_exist($forumid, 'forum');
-	stdhead($lang_forums['head_new_topic']);
+	f_mhead($lang_forums['head_new_topic']);
 	begin_main_frame();
 	insert_compose_frame($forumid,'new');
 	end_main_frame();
-	stdfoot();
+	f_mfoot();
 	die;
 }
 if ($action == "quotepost")
@@ -417,11 +442,11 @@ if ($action == "quotepost")
     if (!can_view_post($CURUSER['id'], $postid)) {
         permissiondenied();
     }
-	stdhead($lang_forums['head_post_reply']);
+	f_mhead($lang_forums['head_post_reply']);
 	begin_main_frame();
 	insert_compose_frame($postid, 'quote');
 	end_main_frame();
-	stdfoot();
+	f_mfoot();
 	die;
 }
 
@@ -431,11 +456,11 @@ if ($action == "reply")
 {
 	$topicid = intval($_GET["topicid"] ?? 0);
 	check_whether_exist($topicid, 'topic');
-	stdhead($lang_forums['head_post_reply']);
+	f_mhead($lang_forums['head_post_reply']);
 	begin_main_frame();
 	insert_compose_frame($topicid, 'reply');
 	end_main_frame();
-	stdfoot();
+	f_mfoot();
 	die;
 }
 
@@ -457,11 +482,11 @@ if ($action == "editpost")
 	if (($CURUSER["id"] != $arr["userid"] || $locked) && !user_can('postmanage') && !$ismod)
 		permissiondenied();
 
-	stdhead($lang_forums['text_edit_post']);
+	f_mhead($lang_forums['text_edit_post']);
 	begin_main_frame();
 	insert_compose_frame($postid, 'edit');
 	end_main_frame();
-	stdfoot();
+	f_mfoot();
 	die;
 }
 
@@ -863,7 +888,7 @@ if ($action == "viewtopic")
 
 	$res = sql_query("SELECT * FROM posts " . ($threadedReplies ? $rootReplyWhere : $where) . " ORDER BY $postOrderBy LIMIT $perpage offset $offset") or sqlerr(__FILE__, __LINE__);
 
-	stdhead($lang_forums['head_view_topic']." \"".$orgsubject."\"");
+	f_mhead($lang_forums['head_view_topic']." \"".$orgsubject."\"");
 	begin_main_frame("",true);
 
 	print("<h1 align=\"center\"><a class=\"faqlink\" href=\"forums.php\">".$SITENAME."&nbsp;".$lang_forums['text_forums']."</a>--><a class=\"faqlink\" href=\"".htmlspecialchars("?action=viewforum&forumid=".$forumid)."\">".$forumname."</a><b>--></b><span id=\"top\">".$subject.($locked ? "&nbsp;&nbsp;<b>[<font class=\"striking\">".$lang_forums['text_locked']."</font>]</b>" : "")."</span></h1>\n");
@@ -1285,7 +1310,7 @@ function forumCancelInlineReply(postId) {
 	else print($lang_forums['text_unpermitted_posting_here']);
 
 	print(key_shortcut($page,$pages-1));
-	stdfoot();
+	f_mfoot();
 	die;
 }
 
@@ -1567,7 +1592,7 @@ if ($action == "viewforum")
 	//------ Get topics data
 	$topicsres = sql_query("SELECT * FROM topics WHERE forumid=".sqlesc($forumid).$wherea." ORDER BY sticky DESC,".$orderby." ".$limit) or sqlerr(__FILE__, __LINE__);
 	$numtopics = mysql_num_rows($topicsres);
-	stdhead($lang_forums['head_forum']." ".$forumname);
+	f_mhead($lang_forums['head_forum']." ".$forumname);
 	begin_main_frame("",true);
 	print("<h1 align=\"center\"><a class=\"faqlink\" href=\"forums.php\">".$SITENAME."&nbsp;".$lang_forums['text_forums'] ."</a>--><a class=\"faqlink\" href=\"".htmlspecialchars("forums.php?action=viewforum&forumid=".$forumid)."\">".$forumname."</a></h1>\n");
 	end_main_frame();
@@ -1721,7 +1746,7 @@ if ($action == "viewforum")
 	} // if
 	else
 		print("<p>".$lang_forums['text_no_topics_found']."</p>");
-	stdfoot();
+	f_mfoot();
 	die;
 }
 
@@ -1735,7 +1760,7 @@ if ($action == "viewunread")
 	$maxresults = 25;
 	$res = sql_query("SELECT id, forumid, subject, lastpost, hlcolor FROM topics WHERE lastpost > ".$CURUSER['last_catchup'].($beforepostid ? " AND lastpost < ".sqlesc($beforepostid) : "")." ORDER BY lastpost DESC LIMIT 100") or sqlerr(__FILE__, __LINE__);
 
-	stdhead($lang_forums['head_view_unread']);
+	f_mhead($lang_forums['head_view_unread']);
 	print("<h1 align=\"center\"><a class=\"faqlink\" href=\"forums.php\">".$SITENAME."&nbsp;".$lang_forums['text_forums']."</a>-->".$lang_forums['text_topics_with_unread_posts']."</h1>");
 
 	$n = 0;
@@ -1783,13 +1808,13 @@ if ($action == "viewunread")
 	}
 	else
 		print("<p>".$lang_forums['text_nothing_found']."</p>");
-	stdfoot();
+	f_mfoot();
 	die;
 }
 
 if ($action == "search")
 {
-	stdhead($lang_forums['head_forum_search']);
+	f_mhead($lang_forums['head_forum_search']);
 	unset($error);
 	$error = true;
 	$found = "";
@@ -1873,7 +1898,7 @@ if ($action == "search")
 		print("</table>\n");
 		print($pagerbottom);
 	}
-stdfoot();
+f_mfoot();
 die;
 }
 
@@ -1891,7 +1916,7 @@ if ($action != "")
 if ($CURUSER)
 	$USERUPDATESET[] = "forum_access = ".sqlesc(date("Y-m-d H:i:s"));
 
-stdhead($lang_forums['head_forums']);
+f_mhead($lang_forums['head_forums']);
 begin_main_frame();
 print("<h1 align=\"center\">".$SITENAME."&nbsp;".$lang_forums['text_forums']."</h1>");
 print("<p align=\"center\"><a href=\"?action=search\"><b>".$lang_forums['text_search']."</b></a> | <a href=\"?action=viewunread\"><b>".$lang_forums['text_view_unread']."</b></a> | <a href=\"?catchup=1\"><b>".$lang_forums['text_catch_up']."</b></a> ".(user_can('forummanage') ? "| <a href=\"forummanage.php\"><b>".$lang_forums['text_forum_manager']."</b></a>":"")."</p>");
@@ -2002,5 +2027,5 @@ print("</table>");
 if ($showforumstats_main == "yes")
 	forum_stats();
 end_main_frame();
-stdfoot();
+f_mfoot();
 ?>
