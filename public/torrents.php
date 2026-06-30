@@ -15,10 +15,11 @@ function t_mhead($title = '') {
         $mrv = @filemtime(ROOT_PATH . 'public/styles/modern-refresh.css') ?: 1;
         echo '<link rel="stylesheet" type="text/css" href="styles/modern-refresh.css?v=' . intval($mrv) . '">';
         echo '<link rel="stylesheet" type="text/css" href="styles/torrents-mobile.css?v=20260701c">';
-        // modern-refresh.css 的 :root 会覆盖 page_head 里的个性化 --bili-*，在其后用 body.m-shell 重新声明个性化色，让顶/底栏与首页/论坛一致
+        // modern-refresh.css 的 :root 覆盖了 page_head 注入的个性化 --bili-*；而 --mh-* 在 mobile-shell.css 里是 :root 上 var(--bili-*) 映射，
+        // 只按 :root(html) 上的 --bili-* 计算。必须在 modern-refresh 之后、同样用 :root 重新声明个性化 --bili-*，--mh-* 才会重新算成个性化色。
         if (function_exists('mobile_shell_colors')) {
             $tc = mobile_shell_colors();
-            echo '<style>body.m-shell{--bili-primary:' . $tc['primary'] . ';--bili-accent:' . $tc['accent'] . ';--bili-bg:' . $tc['bg'] . ';--bili-surface:' . $tc['surface'] . ';--bili-text:' . $tc['text'] . ';}</style>';
+            echo '<style>:root{--bili-primary:' . $tc['primary'] . ';--bili-accent:' . $tc['accent'] . ';--bili-bg:' . $tc['bg'] . ';--bili-surface:' . $tc['surface'] . ';--bili-text:' . $tc['text'] . ';}</style>';
         }
         echo '<script type="text/javascript" src="js/jquery-1.12.4.min.js"></script>';
         echo '<script>jQuery.noConflict();window.nexusLayerOptions={confirm:{btnAlign:"c",title:"Confirm",btn:["OK","Cancel"]},alert:{btnAlign:"c",title:"Info",btn:["OK","Cancel"]}};</script>';
