@@ -5,6 +5,7 @@ require_once(get_langfile_path());
 loggedinorreturn();
 $userInfo = \App\Models\User::query()->findOrFail($CURUSER["id"]);
 $siteName = \App\Models\Setting::getSiteName();
+\Nexus\Nexus::css('styles/usercp-mobile.css?v=20260630', 'header', true); // 手机端适配(仅手机断点生效)
 $hdvideoUnifiedStylesheetId = 6;
 $hdvideoUnifiedStylesheetName = 'HDvideo 现代风格';
 function bark($msg) {
