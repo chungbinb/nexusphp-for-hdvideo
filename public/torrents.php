@@ -15,6 +15,11 @@ function t_mhead($title = '') {
         $mrv = @filemtime(ROOT_PATH . 'public/styles/modern-refresh.css') ?: 1;
         echo '<link rel="stylesheet" type="text/css" href="styles/modern-refresh.css?v=' . intval($mrv) . '">';
         echo '<link rel="stylesheet" type="text/css" href="styles/torrents-mobile.css?v=20260701b">';
+        // modern-refresh.css 的 :root 会覆盖 page_head 里的个性化 --bili-*，在其后用 body.m-shell 重新声明个性化色，让顶/底栏与首页/论坛一致
+        if (function_exists('mobile_shell_colors')) {
+            $tc = mobile_shell_colors();
+            echo '<style>body.m-shell{--bili-primary:' . $tc['primary'] . ';--bili-accent:' . $tc['accent'] . ';--bili-bg:' . $tc['bg'] . ';--bili-surface:' . $tc['surface'] . ';--bili-text:' . $tc['text'] . ';}</style>';
+        }
         echo '<script type="text/javascript" src="js/jquery-1.12.4.min.js"></script>';
         echo '<script>jQuery.noConflict();window.nexusLayerOptions={confirm:{btnAlign:"c",title:"Confirm",btn:["OK","Cancel"]},alert:{btnAlign:"c",title:"Info",btn:["OK","Cancel"]}};</script>';
         echo '<script type="text/javascript" src="vendor/layer-v3.5.1/layer/layer.js"></script>';
