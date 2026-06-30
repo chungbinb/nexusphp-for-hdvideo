@@ -156,3 +156,17 @@ body.page-torrents.m-shell .torrent-poster-text-tag { color: #8a96ad !important;
 body.page-torrents.m-shell .torrent-view-pager .nexus-pagination a,
 body.page-torrents.m-shell .torrent-view-pager .nexus-pagination b,
 body.page-torrents.m-shell .torrent-view-pager .nexus-pagination font.gray b { color: var(--mh-text) !important; }
+/* List/Card 切换条 + 分页按钮 + 列表表格 改浅色 */
+body.page-torrents.m-shell .torrent-view-switch { background: var(--mh-bg) !important; border: 1px solid rgba(20,40,90,.1) !important; }
+body.page-torrents.m-shell .torrent-view-btn { color: var(--mh-text) !important; background: transparent !important; }
+body.page-torrents.m-shell .torrent-view-pager .nexus-pagination a,
+body.page-torrents.m-shell .torrent-view-pager .nexus-pagination b {
+    background: var(--mh-surface) !important; border: 1px solid rgba(20,40,90,.12) !important;
+}
+body.page-torrents.m-shell table.torrents,
+body.page-torrents.m-shell table.torrents tr,
+body.page-torrents.m-shell table.torrents td,
+body.page-torrents.m-shell table.torrents th { background: transparent !important; color: var(--mh-text) !important; }
+body.page-torrents.m-shell table.torrents td.colhead,
+body.page-torrents.m-shell table.torrents th.colhead { background: var(--mh-surface) !important; color: var(--mh-primary) !important; }
+body.page-torrents.m-shell table.torrents td.rowfollow { background: var(--mh-surface) !important; border-color: rgba(20,40,90,.07) !important; }
