@@ -1,0 +1,99 @@
+/* 论坛(forums.php / forummanage.php) 手机端：在统一手机外壳(.m-page)内排版。限定 body.page-forums。
+   不改 display(避免表格塌陷)；表格满宽、小字、自动换行即可适配手机。 */
+body.page-forums.m-shell { overflow-x: hidden !important; max-width: 100vw; }
+.page-forums .m-main { padding: 8px 8px 0; }
+.page-forums .m-main h1, .page-forums .m-main h2 { font-size: 17px; margin: 10px 4px 8px; color: var(--mh-text); }
+.page-forums .m-main a { color: var(--mh-primary); }
+.page-forums .m-main img { max-width: 100%; height: auto; }
+.page-forums .m-main p { overflow-wrap: anywhere; }
+
+/* 内容表格：满宽、小字、自动换行 */
+.page-forums .m-main table { width: 100% !important; max-width: 100% !important; border-collapse: collapse; }
+.page-forums .m-main td, .page-forums .m-main th { padding: 6px 8px; font-size: 13px; word-break: break-word; overflow-wrap: anywhere; vertical-align: top; }
+.page-forums .m-main td.colhead, .page-forums .m-main th.colhead { background: var(--mh-soft); color: var(--mh-primary); font-weight: 700; }
+/* 含 nowrap 的单元格(如最后发表)允许换行，避免撑破宽度 */
+.page-forums .m-main td.nowrap, .page-forums .m-main td[class*="nowrap"] { white-space: normal !important; }
+.page-forums .m-main td[width="1%"] { width: 1%; white-space: nowrap; text-align: center; }
+.page-forums .m-main .big { font-size: 14px; }
+.page-forums .forum-nested-reply-body, .page-forums .m-main .forum-nested-reply-body { font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; word-break: break-word; }
+.page-forums .m-main td.forum-nested-user img { max-width: 56px; }
+
+/* 版块/主题列表(border=1 的表格)：单元格竖向堆叠成卡片，解决窄列逐字竖排 */
+.page-forums .m-main table[border="1"] { display: block; border: none !important; box-shadow: none !important; background: none !important; margin: 0; }
+.page-forums .m-main table[border="1"] > tbody { display: block; }
+.page-forums .m-main table[border="1"] > tbody > tr { display: block; background: var(--mh-surface); border: 1px solid rgba(20,40,90,.1); border-radius: 12px; margin: 0 0 10px; box-shadow: 0 2px 8px rgba(20,40,90,.05); overflow: hidden; }
+.page-forums .m-main table[border="1"] > tbody > tr > td { display: block; width: auto !important; border: none !important; padding: 3px 12px !important; white-space: normal !important; text-align: left !important; }
+.page-forums .m-main table[border="1"] > tbody > tr > td:first-child { padding-top: 10px !important; font-size: 14px; }
+.page-forums .m-main table[border="1"] > tbody > tr > td:last-child { padding-bottom: 10px !important; }
+/* 行内非首列(主题数/帖子数/最后回复/版主)用小号灰字 */
+.page-forums .m-main table[border="1"] > tbody > tr:not(:has(td.colhead)) > td:not(:first-child) { font-size: 12px; color: #8a96ad; }
+.page-forums .m-main table[border="1"] > tbody > tr:not(:has(td.colhead)) > td:not(:first-child) a { color: var(--mh-primary); }
+/* 分类标题行：只留分类名做标题，隐藏“主题/帖子/最近回复/版主”这些列头 */
+.page-forums .m-main table[border="1"] > tbody > tr:has(td.colhead) { background: none; border: none; box-shadow: none; margin: 14px 2px 6px; }
+.page-forums .m-main td.colhead { background: none !important; color: var(--mh-primary) !important; font-weight: 800; font-size: 15px; padding: 2px 2px !important; }
+.page-forums .m-main table[border="1"] > tbody > tr:has(td.colhead) > td.colhead:not(:first-child) { display: none !important; }
+/* 版块名+图标的内层小表格保持紧凑 */
+.page-forums .m-main table[border="1"] td table { display: table; width: auto !important; margin: 0; }
+.page-forums .m-main table[border="1"] td table td { display: table-cell; padding: 0 6px 0 0 !important; }
+
+/* 版块首页(手机专用列表)：分区标题 + 版块行(名+主题/帖子数) */
+.page-forums .f-mb-index { margin: 4px 0 14px; }
+.page-forums .f-cat { padding: 16px 14px 6px; font-size: 13px; font-weight: 700; color: #8a96ad; }
+.page-forums .f-group { background: var(--mh-surface); border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(20,40,90,.05); margin: 0 8px; }
+.page-forums .f-forum { display: flex; align-items: center; gap: 12px; padding: 13px 14px; border-top: 1px solid rgba(20,40,90,.07); color: var(--mh-text); text-decoration: none; }
+.page-forums .f-group .f-forum:first-child { border-top: none; }
+.page-forums .f-forum:active { background: rgba(0,0,0,.03); }
+.page-forums .f-forum-main { flex: 1; min-width: 0; }
+.page-forums .f-forum-name { display: block; font-size: 15px; font-weight: 600; color: var(--mh-text); }
+.page-forums .f-forum-desc { display: block; font-size: 12px; color: #8a96ad; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.page-forums .f-forum-count { flex: none; font-size: 13px; color: #8a96ad; white-space: nowrap; }
+
+/* 版块内主题列表(手机专用卡片)：头像+作者/日期+浏览/回复+标题 */
+.page-forums .f-vf-bar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; }
+.page-forums .f-vf-name { font-size: 16px; font-weight: 800; color: var(--mh-text); }
+.page-forums .f-vf-sub { font-size: 12px; font-weight: 600; color: #8a96ad; margin-left: 8px; }
+.page-forums .f-vf-new { margin-left: auto; flex: none; background: var(--mh-primary); color: #fff; font-size: 13px; font-weight: 700; padding: 7px 14px; border-radius: 999px; }
+.page-forums .f-topics { display: block; }
+.page-forums .f-topic { display: block; background: var(--mh-surface); margin: 0 8px 10px; padding: 12px 14px; border-radius: 12px; box-shadow: 0 2px 8px rgba(20,40,90,.05); color: var(--mh-text); }
+.page-forums .f-topic-top { display: flex; align-items: center; gap: 10px; }
+.page-forums .f-ava { flex: none; width: 38px; height: 38px; border-radius: 50%; overflow: hidden; background: var(--mh-soft); display: flex; align-items: center; justify-content: center; font-weight: 900; color: var(--mh-primary); }
+.page-forums .f-ava img { width: 100%; height: 100%; object-fit: cover; }
+.page-forums .f-topic-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.page-forums .f-topic-author { font-size: 14px; font-weight: 600; color: var(--mh-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.page-forums .f-topic-date { font-size: 12px; color: #9aa6bd; }
+.page-forums .f-topic-stats { flex: none; display: flex; gap: 12px; }
+.page-forums .f-topic-stats .st { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: #8a96ad; }
+.page-forums .f-topic-stats .st svg { width: 16px; height: 16px; fill: none; stroke: #b5bfd0; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.page-forums .f-topic-title { margin-top: 10px; font-size: 16px; font-weight: 600; line-height: 1.45; color: var(--mh-text); }
+.page-forums .f-tag { display: inline-block; font-size: 11px; font-weight: 700; color: #fff; background: #ff8a3d; border-radius: 5px; padding: 1px 6px; margin-right: 6px; vertical-align: middle; }
+.page-forums .f-tag.lock { background: #9aa6bd; }
+.page-forums .f-empty { text-align: center; color: #9aa6bd; padding: 30px 12px; }
+
+/* 主题帖(viewtopic 手机专用)：紧凑楼层卡片 */
+.page-forums .ft-head { padding: 10px 14px 2px; }
+.page-forums .ft-subject { font-size: 18px; font-weight: 800; line-height: 1.4; color: var(--mh-text); }
+.page-forums .ft-hits { font-size: 12px; color: #8a96ad; margin-top: 6px; }
+.page-forums .ft-hits a { color: var(--mh-primary); font-weight: 600; }
+.page-forums .ft-toolbar { display: flex; align-items: center; gap: 10px; padding: 4px 12px 6px; }
+.page-forums .ft-toolbar .ft-pager { flex: 1; min-width: 0; padding: 0; text-align: left; }
+.page-forums .ft-sort { flex: none; font-size: 13px; color: var(--mh-primary); font-weight: 600; white-space: nowrap; }
+.page-forums .ft-pager { text-align: center; font-size: 13px; padding: 6px 12px; overflow-x: auto; white-space: nowrap; }
+.page-forums .ft-pager a, .page-forums .ft-pager b { padding: 2px 8px; }
+.page-forums .ft-posts { display: block; }
+.page-forums .ft-post { background: var(--mh-surface); margin: 0 8px 10px; padding: 12px 14px; border-radius: 12px; box-shadow: 0 2px 8px rgba(20,40,90,.05); }
+.page-forums .ft-post-head { display: flex; align-items: center; gap: 10px; }
+.page-forums .ft-pmeta { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.page-forums .ft-pname { font-size: 14px; font-weight: 600; color: var(--mh-text); }
+.page-forums .ft-pdate { font-size: 12px; color: #9aa6bd; }
+.page-forums .ft-floor { flex: none; font-size: 12px; color: #b5bfd0; }
+.page-forums .ft-body { margin-top: 10px; font-size: 15px; line-height: 1.7; color: var(--mh-text); overflow-wrap: anywhere; word-break: break-word; }
+.page-forums .ft-body img { max-width: 100%; height: auto; }
+/* 正文里的引用框 */
+.page-forums .ft-body blockquote, .page-forums .ft-body .quote, .page-forums .ft-body fieldset { background: var(--mh-bg); border: none; border-left: 3px solid var(--mh-primary); border-radius: 8px; padding: 8px 12px; margin: 8px 0; color: #5a6680; font-size: 14px; }
+.page-forums .ft-replybar { margin: 4px 8px calc(8px + env(safe-area-inset-bottom)); }
+.page-forums .ft-replybar a { display: block; background: var(--mh-surface); border: 1px solid rgba(20,40,90,.12); border-radius: 999px; padding: 11px 16px; color: #8a96ad; font-size: 14px; }
+
+/* 发帖/回复 编辑器与表单全宽 */
+.page-forums .m-main textarea, .page-forums .m-main input[type="text"], .page-forums .m-main select { width: 100% !important; max-width: 100% !important; box-sizing: border-box; font-size: 16px; padding: 9px 11px; }
+.page-forums .m-main textarea { min-height: 140px; }
+.page-forums .m-main input[type="submit"], .page-forums .m-main input[type="button"], .page-forums .m-main .btn { min-height: 40px; padding: 0 16px; font-size: 15px; }

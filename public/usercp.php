@@ -16,7 +16,7 @@ if ($GLOBALS['UCP_MOBILE']) {
 function ucp_mhead($title = '', $sel = '', $stdarg = true) {
     if (!empty($GLOBALS['UCP_MOBILE']) && function_exists('mobile_shell_page_head')) {
         $titles = ['personal' => '个人设定', 'tracker' => '网站设定', 'forum' => '论坛设定', 'security' => '安全设定'];
-        mobile_shell_page_head($titles[$sel] ?? '个人中心', 'me');
+        mobile_shell_page_head($titles[$sel] ?? '个人中心', 'me', 'page-usercp');
         echo '<link rel="stylesheet" type="text/css" href="styles/usercp-mobile.css?v=20260630b">';
         echo '<script type="text/javascript" src="js/jquery-1.12.4.min.js"></script>';
         echo '<script>jQuery.noConflict();window.nexusLayerOptions={confirm:{btnAlign:"c",title:"Confirm",btn:["OK","Cancel"]},alert:{btnAlign:"c",title:"Info",btn:["OK","Cancel"]}};</script>';

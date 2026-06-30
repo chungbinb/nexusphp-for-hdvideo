@@ -398,16 +398,41 @@ $today_date = date("Y-m-d",TIMENOW);
 
 $action = htmlspecialchars(trim($_GET["action"] ?? ''));
 
+// 手机端：套用与首页一致的手机外壳；?pc=1 强制电脑版。设置 f_mhead/f_mfoot 包装 stdhead/stdfoot。
+$GLOBALS['F_MOBILE'] = empty($_GET['pc']) && preg_match('/Mobile|Android|iPhone|iPod|Windows Phone|BlackBerry|webOS|HarmonyOS/i', (string)($_SERVER['HTTP_USER_AGENT'] ?? ''));
+if ($GLOBALS['F_MOBILE']) { require_once ROOT_PATH . 'include/mobile_shell.php'; }
+function f_mhead($title = '') {
+    if (!empty($GLOBALS['F_MOBILE']) && function_exists('mobile_shell_page_head')) {
+        mobile_shell_page_head(trim(strip_tags((string)$title)) ?: '论坛', 'forums', 'page-forums');
+        echo '<link rel="stylesheet" type="text/css" href="styles/forums-mobile.css?v=20260701f">';
+        echo '<script type="text/javascript" src="js/jquery-1.12.4.min.js"></script>';
+        echo '<script>jQuery.noConflict();window.nexusLayerOptions={confirm:{btnAlign:"c",title:"Confirm",btn:["OK","Cancel"]},alert:{btnAlign:"c",title:"Info",btn:["OK","Cancel"]}};</script>';
+        echo '<script type="text/javascript" src="vendor/layer-v3.5.1/layer/layer.js"></script>';
+        echo '<script type="text/javascript" src="js/common.js"></script>';
+        echo '<script type="text/javascript" src="js/ajaxbasic.js"></script>';
+    } else {
+        stdhead($title);
+    }
+}
+function f_mfoot() {
+    if (!empty($GLOBALS['F_MOBILE']) && function_exists('mobile_shell_page_foot')) {
+        foreach (\Nexus\Nexus::getAppendFooters() as $v) { print($v); }
+        mobile_shell_page_foot('forums');
+    } else {
+        stdfoot();
+    }
+}
+
 //-------- Action: New topic
 if ($action == "newtopic")
 {
 	$forumid = intval($_GET["forumid"] ?? 0);
 	check_whether_exist($forumid, 'forum');
-	stdhead($lang_forums['head_new_topic']);
+	f_mhead($lang_forums['head_new_topic']);
 	begin_main_frame();
 	insert_compose_frame($forumid,'new');
 	end_main_frame();
-	stdfoot();
+	f_mfoot();
 	die;
 }
 if ($action == "quotepost")
@@ -417,11 +442,11 @@ if ($action == "quotepost")
     if (!can_view_post($CURUSER['id'], $postid)) {
         permissiondenied();
     }
-	stdhead($lang_forums['head_post_reply']);
+	f_mhead($lang_forums['head_post_reply']);
 	begin_main_frame();
 	insert_compose_frame($postid, 'quote');
 	end_main_frame();
-	stdfoot();
+	f_mfoot();
 	die;
 }
 
@@ -431,11 +456,11 @@ if ($action == "reply")
 {
 	$topicid = intval($_GET["topicid"] ?? 0);
 	check_whether_exist($topicid, 'topic');
-	stdhead($lang_forums['head_post_reply']);
+	f_mhead($lang_forums['head_post_reply']);
 	begin_main_frame();
 	insert_compose_frame($topicid, 'reply');
 	end_main_frame();
-	stdfoot();
+	f_mfoot();
 	die;
 }
 
@@ -457,11 +482,11 @@ if ($action == "editpost")
 	if (($CURUSER["id"] != $arr["userid"] || $locked) && !user_can('postmanage') && !$ismod)
 		permissiondenied();
 
-	stdhead($lang_forums['text_edit_post']);
+	f_mhead($lang_forums['text_edit_post']);
 	begin_main_frame();
 	insert_compose_frame($postid, 'edit');
 	end_main_frame();
-	stdfoot();
+	f_mfoot();
 	die;
 }
 
@@ -863,7 +888,71 @@ if ($action == "viewtopic")
 
 	$res = sql_query("SELECT * FROM posts " . ($threadedReplies ? $rootReplyWhere : $where) . " ORDER BY $postOrderBy LIMIT $perpage offset $offset") or sqlerr(__FILE__, __LINE__);
 
-	stdhead($lang_forums['head_view_topic']." \"".$orgsubject."\"");
+	f_mhead($lang_forums['head_view_topic']." \"".$orgsubject."\"");
+
+	// 手机端：主题帖用紧凑卡片(头像+作者+楼层/时间+正文)，类似触屏版，舍弃电脑版大用户栏
+	if (!empty($GLOBALS['F_MOBILE'])) {
+		$mPosts = []; $mUids = [];
+		while ($p = mysql_fetch_assoc($res)) { $mPosts[] = $p; $mUids[(int)$p['userid']] = 1; }
+		// 楼中楼回复：把嵌套子回复也平铺进来
+		if ($threadedReplies && $mPosts) {
+			$frontier = array_map(fn($x) => (int)$x['id'], $mPosts);
+			$seen = array_fill_keys($frontier, true);
+			for ($d = 0; $d < 20 && $frontier; $d++) {
+				$pin = implode(',', array_map('intval', $frontier));
+				$frontier = [];
+				$cr = sql_query("SELECT * FROM posts WHERE topicid=".sqlesc($topicid)." AND reply_to_post_id IN ($pin) ORDER BY id") or sqlerr(__FILE__, __LINE__);
+				while ($cp = mysql_fetch_assoc($cr)) {
+					$cid = (int)$cp['id'];
+					if (isset($seen[$cid])) continue;
+					$seen[$cid] = true; $frontier[] = $cid;
+					$mPosts[] = $cp; $mUids[(int)$cp['userid']] = 1;
+				}
+			}
+			usort($mPosts, fn($a, $b) => ($psort === 'asc' ? (int)$a['id'] - (int)$b['id'] : (int)$b['id'] - (int)$a['id']));
+		}
+		$mUids = array_keys($mUids);
+		$mUserInfo = $mUids ? \App\Models\User::query()->find($mUids, ['id','class','avatar','username','donor','title'])->keyBy('id') : collect();
+		// 楼层号 = 该帖在主题“主楼层”(非楼中楼)中按发帖先后的序号；楼中楼不计楼层、不显示
+		$floorMap = [];
+		$fres = sql_query("SELECT id FROM posts WHERE topicid=" . sqlesc($topicid) . " AND (reply_to_post_id = 0 OR reply_to_post_id IS NULL) ORDER BY id ASC");
+		$fi = 0;
+		while ($fres && ($fr = mysql_fetch_row($fres))) { $floorMap[(int)$fr[0]] = ++$fi; }
+		// 楼主(主题首帖)固定置顶为 1 楼
+		$opPost = null; $restPosts = [];
+		foreach ($mPosts as $p) { if ((int)$p['id'] === (int)$firstPostId) { $opPost = $p; } else { $restPosts[] = $p; } }
+		$displayPosts = $opPost ? array_merge([$opPost], $restPosts) : $restPosts;
+		echo '<div class="ft-head"><div class="ft-subject">' . ($sticky ? '<span class="f-tag sticky">置顶</span>' : '') . ($locked ? '<span class="f-tag lock">锁</span>' : '') . highlight_topic($subject, $hlcolor) . '</div>';
+		echo '<div class="ft-hits">本主题共 ' . number_format((int)$views) . ' 次浏览' . ($maypost ? ' · <a href="' . htmlspecialchars("?action=reply&topicid=" . $topicid) . '">回复</a>' : '') . '</div></div>';
+		$nextSort = $psort === 'desc' ? 'asc' : 'desc';
+		$curSortLabel = $psort === 'desc' ? '倒序' : '正序';
+		$sortUrl = "?action=viewtopic&topicid=" . $topicid . ($authorid ? "&authorid=" . $authorid : "") . "&psort=" . $nextSort;
+		echo '<div class="ft-toolbar"><div class="ft-pager">' . ($pagerstr ?? '') . '</div><a class="ft-sort" href="' . htmlspecialchars($sortUrl) . '">楼层：' . $curSortLabel . ' ⇅</a></div>';
+		echo '<div class="ft-posts">';
+		foreach ($displayPosts as $p) {
+			$puid = (int)$p['userid'];
+			$anon = function_exists('forum_post_is_anonymous') && forum_post_is_anonymous($p);
+			$u = $mUserInfo->get($puid);
+			$pname = trim(strip_tags(forum_post_author_name($p, false)));
+			$pav = (!$anon && $u && !empty($u->avatar)) ? '<img src="' . htmlspecialchars($u->avatar) . '" alt="" onerror="this.style.display=\'none\'">' : '<b>' . htmlspecialchars(mb_substr($pname !== '' ? $pname : '?', 0, 1)) . '</b>';
+			$pdate = gettime($p['added'], true, false);
+			$isNested = !empty($p['reply_to_post_id']) && (int)$p['reply_to_post_id'] > 0;
+			if ((int)$p['id'] === (int)$firstPostId) { $floorLabel = '楼主'; }
+			elseif ($isNested) { $floorLabel = ''; }
+			else { $floorLabel = (($floorMap[(int)$p['id']] ?? '') !== '' ? $floorMap[(int)$p['id']] . '楼' : ''); }
+			$body = format_comment($p['body'], 0);
+			echo '<div class="ft-post' . ($isNested ? ' ft-nested' : '') . '"><div class="ft-post-head"><span class="f-ava">' . $pav . '</span>'
+				. '<span class="ft-pmeta"><span class="ft-pname">' . htmlspecialchars($pname) . '</span><span class="ft-pdate">' . $pdate . '</span></span>'
+				. ($floorLabel !== '' ? '<span class="ft-floor">' . $floorLabel . '</span>' : '') . '</div>'
+				. '<div class="ft-body">' . $body . '</div></div>';
+		}
+		echo '</div>';
+		if (trim((string)($pagerstr ?? '')) !== '') echo '<div class="ft-pager">' . $pagerstr . '</div>';
+		if ($maypost) echo '<div class="ft-replybar"><a href="' . htmlspecialchars("?action=reply&topicid=" . $topicid) . '">我也要说两句…</a></div>';
+		f_mfoot();
+		die;
+	}
+
 	begin_main_frame("",true);
 
 	print("<h1 align=\"center\"><a class=\"faqlink\" href=\"forums.php\">".$SITENAME."&nbsp;".$lang_forums['text_forums']."</a>--><a class=\"faqlink\" href=\"".htmlspecialchars("?action=viewforum&forumid=".$forumid)."\">".$forumname."</a><b>--></b><span id=\"top\">".$subject.($locked ? "&nbsp;&nbsp;<b>[<font class=\"striking\">".$lang_forums['text_locked']."</font>]</b>" : "")."</span></h1>\n");
@@ -1285,7 +1374,7 @@ function forumCancelInlineReply(postId) {
 	else print($lang_forums['text_unpermitted_posting_here']);
 
 	print(key_shortcut($page,$pages-1));
-	stdfoot();
+	f_mfoot();
 	die;
 }
 
@@ -1567,7 +1656,7 @@ if ($action == "viewforum")
 	//------ Get topics data
 	$topicsres = sql_query("SELECT * FROM topics WHERE forumid=".sqlesc($forumid).$wherea." ORDER BY sticky DESC,".$orderby." ".$limit) or sqlerr(__FILE__, __LINE__);
 	$numtopics = mysql_num_rows($topicsres);
-	stdhead($lang_forums['head_forum']." ".$forumname);
+	f_mhead($lang_forums['head_forum']." ".$forumname);
 	begin_main_frame("",true);
 	print("<h1 align=\"center\"><a class=\"faqlink\" href=\"forums.php\">".$SITENAME."&nbsp;".$lang_forums['text_forums'] ."</a>--><a class=\"faqlink\" href=\"".htmlspecialchars("forums.php?action=viewforum&forumid=".$forumid)."\">".$forumname."</a></h1>\n");
 	end_main_frame();
@@ -1576,6 +1665,47 @@ if ($action == "viewforum")
 
 	if (!$maypost)
 		print("<p><i>".$lang_forums['text_unpermitted_starting_new_topics']."</i></p>\n");
+
+	// 手机端：主题列表用卡片(头像+作者/日期+浏览/回复+标题)，类似触屏版
+	if (!empty($GLOBALS['F_MOBILE'])) {
+		echo '<div class="f-vf-bar"><div class="f-vf-name">' . htmlspecialchars($forumname) . '<span class="f-vf-sub">主题 ' . number_format((int)$numtopics) . '</span></div>';
+		if ($maypost) echo '<a class="f-vf-new" href="' . htmlspecialchars("?action=newtopic&forumid=" . $forumid) . '">发新主题</a>';
+		echo '</div>';
+		if ($numtopics > 0) {
+			echo '<div class="f-topics">';
+			while ($topicarr = mysql_fetch_assoc($topicsres)) {
+				$topicid = (int)$topicarr["id"];
+				$sticky = $topicarr["sticky"] == "yes";
+				$locked = $topicarr["locked"] == "yes";
+				$views = number_format((int)$topicarr["views"]);
+				if (!$posts = $Cache->get_value('topic_'.$topicid.'_post_count')) {
+					$posts = get_row_count("posts", "WHERE topicid=".sqlesc($topicid));
+					$Cache->cache_value('topic_'.$topicid.'_post_count', $posts, 3600);
+				}
+				$replies = max(0, $posts - 1);
+				$fp = get_post_row($topicarr['firstpost']);
+				$fpuid = (int)($fp["userid"] ?? 0);
+				$anon = function_exists('forum_post_is_anonymous') && forum_post_is_anonymous($fp);
+				$fpname = trim(strip_tags(forum_post_author_name($fp, false)));
+				$fpdate = substr((string)($fp['added'] ?? ''), 0, 10);
+				$fpavatar = '';
+				if (!$anon && $fpuid) { $ur = get_user_row($fpuid); if ($ur && !empty($ur['avatar'])) $fpavatar = trim($ur['avatar']); }
+				$av = $fpavatar !== '' ? '<img src="'.htmlspecialchars($fpavatar).'" alt="" onerror="this.style.display=\'none\'">' : '<b>'.htmlspecialchars(mb_substr($fpname !== '' ? $fpname : '?', 0, 1)).'</b>';
+				$flag = ($sticky ? '<span class="f-tag sticky">置顶</span>' : '') . ($locked ? '<span class="f-tag lock">锁</span>' : '');
+				echo '<a class="f-topic" href="' . htmlspecialchars("?action=viewtopic&forumid=".$forumid."&topicid=".$topicid) . '">'
+					. '<div class="f-topic-top"><span class="f-ava">' . $av . '</span>'
+					. '<span class="f-topic-meta"><span class="f-topic-author">' . htmlspecialchars($fpname) . '</span><span class="f-topic-date">发布于 ' . htmlspecialchars($fpdate) . '</span></span>'
+					. '<span class="f-topic-stats"><span class="st"><svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>' . $views . '</span><span class="st"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/></svg>' . $replies . '</span></span></div>'
+					. '<div class="f-topic-title">' . $flag . highlight_topic(htmlspecialchars($topicarr["subject"]), $topicarr["hlcolor"]) . '</div></a>';
+			}
+			echo '</div>';
+			echo $pagerbottom;
+		} else {
+			echo '<p class="f-empty">' . $lang_forums['text_no_topics_found'] . '</p>';
+		}
+		f_mfoot();
+		die;
+	}
 
 	print("<table border=\"0\" class=\"main\" cellspacing=\"0\" cellpadding=\"5\" width=\"97%\"><tr>\n");
 	print("<td class=\"embedded\" width=\"90%\">");
@@ -1721,7 +1851,7 @@ if ($action == "viewforum")
 	} // if
 	else
 		print("<p>".$lang_forums['text_no_topics_found']."</p>");
-	stdfoot();
+	f_mfoot();
 	die;
 }
 
@@ -1735,7 +1865,7 @@ if ($action == "viewunread")
 	$maxresults = 25;
 	$res = sql_query("SELECT id, forumid, subject, lastpost, hlcolor FROM topics WHERE lastpost > ".$CURUSER['last_catchup'].($beforepostid ? " AND lastpost < ".sqlesc($beforepostid) : "")." ORDER BY lastpost DESC LIMIT 100") or sqlerr(__FILE__, __LINE__);
 
-	stdhead($lang_forums['head_view_unread']);
+	f_mhead($lang_forums['head_view_unread']);
 	print("<h1 align=\"center\"><a class=\"faqlink\" href=\"forums.php\">".$SITENAME."&nbsp;".$lang_forums['text_forums']."</a>-->".$lang_forums['text_topics_with_unread_posts']."</h1>");
 
 	$n = 0;
@@ -1783,13 +1913,13 @@ if ($action == "viewunread")
 	}
 	else
 		print("<p>".$lang_forums['text_nothing_found']."</p>");
-	stdfoot();
+	f_mfoot();
 	die;
 }
 
 if ($action == "search")
 {
-	stdhead($lang_forums['head_forum_search']);
+	f_mhead($lang_forums['head_forum_search']);
 	unset($error);
 	$error = true;
 	$found = "";
@@ -1873,7 +2003,7 @@ if ($action == "search")
 		print("</table>\n");
 		print($pagerbottom);
 	}
-stdfoot();
+f_mfoot();
 die;
 }
 
@@ -1891,10 +2021,41 @@ if ($action != "")
 if ($CURUSER)
 	$USERUPDATESET[] = "forum_access = ".sqlesc(date("Y-m-d H:i:s"));
 
-stdhead($lang_forums['head_forums']);
+f_mhead($lang_forums['head_forums']);
 begin_main_frame();
 print("<h1 align=\"center\">".$SITENAME."&nbsp;".$lang_forums['text_forums']."</h1>");
 print("<p align=\"center\"><a href=\"?action=search\"><b>".$lang_forums['text_search']."</b></a> | <a href=\"?action=viewunread\"><b>".$lang_forums['text_view_unread']."</b></a> | <a href=\"?catchup=1\"><b>".$lang_forums['text_catch_up']."</b></a> ".(user_can('forummanage') ? "| <a href=\"forummanage.php\"><b>".$lang_forums['text_forum_manager']."</b></a>":"")."</p>");
+
+// 手机端：版块首页用「版块名 + 主题/帖子数」的简洁列表(按分区分组)，不用电脑版多列表格。
+if (!empty($GLOBALS['F_MOBILE'])) {
+	if (!$overforums = $Cache->get_value('overforums_list')) {
+		$overforums = array();
+		$res = sql_query("SELECT * FROM overforums ORDER BY sort ASC") or sqlerr(__FILE__, __LINE__);
+		while ($row = mysql_fetch_array($res)) $overforums[] = $row;
+		$Cache->cache_value('overforums_list', $overforums, 86400);
+	}
+	echo '<div class="f-mb-index">';
+	foreach ($overforums as $a) {
+		if (get_user_class() < $a["minclassview"]) continue;
+		$rows = '';
+		foreach (get_forum_row() as $fa) {
+			if ($fa['forid'] != $a['id'] || get_user_class() < $fa["minclassread"]) continue;
+			$desc = trim((string)$fa['description']);
+			$rows .= '<a class="f-forum" href="' . htmlspecialchars("?action=viewforum&forumid=" . $fa['id']) . '">'
+				. '<span class="f-forum-main"><span class="f-forum-name">' . htmlspecialchars($fa['name']) . '</span>'
+				. ($desc !== '' ? '<span class="f-forum-desc">' . htmlspecialchars($desc) . '</span>' : '')
+				. '</span><span class="f-forum-count">' . number_format((int)$fa['topiccount']) . ' / ' . number_format((int)$fa['postcount']) . '</span></a>';
+		}
+		if ($rows === '') continue;
+		echo '<div class="f-cat">' . htmlspecialchars($a["name"]) . '</div>';
+		echo '<div class="f-group">' . $rows . '</div>';
+	}
+	echo '</div>';
+	end_main_frame();
+	f_mfoot();
+	exit;
+}
+
 print("<table border=\"1\" cellspacing=\"0\" cellpadding=\"5\" width=\"100%\">\n");
 
 if (!$overforums = $Cache->get_value('overforums_list')){
@@ -2002,5 +2163,5 @@ print("</table>");
 if ($showforumstats_main == "yes")
 	forum_stats();
 end_main_frame();
-stdfoot();
+f_mfoot();
 ?>
