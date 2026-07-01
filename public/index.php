@@ -182,6 +182,18 @@ JS;
 	print("</form></td></tr></table>");
 }
 // ------------- end: shoutbox ------------------//
+// 趣味盒/群聊区 iframe(fun.php/shoutbox.php,body.inframe 自带深色 theme.css) 接入个性化：读取 :root 的 --bili-* 注入浅色样式,iframe 刷新后重注入
+print(<<<'FRAMETHEME'
+<script>
+(function(){
+	function cssv(n,fb){try{var v=getComputedStyle(document.documentElement).getPropertyValue(n).trim();return v||fb;}catch(e){return fb;}}
+	var BG=cssv('--bili-surface','#ffffff'), TX=cssv('--bili-text','#18191c');
+	function themeFrame(f){try{var d=f.contentDocument||(f.contentWindow&&f.contentWindow.document);if(!d||!d.head)return;var s=d.getElementById('mhFrameTheme')||d.createElement('style');s.id='mhFrameTheme';s.textContent='html,body{background:'+BG+' !important;} body,td,.shoutrow,.text,.embedded{color:'+TX+' !important;} table,tr,tbody,td,.shoutrow,.text,.embedded{background:transparent !important;border-color:rgba(20,40,90,.08) !important;} .date{color:#9aa6bd !important;}';if(!s.parentNode)d.head.appendChild(s);}catch(e){}}
+	document.querySelectorAll("iframe[name='funbox'], iframe#iframe-shout-box, iframe[src*='fun.php'], iframe[src*='shoutbox.php']").forEach(function(f){f.addEventListener('load',function(){themeFrame(f);});try{if(f.contentDocument&&f.contentDocument.readyState==='complete')themeFrame(f);}catch(e){}});
+})();
+</script>
+FRAMETHEME
+);
 
 $extraModules = [];
 $extraModules = apply_filter('nexus_home_module', $extraModules);
