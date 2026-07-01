@@ -2,6 +2,7 @@
 
 require "../include/bittorrent.php";
 dbconn();
+require_once ROOT_PATH . 'include/mobile_shell.php';
 loggedinorreturn();
 require_once(get_langfile_path());
 $userid =  $CURUSER['id'];
@@ -19,7 +20,7 @@ if (empty($userInfo)) {
 }
 
 $pageTitle = $userInfo->username . ' - H&R';
-stdhead($pageTitle);
+mp_head($pageTitle);
 print("<h1>$pageTitle</h1>");
 
 $status = $_GET['status'] ?? \App\Models\HitAndRun::STATUS_INSPECTING;
@@ -127,5 +128,5 @@ JS;
 print("</table>");
 print($pagerbottom);
 end_main_frame();
-stdfoot();
+mp_foot();
 

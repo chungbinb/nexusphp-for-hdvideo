@@ -1,9 +1,10 @@
 <?php
 require "../include/bittorrent.php";
 dbconn();
+require_once ROOT_PATH . 'include/mobile_shell.php';
 require_once(get_langfile_path());
 //loggedinorreturn();
-stdhead($lang_rules['head_rules']);
+mp_head($lang_rules['head_rules']);
 $Cache->new_page('rules', 900, true);
 if (!$Cache->get_page())
 {
@@ -26,5 +27,5 @@ while ($arr=mysql_fetch_assoc($res)){
 end_main_frame();
 }
 //cache_save ('rules');
-stdfoot();
+mp_foot();
 ?>

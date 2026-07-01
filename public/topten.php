@@ -1,6 +1,7 @@
 <?php
 require "../include/bittorrent.php";
 dbconn();
+require_once ROOT_PATH . 'include/mobile_shell.php';
 require_once(get_langfile_path());
 loggedinorreturn();
 parked();
@@ -449,7 +450,7 @@ function languagetable($res, $frame_caption)
 	end_frame();
 }
 
-stdhead($lang_topten['head_top_ten']);
+mp_head($lang_topten['head_top_ten']);
 begin_main_frame();
 $type = isset($_GET["type"]) ? (int)$_GET["type"] : 0;
 if (!in_array($type,array(1,2,3,4,5,6,7)))
@@ -763,5 +764,5 @@ elseif ($type == 7)	// search
 	$Cache->cache_page();
 }
 echo $Cache->next_row();
-stdfoot();
+mp_foot();
 ?>

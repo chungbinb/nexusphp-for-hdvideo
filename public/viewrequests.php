@@ -1,6 +1,7 @@
 <?php
 require "../include/bittorrent.php";
 dbconn();
+require_once ROOT_PATH . 'include/mobile_shell.php';
 require_once(get_langfile_path());
 require_once(get_langfile_path('details.php'));
 loggedinorreturn();
@@ -68,7 +69,7 @@ else {
             //if (mysql_num_rows($rows) == 0) stderr( "没有求种" , "没有符合条件的求种项目，<a href=viewrequests.php?action=new>点击这里增加新求种</a>",0);
             //else
             {
-                stdhead($lang_viewrequests['page_title']);
+                mp_head($lang_viewrequests['page_title']);
 
                 $rows = sql_query("SELECT requests.* ,(SELECT count(DISTINCT torrentid) FROM resreq  where reqid=requests.id ) as Totalreq FROM requests WHERE " . $limit . " ORDER BY $limitorder id DESC $limit2") or sqlerr(__FILE__, __LINE__);
                 print("<h1 align=center>{$lang_viewrequests['page_title']}</h1>");
@@ -105,7 +106,7 @@ else {
                 print("</td></tr></table><br />\n");
 
 
-                stdfoot();
+                mp_foot();
             }
             die;
             break;
@@ -118,7 +119,7 @@ else {
                 $res = sql_query("SELECT * FROM requests WHERE id ='" . $_GET["id"] . "'") or sqlerr(__FILE__, __LINE__);
                 if (mysql_num_rows($res) == 0) stderr($lang_functions['std_error'], $lang_functions['std_target_not_exists']);
                 else $arr = mysql_fetch_assoc($res);
-                stdhead($lang_viewrequests['page_title']);
+                mp_head($lang_viewrequests['page_title']);
                 print("<h1 align=center id=top>{$lang_viewrequests['request']}-" . htmlspecialchars($arr["request"]) . "</h1>\n");
                 print("<table width=100% cellspacing=0 cellpadding=5>\n");
                 $res = sql_query("SELECT * FROM resreq WHERE reqid ='" . $_GET["id"] . "'" . $limit) or sqlerr(__FILE__, __LINE__);
@@ -183,7 +184,7 @@ else {
 
 <a class=\"index\" href='comment.php?action=add&pid=$id&type=request'>{$lang_functions['title_add_comments']}</a></td></tr></table>");
 
-                stdfoot();
+                mp_foot();
 
             } else stderr($lang_functions['std_error'], $lang_functions['std_target_not_exists']);
             die;
@@ -198,7 +199,7 @@ else {
             $arr = mysql_fetch_assoc($res);
             if ($arr["finish"] == "yes") stderr($lang_functions['std_error'], $lang_viewrequests['request_already_resolved']);
             if ($arr['userid'] == $CURUSER['id'] || get_user_class() >= UC_UPLOADER) {
-                stdhead($lang_functions['title_edit'] . $lang_viewrequests['request']);
+                mp_head($lang_functions['title_edit'] . $lang_viewrequests['request']);
                 print(
                     "<form id=edit method=post name=edit action=viewrequests.php >\n
 		<input type=hidden name=action  value=takeedit >
@@ -210,7 +211,7 @@ else {
                 textbbcode("edit", "descr", $arr["descr"], false, 130, true);
                 print("</td></tr>");
                 print("</td></tr><tr><td class=toolbox align=center colspan=2><input id=qr type=submit class=btn value={$lang_functions['text_edit']}{$lang_viewrequests['request']} ></td></tr></table></form><br />\n");
-                stdfoot();
+                mp_foot();
                 die;
             } else stderr($lang_functions['std_error'], "{$lang_functioins['std_permission_denied']}<a href='viewrequests.php?action=view&id=" . $_GET["id"] . "'>{$lang_functions['std_click_here_to_goback']}</a>", 0);
         }
@@ -218,7 +219,7 @@ else {
         case "new":
         {
             if (get_user_class() >= 1) {
-                stdhead($lang_viewrequests['add_request']);
+                mp_head($lang_viewrequests['add_request']);
                 print(
                 "<form id=edit method=post name=edit action=viewrequests.php >\n<input type=hidden name=action  value=takeadded >\n");
                 print("<table width=100% cellspacing=0 cellpadding=3><tr><td class=colhead align=center colspan=2>{$lang_viewrequests['add_request']}</td></tr>\n");
@@ -229,7 +230,7 @@ else {
                 print("</td></tr>");
                 print("<tr><td class=toolbox style=vertical-align: middle; padding-top: 10px; padding-bottom: 10px; align=center colspan=2><input id=qr type=submit value={$lang_viewrequests['add_request']} class=btn /></td></tr></table></form><br />\n");
 
-                stdfoot();
+                mp_foot();
                 die;
             } else stderr($lang_functions['std_error'], "{$lang_functions['std_permission_denied']}<a href='viewrequests.php'>{$lang_functions['std_click_here_to_goback']}</a>", 0);
         }
@@ -238,7 +239,7 @@ else {
         {
 
             {
-                stdhead($lang_functions['text_reply']);
+                mp_head($lang_functions['text_reply']);
 
 
                 //<input type=hidden name=id value=$id ><br />");
@@ -261,7 +262,7 @@ else {
                 print("</td></tr>");
                 print("</table><input id=qr type=submit value={$lang_functions['title_add_comments']} class=btn /></form><br />\n");
 
-                stdfoot();
+                mp_foot();
                 die;
             }
 
@@ -270,7 +271,7 @@ else {
         {
 
             {
-                stdhead($lang_functions['text_search']);
+                mp_head($lang_functions['text_search']);
 
 
                 print("<table border=1 cellspacing=0  cellpadding=5>\n");
@@ -282,7 +283,7 @@ else {
                 print("</td></tr></table><br />\n");
 
 
-                stdfoot();
+                mp_foot();
                 die;
             }
 
@@ -328,14 +329,14 @@ else {
 
         case "res":
         {
-            stdhead($lang_viewrequests['request']);
+            mp_head($lang_viewrequests['request']);
             stdmsg($lang_viewrequests['do_request'], "
 	<form action=viewrequests.php method=post>
 	<input type=hidden name=action value=takeres />
 	<input type=hidden name=reqid value=\"" . $_GET["id"] . "\" />
 	{$lang_viewrequests['type_in_torrent_id']}:" . getSchemeAndHttpHost() . "/details.php?id=<input type=text name=torrentid size=11/>
 	<input type=submit value={$lang_functions['submit_submit']}></form><a href='viewrequests.php?action=view&id=" . $_GET["id"] . "'>{$lang_functions['std_click_here_to_goback']}</a>", 0);
-            stdfoot();
+            mp_foot();
             die;
             break;
         }

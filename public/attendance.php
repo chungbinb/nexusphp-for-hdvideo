@@ -2,6 +2,7 @@
 
 require '../include/bittorrent.php';
 dbconn();
+require_once ROOT_PATH . 'include/mobile_shell.php';
 require get_langfile_path();
 loggedinorreturn();
 parked();
@@ -62,7 +63,7 @@ if (!$attendance) {
     $hasAttendedToday = false;
 }
 
-stdhead($lang_attendance['title']);
+mp_head($lang_attendance['title']);
 begin_main_frame();
 
 if ($hasAttendedToday) {
@@ -188,4 +189,4 @@ EOP;
 }
 
 end_main_frame();
-stdfoot();
+mp_foot();

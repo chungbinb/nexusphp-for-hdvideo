@@ -1,6 +1,7 @@
 <?php
 require "../include/bittorrent.php";
 dbconn();
+require_once ROOT_PATH . 'include/mobile_shell.php';
 loggedinorreturn();
 $query = \App\Models\Medal::query()->where('display_on_medal_page', 1)
     ->orderBy('priority', 'desc')->orderBy("id", 'desc');
@@ -35,7 +36,7 @@ $filterForm = <<<FORM
     </form>
 </div>
 FORM;
-stdhead($title);
+mp_head($title);
 begin_main_frame();
 $table = <<<TABLE
 <table border="1" cellspacing="0" cellpadding="5" width="100%">
@@ -144,5 +145,5 @@ jQuery('.gift').on('click', function (e) {
 })
 JS;
 \Nexus\Nexus::js($js, 'footer', false);
-stdfoot();
+mp_foot();
 

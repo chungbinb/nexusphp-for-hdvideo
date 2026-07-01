@@ -1,6 +1,7 @@
 <?php
 require "../include/bittorrent.php";
 dbconn();
+require_once ROOT_PATH . 'include/mobile_shell.php';
 require_once(get_langfile_path());
 //require_once(get_langfile_path("",true));
 loggedinorreturn();
@@ -8,7 +9,7 @@ loggedinorreturn();
 if (!isset($CURUSER))
 	stderr($lang_subtitles['std_error'],$lang_subtitles['std_must_login_to_upload']);
 
-stdhead($lang_subtitles['head_subtitles']);
+mp_head($lang_subtitles['head_subtitles']);
 
 $in_detail = $_POST['in_detail'] ?? '';
 $detail_torrent_id = intval($_POST['detail_torrent_id'] ?? 0);
@@ -215,7 +216,7 @@ if (user_can('delownsub'))
 					if (!@unlink($filename)) {
 					    do_log("Delete subtitle: $filename fail.", 'error');
 						stdmsg($lang_subtitles['std_error'], $lang_subtitles['std_this_file']."$a[filename]".$lang_subtitles['std_is_invalid']);
-						stdfoot();
+						mp_foot();
 						die;
 					} else {
                         sql_query("DELETE FROM subs WHERE id=$delete") or sqlerr(__FILE__, __LINE__);
@@ -241,7 +242,7 @@ if (user_can('delownsub'))
 				else
 				{
 					stdmsg($lang_subtitles['std_delete_subtitle'], $lang_subtitles['std_delete_subtitle_note']."<br /><form method=post action=subtitles.php?delete=$delete&sure=1>".$lang_subtitles['text_reason_is']."<input type=text style=\"width: 200px\" name=reason><input type=submit value=\"".$lang_subtitles['submit_confirm']."\"></form>");
-					stdfoot();
+					mp_foot();
 					die;
 				}
 			}
@@ -364,7 +365,7 @@ if(get_user_class() >= UC_PEASANT)
 		if (!$num)
 		{
 			stdmsg($lang_subtitles['text_sorry'],$lang_subtitles['text_nothing_here']);
-			stdfoot();
+			mp_foot();
 			die;
 		}
 		list($pagertop, $pagerbottom, $limit) = pager($perpage, $num, "subtitles.php?".$q."&");
@@ -401,5 +402,5 @@ if(get_user_class() >= UC_PEASANT)
 		print($pagerbottom);
 }
 
-stdfoot();
+mp_foot();
 ?>

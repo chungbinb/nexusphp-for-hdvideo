@@ -1,6 +1,7 @@
 <?php
 require "../include/bittorrent.php";
 dbconn();
+require_once ROOT_PATH . 'include/mobile_shell.php';
 require_once(get_langfile_path());
 loggedinorreturn();
 parked();
@@ -8,9 +9,9 @@ parked();
 function bark($msg)
 {
 	global $lang_userdetails;
-	stdhead();
+	mp_head();
 	stdmsg($lang_userdetails['std_error'], $msg);
-	stdfoot();
+	mp_foot();
 	exit;
 }
 
@@ -71,7 +72,7 @@ $gender = "<img class='female' src='pic/trans.gif' alt='Female' title='".$lang_u
 elseif ($user["gender"] == "N/A")
 $gender = "<img class='no_gender' src='pic/trans.gif' alt='N/A' title='".$lang_userdetails['title_not_available']."' style='margin-left: 4pt' />";
 
-stdhead($lang_userdetails['head_details_for']. $user["username"]);
+mp_head($lang_userdetails['head_details_for']. $user["username"]);
 $enabled = $user["enabled"] == 'yes';
 $moviepicker = $user["picker"] == 'yes';
 
@@ -681,5 +682,5 @@ JS;
 
 \Nexus\Nexus::js($paginationJs, 'footer', false);
 
-stdfoot();
+mp_foot();
 ?>
