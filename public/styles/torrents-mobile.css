@@ -57,20 +57,32 @@ body.page-torrents.m-shell td.embedded {
     background: transparent !important; box-shadow: none !important; border: none !important; color: var(--mh-text) !important;
 }
 
-/* 顶部搜索表单 */
+/* 顶部搜索表单：搜索框(内嵌搜索图标按钮) + 右侧窄"高级搜索"按钮 */
 body.page-torrents.m-shell .qd-torrent-search {
-    display: flex; flex-wrap: wrap; gap: 8px;
+    display: grid !important; grid-template-columns: 1fr auto; gap: 8px; align-items: center;
     margin: 8px 0 12px; width: 100%; box-sizing: border-box;
 }
 body.page-torrents.m-shell .qd-torrent-search input[type="text"] {
-    flex: 1 1 100%; min-width: 0; box-sizing: border-box;
-    height: 40px; padding: 0 14px; font-size: 15px;
+    grid-column: 1; grid-row: 1; min-width: 0; box-sizing: border-box; width: 100%;
+    height: 40px; padding: 0 42px 0 14px; font-size: 15px;
     border-radius: 10px; border: 1px solid rgba(20,40,90,.18) !important;
     background: var(--mh-surface) !important; color: var(--mh-text) !important;
 }
 body.page-torrents.m-shell .qd-torrent-search input[type="text"]::placeholder { color: #9aa6bd !important; }
-body.page-torrents.m-shell .qd-torrent-search button {
-    flex: 1 1 0; min-height: 40px; border-radius: 10px; font-size: 15px;
+/* 搜索按钮 → 内嵌到搜索框右侧的图标按钮 */
+body.page-torrents.m-shell .qd-torrent-search button[type="submit"] {
+    grid-column: 1; grid-row: 1; justify-self: end; align-self: center;
+    width: 34px; height: 30px; min-height: 0 !important; margin-right: 4px; padding: 0 !important;
+    flex: none !important; border: none !important; border-radius: 8px !important;
+    font-size: 0 !important; color: transparent !important;
+    background: var(--mh-primary) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M21 21l-3.5-3.5'/%3E%3C/svg%3E") center/18px 18px no-repeat !important;
+    box-shadow: none !important;
+}
+/* 高级搜索 → 右侧窄按钮 */
+body.page-torrents.m-shell .qd-torrent-search .qd-torrent-search-adv {
+    grid-column: 2; grid-row: 1; flex: none !important; width: auto !important;
+    height: 40px; min-height: 0 !important; padding: 0 14px !important; white-space: nowrap;
+    border-radius: 10px !important; font-size: 14px;
 }
 
 /* 快速筛选：每组压成单行横向滚动，避免一上来就是一大片筛选墙 */
