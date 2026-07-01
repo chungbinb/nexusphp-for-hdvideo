@@ -89,23 +89,28 @@ body.page-messages .m-main .msg-msearch button[type="submit"] {
 /* 搜索短讯外框卡片化 */
 body.page-messages .m-main table:has(td.toolbox) { background: var(--mh-surface) !important; border: 1px solid rgba(20,40,90,.08) !important; border-radius: 12px; overflow: hidden; }
 
-/* 消息列表表格：主题列占满、其余紧凑，行有分隔 */
-body.page-messages .m-main form[action="messages.php"][method="post"] table { border: 1px solid rgba(20,40,90,.08) !important; border-radius: 12px; overflow: hidden; }
-body.page-messages .m-main form[action="messages.php"] table tr td:nth-child(2) { width: 100%; }
-body.page-messages .m-main form[action="messages.php"] table tr td:nth-child(1),
-body.page-messages .m-main form[action="messages.php"] table tr td:nth-child(3),
-body.page-messages .m-main form[action="messages.php"] table tr td:nth-child(4),
-body.page-messages .m-main form[action="messages.php"] table tr td:nth-child(5) { white-space: nowrap; }
-body.page-messages .m-main form[action="messages.php"] table td.rowfollow { border-top: 1px solid rgba(20,40,90,.06); font-size: 13px; }
-body.page-messages .m-main form[action="messages.php"] table td.rowfollow:nth-child(2) a { font-weight: 600; }
-/* 底部操作行(全选/设为已读/删除/移至+短讯箱)：按钮缩小、自动换行，不再撑出右边被截断 */
-body.page-messages .m-main tr.colhead td[colspan] { white-space: normal !important; text-align: left !important; padding: 8px 10px !important; }
-body.page-messages .m-main tr.colhead td[colspan] input[type="submit"],
-body.page-messages .m-main tr.colhead td[colspan] input[type="button"],
-body.page-messages .m-main tr.colhead td[colspan] .btn {
-    min-height: 32px !important; height: 32px; padding: 0 12px !important; font-size: 13px !important;
-    margin: 3px 6px 3px 0; width: auto !important; box-sizing: border-box;
-}
-body.page-messages .m-main tr.colhead td[colspan] select {
-    height: 34px; max-width: 60%; font-size: 13px; margin: 3px 0; vertical-align: middle;
-}
+/* ===== 手机端聊天式消息列表 ===== */
+body.page-messages .msg-toolbar { padding: 4px 2px 8px; }
+body.page-messages .msg-selall { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #6a7589; }
+body.page-messages .msg-list { background: var(--mh-surface); border: 1px solid rgba(20,40,90,.08); border-radius: 12px; overflow: hidden; }
+body.page-messages .msg-item { display: flex; align-items: center; gap: 8px; padding: 11px 12px; border-top: 1px solid rgba(20,40,90,.06); }
+body.page-messages .msg-item:first-child { border-top: none; }
+body.page-messages .msg-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 11px; color: inherit; text-decoration: none; }
+body.page-messages .msg-ava { flex: none; width: 46px; height: 46px; border-radius: 50%; overflow: hidden; background: var(--mh-soft); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--mh-primary); }
+body.page-messages .msg-ava img { width: 100%; height: 100%; object-fit: cover; }
+body.page-messages .msg-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+body.page-messages .msg-rel { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.page-messages .msg-preview { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.page-messages .msg-date { flex: none; font-size: 11px; color: #9aa6bd; white-space: nowrap; align-self: flex-start; padding-top: 2px; }
+body.page-messages .msg-check { flex: none; margin-left: 2px; width: 18px; height: 18px; }
+/* 已读=灰，未读=高亮 */
+body.page-messages .msg-item .msg-rel { color: #9aa6bd; }
+body.page-messages .msg-item .msg-preview { color: #b3bcc9; }
+body.page-messages .msg-item.unread .msg-rel { color: var(--mh-text); }
+body.page-messages .msg-item.unread .msg-preview { color: var(--mh-primary); }
+/* 底部操作 */
+body.page-messages .msg-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0; }
+body.page-messages .msg-actions .btn { min-height: 36px !important; height: 36px; padding: 0 14px !important; font-size: 14px !important; width: auto !important; margin: 0; }
+body.page-messages .msg-actions select { height: 36px; font-size: 14px; max-width: 45%; }
+body.page-messages .msg-foot { text-align: center; margin: 10px 0 14px; font-size: 13px; color: #8a96ad; }
+body.page-messages .msg-foot a { color: var(--mh-primary); text-decoration: none; }
