@@ -214,7 +214,33 @@ body.page-torrents.m-shell .searchbox select,
 body.page-torrents.m-shell .searchbox textarea { width: 100% !important; box-sizing: border-box; }
 
 /* —— 手机端用个性化浅色主题，覆盖 modern-refresh 的深色"海报墙"，与首页/论坛一致 —— */
-body.page-torrents.m-shell { background: var(--mh-bg) !important; color: var(--mh-text) !important; }
+body.page-torrents.m-shell {
+    background: var(--mh-bg) !important; color: var(--mh-text) !important;
+    /* 面板/文字主题变量改为个性化浅色(高级搜索弹层等用 var(--theme-*) 上色) */
+    --theme-panel-bg: var(--mh-surface); --theme-page-text: var(--mh-text);
+    --theme-panel-border: rgba(20,40,90,.15); --theme-page-bg: var(--mh-bg);
+}
+/* 高级搜索弹层：统一个性化浅色(修复白/黑相间不可读) */
+body.page-torrents.m-shell #torrent-advanced-search-modal .torrent-advanced-search-dialog {
+    background: var(--mh-bg) !important; color: var(--mh-text) !important; border-color: rgba(20,40,90,.15) !important;
+}
+body.page-torrents.m-shell #torrent-advanced-search-modal .searchbox,
+body.page-torrents.m-shell #torrent-advanced-search-modal .searchbox table,
+body.page-torrents.m-shell #torrent-advanced-search-modal .searchbox tr,
+body.page-torrents.m-shell #torrent-advanced-search-modal .searchbox td,
+body.page-torrents.m-shell #torrent-advanced-search-modal table td {
+    background: transparent !important; color: var(--mh-text) !important; border-color: rgba(20,40,90,.1) !important;
+}
+body.page-torrents.m-shell #torrent-advanced-search-modal .searchbox td.colhead,
+body.page-torrents.m-shell #torrent-advanced-search-modal table td.colhead {
+    background: var(--mh-soft) !important; color: var(--mh-primary) !important;
+}
+body.page-torrents.m-shell #torrent-advanced-search-modal input,
+body.page-torrents.m-shell #torrent-advanced-search-modal select,
+body.page-torrents.m-shell #torrent-advanced-search-modal textarea {
+    background: var(--mh-surface) !important; color: var(--mh-text) !important; border: 1px solid rgba(20,40,90,.22) !important;
+}
+body.page-torrents.m-shell #torrent-advanced-search-modal a { color: var(--mh-primary) !important; }
 /* 关键：modern-refresh 的 body::before 是个 position:fixed 深色顶栏背景(给桌面固定头用)，
    在手机外壳页会变成顶栏下方一条黑色固定遮罩(pointer-events:none，能点到下面的搜索框)。这里去掉。 */
 body.page-torrents.m-shell::before { content: none !important; display: none !important; }
