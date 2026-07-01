@@ -122,7 +122,7 @@ echo $pagertop;
 print("<td width=\"35%\" class=\"colhead\" align=\"left\">$sender_receiver</td>");
 ?>
 <td width="1%" class="colhead" align="center"><img class="time" src="pic/trans.gif" alt="time" title="<?php echo $lang_messages['col_date'] ?>" /></td>
-<td width="1%" class="colhead" align="center"><?php echo $lang_messages['col_act'] ?></td>
+<td width="1%" class="colhead" align="center"><?php if (function_exists('mobile_is') && mobile_is()) { ?><input type="checkbox" id="msgCheckAll" class="checkbox" title="全选/取消" onclick="var f=this.form; if(f){var cs=f.querySelectorAll('input[name^=&quot;messages&quot;]'); for(var i=0;i<cs.length;i++){cs[i].checked=this.checked;}}"><?php } else { echo $lang_messages['col_act']; } ?></td>
 </tr>
 <?php
 while ($row = mysql_fetch_assoc($res))
@@ -162,7 +162,7 @@ echo("<td class=rowfollow><input class=checkbox type=\"checkbox\" name=\"message
 }
 ?>
 <tr class="colhead">
-<td colspan="5" align="right" class="colhead"><input class=btn type="button" value="<?php echo $lang_messages['input_check_all']; ?>" onClick="this.value=check(form,'<?php echo $lang_messages['input_check_all'] ?>','<?php echo $lang_messages['input_uncheck_all'] ?>')">
+<td colspan="5" align="right" class="colhead"><?php if (!(function_exists('mobile_is') && mobile_is())) { ?><input class=btn type="button" value="<?php echo $lang_messages['input_check_all']; ?>" onClick="this.value=check(form,'<?php echo $lang_messages['input_check_all'] ?>','<?php echo $lang_messages['input_uncheck_all'] ?>')"><?php } ?>
 <?php if($mailbox != PM_SENTBOX) print("<input class=btn type=\"submit\" name=\"markread\" value=\"".$lang_messages['submit_mark_as_read']."\">") ?>
 <input class=btn type="submit" name="delete" value=<?php echo $lang_messages['submit_delete']?>>
 <?php
