@@ -1,6 +1,7 @@
 <?php
 require "../include/bittorrent.php";
 dbconn();
+require_once ROOT_PATH . 'include/mobile_shell.php';
 require_once(get_langfile_path());
 loggedinorreturn();
 parked();
@@ -36,7 +37,7 @@ $user =  mysql_fetch_assoc($res);
 if (!$user) {
     stderr($lang_invite['std_sorry'], 'Invalid id');
 }
-stdhead($lang_invite['head_invites']);
+mp_head($lang_invite['head_invites']);
 print("<table width=100% class=main border=0 cellspacing=0 cellpadding=0><tr><td class=embedded>");
 
 print("<h1 align=center><a href=\"invite.php?id=".$id."\">".$user['username'].$lang_invite['text_invite_system']."</a></h1>");
@@ -65,7 +66,7 @@ if ($type == 'new'){
         stdmsg($lang_invite['std_sorry'],$exception->getMessage().
             "  <a class=altlink href=invite.php?id={$CURUSER['id']}>".$lang_invite['here_to_go_back'],false);
         print("</td></tr></table>");
-        stdfoot();
+        mp_foot();
         die;
     }
     registration_check('invitesystem',true,false);
@@ -316,6 +317,6 @@ JS;
     }
 
 }
-stdfoot();
+mp_foot();
 die;
 ?>

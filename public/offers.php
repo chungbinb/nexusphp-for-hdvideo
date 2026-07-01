@@ -1,6 +1,7 @@
 <?php
 require_once("../include/bittorrent.php");
 dbconn();
+require_once ROOT_PATH . 'include/mobile_shell.php';
 require_once(get_langfile_path());
 //require_once(get_langfile_path("",true));
 loggedinorreturn();
@@ -9,9 +10,9 @@ if ($enableoffer == 'no')
 permissiondenied();
 function bark($msg) {
 	global $lang_offers;
-	stdhead($lang_offers['head_offer_error']);
+	mp_head($lang_offers['head_offer_error']);
 	stdmsg($lang_offers['std_error'], $msg);
-	stdfoot();
+	mp_foot();
 	exit;
 }
 
@@ -34,7 +35,7 @@ if (isset($_GET['add_offer']) && $_GET["add_offer"]){
 	if($add_offer != '1')
 	stderr($lang_offers['std_error'], $lang_offers['std_smell_rat']);
 
-	stdhead($lang_offers['head_offer']);
+	mp_head($lang_offers['head_offer']);
 
 	print("<p>".$lang_offers['text_red_star_required']."</p>");
 
@@ -53,7 +54,7 @@ if (isset($_GET['add_offer']) && $_GET["add_offer"]){
 	"<tr><td class=rowhead align=right valign=top><b>".$lang_offers['row_description']."<b><font color=red>*</font></td><td class=rowfollow align=left>\n");
 	textbbcode("compose","body",$body,false, 130, true);
 	print("</td></tr><tr><td class=toolbox align=center colspan=2><input id=qr type=submit class=btn value=".$lang_offers['submit_add_offer']." ></td></tr></table></form><br />\n");
-	stdfoot();
+	mp_foot();
 	die;
 }
 //=== end add offer
@@ -123,12 +124,12 @@ if (isset($_GET['new_offer']) && $_GET["new_offer"]){
 
 		header("Location: offers.php?id=$id&off_details=1");
 
-		stdhead($lang_offers['head_success']);
+		mp_head($lang_offers['head_success']);
 	}
 	else{
 		stderr ($lang_offers['std_error'], $lang_offers['std_offer_exists']."<a class=altlink href=offers.php>".$lang_offers['text_view_all_offers']."</a>",false);
 	}
-	stdfoot();
+	mp_foot();
 	die;
 }
 //==end take new offer
@@ -153,7 +154,7 @@ if (isset($_GET['off_details']) && $_GET["off_details"]){
 
 	$s = $num["name"];
 
-	stdhead($lang_offers['head_offer_detail_for']." \"".$s."\"");
+	mp_head($lang_offers['head_offer_detail_for']." \"".$s."\"");
 	print("<h1 align=\"center\" id=\"top\">".htmlspecialchars($s)."</h1>");
 
 	print("<table width=\"97%\" cellspacing=\"0\" cellpadding=\"5\">");
@@ -240,7 +241,7 @@ if (isset($_GET['off_details']) && $_GET["off_details"]){
 	quickreply('comment', 'body',$lang_offers['submit_add_comment']);
 	print("</form></td></tr></table>");
 	print($commentbar);
-	stdfoot();
+	mp_foot();
 	die;
 }
 //=== end offer details
@@ -380,7 +381,7 @@ if (isset($_GET["edit_offer"]) && $_GET["edit_offer"]) {
 	$s2 .= "<option value=\"" . $row["id"] . "\" ".($row['id'] == $id2 ? " selected=\"selected\"" : "").">" . htmlspecialchars($row["name"]) . "</option>\n";
 	$s2 .= "</select>\n";
 
-	stdhead($lang_offers['head_edit_offer'].": $s");
+	mp_head($lang_offers['head_edit_offer'].": $s");
 	$title = htmlspecialchars(trim($s));
 
 	print("<form id=\"compose\" method=\"post\" name=\"compose\" action=\"?id=".$id."&amp;take_off_edit=1\">".
@@ -392,7 +393,7 @@ if (isset($_GET["edit_offer"]) && $_GET["edit_offer"]) {
 	textbbcode("compose","body",$body, false, 130, true);
 	print("</td></tr>");
 	print("<tr><td class=\"toolbox\" style=\"vertical-align: middle; padding-top: 10px; padding-bottom: 10px;\" align=\"center\" colspan=\"2\"><input id=\"qr\" type=\"submit\" value=\"".$lang_offers['submit_edit_offer']."\" class=\"btn\" /></td></tr></table></form><br />\n");
-	stdfoot();
+	mp_foot();
 	die;
 }
 //=== end edit offer
@@ -454,7 +455,7 @@ if (isset($_GET["offer_vote"]) && $_GET["offer_vote"]){
 	$count = $row[0];
 
 	$offername = get_single_value("offers","name","WHERE id=".sqlesc($offerid));
-	stdhead($lang_offers['head_offer_voters']." - \"".$offername."\"");
+	mp_head($lang_offers['head_offer_voters']." - \"".$offername."\"");
 
 	print("<h1 align=center>".$lang_offers['text_vote_results_for']." <a  href=offers.php?id=$offerid&off_details=1><b>".htmlspecialchars($offername)."</b></a></h1>");
 
@@ -483,7 +484,7 @@ if (isset($_GET["offer_vote"]) && $_GET["offer_vote"]){
 		echo $pagerbottom;
 	}
 
-	stdfoot();
+	mp_foot();
 	die;
 }
 //=== end offer votes list
@@ -569,10 +570,10 @@ if (isset($_GET["vote"]) && $_GET["vote"]){
 
 			sql_query("INSERT INTO offervotes (offerid, userid, vote) VALUES($offerid, $userid, ".sqlesc($vote).")") or sqlerr(__FILE__,__LINE__);
 			KPS("+",$offervote_bonus,$CURUSER["id"]);
-			stdhead($lang_offers['head_vote_for_offer']);
+			mp_head($lang_offers['head_vote_for_offer']);
 			print("<h1 align=center>".$lang_offers['std_vote_accepted']."</h1>");
 			print($lang_offers['std_vote_accepted_note']."<a  href=offers.php?id=$offerid&off_details=1>".$lang_offers['std_back_to_offer_detail']);
-			stdfoot();
+			mp_foot();
 			die;
 		}
 	}
@@ -754,7 +755,7 @@ $sort =  "ORDER BY added desc ";
 $res = sql_query("SELECT offers.id, offers.userid, offers.name, offers.added, offers.allowedtime, offers.comments, offers.yeah, offers.against, offers.category as cat_id, offers.allowed, categories.image, categories.name as cat FROM offers inner join categories on offers.category = categories.id $categ $search $sort $limit") or sqlerr(__FILE__,__LINE__);
 $num = mysql_num_rows($res);
 
-stdhead($lang_offers['head_offers']);
+mp_head($lang_offers['head_offers']);
 begin_main_frame();
 begin_frame($lang_offers['text_offers_section'], true,10,"100%","center");
 
@@ -901,5 +902,5 @@ create_tooltip_container($lastcom_tooltip, 400);
 }
 end_main_frame();
 $USERUPDATESET[] = "last_offer = ".sqlesc(date("Y-m-d H:i:s"));
-stdfoot();
+mp_foot();
 ?>

@@ -1,6 +1,7 @@
 <?php
 require_once('../include/bittorrent.php');
 dbconn();
+require_once ROOT_PATH . 'include/mobile_shell.php';
 require_once(get_langfile_path());
 //require(get_langfile_path("",true));
 loggedinorreturn();
@@ -339,7 +340,7 @@ if (isset($do)) {
 	else
 	$msg = '';
 }
-	stdhead($CURUSER['username'] . $lang_mybonus['head_karma_page']);
+	mp_head($CURUSER['username'] . $lang_mybonus['head_karma_page']);
 
 	$bonus = number_format($CURUSER['seedbonus'], 1);
 if (!$action) {
@@ -646,7 +647,7 @@ if ($action == "exchange") {
 		elseif($art == "class") {
 			if (get_user_class() >= UC_VIP) {
 				stdmsg($lang_mybonus['std_no_permission'],$lang_mybonus['std_class_above_vip'], 0);
-				stdfoot();
+				mp_foot();
 				die;
 			}
 			$vip_until = date("Y-m-d H:i:s",(strtotime(date("Y-m-d H:i:s")) + 28*86400));
@@ -707,13 +708,13 @@ if ($action == "exchange") {
 			$points = intval($_POST["bonuscharity"] ?? 0);
 			if ($points < 1000 || $points > 50000){
 				stdmsg($lang_mybonus['text_error'], $lang_mybonus['bonus_amount_not_allowed_two'], 0);
-				stdfoot();
+				mp_foot();
 				die();
 			}
 			$ratiocharity = $_POST["ratiocharity"];
 			if ($ratiocharity < 0.1 || $ratiocharity > 0.8){
 				stdmsg($lang_mybonus['text_error'], $lang_mybonus['bonus_ratio_not_allowed']);
-				stdfoot();
+				mp_foot();
 				die();
 			}
 			if($CURUSER['seedbonus'] >= $points) {
@@ -730,7 +731,7 @@ if ($action == "exchange") {
 				else
 				{
 					stdmsg($lang_mybonus['std_sorry'], $lang_mybonus['std_no_users_need_charity']);
-					stdfoot();
+					mp_foot();
 					die;
 				}
 			}
@@ -745,7 +746,7 @@ if ($action == "exchange") {
 			$arr = mysql_fetch_assoc($res);
             if (empty($arr)) {
                 stdmsg($lang_mybonus['text_error'], $lang_mybonus['text_receiver_not_exists'], 0);
-                stdfoot();
+                mp_foot();
                 die;
             }
 			$useridgift = $arr['id'];
@@ -754,7 +755,7 @@ if ($action == "exchange") {
 			if (!is_numeric($points) || $points < $bonusarray['points']) {
 				//write_log("User " . $CURUSER["username"] . "," . $CURUSER["ip"] . " is hacking bonus system",'mod');
 				stdmsg($lang_mybonus['text_error'], $lang_mybonus['bonus_amount_not_allowed']);
-				stdfoot();
+				mp_foot();
 				die();
 			}
 			if($CURUSER['seedbonus'] >= $points) {
@@ -771,7 +772,7 @@ if ($action == "exchange") {
 //				$newreceiverbonuscomment = date("Y-m-d") . " + " .$points2receiver. " Points (after tax) as a gift from ".($CURUSER["username"]).".\n " .htmlspecialchars($receiverbonuscomment);
 				if ($userid==$useridgift){
 					stdmsg($lang_mybonus['text_huh'], $lang_mybonus['text_karma_self_giving_warning'], 0);
-					stdfoot();
+					mp_foot();
 					die;
 				}
 
@@ -827,5 +828,5 @@ if ($action == "exchange") {
         }
 	}
 }
-stdfoot();
+mp_foot();
 ?>

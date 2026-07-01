@@ -29,9 +29,9 @@ $filterForm = <<<FORM
     </form>
 </div>
 FORM;
-stdhead('User ban log');
+mp_head('User ban log');
 begin_main_frame();
 echo $filterForm . $table . $paginationBottom;
 end_main_frame();
-stdfoot();
+mp_foot();
 

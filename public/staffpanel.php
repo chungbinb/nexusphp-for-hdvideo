@@ -2,17 +2,18 @@
 ob_start();
 require_once("../include/bittorrent.php");
 dbconn();
+require_once ROOT_PATH . 'include/mobile_shell.php';
 loggedinorreturn();
 $langFile = ROOT_PATH . get_langfile_path();
 if (file_exists($langFile)) {
 	require $langFile;
 }
-stdhead($lang_staffpanel["Administration"] ?? 'Administration');
+mp_head($lang_staffpanel["Administration"] ?? 'Administration');
 print("<h1 align=center>" . ($lang_staffpanel["Administration"] ?? 'Administration') . "</h1>");
 if (get_user_class() < UC_MODERATOR)
 {
 	stdmsg("Error", "Access denied!!!");
-	stdfoot();
+	mp_foot();
 	exit;
 }
 begin_main_frame();
@@ -82,5 +83,5 @@ if (get_user_class() >= UC_MODERATOR) {
 	print("<br />");
 }
 end_main_frame();
-stdfoot();
+mp_foot();
 ?>

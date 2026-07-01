@@ -1,6 +1,7 @@
 <?php
 require "../include/bittorrent.php";
 dbconn();
+require_once ROOT_PATH . 'include/mobile_shell.php';
 require_once(get_langfile_path());
 loggedinorreturn();
 parked();
@@ -11,7 +12,7 @@ $count = get_row_count("reports");
 if (!$count){
 	stderr($lang_reports['std_oho'], $lang_reports['std_no_report']);
 }
-stdhead($lang_reports['head_reports']);
+mp_head($lang_reports['head_reports']);
 $perpage = 10;
 list($pagertop, $pagerbottom, $limit) = pager($perpage, $count, "reports.php?");
 begin_main_frame();
@@ -151,4 +152,4 @@ while ($row = mysql_fetch_array($reportres))
 print("</table>");
 print($pagerbottom);
 end_main_frame();
-stdfoot();
+mp_foot();

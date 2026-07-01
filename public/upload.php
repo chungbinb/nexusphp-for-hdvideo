@@ -1,6 +1,7 @@
 <?php
 require_once("../include/bittorrent.php");
 dbconn();
+require_once ROOT_PATH . 'include/mobile_shell.php';
 require_once(get_langfile_path());
 require_once(get_langfile_path('edit.php'));
 loggedinorreturn();
@@ -34,7 +35,7 @@ $settingMain = get_setting('main');
 $torrentRep = new \App\Repositories\TorrentRepository();
 $searchBoxRep = new \App\Repositories\SearchBoxRepository();
 $tagRep = new \App\Repositories\TagRepository();
-stdhead($lang_upload['head_upload']);
+mp_head($lang_upload['head_upload']);
 ?>
 	<form id="compose" enctype="multipart/form-data" action="takeupload.php" method="post" name="upload">
 			<?php
@@ -379,4 +380,4 @@ JS;
 })();
 </script>
 <?php
-stdfoot();
+mp_foot();

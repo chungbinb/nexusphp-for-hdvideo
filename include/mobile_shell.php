@@ -295,4 +295,76 @@ function mobile_shell_page_foot(string $active = ''): void
     echo "\n</body>\n</html>";
 }
 
+/** 是否手机端访问(UA 命中且未加 ?pc=1 强制电脑版) */
+function mobile_is(): bool
+{
+    static $m = null;
+    if ($m === null) {
+        $m = empty($_GET['pc'])
+            && preg_match('/Mobile|Android|iPhone|iPod|Windows Phone|BlackBerry|webOS|HarmonyOS/i', (string)($_SERVER['HTTP_USER_AGENT'] ?? ''));
+    }
+    return (bool)$m;
+}
+
+/**
+ * 通用 stdhead 页面的手机适配头：手机端套统一外壳(顶/底导航)+通用响应式内容样式+常用脚本；
+ * 电脑端仍走 stdhead。用法：把页面里的 stdhead($title) 换成 mobile_std_head($title, $active, $pageClass)。
+ * $active: 底部Tab高亮键(home/torrents/forums/games/me 或 '')；$pageClass: 内容作用域类名(如 page-messages)。
+ */
+/** 从当前脚本名推断底部Tab高亮键(未显式传入时)。 */
+function mobile_std_active(): string
+{
+    $s = strtolower(basename((string)($_SERVER['PHP_SELF'] ?? ''), '.php'));
+    $map = [
+        'index' => 'home', 'torrents' => 'torrents', 'forums' => 'forums', 'forummanage' => 'forums',
+        'messages' => 'me', 'usercp' => 'me', 'attendance' => 'me', 'mybonus' => 'me', 'medal' => 'me',
+        'invite' => 'me', 'userdetails' => 'me', 'friends' => 'me', 'getrss' => 'me',
+    ];
+    return $map[$s] ?? '';
+}
+
+function mobile_std_head(string $title = '', string $active = '', string $pageClass = ''): void
+{
+    if (mobile_is() && function_exists('mobile_shell_page_head')) {
+        $s = strtolower(basename((string)($_SERVER['PHP_SELF'] ?? ''), '.php'));
+        if ($active === '') { $active = mobile_std_active(); }
+        if ($pageClass === '') { $pageClass = 'page-' . preg_replace('/[^a-z0-9]+/', '-', $s ?: 'std'); }
+        mobile_shell_page_head(trim(strip_tags($title)), $active, 'page-std ' . $pageClass);
+        echo '<link rel="stylesheet" type="text/css" href="/styles/mobile-content.css?v=20260702f">';
+        echo '<script type="text/javascript" src="js/jquery-1.12.4.min.js"></script>';
+        echo '<script>jQuery.noConflict();window.nexusLayerOptions={confirm:{btnAlign:"c",title:"Confirm",btn:["OK","Cancel"]},alert:{btnAlign:"c",title:"Info",btn:["OK","Cancel"]}};</script>';
+        echo '<script type="text/javascript" src="vendor/layer-v3.5.1/layer/layer.js"></script>';
+        echo '<script type="text/javascript" src="js/common.js"></script>';
+        echo '<script type="text/javascript" src="js/ajaxbasic.js"></script>';
+    } else {
+        stdhead($title);
+    }
+}
+
+/** 通用 stdhead 页面的手机适配尾。 */
+function mobile_std_foot(string $active = ''): void
+{
+    if (mobile_is() && function_exists('mobile_shell_page_foot')) {
+        if (class_exists('\\Nexus\\Nexus')) { foreach (\Nexus\Nexus::getAppendFooters() as $v) { print($v); } }
+        mobile_shell_page_foot($active !== '' ? $active : mobile_std_active());
+    } else {
+        stdfoot();
+    }
+}
+
+/**
+ * 极简套用：页面顶部只需 `require_once ROOT_PATH . 'include/mobile_shell.php';`，
+ * 然后把 stdhead(...) → mp_head(...)、stdfoot() → mp_foot()。底部Tab与页类名按脚本名自动推断，桌面端参数原样透传。
+ */
+function mp_head(...$a): void
+{
+    if (mobile_is()) { mobile_std_head((string)($a[0] ?? '')); }
+    else { stdhead(...$a); }
+}
+function mp_foot(): void
+{
+    if (mobile_is()) { mobile_std_foot(); }
+    else { stdfoot(); }
+}
+
 }

@@ -1,10 +1,11 @@
 <?php
 require "../include/bittorrent.php";
 dbconn();
+require_once ROOT_PATH . 'include/mobile_shell.php';
 require_once(get_langfile_path());
 //loggedinorreturn();
 
-stdhead($lang_faq['head_faq']);
+mp_head($lang_faq['head_faq']);
 $Cache->new_page('faq', 900, true);
 if (!$Cache->get_page())
 {
@@ -104,5 +105,5 @@ end_main_frame();
 }
 echo $Cache->next_row();
 //cache_save ('faq');
-stdfoot();
+mp_foot();
 ?>

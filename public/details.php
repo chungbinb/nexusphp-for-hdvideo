@@ -2,6 +2,7 @@
 ob_start(); //Do not delete this line
 require_once("../include/bittorrent.php");
 dbconn();
+require_once ROOT_PATH . 'include/mobile_shell.php';
 require_once(get_langfile_path());
 loggedinorreturn();
 $id = intval($_GET["id"] ?? 0);
@@ -60,7 +61,7 @@ if (!$row) {
     }
 
 	if (!isset($_GET["cmtpage"])) {
-		stdhead($lang_details['head_details_for_torrent']. "\"" . $row["name"] . "\"");
+		mp_head($lang_details['head_details_for_torrent']. "\"" . $row["name"] . "\"");
 		if (!empty($_GET["uploaded"]))
 		{
 			print("<h1 align=\"center\">".$lang_details['text_successfully_uploaded']."</h1>");
@@ -747,7 +748,7 @@ echo "</script>";
 		print("</table>\n");
 	}
 	else {
-		stdhead($lang_details['head_comments_for_torrent']."\"" . $row["name"] . "\"");
+		mp_head($lang_details['head_comments_for_torrent']."\"" . $row["name"] . "\"");
 		print("<h1 id=\"top\">".$lang_details['text_comments_for']."<a href=\"details.php?id=".$id."\">" . htmlspecialchars($row["name"]) . "</a></h1>\n");
 	}
 	if (!empty($torrentUpdate)) {
@@ -779,4 +780,4 @@ quickreply('comment', 'body', $lang_details['submit_add_comment']);
 print("</form></td></tr></table>");
 print("<p align=\"center\"><a class=\"index\" href=\"".htmlspecialchars("comment.php?action=add&pid=".$id."&type=torrent")."\">".$lang_details['text_add_a_comment']."</a></p>\n");
 }
-stdfoot();
+mp_foot();
