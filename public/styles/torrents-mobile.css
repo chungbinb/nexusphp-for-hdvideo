@@ -260,11 +260,16 @@ body.page-torrents.m-shell .nexus-pagination font.gray {
 }
 body.page-torrents.m-shell .nexus-pagination a b,
 body.page-torrents.m-shell .nexus-pagination font.gray b { font-size: 13px !important; font-weight: 600; color: inherit !important; }
-/* 当前页(font.gray 里是页码区间) → 主色高亮 */
-body.page-torrents.m-shell .nexus-pagination font.gray {
+/* 当前页 = 中间的 font.gray(首/尾是禁用的上一页/下一页) → 主色高亮 */
+body.page-torrents.m-shell .nexus-pagination font.gray:not(:first-child):not(:last-child) {
     background: var(--mh-primary) !important; border-color: var(--mh-primary) !important;
 }
-body.page-torrents.m-shell .nexus-pagination font.gray b { color: #fff !important; }
+body.page-torrents.m-shell .nexus-pagination font.gray:not(:first-child):not(:last-child) b { color: #fff !important; }
+/* 禁用的上一页/下一页(首/尾 font.gray) → 灰色禁用态 */
+body.page-torrents.m-shell .nexus-pagination font.gray:first-child,
+body.page-torrents.m-shell .nexus-pagination font.gray:last-child { opacity: .4; }
+body.page-torrents.m-shell .nexus-pagination font.gray:first-child b,
+body.page-torrents.m-shell .nexus-pagination font.gray:last-child b { color: #8a96ad !important; }
 /* 关键：modern-refresh 的 body::before 是个 position:fixed 深色顶栏背景(给桌面固定头用)，
    在手机外壳页会变成顶栏下方一条黑色固定遮罩(pointer-events:none，能点到下面的搜索框)。这里去掉。 */
 body.page-torrents.m-shell::before { content: none !important; display: none !important; }
