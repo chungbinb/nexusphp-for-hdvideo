@@ -136,7 +136,11 @@ body.page-torrents.m-shell.view-list table.torrents td.torrentname,
 body.page-torrents.m-shell.view-list table.torrents table.torrentname,
 body.page-torrents.m-shell.view-list table.torrents table.torrentname > tbody,
 body.page-torrents.m-shell.view-list table.torrents table.torrentname > tbody > tr { display: block !important; width: 100% !important; }
-body.page-torrents.m-shell.view-list table.torrents table.torrentname td { display: inline !important; }
+/* 内容单元格(padding-left:5px)块级显示；封面(46px 缩略图)/评分(width:40px)/操作(width=20)列隐藏 */
+body.page-torrents.m-shell.view-list table.torrents table.torrentname td[style*="padding-left: 5px"] { display: block !important; width: auto !important; padding: 0 !important; }
+body.page-torrents.m-shell.view-list table.torrents table.torrentname td:has(> img.nexus-lazy-load),
+body.page-torrents.m-shell.view-list table.torrents table.torrentname td[style*="width: 40px"],
+body.page-torrents.m-shell.view-list table.torrents table.torrentname td[width="20"] { display: none !important; }
 /* 标题主体内部：标题 / 标签 / 副标题 各自成行 */
 body.page-torrents.m-shell.view-list table.torrents .embedded br { display: none !important; }
 body.page-torrents.m-shell.view-list table.torrents .tt-name {
