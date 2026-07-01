@@ -169,7 +169,7 @@ body.page-medal .m-main table:has(td.md-desc),
 body.page-medal .m-main table:has(td.md-desc) > tbody { display: block !important; width: 100% !important; border: none !important; background: none !important; }
 body.page-medal .m-main table:has(td.md-desc) > thead { display: none !important; }
 body.page-medal .m-main table:has(td.md-desc) > tbody > tr {
-    display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px 14px;
+    display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px 8px;
     background: var(--mh-surface); border: 1px solid rgba(20,40,90,.08); border-radius: 12px; padding: 12px 14px; margin: 0 0 10px;
 }
 body.page-medal .m-main table:has(td.md-desc) td { border: none !important; padding: 0 !important; background: none !important; text-align: left !important; white-space: normal !important; }
@@ -181,8 +181,8 @@ body.page-medal .m-main table:has(td.md-desc) td.md-desc h1 { font-size: 16px; m
 /* 指标"标签 值"：固定两列(左列较宽放"有效期"，右列放魔力加成/库存)，两列各自左对齐 */
 body.page-medal .m-main table:has(td.md-desc) td[data-label] { order: 2; display: inline-flex; align-items: baseline; gap: 5px; font-size: 13px; padding: 3px 0 !important; color: var(--mh-text); font-weight: 600; white-space: nowrap; }
 body.page-medal .m-main table:has(td.md-desc) td[data-label]::before { content: attr(data-label); color: #8a96ad; flex: none; font-size: 12px; font-weight: 400; }
-body.page-medal .m-main table:has(td.md-desc) td.mcol-l { flex: 0 0 56%; }
-body.page-medal .m-main table:has(td.md-desc) td.mcol-r { flex: 0 0 40%; }
+body.page-medal .m-main table:has(td.md-desc) td.mcol-l { flex: 0 0 54%; min-width: 0; overflow: hidden; }
+body.page-medal .m-main table:has(td.md-desc) td.mcol-r { flex: 0 0 40%; min-width: 0; overflow: hidden; }
 /* 可购买时间(含 ~<br>) 值较长 → 整行、上下排 */
 body.page-medal .m-main table:has(td.md-desc) td[data-label]:has(br) { flex: 1 1 100%; min-width: 100%; flex-direction: column; align-items: flex-start; gap: 2px; white-space: normal; font-weight: 400; }
 body.page-medal .m-main table:has(td.md-desc) td[data-label]:has(br) br { display: none; }
