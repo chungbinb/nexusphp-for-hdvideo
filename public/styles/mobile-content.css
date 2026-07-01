@@ -183,7 +183,9 @@ body.page-medal .m-main table:has(td.md-desc) td[data-label]::before { content: 
 /* 可购买时间(含 ~<br>) 值较长 → 整行、上下排 */
 body.page-medal .m-main table:has(td.md-desc) td[data-label]:has(br) { flex: 1 1 100%; min-width: 100%; flex-direction: column; align-items: flex-start; gap: 2px; }
 body.page-medal .m-main table:has(td.md-desc) td[data-label]:has(br) br { display: none; }
-body.page-medal .m-main table:has(td.md-desc) td.md-buy { flex: 1 1 100%; order: 3; margin-top: 4px; }
-body.page-medal .m-main table:has(td.md-desc) td.md-gift { flex: 1 1 100%; order: 4; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+body.page-medal .m-main table:has(td.md-desc) td.md-buy { flex: 1 1 100%; order: 3; margin-top: 6px; }
+body.page-medal .m-main table:has(td.md-desc) td.md-buy::before { content: attr(data-label); display: block; font-size: 12px; color: #8a96ad; margin: 0 0 4px; }
+body.page-medal .m-main table:has(td.md-desc) td.md-gift { flex: 1 1 100%; order: 4; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; padding-top: 8px !important; border-top: 1px solid rgba(20,40,90,.06) !important; }
+body.page-medal .m-main table:has(td.md-desc) td.md-gift::before { content: attr(data-label); flex-basis: 100%; font-size: 12px; color: #8a96ad; margin: 0 0 2px; }
 body.page-medal .m-main table:has(td.md-desc) td.md-buy input, body.page-medal .m-main table:has(td.md-desc) td.md-gift input[type="button"] { min-height: 36px !important; height: 36px; padding: 0 16px !important; font-size: 14px !important; width: auto !important; }
 body.page-medal .m-main table:has(td.md-desc) td.md-gift input.uid { width: 80px !important; }
