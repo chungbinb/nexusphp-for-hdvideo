@@ -98,6 +98,14 @@ body.page-messages .m-main form[action="messages.php"] table tr td:nth-child(4),
 body.page-messages .m-main form[action="messages.php"] table tr td:nth-child(5) { white-space: nowrap; }
 body.page-messages .m-main form[action="messages.php"] table td.rowfollow { border-top: 1px solid rgba(20,40,90,.06); font-size: 13px; }
 body.page-messages .m-main form[action="messages.php"] table td.rowfollow:nth-child(2) a { font-weight: 600; }
-/* 底部操作行(全选/删除/移动)按钮换行 */
-body.page-messages .m-main tr.colhead td[colspan] { white-space: normal; text-align: left; }
-body.page-messages .m-main tr.colhead td[colspan] input, body.page-messages .m-main tr.colhead td[colspan] select { margin: 3px 4px 3px 0; }
+/* 底部操作行(全选/设为已读/删除/移至+短讯箱)：按钮缩小、自动换行，不再撑出右边被截断 */
+body.page-messages .m-main tr.colhead td[colspan] { white-space: normal !important; text-align: left !important; padding: 8px 10px !important; }
+body.page-messages .m-main tr.colhead td[colspan] input[type="submit"],
+body.page-messages .m-main tr.colhead td[colspan] input[type="button"],
+body.page-messages .m-main tr.colhead td[colspan] .btn {
+    min-height: 32px !important; height: 32px; padding: 0 12px !important; font-size: 13px !important;
+    margin: 3px 6px 3px 0; width: auto !important; box-sizing: border-box;
+}
+body.page-messages .m-main tr.colhead td[colspan] select {
+    height: 34px; max-width: 60%; font-size: 13px; margin: 3px 0; vertical-align: middle;
+}
