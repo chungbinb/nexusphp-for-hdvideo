@@ -72,13 +72,20 @@ body.page-messages #pmboxmenu li a {
 }
 body.page-messages #pmboxmenu li.selected a { background: var(--mh-primary); border-color: var(--mh-primary); color: #fff !important; }
 
-/* 搜索短讯表单：关键字输入满宽一行，范围/短讯箱/按钮流式排布 */
-body.page-messages .m-main form[action="messages.php"][method="get"] {
-    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 8px; padding: 4px 2px;
+/* 搜索短讯：框内放大镜图标搜索(默认标题+内容、限当前短讯箱) */
+body.page-messages .m-main .msg-msearch { display: grid; grid-template-columns: 1fr; align-items: center; padding: 2px; margin: 0; }
+body.page-messages .m-main .msg-msearch #searchinput {
+    grid-column: 1; grid-row: 1; width: 100% !important; box-sizing: border-box;
+    height: 40px; padding: 0 44px 0 14px; font-size: 15px;
+    border-radius: 10px; border: 1px solid rgba(20,40,90,.18) !important;
+    background: var(--mh-surface) !important; color: var(--mh-text) !important;
 }
-body.page-messages .m-main form[action="messages.php"][method="get"] #searchinput { flex: 1 1 100%; width: 100% !important; }
-body.page-messages .m-main form[action="messages.php"][method="get"] select { flex: 1 1 40%; min-width: 0; }
-body.page-messages .m-main form[action="messages.php"][method="get"] input[type="submit"] { flex: 1 1 100%; }
+body.page-messages .m-main .msg-msearch button[type="submit"] {
+    grid-column: 1; grid-row: 1; justify-self: end; align-self: center;
+    width: 34px; height: 30px; min-height: 0 !important; margin-right: 4px; padding: 0 !important;
+    border: none !important; border-radius: 8px !important; box-shadow: none !important; cursor: pointer;
+    background: var(--mh-primary) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M21 21l-3.5-3.5'/%3E%3C/svg%3E") center/18px 18px no-repeat !important;
+}
 /* 搜索短讯外框卡片化 */
 body.page-messages .m-main table:has(td.toolbox) { background: var(--mh-surface) !important; border: 1px solid rgba(20,40,90,.08) !important; border-radius: 12px; overflow: hidden; }
 

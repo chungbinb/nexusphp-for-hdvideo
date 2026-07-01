@@ -682,6 +682,19 @@ global $lang_messages;
 global $CURUSER;
 $res = sql_query('SELECT * FROM pmboxes WHERE userid=' . sqlesc($CURUSER['id']) . ' ORDER BY boxnumber');
 $place = $_GET['place'] ?? '';
+// 手机端：简化为"框内图标搜索"，默认同时搜标题+内容、限定当前短讯箱，去掉范围/短讯箱下拉
+if (function_exists('mobile_is') && mobile_is()) {
+?>
+<form action="messages.php" method="get" class="msg-msearch">
+<input type="hidden" name="action" value="viewmailbox">
+<input type="hidden" name="place" value="both">
+<input type="hidden" name="box" value="<?php echo (int)$selected ?>">
+<input id="searchinput" name="keyword" type="text" value="<?php echo htmlspecialchars($_GET['keyword'] ?? '')?>" placeholder="<?php echo htmlspecialchars($lang_messages['text_search']) ?>..." autocomplete="off" />
+<button type="submit" aria-label="<?php echo htmlspecialchars($lang_messages['submit_go']) ?>"></button>
+</form>
+<?php
+return;
+}
 ?>
 <form action="messages.php" method="get">
 <input type="hidden" name="action" value="viewmailbox"><?php echo $lang_messages['text_search'] ?>&nbsp;&nbsp;<input id="searchinput" name="keyword" type="text" value="<?php echo htmlspecialchars($_GET['keyword'] ?? '')?>" style="width: 200px"/>
