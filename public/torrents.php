@@ -2333,10 +2333,26 @@ if (!empty($GLOBALS['T_MOBILE'])) {
 </div>
 <script>
 (function () {
+	var nav = document.getElementById('tScrollNav');
 	var topBtn = document.getElementById('tScrollTop'), botBtn = document.getElementById('tScrollBottom');
-	if (!topBtn || !botBtn) return;
+	if (!nav || !topBtn || !botBtn) return;
 	topBtn.addEventListener('click', function () { window.scrollTo({ top: 0, behavior: 'smooth' }); });
 	botBtn.addEventListener('click', function () { window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' }); });
+	// 滚到底部时抬高按钮，避免遮挡底部分页控件
+	var list = document.querySelectorAll('.nexus-pagination');
+	var pager = list.length ? list[list.length - 1] : null;
+	var ticking = false;
+	function reposition() {
+		ticking = false;
+		if (!pager) return;
+		var r = pager.getBoundingClientRect();
+		var need = window.innerHeight - r.top + 12; // 让按钮底边落在分页控件上沿之上
+		nav.style.bottom = (r.top < window.innerHeight && need > 72) ? (need + 'px') : '';
+	}
+	function onScroll() { if (!ticking) { ticking = true; requestAnimationFrame(reposition); } }
+	window.addEventListener('scroll', onScroll, { passive: true });
+	window.addEventListener('resize', onScroll);
+	reposition();
 })();
 </script>
 <?php
