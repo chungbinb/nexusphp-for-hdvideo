@@ -233,6 +233,8 @@ mobile_shell_page_head('首页', 'home', 'page-home');
 /* 趣味盒/群聊区 iframe(fun.php/shoutbox.php,body.inframe,自带深色theme.css)注入个性化浅色；每次刷新后重注入 */
 (function () {
 	var C = { bg: '<?php echo $mc['surface'] ?>', tx: '<?php echo $mc['text'] ?>', pr: '<?php echo $mc['primary'] ?>' };
+	// 浅底适配的等级用户名颜色(把深色主题里过浅的等级色调深，保留等级区分)
+	var NC = '.StaffLeader_Name{color:#8b0000!important}.SysOp_Name{color:#a0522d!important}.Administrator_Name{color:#4b0082!important}.Moderator_Name{color:#3a6fb0!important}.Retiree_Name{color:#1c8a99!important}.Uploader_Name{color:#c81436!important}.VIP_Name{color:#009f00!important}.NexusMaster_Name{color:#2a7fb8!important}.UltimateUser_Name{color:#006400!important}.ExtremeUser_Name{color:#d97400!important}.VeteranUser_Name{color:#483d8b!important}.InsaneUser_Name{color:#8b008b!important}.CrazyUser_Name{color:#1a9fc0!important}.EliteUser_Name{color:#008b8b!important}.PowerUser_Name{color:#b8860b!important}.User_Name{color:#2d3748!important}.Peasant_Name{color:#5a6472!important}[class*="_Name"] b,[class*="_Name"] font,[class*="_Name"] *{color:inherit!important}';
 	function themeFrame(f) {
 		try {
 			var d = f.contentDocument || (f.contentWindow && f.contentWindow.document);
@@ -242,7 +244,9 @@ mobile_shell_page_head('首页', 'home', 'page-home');
 			s.textContent = 'html,body{background:' + C.bg + ' !important;} '
 				+ 'body,td,.shoutrow,.text,.embedded{color:' + C.tx + ' !important;} '
 				+ 'table,tr,tbody,td,.shoutrow,.text,.embedded{background:transparent !important;border-color:rgba(20,40,90,.08) !important;} '
-				+ '.date{color:#9aa6bd !important;}';
+				+ '.date{color:#6a7589 !important;} '
+				+ 'a{color:' + C.pr + ' !important;} '
+				+ NC;
 			if (!s.parentNode) d.head.appendChild(s);
 		} catch (e) {}
 	}
