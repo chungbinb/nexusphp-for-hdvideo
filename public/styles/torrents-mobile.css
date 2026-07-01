@@ -313,17 +313,3 @@ body.page-torrents.m-shell table.torrents th { background: transparent !importan
 body.page-torrents.m-shell table.torrents td.colhead,
 body.page-torrents.m-shell table.torrents th.colhead { background: var(--mh-surface) !important; color: var(--mh-primary) !important; }
 body.page-torrents.m-shell table.torrents td.rowfollow { background: var(--mh-surface) !important; border-color: rgba(20,40,90,.07) !important; }
-
-/* 右下角快速回到顶部/底部悬浮按钮 */
-.t-scrollnav {
-    position: fixed; right: 14px; bottom: calc(70px + env(safe-area-inset-bottom));
-    z-index: 500; display: flex; flex-direction: column; gap: 10px;
-}
-/* 全局 button 规则(modern-refresh.css)带 !important 的圆角矩形底色，这里必须同样用 !important 才能压过 */
-.t-scrollnav button {
-    width: 42px !important; height: 42px !important; min-height: 0 !important; padding: 0 !important;
-    border: none !important; border-radius: 0 !important; background: none !important; background-image: none !important;
-    box-shadow: none !important; color: var(--mh-primary) !important; display: flex; align-items: center; justify-content: center;
-}
-.t-scrollnav button:hover { background: none !important; transform: none !important; }
-.t-scrollnav button svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 1px 4px rgba(20,40,90,.35)); }
