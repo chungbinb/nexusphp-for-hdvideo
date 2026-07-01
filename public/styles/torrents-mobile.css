@@ -313,3 +313,23 @@ body.page-torrents.m-shell table.torrents th { background: transparent !importan
 body.page-torrents.m-shell table.torrents td.colhead,
 body.page-torrents.m-shell table.torrents th.colhead { background: var(--mh-surface) !important; color: var(--mh-primary) !important; }
 body.page-torrents.m-shell table.torrents td.rowfollow { background: var(--mh-surface) !important; border-color: rgba(20,40,90,.07) !important; }
+
+/* 右下角快速回到顶部/底部：纯图标(无矩形背景)。全局 button{background:primary!important} 规则需高优先级+!important 压过 */
+.t-scrollnav {
+    position: fixed; right: 12px; bottom: calc(72px + env(safe-area-inset-bottom));
+    z-index: 500; display: flex; flex-direction: column; gap: 4px;
+}
+body.page-torrents.m-shell .t-scrollnav button,
+body.page-torrents.m-shell .t-scrollnav button:hover,
+body.page-torrents.m-shell .t-scrollnav button:active,
+body.page-torrents.m-shell .t-scrollnav button:focus {
+    width: 46px !important; height: 40px !important; min-height: 0 !important; padding: 0 !important;
+    border: none !important; border-radius: 0 !important; outline: none !important;
+    background: none !important; background-image: none !important; background-color: transparent !important;
+    box-shadow: none !important; transform: none !important; color: var(--mh-primary) !important;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+body.page-torrents.m-shell .t-scrollnav button svg {
+    width: 30px; height: 30px; fill: none; stroke: currentColor; stroke-width: 2.4;
+    stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 1px 3px rgba(0,0,0,.4));
+}

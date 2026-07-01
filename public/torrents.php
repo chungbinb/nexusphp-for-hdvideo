@@ -14,7 +14,7 @@ function t_mhead($title = '') {
         mobile_shell_page_head(trim(strip_tags((string)$title)) ?: '种子', 'torrents', 'page-torrents');
         $mrv = @filemtime(ROOT_PATH . 'public/styles/modern-refresh.css') ?: 1;
         echo '<link rel="stylesheet" type="text/css" href="styles/modern-refresh.css?v=' . intval($mrv) . '">';
-        echo '<link rel="stylesheet" type="text/css" href="styles/torrents-mobile.css?v=20260701z">';
+        echo '<link rel="stylesheet" type="text/css" href="styles/torrents-mobile.css?v=20260702a">';
         // modern-refresh.css 的 :root 覆盖了 page_head 注入的个性化 --bili-*；而 --mh-* 在 mobile-shell.css 里是 :root 上 var(--bili-*) 映射，
         // 只按 :root(html) 上的 --bili-* 计算。必须在 modern-refresh 之后、同样用 :root 重新声明个性化 --bili-*，--mh-* 才会重新算成个性化色。
         if (function_exists('mobile_shell_colors')) {
@@ -2325,5 +2325,21 @@ if ($CURUSER){
 })();
 </script>
 <?php
+if (!empty($GLOBALS['T_MOBILE'])) {
+?>
+<div class="t-scrollnav" id="tScrollNav">
+	<button type="button" id="tScrollTop" aria-label="回到顶部"><svg viewBox="0 0 24 24"><path d="M12 19V6M6 11l6-5 6 5"/></svg></button>
+	<button type="button" id="tScrollBottom" aria-label="到底部"><svg viewBox="0 0 24 24"><path d="M12 5v13M6 13l6 5 6-5"/></svg></button>
+</div>
+<script>
+(function () {
+	var topBtn = document.getElementById('tScrollTop'), botBtn = document.getElementById('tScrollBottom');
+	if (!topBtn || !botBtn) return;
+	topBtn.addEventListener('click', function () { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+	botBtn.addEventListener('click', function () { window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' }); });
+})();
+</script>
+<?php
+}
 print("</td></tr></table>");
 t_mfoot();
