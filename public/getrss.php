@@ -1,6 +1,7 @@
 <?php
 require "../include/bittorrent.php";
 dbconn();
+require_once ROOT_PATH . 'include/mobile_shell.php';
 require_once(get_langfile_path());
 loggedinorreturn();
 
@@ -37,7 +38,7 @@ if ($showprocessing) $processings = searchbox_item_list("processings", $brsectio
 if ($showteam) $teams = searchbox_item_list("teams", $brsectiontype);
 if ($showaudiocodec) $audiocodecs = searchbox_item_list("audiocodecs", $brsectiontype);
 }
-stdhead($lang_getrss['head_rss_feeds']);
+mp_head($lang_getrss['head_rss_feeds']);
 $query = [];
 $allowed_showrows=array('10','50');
 $stickyTypes = [
@@ -52,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 		$query[] = "rows=".(int)$_POST['showrows'];
 	else {
 		stdmsg($lang_getrss['std_error'],$lang_getrss['std_no_row']);
-		stdfoot();
+		mp_foot();
 		die();
 	}
 	foreach ($brcats as $cat)
@@ -185,7 +186,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 		$link .= "?".$queries;
 	$msg = $lang_getrss['std_use_following_url'] ."\n".$link."\n\n".$lang_getrss['std_utorrent_feed_url']."\n".$link."&linktype=dl".$addinclbm;
 	stdmsg($lang_getrss['std_done'],format_comment($msg));
-	stdfoot();
+	mp_foot();
 	die();
 }
 
@@ -373,4 +374,4 @@ if (get_setting('main.spsct') == 'yes') {
 </table>
 </form>
 <?php
-stdfoot();
+mp_foot();

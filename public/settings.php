@@ -1,6 +1,7 @@
 <?php
 require "../include/bittorrent.php";
 dbconn();
+require_once ROOT_PATH . 'include/mobile_shell.php';
 require_once(get_langfile_path());
 loggedinorreturn();
 parked();
@@ -20,7 +21,7 @@ function go_back()
 		header('Location: ' . $url);
 		exit;
 	}
-	// stdhead() already flushed output on this page, so a server-side redirect is impossible;
+	// mp_head() already flushed output on this page, so a server-side redirect is impossible;
 	// fall back to a client-side redirect (works regardless of headers already being sent).
 	echo '<meta http-equiv="refresh" content="0;url=' . htmlspecialchars($url, ENT_QUOTES) . '">';
 	echo '<script>location.replace(' . json_encode($url) . ');</script>';
@@ -76,7 +77,7 @@ $notice = "<table cellspacing=\"0\" cellpadding=\"10\" width=\"100%\"><tr><td co
 if ($action == 'savesettings_main')	// save main
 {
 	do_log(json_encode($_REQUEST));
-	stdhead($lang_settings['head_save_main_settings']);
+	mp_head($lang_settings['head_save_main_settings']);
 	echo qd_settings_tabs($action);
 	$validConfig = array(
 		'site_online','max_torrent_size','announce_interval', 'annintertwoage', 'annintertwo', 'anninterthreeage', 'anninterthree', 'signup_timeout',
@@ -108,7 +109,7 @@ if ($action == 'savesettings_main')	// save main
 }
 elseif ($action == 'savesettings_basic') 	// save basic
 {
-	stdhead($lang_settings['head_save_basic_settings']);
+	mp_head($lang_settings['head_save_basic_settings']);
 	echo qd_settings_tabs($action);
 	$validConfig = array(
 		'SITENAME', 'BASEURL', 'announce_url', 'show_carousel', 'force_show_carousel'
@@ -125,7 +126,7 @@ elseif ($action == 'savesettings_basic') 	// save basic
 }
 elseif ($action == 'savesettings_code') 	// save database
 {
-	stdhead($lang_settings['head_save_code_settings']);
+	mp_head($lang_settings['head_save_code_settings']);
 	echo qd_settings_tabs($action);
 	$validConfig = array('mainversion','subversion','releasedate','website');
 	GetVar($validConfig);
@@ -140,7 +141,7 @@ elseif ($action == 'savesettings_code') 	// save database
 }
 elseif ($action == 'savesettings_bonus') 	// save bonus
 {
-	stdhead($lang_settings['head_save_bonus_settings']);
+	mp_head($lang_settings['head_save_bonus_settings']);
 	echo qd_settings_tabs($action);
 	$validConfig = array(
 	    'donortimes','perseeding','maxseeding','tzero','nzero','bzero','l', 'uploadtorrent','uploadsubtitle','starttopic','makepost',
@@ -170,7 +171,7 @@ elseif ($action == 'savesettings_bonus') 	// save bonus
 }
 elseif ($action == 'savesettings_account') 	// save account
 {
-	stdhead($lang_settings['head_save_account_settings']);
+	mp_head($lang_settings['head_save_account_settings']);
 	echo qd_settings_tabs($action);
 
 	$validConfig = array(
@@ -200,7 +201,7 @@ elseif ($action == 'savesettings_account') 	// save account
 }
 elseif($action == 'savesettings_torrent') 	// save account
 {
-	stdhead($lang_settings['head_save_torrent_settings']);
+	mp_head($lang_settings['head_save_torrent_settings']);
 	echo qd_settings_tabs($action);
 	$validConfig = array(
 	    'prorules', 'randomhalfleech','randomfree','randomtwoup','randomtwoupfree','randomtwouphalfdown','largesize', 'largepro','expirehalfleech',
@@ -225,7 +226,7 @@ elseif($action == 'savesettings_torrent') 	// save account
 }
 elseif ($action == 'savesettings_smtp') 	// save smtp
 {
-	stdhead($lang_settings['head_save_smtp_settings']);
+	mp_head($lang_settings['head_save_smtp_settings']);
 	echo qd_settings_tabs($action);
 	$validConfig = array('smtptype', 'emailnotify');
 	GetVar($validConfig);
@@ -247,7 +248,7 @@ elseif ($action == 'savesettings_smtp') 	// save smtp
 }
 elseif ($action == 'savesettings_security') 	// save security
 {
-	stdhead($lang_settings['head_save_security_settings']);
+	mp_head($lang_settings['head_save_security_settings']);
 	echo qd_settings_tabs($action);
 	$validConfig = array(
 		'securelogin', 'securetracker', 'https_announce_url','iv','maxip','maxloginattempts','changeemail','cheaterdet','nodetect',
@@ -271,7 +272,7 @@ elseif ($action == 'savesettings_security') 	// save security
 }
 elseif ($action == 'savesettings_authority') 	// save user authority
 {
-	stdhead($lang_settings['head_save_authority_settings']);
+	mp_head($lang_settings['head_save_authority_settings']);
 	echo qd_settings_tabs($action);
 	$validConfig = array(
 	    'defaultclass','staffmem','newsmanage','newfunitem','funmanage','sbmanage','pollmanage','applylink', 'linkmanage', 'postmanage',
@@ -298,7 +299,7 @@ elseif ($action == 'savesettings_authority') 	// save user authority
 }
 elseif ($action == 'savesettings_tweak')	// save tweak
 {
-	stdhead($lang_settings['head_save_tweak_settings']);
+	mp_head($lang_settings['head_save_tweak_settings']);
 	echo qd_settings_tabs($action);
 	$validConfig = array('where','iplog1','bonus','datefounded', 'enablelocation', 'titlekeywords', 'metakeywords', 'metadescription', 'enablesqldebug', 'sqldebug', 'cssdate', 'enabletooltip', 'prolinkimg', 'analyticscode');
 	GetVar($validConfig);
@@ -313,7 +314,7 @@ elseif ($action == 'savesettings_tweak')	// save tweak
 }
 elseif ($action == 'savesettings_attachment')	// save attachment
 {
-	stdhead($lang_settings['head_save_attachment_settings']);
+	mp_head($lang_settings['head_save_attachment_settings']);
 	echo qd_settings_tabs($action);
 	$validConfig = array('enableattach','classone','countone','sizeone', 'extone', 'classtwo','counttwo','sizetwo', 'exttwo', 'classthree','countthree','sizethree', 'extthree', 'classfour','countfour','sizefour', 'extfour', 'savedirectory', 'httpdirectory', 'savedirectorytype', 'thumbnailtype', 'thumbquality', 'thumbwidth', 'thumbheight', 'watermarkpos', 'watermarkwidth', 'watermarkheight', 'watermarkquality', 'altthumbwidth', 'altthumbheight');
 	GetVar($validConfig);
@@ -329,7 +330,7 @@ elseif ($action == 'savesettings_attachment')	// save attachment
 }
 elseif ($action == 'savesettings_advertisement')	// save advertisement
 {
-	stdhead($lang_settings['head_save_advertisement_settings']);
+	mp_head($lang_settings['head_save_advertisement_settings']);
 	echo qd_settings_tabs($action);
 	$validConfig = array('enablead', 'enablenoad', 'noad', 'enablebonusnoad', 'bonusnoad', 'bonusnoadpoint', 'bonusnoadtime', 'adclickbonus');
 	GetVar($validConfig);
@@ -345,7 +346,7 @@ elseif ($action == 'savesettings_advertisement')	// save advertisement
 }
 elseif ($action == 'savesettings_misc')
 {
-    stdhead($lang_settings['row_misc_settings']);
+    mp_head($lang_settings['row_misc_settings']);
 	echo qd_settings_tabs($action);
 	$validConfig = array('donation_custom', 'protected_forum',);
     GetVar($validConfig);
@@ -364,7 +365,7 @@ elseif ($action == 'savesettings_misc')
 elseif ($action == 'tweaksettings')		// tweak settings
 {
 	$TWEAK = get_setting_from_db('tweak');
-	stdhead($lang_settings['head_tweak_settings']);
+	mp_head($lang_settings['head_tweak_settings']);
 	echo qd_settings_tabs($action);
 	print ($notice);
 	print ("<form method='post' action='".$_SERVER["SCRIPT_NAME"]."'><input type='hidden' name='action' value='savesettings_tweak' />");
@@ -388,7 +389,7 @@ elseif ($action == 'tweaksettings')		// tweak settings
 elseif ($action == 'smtpsettings')	// stmp settings
 {
 	$SMTP = get_setting_from_db('smtp');
-	stdhead($lang_settings['head_smtp_settings']);
+	mp_head($lang_settings['head_smtp_settings']);
 	echo qd_settings_tabs($action);
 	print ($notice);
 	print("<tbody>");
@@ -423,7 +424,7 @@ print("</tbody>");
 elseif ($action == 'securitysettings')	//security settings
 {
 	$SECURITY = get_setting_from_db('security');
-	stdhead($lang_settings['head_security_settings']);
+	mp_head($lang_settings['head_security_settings']);
 	echo qd_settings_tabs($action);
 	print ($notice);
 	print("<tbody>");
@@ -491,7 +492,7 @@ elseif ($action == 'securitysettings')	//security settings
 elseif ($action == 'authoritysettings')	//Authority settings
 {
 	$AUTHORITY = get_setting_from_db('authority');
-	stdhead($lang_settings['head_authority_settings']);
+	mp_head($lang_settings['head_authority_settings']);
 	echo qd_settings_tabs($action);
 	print ($notice);
 	$maxclass = UC_SYSOP;
@@ -563,7 +564,7 @@ elseif ($action == 'authoritysettings')	//Authority settings
 }
 elseif ($action == 'basicsettings')	// basic settings
 {
-	stdhead($lang_settings['head_basic_settings']);
+	mp_head($lang_settings['head_basic_settings']);
 	echo qd_settings_tabs($action);
 	print ($notice);
 	$config = get_setting_from_db('basic');
@@ -588,7 +589,7 @@ elseif ($action == 'basicsettings')	// basic settings
 elseif ($action == 'attachmentsettings')	// basic settings
 {
 	$ATTACHMENT = get_setting_from_db('attachment');
-	stdhead($lang_settings['head_attachment_settings']);
+	mp_head($lang_settings['head_attachment_settings']);
 	echo qd_settings_tabs($action);
 	print ($notice);
 	print ("<form method='post' action='".$_SERVER["SCRIPT_NAME"]."'><input type='hidden' name='action' value='savesettings_attachment'>");
@@ -611,7 +612,7 @@ elseif ($action == 'attachmentsettings')	// basic settings
 elseif ($action == 'advertisementsettings')
 {
 	$ADVERTISEMENT = get_setting_from_db('advertisement');
-	stdhead($lang_settings['head_advertisement_settings']);
+	mp_head($lang_settings['head_advertisement_settings']);
 	echo qd_settings_tabs($action);
 	print ($notice);
 	print ("<form method='post' action='".$_SERVER["SCRIPT_NAME"]."'><input type='hidden' name='action' value='savesettings_advertisement'>");
@@ -626,7 +627,7 @@ elseif ($action == 'advertisementsettings')
 elseif ($action == 'codesettings')	// code settings
 {
 	$CODE = get_setting_from_db('code');
-	stdhead($lang_settings['head_code_settings']);
+	mp_head($lang_settings['head_code_settings']);
 	echo qd_settings_tabs($action);
 	print ($notice);
 	print ("<form method='post' action='".$_SERVER["SCRIPT_NAME"]."'><input type='hidden' name='action' value='savesettings_code'>");
@@ -639,7 +640,7 @@ elseif ($action == 'codesettings')	// code settings
 }
 elseif ($action == 'bonussettings'){
 	$BONUS = get_setting_from_db('bonus');
-	stdhead($lang_settings['head_bonus_settings']);
+	mp_head($lang_settings['head_bonus_settings']);
 	echo qd_settings_tabs($action);
 	print ($notice);
 	print ("<form method='post' action='".$_SERVER["SCRIPT_NAME"]."'><input type='hidden' name='action' value='savesettings_bonus'>");
@@ -726,7 +727,7 @@ elseif ($action == 'bonussettings'){
 }
 elseif ($action == 'accountsettings'){
 	$ACCOUNT = get_setting_from_db('account');
-	stdhead($lang_settings['head_account_settings']);
+	mp_head($lang_settings['head_account_settings']);
 	echo qd_settings_tabs($action);
 	print ($notice);
 	$maxclass = UC_VIP;
@@ -794,7 +795,7 @@ elseif ($action == 'accountsettings'){
 elseif ($action == 'torrentsettings')
 {
 	$TORRENT = get_setting_from_db('torrent');
-	stdhead($lang_settings['head_torrent_settings']);
+	mp_head($lang_settings['head_torrent_settings']);
 	echo qd_settings_tabs($action);
 	print ($notice);
 	print ("<form method='post' action='".$_SERVER["SCRIPT_NAME"]."'><input type='hidden' name='action' value='savesettings_torrent'>");
@@ -863,7 +864,7 @@ elseif ($action == 'torrentsettings')
 elseif ($action == 'mainsettings')	// main settings
 {
 	$MAIN = get_setting_from_db('main');
-	stdhead($lang_settings['head_main_settings']);
+	mp_head($lang_settings['head_main_settings']);
 	echo qd_settings_tabs($action);
 	print ($notice);
 	print ("<form method='post' action='".$_SERVER["SCRIPT_NAME"]."'><input type='hidden' name='action' value='savesettings_main'>");
@@ -1011,7 +1012,7 @@ elseif ($action == 'miscsettings')
 {
     $result = \App\Models\Setting::getByWhereRaw("name like 'misc.%'");
     $misc = $result['misc'] ?? [];
-    stdhead($lang_settings['head_torrent_settings']);
+    mp_head($lang_settings['head_torrent_settings']);
 	echo qd_settings_tabs($action);
     print ($notice);
     print ("<form method='post' action='".$_SERVER["SCRIPT_NAME"]."'><input type='hidden' name='action' value='savesettings_misc'>");
@@ -1022,7 +1023,7 @@ elseif ($action == 'miscsettings')
 }
 elseif ($action == 'showmenu')	// settings main page
 {
-	stdhead($lang_settings['head_website_settings']);
+	mp_head($lang_settings['head_website_settings']);
 	echo qd_settings_tabs($action);
 	print ($notice);
 	tr($lang_settings['row_basic_settings'], "<form method='post' action='".$_SERVER["SCRIPT_NAME"]."'><input type='hidden' name='action' value='basicsettings'><input type='submit' value=\"".$lang_settings['submit_basic_settings']."\"> ".$lang_settings['text_basic_settings_note']."</form>", 1);
@@ -1040,5 +1041,5 @@ elseif ($action == 'showmenu')	// settings main page
 //	tr($lang_settings['row_code_settings'], "<form method='post' action='".$_SERVER["SCRIPT_NAME"]."'><input type='hidden' name='action' value='codesettings'><input type='submit' value=\"".$lang_settings['submit_code_settings']."\"> ".$lang_settings['text_code_settings_note']."</form>", 1);
 }
 print("</table>");
-stdfoot();
+mp_foot();
 ?>

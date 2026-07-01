@@ -1,6 +1,7 @@
 <?php
 require "../include/bittorrent.php";
 dbconn();
+require_once ROOT_PATH . 'include/mobile_shell.php';
 require_once(get_langfile_path());
 loggedinorreturn();
 
@@ -25,7 +26,7 @@ function can_access_staff_message($msg)
 /////////////////////////
 
 if (!$action) {
-	stdhead($lang_staffbox['head_staff_pm']);
+	mp_head($lang_staffbox['head_staff_pm']);
 	$url = $_SERVER['PHP_SELF']."?";
     $query = \App\Repositories\MessageRepository::buildStaffMessageQuery($CURUSER['id']);
     $count = $query->count();
@@ -72,7 +73,7 @@ if (!$action) {
 	echo $pagerbottom;
 	end_main_frame();
 	}
-	stdfoot();
+	mp_foot();
 }
 
          //////////////////////////
@@ -104,7 +105,7 @@ else{
 $colspan = "2";
 $width = "50";
 }
-stdhead($lang_staffbox['head_view_staff_pm']);
+mp_head($lang_staffbox['head_view_staff_pm']);
 print("<h1 align=\"center\"><a class=\"faqlink\" href=\"staffbox.php\">".$lang_staffbox['text_staff_pm']."</a>-->".$subject."</h1>");
 print("<table width=\"737\" border=\"0\" cellpadding=\"4\" cellspacing=\"0\">");
 print("<tr><td width=\"".$width."%\" class=\"colhead\" align=\"left\">".$lang_staffbox['col_from']."</td>");
@@ -128,7 +129,7 @@ print("[ <a href=\"staffbox.php?action=deletestaffmessage&id=" . $arr4["id"] . "
 print("</font>");
 print("</td></tr>");
 print("</table>");
-stdfoot();
+mp_foot();
 }
          //////////////////////////
         //        ANSWER MESSAGE        //
@@ -151,7 +152,7 @@ if ($action == "answermessage") {
 
         can_access_staff_message($staffmsg);
 
-	stdhead($lang_staffbox['head_answer_to_staff_pm']);
+	mp_head($lang_staffbox['head_answer_to_staff_pm']);
 	begin_main_frame();
         ?>
 	<form method="post" id="compose" name="message" action="?action=takeanswer">
@@ -166,7 +167,7 @@ if ($action == "answermessage") {
 	end_compose();
 	print("</form>");
 	end_main_frame();
-	stdfoot();
+	mp_foot();
 }
 
          //////////////////////////

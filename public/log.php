@@ -1,6 +1,7 @@
 <?php
 require "../include/bittorrent.php";
 dbconn();
+require_once ROOT_PATH . 'include/mobile_shell.php';
 require_once(get_langfile_path());
 loggedinorreturn();
 if (!user_can('log'))
@@ -84,7 +85,7 @@ stderr($lang_log['std_error'], $lang_log['std_invalid_action']);
 else {
 	switch ($action){
 	case "dailylog":
-		stdhead($lang_log['head_site_log']);
+		mp_head($lang_log['head_site_log']);
 
 		$query = mysql_real_escape_string($q);
 		$search = $_GET["search"] ?? '';
@@ -156,11 +157,11 @@ else {
 
 		print($lang_log['time_zone_note']);
 
-		stdfoot();
+		mp_foot();
 		die;
 		break;
 	case "chronicle":
-		stdhead($lang_log['head_chronicle']);
+		mp_head($lang_log['head_chronicle']);
 		$query = mysql_real_escape_string($q);
 		if($query){
 		$wherea=" WHERE txt LIKE '%$query%' ";
@@ -227,11 +228,11 @@ else {
 
 		print($lang_log['time_zone_note']);
 
-		stdfoot();
+		mp_foot();
 		die;
 		break;
 	case "funbox":
-		stdhead($lang_log['head_funbox']);
+		mp_head($lang_log['head_funbox']);
 		$query = mysql_real_escape_string($q);
 		$search = $_GET["search"] ?? '';
 		if($query){
@@ -272,11 +273,11 @@ else {
 		}
 
 		print($lang_log['time_zone_note']);
-		stdfoot();
+		mp_foot();
 		die;
 		break;
 	case "news":
-		stdhead($lang_log['head_news']);
+		mp_head($lang_log['head_news']);
 		$query = mysql_real_escape_string($q);
 		$search = $_GET["search"] ?? '';
 		if($query){
@@ -320,7 +321,7 @@ else {
 
 		print($lang_log['time_zone_note']);
 
-		stdfoot();
+		mp_foot();
 		die;
 		break;
 	case "poll":
@@ -356,7 +357,7 @@ else {
   if ($pollcount == 0)
   	stderr($lang_log['std_sorry'], $lang_log['std_no_polls']);
   $polls = sql_query("SELECT * FROM polls ORDER BY id DESC LIMIT 1," . ($pollcount - 1 )) or sqlerr();
-  stdhead($lang_log['head_previous_polls']);
+  mp_head($lang_log['head_previous_polls']);
   		logmenu("poll");
   		print("<table border=1 cellspacing=0 width=940 cellpadding=5>\n");
 		//print("<tr><td class=colhead align=center>".$lang_log['text_previous_polls']."</td></tr>\n");
@@ -442,7 +443,7 @@ else {
 }
 	print("</table>");
 		print($lang_log['time_zone_note']);
-		stdfoot();
+		mp_foot();
 		die;
 		break;
 	}

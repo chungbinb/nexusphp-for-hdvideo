@@ -1,6 +1,7 @@
 <?php
 require '../include/bittorrent.php';
 dbconn();
+require_once ROOT_PATH . 'include/mobile_shell.php';
 require get_langfile_path();
 
 $isLogin = isset($CURUSER['id']);
@@ -73,7 +74,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
                 }
                 echo '</table>';
             };
-            stdhead($lang_complains['text_complain']);
+            mp_head($lang_complains['text_complain']);
             begin_main_frame();
             if(!isset($_GET['page'])){
                 $res = sql_query('SELECT added, uuid, email FROM complains WHERE answered = 0 ORDER BY id DESC') or sqlerr(__FILE__, __LINE__);
@@ -97,7 +98,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
             }
             end_frame();
             end_main_frame();
-            stdfoot();
+            mp_foot();
             break;
         case 'view':
             $uuid = filter_input(INPUT_GET, 'id', FILTER_SANITIZE_FULL_SPECIAL_CHARS);
@@ -106,7 +107,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
             $complain = mysql_fetch_assoc($res);
             if(!$complain) permissiondenied();
             $user = \App\Models\User::query()->where('email', $complain['email'])->first();
-            stdhead($lang_complains['text_complain']);
+            mp_head($lang_complains['text_complain']);
             begin_main_frame();
             if(!$isLogin){
                 begin_frame($lang_complains['text_created_title']);
@@ -154,12 +155,12 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
                 printf('<form action="" method="post" style="text-align: center; margin-top: 2em"><input type="hidden" name="action" value="%s" /><input type="hidden" name="id" value="%u" /><button>%s</button></form>', $complain['answered'] ? 'unanswered' : 'answered', $complain['id'],$complain['answered'] ? $lang_complains['text_unanswer_it'] : $lang_complains['text_answer_it']);
             }
             end_main_frame();
-            stdfoot();
+            mp_foot();
             break;
         case 'compose':
         default:
             cur_user_check();
-            stdhead($lang_complains['text_complain']);
+            mp_head($lang_complains['text_complain']);
             ?>
             <h2><?= $lang_complains['text_new_complain'] ?></h2>
             <form action="" method="post">
@@ -176,6 +177,6 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
                 </table>
             </form>
             <?php
-            stdfoot();
+            mp_foot();
     }
 }

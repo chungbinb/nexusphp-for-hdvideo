@@ -1,6 +1,7 @@
 <?php
 require "../include/bittorrent.php";
 dbconn();
+require_once ROOT_PATH . 'include/mobile_shell.php';
 require_once(get_langfile_path());
 loggedinorreturn();
 parked();
@@ -40,7 +41,7 @@ if (!$count){
 }
 $perpage = 50;
 list($pagertop, $pagerbottom, $limit) = pager($perpage, $count, "cheaterbox.php?");
-stdhead($lang_cheaterbox['head_cheaterbox']);
+mp_head($lang_cheaterbox['head_cheaterbox']);
 ?>
 <style type="text/css">
 table.cheaterbox td
@@ -80,5 +81,5 @@ while ($row = mysql_fetch_array($cheatersres))
 print("</table>");
 print($pagerbottom);
 end_main_frame();
-stdfoot();
+mp_foot();
 ?>

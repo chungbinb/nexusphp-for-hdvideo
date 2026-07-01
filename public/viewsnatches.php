@@ -1,13 +1,14 @@
 <?php
 require "../include/bittorrent.php";
 dbconn();
+require_once ROOT_PATH . 'include/mobile_shell.php';
 require_once(get_langfile_path());
 loggedinorreturn();
 parked();
 $id = $_GET["id"];
 int_check($id,true);
 
-stdhead($lang_viewsnatches['head_snatch_detail']);
+mp_head($lang_viewsnatches['head_snatch_detail']);
 begin_main_frame();
 
 $torrent_name = get_single_value("torrents", "name", "WHERE id = ".sqlesc($id));
@@ -63,5 +64,5 @@ else
 	stdmsg($lang_viewsnatches['std_sorry'], $lang_viewsnatches['text_no_snatched_users']);
 }
 end_main_frame();
-stdfoot();
+mp_foot();
 ?>

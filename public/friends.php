@@ -1,6 +1,7 @@
 <?php
 require "../include/bittorrent.php";
 dbconn();
+require_once ROOT_PATH . 'include/mobile_shell.php';
 require_once(get_langfile_path());
 loggedinorreturn();
 parked();
@@ -103,7 +104,7 @@ if ($action == 'delete')
 
 // main body  -----------------------------------------------------------------
 
-stdhead($lang_friends['head_personal_lists_for']. $user['username']);
+mp_head($lang_friends['head_personal_lists_for']. $user['username']);
 
 print("<p><table class=main border=0 cellspacing=0 cellpadding=0>".
 "<tr><td class=embedded><h1 style='margin:0px'> " . $lang_friends['text_personallist'] . " ".get_username($user['id'])."</h1></td></tr></table></p>\n");
@@ -352,5 +353,5 @@ print("</td></tr></table>\n");
 print("</td></tr></table>\n");
 if (user_can('viewuserlist'))
 	print("<p><a href=users.php><b>".$lang_friends['text_find_user']."</b></a></p>");
-stdfoot();
+mp_foot();
 ?>
