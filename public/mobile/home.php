@@ -108,7 +108,7 @@ mobile_shell_page_head('首页', 'home', 'page-home');
 .page-home .m-pcfoot { text-align: center; margin: 4px 12px 18px; }
 .page-home .m-pcfoot a { font-size: 12px; color: #8f9bb3; }
 
-.page-home .m-frame { width: 100%; height: 230px; border: 1px solid rgba(20,40,90,.1); border-radius: 10px; background: #fff; display: block; }
+.page-home .m-frame { width: 100%; height: 230px; border: 1px solid rgba(20,40,90,.1); border-radius: 10px; background: var(--mh-surface); display: block; }
 .page-home .m-sbox-form { display: flex; gap: 8px; margin-top: 8px; }
 .page-home .m-sbox-form input[type="text"] { flex: 1; min-width: 0; padding: 10px 12px; font-size: 15px; border: 1px solid rgba(20,40,90,.15); border-radius: 10px; background: var(--mh-bg); color: var(--mh-text); }
 .page-home .m-sbox-form button { flex: none; padding: 0 16px; border: none; border-radius: 10px; background: var(--mh-primary); color: #fff; font-weight: 700; cursor: pointer; }
@@ -228,6 +228,30 @@ mobile_shell_page_head('首页', 'home', 'page-home');
 <?php } ?>
 
 <div class="m-pcfoot"><a href="?pc=1">切换到电脑版 ›</a></div>
+<?php $mc = function_exists('mobile_shell_colors') ? mobile_shell_colors() : ['bg'=>'#f6f7fb','surface'=>'#ffffff','text'=>'#18191c','primary'=>'#00aeec']; ?>
+<script>
+/* 趣味盒/群聊区 iframe(fun.php/shoutbox.php,body.inframe,自带深色theme.css)注入个性化浅色；每次刷新后重注入 */
+(function () {
+	var C = { bg: '<?php echo $mc['surface'] ?>', tx: '<?php echo $mc['text'] ?>', pr: '<?php echo $mc['primary'] ?>' };
+	function themeFrame(f) {
+		try {
+			var d = f.contentDocument || (f.contentWindow && f.contentWindow.document);
+			if (!d || !d.head) return;
+			var s = d.getElementById('mhFrameTheme') || d.createElement('style');
+			s.id = 'mhFrameTheme';
+			s.textContent = 'html,body{background:' + C.bg + ' !important;} '
+				+ 'body,td,.shoutrow,.text,.embedded{color:' + C.tx + ' !important;} '
+				+ 'table,tr,tbody,td,.shoutrow,.text,.embedded{background:transparent !important;border-color:rgba(20,40,90,.08) !important;} '
+				+ '.date{color:#9aa6bd !important;}';
+			if (!s.parentNode) d.head.appendChild(s);
+		} catch (e) {}
+	}
+	document.querySelectorAll('iframe.m-frame').forEach(function (f) {
+		f.addEventListener('load', function () { themeFrame(f); });
+		try { if (f.contentDocument && f.contentDocument.readyState === 'complete') themeFrame(f); } catch (e) {}
+	});
+})();
+</script>
 <?php
 // 输出统一手机外壳尾部（顶栏/抽屉/底部Tab/我的/管理/个性化 + 脚本）
 mobile_shell_page_foot('home');
