@@ -92,7 +92,7 @@ foreach ($rows as $row) {
          $giftDisabled, $giftClass, $row->id, $giftBtnText, $giftDisabled, $columnGiftFeeLabel, (($row->gift_fee_factor ?? 0) * 100).'%'
     );
     $table .= sprintf(
-        '<tr><td>%s</td><td><img src="%s" style="max-width: 60px;max-height: 60px;" class="preview" /></td><td><h1>%s</h1>%s</td><td>%s ~<br>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td>',
+        '<tr><td class="md-id">%s</td><td class="md-img"><img src="%s" style="max-width: 60px;max-height: 60px;" class="preview" /></td><td class="md-desc"><h1>%s</h1>%s</td><td data-label="' . htmlspecialchars($columnSaleBeginEndTimeLabel, ENT_QUOTES) . '">%s ~<br>%s</td><td data-label="' . htmlspecialchars($columnDurationLabel, ENT_QUOTES) . '">%s</td><td data-label="' . htmlspecialchars($columnBonusAdditionLabel, ENT_QUOTES) . '">%s</td><td data-label="' . htmlspecialchars($columnPriceLabel, ENT_QUOTES) . '">%s</td><td data-label="' . htmlspecialchars($columnInventoryLabel, ENT_QUOTES) . '">%s</td><td class="md-buy">%s</td><td class="md-gift">%s</td>',
         $row->id,$row->image_large, $row->name, $row->description, $row->sale_begin_time ?? nexus_trans('nexus.no_limit'), $row->sale_end_time ?? nexus_trans('nexus.no_limit'), $row->durationText, (($row->bonus_addition_factor ?? 0) * 100).'%', number_format($row->price),  $row->inventory ?? nexus_trans('label.infinite'), $buyAction, $giftAction
     );
 }

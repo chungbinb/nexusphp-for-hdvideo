@@ -163,3 +163,24 @@ body.page-mybonus .m-main .bonus-breakdown td[data-label]::before { content: att
 body.page-mybonus .m-main .bonus-breakdown td.brk-total { grid-column: 1 / -1; border-top: 1px solid rgba(20,40,90,.08); margin-top: 4px; padding-top: 6px !important; }
 body.page-mybonus .m-main .bonus-breakdown td.brk-total,
 body.page-mybonus .m-main .bonus-breakdown td.brk-total::before { color: var(--mh-primary); font-weight: 700; }
+
+/* ===== 勋章商店页(page-medal)：宽表改卡片 ===== */
+body.page-medal .m-main table:has(td.md-desc),
+body.page-medal .m-main table:has(td.md-desc) > tbody { display: block !important; width: 100% !important; border: none !important; background: none !important; }
+body.page-medal .m-main table:has(td.md-desc) > thead { display: none !important; }
+body.page-medal .m-main table:has(td.md-desc) > tbody > tr {
+    display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px 14px;
+    background: var(--mh-surface); border: 1px solid rgba(20,40,90,.08); border-radius: 12px; padding: 12px 14px; margin: 0 0 10px;
+}
+body.page-medal .m-main table:has(td.md-desc) td { border: none !important; padding: 0 !important; background: none !important; text-align: left !important; white-space: normal !important; }
+body.page-medal .m-main table:has(td.md-desc) td.md-id { display: none; }
+body.page-medal .m-main table:has(td.md-desc) td.md-img { flex: none; order: 0; }
+body.page-medal .m-main table:has(td.md-desc) td.md-img img { width: 60px !important; height: 60px !important; max-width: 60px !important; max-height: 60px !important; border-radius: 10px; object-fit: cover; }
+body.page-medal .m-main table:has(td.md-desc) td.md-desc { flex: 1 1 60%; order: 1; min-width: 0; }
+body.page-medal .m-main table:has(td.md-desc) td.md-desc h1 { font-size: 16px; margin: 0 0 4px; line-height: 1.35; }
+body.page-medal .m-main table:has(td.md-desc) td[data-label] { flex: 1 1 42%; order: 2; display: flex; justify-content: space-between; gap: 8px; font-size: 13px; padding: 2px 0 !important; }
+body.page-medal .m-main table:has(td.md-desc) td[data-label]::before { content: attr(data-label); color: #8a96ad; flex: none; }
+body.page-medal .m-main table:has(td.md-desc) td.md-buy { flex: 1 1 100%; order: 3; margin-top: 4px; }
+body.page-medal .m-main table:has(td.md-desc) td.md-gift { flex: 1 1 100%; order: 4; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+body.page-medal .m-main table:has(td.md-desc) td.md-buy input, body.page-medal .m-main table:has(td.md-desc) td.md-gift input[type="button"] { min-height: 36px !important; height: 36px; padding: 0 16px !important; font-size: 14px !important; width: auto !important; }
+body.page-medal .m-main table:has(td.md-desc) td.md-gift input.uid { width: 80px !important; }
