@@ -187,8 +187,8 @@ print(<<<'FRAMETHEME'
 <script>
 (function(){
 	function cssv(n,fb){try{var v=getComputedStyle(document.documentElement).getPropertyValue(n).trim();return v||fb;}catch(e){return fb;}}
-	var BG=cssv('--bili-surface','#ffffff'), TX=cssv('--bili-text','#18191c');
-	function themeFrame(f){try{var d=f.contentDocument||(f.contentWindow&&f.contentWindow.document);if(!d||!d.head)return;var s=d.getElementById('mhFrameTheme')||d.createElement('style');s.id='mhFrameTheme';s.textContent='html,body{background:'+BG+' !important;} body,td,.shoutrow,.text,.embedded{color:'+TX+' !important;} table,tr,tbody,td,.shoutrow,.text,.embedded{background:transparent !important;border-color:rgba(20,40,90,.08) !important;} .date{color:#9aa6bd !important;}';if(!s.parentNode)d.head.appendChild(s);}catch(e){}}
+	var BG=cssv('--bili-surface','#ffffff'), TX=cssv('--bili-text','#18191c'), PR=cssv('--bili-primary','#00aeec');
+	function themeFrame(f){try{var d=f.contentDocument||(f.contentWindow&&f.contentWindow.document);if(!d||!d.head)return;var s=d.getElementById('mhFrameTheme')||d.createElement('style');s.id='mhFrameTheme';s.textContent='html,body{background:'+BG+' !important;} body,td,.shoutrow,.text,.embedded{color:'+TX+' !important;} table,tr,tbody,td,.shoutrow,.text,.embedded{background:transparent !important;border-color:rgba(20,40,90,.08) !important;} .date{color:#6a7589 !important;} a{color:'+PR+' !important;} [class*="_Name"],[class*="_Name"] *{color:'+PR+' !important;}';if(!s.parentNode)d.head.appendChild(s);}catch(e){}}
 	document.querySelectorAll("iframe[name='funbox'], iframe#iframe-shout-box, iframe[src*='fun.php'], iframe[src*='shoutbox.php']").forEach(function(f){f.addEventListener('load',function(){themeFrame(f);});try{if(f.contentDocument&&f.contentDocument.readyState==='complete')themeFrame(f);}catch(e){}});
 })();
 </script>

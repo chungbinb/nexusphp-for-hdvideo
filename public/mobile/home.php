@@ -242,7 +242,9 @@ mobile_shell_page_head('首页', 'home', 'page-home');
 			s.textContent = 'html,body{background:' + C.bg + ' !important;} '
 				+ 'body,td,.shoutrow,.text,.embedded{color:' + C.tx + ' !important;} '
 				+ 'table,tr,tbody,td,.shoutrow,.text,.embedded{background:transparent !important;border-color:rgba(20,40,90,.08) !important;} '
-				+ '.date{color:#9aa6bd !important;}';
+				+ '.date{color:#6a7589 !important;} '
+				+ 'a{color:' + C.pr + ' !important;} '
+				+ '[class*="_Name"],[class*="_Name"] *{color:' + C.pr + ' !important;}';
 			if (!s.parentNode) d.head.appendChild(s);
 		} catch (e) {}
 	}
