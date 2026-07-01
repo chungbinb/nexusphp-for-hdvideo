@@ -295,4 +295,46 @@ function mobile_shell_page_foot(string $active = ''): void
     echo "\n</body>\n</html>";
 }
 
+/** 是否手机端访问(UA 命中且未加 ?pc=1 强制电脑版) */
+function mobile_is(): bool
+{
+    static $m = null;
+    if ($m === null) {
+        $m = empty($_GET['pc'])
+            && preg_match('/Mobile|Android|iPhone|iPod|Windows Phone|BlackBerry|webOS|HarmonyOS/i', (string)($_SERVER['HTTP_USER_AGENT'] ?? ''));
+    }
+    return (bool)$m;
+}
+
+/**
+ * 通用 stdhead 页面的手机适配头：手机端套统一外壳(顶/底导航)+通用响应式内容样式+常用脚本；
+ * 电脑端仍走 stdhead。用法：把页面里的 stdhead($title) 换成 mobile_std_head($title, $active, $pageClass)。
+ * $active: 底部Tab高亮键(home/torrents/forums/games/me 或 '')；$pageClass: 内容作用域类名(如 page-messages)。
+ */
+function mobile_std_head(string $title = '', string $active = '', string $pageClass = ''): void
+{
+    if (mobile_is() && function_exists('mobile_shell_page_head')) {
+        mobile_shell_page_head(trim(strip_tags($title)), $active, 'page-std ' . ($pageClass !== '' ? $pageClass : ''));
+        echo '<link rel="stylesheet" type="text/css" href="/styles/mobile-content.css?v=20260702a">';
+        echo '<script type="text/javascript" src="js/jquery-1.12.4.min.js"></script>';
+        echo '<script>jQuery.noConflict();window.nexusLayerOptions={confirm:{btnAlign:"c",title:"Confirm",btn:["OK","Cancel"]},alert:{btnAlign:"c",title:"Info",btn:["OK","Cancel"]}};</script>';
+        echo '<script type="text/javascript" src="vendor/layer-v3.5.1/layer/layer.js"></script>';
+        echo '<script type="text/javascript" src="js/common.js"></script>';
+        echo '<script type="text/javascript" src="js/ajaxbasic.js"></script>';
+    } else {
+        stdhead($title);
+    }
+}
+
+/** 通用 stdhead 页面的手机适配尾：把页面里的 stdfoot() 换成 mobile_std_foot($active)。 */
+function mobile_std_foot(string $active = ''): void
+{
+    if (mobile_is() && function_exists('mobile_shell_page_foot')) {
+        if (class_exists('\\Nexus\\Nexus')) { foreach (\Nexus\Nexus::getAppendFooters() as $v) { print($v); } }
+        mobile_shell_page_foot($active);
+    } else {
+        stdfoot();
+    }
+}
+
 }

@@ -4,6 +4,10 @@ require_once("../include/bittorrent.php");
 dbconn();
 require_once(get_langfile_path());
 loggedinorreturn();
+// 手机端：套用统一手机外壳(顶/底导航)+通用响应式内容；?pc=1 强制电脑版
+require_once ROOT_PATH . 'include/mobile_shell.php';
+function msg_mhead($title = '') { mobile_std_head($title, 'me', 'page-messages'); }
+function msg_mfoot() { mobile_std_foot('me'); }
 // Define constants
 define('PM_DELETED',0); // Message was deleted
 define('PM_INBOX',1); // Message located in Inbox for reciever
@@ -48,7 +52,7 @@ if ($mailbox != PM_SENTBOX)
 else
 	$sender_receiver = $lang_messages['text_receiver'];
 // Start Page
-stdhead($mailbox_name);
+msg_mhead($mailbox_name);
 ?>
 <?php messagemenu($mailbox)?>
 <table border="0" cellpadding="4" cellspacing="0" width="737">
@@ -186,7 +190,7 @@ print("</form>");
 <a href="messages.php?action=editmailboxes"><b><?php echo $lang_messages['text_mailbox_manager'] ?></a></b></div></td></tr></table>
 <?php
 }
-stdfoot();
+msg_mfoot();
 }
 if ($action == "viewmessage")
 {
@@ -248,7 +252,7 @@ $subject = $lang_messages['text_no_subject'];
 sql_query("UPDATE messages SET unread='no' WHERE id=" . sqlesc($pm_id) . " AND receiver=" . sqlesc($CURUSER['id']));
 $Cache->delete_value('user_'.$CURUSER['id'].'_unread_message_count');
 // Display message
-stdhead("PM ($subject)"); ?>
+msg_mhead("PM ($subject)"); ?>
 <h1><?php echo $subject?></h1>
 <?php
 $mailbox = ($message['sender'] == $CURUSER['id'] ? -1 : $message['location']);
@@ -285,7 +289,7 @@ href="messages.php?action=forward&id=<?php echo $pm_id?>"><?php echo $lang_messa
 </tr>
 </table>
 <?php
-stdfoot();
+msg_mfoot();
 }
 if ($action == "moveordel")
 {
@@ -453,7 +457,7 @@ $orig_name2 = $orig_nameres['username'];
 
 $body = "-------- Original Message from " . $orig_name2 . " --------<br />" . format_comment($message['msg']);
 
-stdhead($subject);?>
+msg_mhead($subject);?>
 <h1 align="center"><?php echo $lang_messages['text_forward_pm'] ?></h1>
 <table border="0" cellpadding="4" cellspacing="0"  width="737">
 <form action="takemessage.php" method="post">
@@ -486,13 +490,13 @@ stdhead($subject);?>
 </table>
 </form>
 <?php
-stdfoot();
+msg_mfoot();
 }
 if ($action == "editmailboxes")
 {
 $res = sql_query("SELECT * FROM pmboxes WHERE userid=" . sqlesc($CURUSER['id'])) or sqlerr(__FILE__,__LINE__);
 
-stdhead($lang_messages['head_editing_mailboxes']); ?>
+msg_mhead($lang_messages['head_editing_mailboxes']); ?>
 <h1><?php echo $lang_messages['text_editing_mailboxes'] ?></h1>
 <table width="737" border="0" cellpadding="4" cellspacing="0">
 <tr>
@@ -541,7 +545,7 @@ echo("<input type=\"submit\" value=".$lang_messages['submit_edit'].">");
 </tr>
 </table>
 <?php
-stdfoot();
+msg_mfoot();
 }
 if ($action == "editmailboxes2")
 {
