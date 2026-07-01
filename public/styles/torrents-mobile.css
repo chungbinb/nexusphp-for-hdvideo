@@ -320,8 +320,7 @@ body.page-torrents.m-shell table.torrents td.rowfollow { background: var(--mh-su
     z-index: 500; display: flex; flex-direction: column; gap: 10px;
 }
 .t-scrollnav button {
-    width: 42px; height: 42px; padding: 0; border: 1px solid rgba(20,40,90,.12);
-    border-radius: 50%; background: var(--mh-surface); color: var(--mh-primary);
-    box-shadow: 0 4px 14px rgba(20,40,90,.18); display: flex; align-items: center; justify-content: center;
+    width: 42px; height: 42px; padding: 0; border: none; background: none; box-shadow: none;
+    color: var(--mh-primary); display: flex; align-items: center; justify-content: center;
 }
-.t-scrollnav button svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.t-scrollnav button svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 1px 4px rgba(20,40,90,.35)); }
