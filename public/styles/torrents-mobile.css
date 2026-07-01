@@ -57,20 +57,32 @@ body.page-torrents.m-shell td.embedded {
     background: transparent !important; box-shadow: none !important; border: none !important; color: var(--mh-text) !important;
 }
 
-/* 顶部搜索表单 */
+/* 顶部搜索表单：搜索框(内嵌搜索图标按钮) + 右侧窄"高级搜索"按钮 */
 body.page-torrents.m-shell .qd-torrent-search {
-    display: flex; flex-wrap: wrap; gap: 8px;
+    display: grid !important; grid-template-columns: 1fr auto; gap: 8px; align-items: center;
     margin: 8px 0 12px; width: 100%; box-sizing: border-box;
 }
 body.page-torrents.m-shell .qd-torrent-search input[type="text"] {
-    flex: 1 1 100%; min-width: 0; box-sizing: border-box;
-    height: 40px; padding: 0 14px; font-size: 15px;
+    grid-column: 1; grid-row: 1; min-width: 0; box-sizing: border-box; width: 100%;
+    height: 40px; padding: 0 42px 0 14px; font-size: 15px;
     border-radius: 10px; border: 1px solid rgba(20,40,90,.18) !important;
     background: var(--mh-surface) !important; color: var(--mh-text) !important;
 }
 body.page-torrents.m-shell .qd-torrent-search input[type="text"]::placeholder { color: #9aa6bd !important; }
-body.page-torrents.m-shell .qd-torrent-search button {
-    flex: 1 1 0; min-height: 40px; border-radius: 10px; font-size: 15px;
+/* 搜索按钮 → 内嵌到搜索框右侧的图标按钮 */
+body.page-torrents.m-shell .qd-torrent-search button[type="submit"] {
+    grid-column: 1; grid-row: 1; justify-self: end; align-self: center;
+    width: 34px; height: 30px; min-height: 0 !important; margin-right: 4px; padding: 0 !important;
+    flex: none !important; border: none !important; border-radius: 8px !important;
+    font-size: 0 !important; color: transparent !important;
+    background: var(--mh-primary) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M21 21l-3.5-3.5'/%3E%3C/svg%3E") center/18px 18px no-repeat !important;
+    box-shadow: none !important;
+}
+/* 高级搜索 → 右侧窄按钮 */
+body.page-torrents.m-shell .qd-torrent-search .qd-torrent-search-adv {
+    grid-column: 2; grid-row: 1; flex: none !important; width: auto !important;
+    height: 40px; min-height: 0 !important; padding: 0 14px !important; white-space: nowrap;
+    border-radius: 10px !important; font-size: 14px;
 }
 
 /* 快速筛选：每组压成单行横向滚动，避免一上来就是一大片筛选墙 */
@@ -120,7 +132,7 @@ body.page-torrents.m-shell.view-list table.torrents > tbody > tr:has(> td.colhea
 body.page-torrents.m-shell.view-list table.torrents > tbody > tr {
     display: flex !important; flex-wrap: wrap; align-items: center;
     background: var(--mh-surface) !important; border: 1px solid rgba(20,40,90,.08) !important;
-    border-radius: 12px; margin: 0 0 10px; padding: 10px 12px;
+    border-radius: 14px !important; margin: 0 0 10px; padding: 10px 12px; overflow: hidden;
     box-shadow: 0 2px 8px rgba(20,40,90,.05);
 }
 /* 默认隐藏所有直接单元格，只显出标题块与文字型元信息 */
@@ -202,7 +214,64 @@ body.page-torrents.m-shell .searchbox select,
 body.page-torrents.m-shell .searchbox textarea { width: 100% !important; box-sizing: border-box; }
 
 /* —— 手机端用个性化浅色主题，覆盖 modern-refresh 的深色"海报墙"，与首页/论坛一致 —— */
-body.page-torrents.m-shell { background: var(--mh-bg) !important; color: var(--mh-text) !important; }
+body.page-torrents.m-shell {
+    background: var(--mh-bg) !important; color: var(--mh-text) !important;
+    /* 面板/文字主题变量改为个性化浅色(高级搜索弹层等用 var(--theme-*) 上色) */
+    --theme-panel-bg: var(--mh-surface); --theme-page-text: var(--mh-text);
+    --theme-panel-border: rgba(20,40,90,.15); --theme-page-bg: var(--mh-bg);
+}
+/* 高级搜索弹层：统一个性化浅色(修复白/黑相间不可读) */
+body.page-torrents.m-shell #torrent-advanced-search-modal .torrent-advanced-search-dialog {
+    background: var(--mh-bg) !important; color: var(--mh-text) !important; border-color: rgba(20,40,90,.15) !important;
+}
+body.page-torrents.m-shell #torrent-advanced-search-modal .searchbox,
+body.page-torrents.m-shell #torrent-advanced-search-modal .searchbox table,
+body.page-torrents.m-shell #torrent-advanced-search-modal .searchbox tr,
+body.page-torrents.m-shell #torrent-advanced-search-modal .searchbox td,
+body.page-torrents.m-shell #torrent-advanced-search-modal table td {
+    background: transparent !important; color: var(--mh-text) !important; border-color: rgba(20,40,90,.1) !important;
+}
+body.page-torrents.m-shell #torrent-advanced-search-modal .searchbox td.colhead,
+body.page-torrents.m-shell #torrent-advanced-search-modal table td.colhead {
+    background: var(--mh-soft) !important; color: var(--mh-primary) !important;
+}
+body.page-torrents.m-shell #torrent-advanced-search-modal input,
+body.page-torrents.m-shell #torrent-advanced-search-modal select,
+body.page-torrents.m-shell #torrent-advanced-search-modal textarea {
+    background: var(--mh-surface) !important; color: var(--mh-text) !important; border: 1px solid rgba(20,40,90,.22) !important;
+}
+body.page-torrents.m-shell #torrent-advanced-search-modal a { color: var(--mh-primary) !important; }
+
+/* —— 分页控件(底部/顶部)手机端改造：浅色胶囊按钮，横向可滑动 —— */
+body.page-torrents.m-shell .nexus-pagination {
+    display: flex !important; flex-wrap: nowrap; align-items: center; justify-content: flex-start; gap: 8px;
+    overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    margin: 6px 0 14px !important; padding: 4px 2px 6px; text-align: left !important;
+    font-size: 0 !important; /* 隐藏 " | " 分隔与 "..." 文本节点 */
+}
+body.page-torrents.m-shell .nexus-pagination::-webkit-scrollbar { display: none; }
+/* 外层 a/font 只作为容器，胶囊样式全部落到内层 <b>(桌面版按钮底色也在 <b> 上) */
+body.page-torrents.m-shell .nexus-pagination a,
+body.page-torrents.m-shell .nexus-pagination font.gray {
+    flex: none; display: inline-flex; padding: 0 !important; border: none !important;
+    background: none !important; text-decoration: none !important;
+}
+body.page-torrents.m-shell .nexus-pagination b {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 34px; height: 34px; padding: 0 10px; box-sizing: border-box;
+    border-radius: 9px !important; font-size: 13px !important; font-weight: 600; white-space: nowrap;
+    background: var(--mh-surface) !important; border: 1px solid rgba(20,40,90,.14) !important;
+    color: var(--mh-text) !important;
+}
+/* 当前页 = 中间的 font.gray(首/尾是禁用的上一页/下一页) → 主色高亮 */
+body.page-torrents.m-shell .nexus-pagination font.gray:not(:first-child):not(:last-child) b {
+    background: var(--mh-primary) !important; border-color: var(--mh-primary) !important; color: #fff !important;
+}
+/* 禁用的上一页/下一页(首/尾 font.gray) → 灰色禁用态 */
+body.page-torrents.m-shell .nexus-pagination font.gray:first-child b,
+body.page-torrents.m-shell .nexus-pagination font.gray:last-child b {
+    background: var(--mh-soft) !important; border-color: rgba(20,40,90,.1) !important; color: #aab4c6 !important;
+}
 /* 关键：modern-refresh 的 body::before 是个 position:fixed 深色顶栏背景(给桌面固定头用)，
    在手机外壳页会变成顶栏下方一条黑色固定遮罩(pointer-events:none，能点到下面的搜索框)。这里去掉。 */
 body.page-torrents.m-shell::before { content: none !important; display: none !important; }
@@ -244,3 +313,23 @@ body.page-torrents.m-shell table.torrents th { background: transparent !importan
 body.page-torrents.m-shell table.torrents td.colhead,
 body.page-torrents.m-shell table.torrents th.colhead { background: var(--mh-surface) !important; color: var(--mh-primary) !important; }
 body.page-torrents.m-shell table.torrents td.rowfollow { background: var(--mh-surface) !important; border-color: rgba(20,40,90,.07) !important; }
+
+/* 右下角快速回到顶部/底部：纯图标(无矩形背景)。全局 button{background:primary!important} 规则需高优先级+!important 压过 */
+.t-scrollnav {
+    position: fixed; right: 12px; bottom: calc(72px + env(safe-area-inset-bottom));
+    z-index: 500; display: flex; flex-direction: column; gap: 4px;
+}
+body.page-torrents.m-shell .t-scrollnav button,
+body.page-torrents.m-shell .t-scrollnav button:hover,
+body.page-torrents.m-shell .t-scrollnav button:active,
+body.page-torrents.m-shell .t-scrollnav button:focus {
+    width: 46px !important; height: 40px !important; min-height: 0 !important; padding: 0 !important;
+    border: none !important; border-radius: 0 !important; outline: none !important;
+    background: none !important; background-image: none !important; background-color: transparent !important;
+    box-shadow: none !important; transform: none !important; color: var(--mh-primary) !important;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+body.page-torrents.m-shell .t-scrollnav button svg {
+    width: 30px; height: 30px; fill: none; stroke: currentColor; stroke-width: 2.4;
+    stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 1px 3px rgba(0,0,0,.4));
+}
