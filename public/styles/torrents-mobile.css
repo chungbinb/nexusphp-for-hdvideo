@@ -136,7 +136,11 @@ body.page-torrents.m-shell.view-list table.torrents td.torrentname,
 body.page-torrents.m-shell.view-list table.torrents table.torrentname,
 body.page-torrents.m-shell.view-list table.torrents table.torrentname > tbody,
 body.page-torrents.m-shell.view-list table.torrents table.torrentname > tbody > tr { display: block !important; width: 100% !important; }
-body.page-torrents.m-shell.view-list table.torrents table.torrentname td { display: inline !important; }
+/* 内容单元格(padding-left:5px)块级显示；封面(46px 缩略图)/评分(width:40px)/操作(width=20)列隐藏 */
+body.page-torrents.m-shell.view-list table.torrents table.torrentname td[style*="padding-left: 5px"] { display: block !important; width: auto !important; padding: 0 !important; }
+body.page-torrents.m-shell.view-list table.torrents table.torrentname td:has(> img.nexus-lazy-load),
+body.page-torrents.m-shell.view-list table.torrents table.torrentname td[style*="width: 40px"],
+body.page-torrents.m-shell.view-list table.torrents table.torrentname td[width="20"] { display: none !important; }
 /* 标题主体内部：标题 / 标签 / 副标题 各自成行 */
 body.page-torrents.m-shell.view-list table.torrents .embedded br { display: none !important; }
 body.page-torrents.m-shell.view-list table.torrents .tt-name {
@@ -168,6 +172,17 @@ body.page-torrents.m-shell.view-list table.torrents .tt-rating-inline > div {
     display: inline-flex !important; flex-direction: row !important; align-items: center; gap: 4px; padding: 0 !important; font-size: 13px; color: var(--mh-text);
 }
 body.page-torrents.m-shell.view-list table.torrents .tt-rating-inline img { max-width: 16px; max-height: 16px; }
+/* 隐藏 46px 封面缩略图列(造成标题上方/标签下方空白)与下载/收藏操作列，卡片更紧凑 */
+body.page-torrents.m-shell.view-list table.torrents .torrentname td:has(> img.nexus-lazy-load) { display: none !important; }
+body.page-torrents.m-shell.view-list table.torrents .torrentname td[width="20"] { display: none !important; }
+/* 发布者单元格(含用户名勋章img/移入的评分img)强制显示，避免被 :not(:has(img)) 规则隐藏 */
+body.page-torrents.m-shell.view-list table.torrents > tbody > tr > td.tt-uploader {
+    display: inline-flex !important; align-items: center; width: auto !important;
+    margin: 8px 14px 0 0; font-size: 12px; color: var(--mh-text) !important; white-space: nowrap !important;
+}
+body.page-torrents.m-shell.view-list table.torrents > tbody > tr > td.tt-uploader::before {
+    content: attr(data-label); margin-right: 4px; font-size: 11px; color: #6a7589;
+}
 
 /* 高级搜索 / 快速筛选弹层对话框适配窄屏 */
 body.page-torrents.m-shell .torrent-advanced-search-dialog,
