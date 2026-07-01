@@ -14,7 +14,7 @@ function t_mhead($title = '') {
         mobile_shell_page_head(trim(strip_tags((string)$title)) ?: '种子', 'torrents', 'page-torrents');
         $mrv = @filemtime(ROOT_PATH . 'public/styles/modern-refresh.css') ?: 1;
         echo '<link rel="stylesheet" type="text/css" href="styles/modern-refresh.css?v=' . intval($mrv) . '">';
-        echo '<link rel="stylesheet" type="text/css" href="styles/torrents-mobile.css?v=20260701u">';
+        echo '<link rel="stylesheet" type="text/css" href="styles/torrents-mobile.css?v=20260701v">';
         // modern-refresh.css 的 :root 覆盖了 page_head 注入的个性化 --bili-*；而 --mh-* 在 mobile-shell.css 里是 :root 上 var(--bili-*) 映射，
         // 只按 :root(html) 上的 --bili-* 计算。必须在 modern-refresh 之后、同样用 :root 重新声明个性化 --bili-*，--mh-* 才会重新算成个性化色。
         if (function_exists('mobile_shell_colors')) {
