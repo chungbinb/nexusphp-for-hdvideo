@@ -55,3 +55,27 @@ body.page-std .m-main .text, body.page-std .m-main .comment {
     background: var(--mh-surface) !important; border: 1px solid rgba(20,40,90,.08) !important; color: var(--mh-text) !important;
     border-radius: 12px; padding: 12px 14px !important;
 }
+
+/* ===== 消息页(page-messages)精修 ===== */
+/* 收件箱/发件箱菜单 → 横向胶囊标签 */
+body.page-messages #pmboxnav, body.page-messages #pmboxnav .main { background: none !important; border: none !important; box-shadow: none !important; padding: 0 !important; }
+body.page-messages #pmboxmenu { list-style: none; margin: 2px 0 12px; padding: 0; display: flex; gap: 8px; flex-wrap: wrap; }
+body.page-messages #pmboxmenu li { list-style: none; }
+body.page-messages #pmboxmenu li a {
+    display: inline-block; padding: 7px 16px; border-radius: 999px; text-decoration: none;
+    background: var(--mh-surface); border: 1px solid rgba(20,40,90,.12); color: var(--mh-text); font-weight: 600; font-size: 14px;
+}
+body.page-messages #pmboxmenu li.selected a { background: var(--mh-primary); border-color: var(--mh-primary); color: #fff !important; }
+
+/* 消息列表表格：主题列占满、其余紧凑，行有分隔 */
+body.page-messages .m-main form[action="messages.php"] table { border: 1px solid rgba(20,40,90,.08) !important; border-radius: 12px; overflow: hidden; }
+body.page-messages .m-main form[action="messages.php"] table tr td:nth-child(2) { width: 100%; }
+body.page-messages .m-main form[action="messages.php"] table tr td:nth-child(1),
+body.page-messages .m-main form[action="messages.php"] table tr td:nth-child(3),
+body.page-messages .m-main form[action="messages.php"] table tr td:nth-child(4),
+body.page-messages .m-main form[action="messages.php"] table tr td:nth-child(5) { white-space: nowrap; }
+body.page-messages .m-main form[action="messages.php"] table td.rowfollow { border-top: 1px solid rgba(20,40,90,.06); font-size: 13px; }
+body.page-messages .m-main form[action="messages.php"] table td.rowfollow:nth-child(2) a { font-weight: 600; }
+/* 底部操作行(全选/删除/移动)按钮换行 */
+body.page-messages .m-main tr.colhead td[colspan] { white-space: normal; text-align: left; }
+body.page-messages .m-main tr.colhead td[colspan] input, body.page-messages .m-main tr.colhead td[colspan] select { margin: 3px 4px 3px 0; }
