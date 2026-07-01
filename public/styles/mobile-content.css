@@ -147,3 +147,19 @@ body.page-mybonus .m-main table:has(td.rowhead_center) td.rowfollow:has(h1) tabl
 body.page-mybonus .m-main table:has(td.rowhead_center) td.rowfollow:has(h1) input[type="text"],
 body.page-mybonus .m-main table:has(td.rowhead_center) td.rowfollow:has(h1) input[type="number"],
 body.page-mybonus .m-main table:has(td.rowhead_center) td.rowfollow:has(h1) select { width: 100% !important; max-width: 100% !important; box-sizing: border-box; margin-top: 3px; }
+
+/* 每小时电影票明细表(build_bonus_table)：卡片化,指标做成 label:value 两列网格 */
+body.page-mybonus .m-main .bonus-breakdown,
+body.page-mybonus .m-main .bonus-breakdown > tbody { display: block !important; width: 100% !important; border: none !important; }
+body.page-mybonus .m-main .bonus-breakdown > tbody > tr:first-child { display: none !important; }
+body.page-mybonus .m-main .bonus-breakdown > tbody > tr {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 3px 16px;
+    background: var(--mh-surface); border: 1px solid rgba(20,40,90,.08); border-radius: 12px; padding: 11px 13px; margin: 0 0 10px;
+}
+body.page-mybonus .m-main .bonus-breakdown td { border: none !important; padding: 0 !important; background: none !important; text-align: left !important; white-space: normal !important; }
+body.page-mybonus .m-main .bonus-breakdown td.brk-type { grid-column: 1 / -1; font-size: 15px; font-weight: 700; color: var(--mh-text); margin-bottom: 5px; }
+body.page-mybonus .m-main .bonus-breakdown td[data-label] { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; padding: 3px 0 !important; color: var(--mh-text); }
+body.page-mybonus .m-main .bonus-breakdown td[data-label]::before { content: attr(data-label); color: #8a96ad; }
+body.page-mybonus .m-main .bonus-breakdown td.brk-total { grid-column: 1 / -1; border-top: 1px solid rgba(20,40,90,.08); margin-top: 4px; padding-top: 6px !important; }
+body.page-mybonus .m-main .bonus-breakdown td.brk-total,
+body.page-mybonus .m-main .bonus-breakdown td.brk-total::before { color: var(--mh-primary); font-weight: 700; }

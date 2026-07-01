@@ -330,7 +330,7 @@ function mobile_std_head(string $title = '', string $active = '', string $pageCl
         if ($active === '') { $active = mobile_std_active(); }
         if ($pageClass === '') { $pageClass = 'page-' . preg_replace('/[^a-z0-9]+/', '-', $s ?: 'std'); }
         mobile_shell_page_head(trim(strip_tags($title)), $active, 'page-std ' . $pageClass);
-        echo '<link rel="stylesheet" type="text/css" href="/styles/mobile-content.css?v=20260702h">';
+        echo '<link rel="stylesheet" type="text/css" href="/styles/mobile-content.css?v=20260702i">';
         echo '<script type="text/javascript" src="js/jquery-1.12.4.min.js"></script>';
         echo '<script>jQuery.noConflict();window.nexusLayerOptions={confirm:{btnAlign:"c",title:"Confirm",btn:["OK","Cancel"]},alert:{btnAlign:"c",title:"Info",btn:["OK","Cancel"]}};</script>';
         echo '<script type="text/javascript" src="vendor/layer-v3.5.1/layer/layer.js"></script>';

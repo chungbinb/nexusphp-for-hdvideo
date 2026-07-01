@@ -8274,7 +8274,17 @@ function build_bonus_table(array $user, array $bonusResult = [], array $options 
         $totalBonus += $bonusResult['medal_bonus'] * $bonusResult['medal_additional_factor'];
     }
 
-    $table = sprintf('<table cellpadding="5" style="%s">', $options['table_style'] ?? '');
+    // 各列标签(手机端卡片化时用 data-label 显示)
+    $Lc = htmlspecialchars(nexus_trans('bonus.table_thead.count'), ENT_QUOTES);
+    $Ls = htmlspecialchars(nexus_trans('bonus.table_thead.size'), ENT_QUOTES);
+    $La = htmlspecialchars(nexus_trans('bonus.table_thead.a_value'), ENT_QUOTES);
+    $Lb = htmlspecialchars(nexus_trans('bonus.table_thead.bonus_base'), ENT_QUOTES);
+    $Lf = htmlspecialchars(nexus_trans('bonus.table_thead.factor'), ENT_QUOTES);
+    $Lg = htmlspecialchars(nexus_trans('bonus.table_thead.got_bonus'), ENT_QUOTES);
+    $Lt = htmlspecialchars(nexus_trans('bonus.table_thead.total'), ENT_QUOTES);
+    $dc = "<td data-label=\"$Lc\">%s</td><td data-label=\"$Ls\">%s</td><td data-label=\"$La\">%s</td><td data-label=\"$Lb\">%s</td><td data-label=\"$Lf\">%s</td><td data-label=\"$Lg\">%s</td>";
+
+    $table = sprintf('<table cellpadding="5" class="bonus-breakdown" style="%s">', $options['table_style'] ?? '');
     $table .= '<tr>';
     $table .= sprintf('<td class="colhead">%s</td>', nexus_trans('bonus.table_thead.reward_type'));
     $table .= sprintf('<td class="colhead">%s</td>', nexus_trans('bonus.table_thead.count'));
@@ -8287,7 +8297,7 @@ function build_bonus_table(array $user, array $bonusResult = [], array $options 
     $table .= '</tr>';
 
     $table .= sprintf(
-        '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td rowspan="%s">%s</td></tr>',
+        '<tr><td class="brk-type">%s</td>' . $dc . '<td class="brk-total" data-label="' . $Lt . '" rowspan="%s">%s</td></tr>',
         nexus_trans('bonus.reward_types.basic'),
         $bonusResult['torrent_peer_count'],
         mksize($bonusResult['size']),
@@ -8300,7 +8310,7 @@ function build_bonus_table(array $user, array $bonusResult = [], array $options 
     );
     if ($hasMedalAddition) {
         $table .= sprintf(
-            '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
+            '<tr><td class="brk-type">%s</td>' . $dc . '</tr>',
             nexus_trans('bonus.reward_types.medal_addition'),
             $bonusResult['torrent_peer_count'],
             mksize($bonusResult['size']),
@@ -8313,7 +8323,7 @@ function build_bonus_table(array $user, array $bonusResult = [], array $options 
 
     if ($hasOfficialAddition) {
         $table .= sprintf(
-            '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
+            '<tr><td class="brk-type">%s</td>' . $dc . '</tr>',
             nexus_trans('bonus.reward_types.official_addition'),
             $bonusResult['official_torrent_peer_count'],
             mksize($bonusResult['official_size']),
@@ -8326,7 +8336,7 @@ function build_bonus_table(array $user, array $bonusResult = [], array $options 
 
     if ($hasHaremAddition) {
         $table .= sprintf(
-            '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
+            '<tr><td class="brk-type">%s</td>' . $dc . '</tr>',
             nexus_trans('bonus.reward_types.harem_addition'),
             '--',
             '--',
