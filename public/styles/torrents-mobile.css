@@ -241,6 +241,30 @@ body.page-torrents.m-shell #torrent-advanced-search-modal textarea {
     background: var(--mh-surface) !important; color: var(--mh-text) !important; border: 1px solid rgba(20,40,90,.22) !important;
 }
 body.page-torrents.m-shell #torrent-advanced-search-modal a { color: var(--mh-primary) !important; }
+
+/* —— 分页控件(底部/顶部)手机端改造：浅色胶囊按钮，横向可滑动 —— */
+body.page-torrents.m-shell .nexus-pagination {
+    display: flex !important; flex-wrap: nowrap; align-items: center; justify-content: flex-start; gap: 8px;
+    overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    margin: 6px 0 14px !important; padding: 4px 2px 6px; text-align: left !important;
+    font-size: 0 !important; /* 隐藏 " | " 分隔与 "..." 文本节点 */
+}
+body.page-torrents.m-shell .nexus-pagination::-webkit-scrollbar { display: none; }
+body.page-torrents.m-shell .nexus-pagination a,
+body.page-torrents.m-shell .nexus-pagination font.gray {
+    flex: none; display: inline-flex; align-items: center; justify-content: center;
+    min-width: 40px; height: 36px; padding: 0 12px; box-sizing: border-box;
+    border-radius: 9px; text-decoration: none !important; white-space: nowrap;
+    background: var(--mh-surface) !important; border: 1px solid rgba(20,40,90,.14) !important;
+    color: var(--mh-text) !important;
+}
+body.page-torrents.m-shell .nexus-pagination a b,
+body.page-torrents.m-shell .nexus-pagination font.gray b { font-size: 13px !important; font-weight: 600; color: inherit !important; }
+/* 当前页(font.gray 里是页码区间) → 主色高亮 */
+body.page-torrents.m-shell .nexus-pagination font.gray {
+    background: var(--mh-primary) !important; border-color: var(--mh-primary) !important;
+}
+body.page-torrents.m-shell .nexus-pagination font.gray b { color: #fff !important; }
 /* 关键：modern-refresh 的 body::before 是个 position:fixed 深色顶栏背景(给桌面固定头用)，
    在手机外壳页会变成顶栏下方一条黑色固定遮罩(pointer-events:none，能点到下面的搜索框)。这里去掉。 */
 body.page-torrents.m-shell::before { content: none !important; display: none !important; }
