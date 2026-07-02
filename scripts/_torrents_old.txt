@@ -1,0 +1,1 @@
+print ("<li" . ($selected == "torrents" ? " class=\"selected\"" : "") . "><a href=\"torrents.php\" rel='sub-menu'>".$normalizeMenuText($normalSectionName[$lang] ?? $lang_functions['text_torrents'])."</a></li>");

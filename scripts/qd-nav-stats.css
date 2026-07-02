@@ -1,0 +1,46 @@
+
+
+/* qd-nav-stats : inline account stats in the top nav */
+#top-stats-bar.top-stats-bar {
+	display: flex;
+	flex-wrap: nowrap;
+	align-items: center;
+	gap: 0 16px;
+	margin: 0 16px;
+	flex: 1 1 auto;
+	justify-content: center;
+	min-width: 0;
+}
+#top-stats-bar .top-stat {
+	display: inline-flex;
+	align-items: baseline;
+	gap: 4px;
+	font-size: 12px;
+	white-space: nowrap;
+	text-decoration: none !important;
+	color: inherit !important;
+	line-height: 1.2;
+}
+#top-stats-bar .top-stat i {
+	font-style: normal;
+	opacity: 0.72;
+}
+#top-stats-bar .top-stat b {
+	font-weight: 700;
+}
+#top-stats-bar .top-stat i.up,
+#top-stats-bar .top-stat em.up {
+	color: #3fae5a;
+	font-style: normal;
+}
+#top-stats-bar .top-stat i.dn,
+#top-stats-bar .top-stat em.dn {
+	color: #e06666;
+	font-style: normal;
+}
+#top-stats-bar .top-stat:hover b {
+	text-decoration: underline;
+}
+@media (max-width: 1280px) {
+	#top-stats-bar.top-stats-bar { display: none !important; }
+}

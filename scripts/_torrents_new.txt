@@ -1,0 +1,7 @@
+$qdTorrentSelected = ($selected == "torrents");
+		print ("<li class=\"nav-torrents has-submenu" . ($qdTorrentSelected ? " selected" : "") . "\"><a href=\"torrents.php\">".$normalizeMenuText($normalSectionName[$lang] ?? $lang_functions['text_torrents'])."</a><ul class=\"nav-submenu nav-torrents-submenu\">");
+		foreach (genrelist(get_setting('main.browsecat')) as $qdCat) {
+			if (empty($qdCat['id'])) { continue; }
+			print ("<li><a href=\"torrents.php?cat=".(int)$qdCat['id']."\">".htmlspecialchars((string)$qdCat['name'])."</a></li>");
+		}
+		print ("</ul></li>");

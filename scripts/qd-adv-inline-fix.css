@@ -1,0 +1,10 @@
+
+
+/* qd-adv-inline-fix : keep the inline advanced-search panel within its parent width */
+html[data-site-theme] body.page-torrents #qd-adv-inline,
+html[data-site-theme] body.page-torrents #qd-adv-inline .torrent-advanced-search-dialog,
+html[data-site-theme] body.page-torrents #qd-adv-inline .searchbox,
+html[data-site-theme] body.page-torrents #qd-adv-inline .searchbox table {
+	box-sizing: border-box !important;
+	max-width: 100% !important;
+}

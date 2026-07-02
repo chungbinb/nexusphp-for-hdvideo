@@ -959,9 +959,7 @@ a:focus-visible {
     flex-wrap: nowrap;
     gap: 8px;
     margin: 22px 0 !important;
-    max-width: 100%;
-    min-width: 0;
-    overflow-x: auto;
+    white-space: nowrap;
 }
 
 .nexus-pagination a,
@@ -1378,8 +1376,6 @@ body.page-torrents .torrent-view-pager .nexus-pagination {
     margin: 0 !important;
     gap: 6px;
     overflow-x: auto;
-    min-width: 0;
-    max-width: 100%;
     padding: 2px 4px;
 }
 
@@ -6566,23 +6562,20 @@ body.theme-night .qd-dl-progress > i {
 /* qd-postsort-btn : forum topic post-order toggle button */
 .qd-postsort-btn {
 	display: inline-block;
-	padding: 2px 12px;
+	padding: 1px 11px;
 	margin-left: 6px;
 	border-radius: 12px;
-	background: color-mix(in srgb, var(--bili-primary, #00aeec) 16%, var(--theme-panel-bg, #fff)) !important;
-	color: var(--theme-page-text, #18191c) !important;
-	border: 1px solid color-mix(in srgb, var(--bili-primary, #00aeec) 55%, transparent) !important;
+	background: var(--bili-primary, #00aeec) !important;
+	color: #fff !important;
 	font-size: 12px;
-	font-weight: 600;
 	line-height: 18px;
 	white-space: nowrap;
 	text-decoration: none !important;
 	vertical-align: middle;
 }
 .qd-postsort-btn:hover {
-	background: color-mix(in srgb, var(--bili-primary, #00aeec) 30%, var(--theme-panel-bg, #fff)) !important;
-	color: var(--theme-page-text, #18191c) !important;
-	filter: none;
+	filter: brightness(1.08);
+	color: #fff !important;
 }
 
 
@@ -7082,10 +7075,10 @@ html[data-site-theme] .top-account-links .top-account-menu-item::after {
 }
 
 
-/* qd-torrents-catmenu : category dropdown under 种子 nav item, single-column */
+/* qd-torrents-catmenu : category dropdown under 种子 nav item, 2-column */
 #mainmenu.menu .nav-torrents-submenu {
-	grid-template-columns: minmax(96px, 1fr) !important;
-	min-width: 128px !important;
+	grid-template-columns: repeat(2, minmax(92px, auto)) !important;
+	min-width: 200px !important;
 }
 
 
@@ -7205,19 +7198,3 @@ body.page-settings table.main td.rowfollow .medium {
 	background: var(--bili-primary, #00aeec) !important;
 	color: #fff !important;
 }
-
-
-/* qd-carousel-off-pad : when the top carousel is disabled (body.carousel-off), the page must
-   reserve the fixed-nav height itself. On torrents in day theme, #outer padding-top was tuned
-   down to 18px assuming the carousel above provided the clearance; restore it when off. */
-:root[data-site-theme="day"] body.page-torrents.carousel-off #outer.outer {
-	padding-top: 72px !important;
-}
-@media (max-width: 1100px) {
-	:root[data-site-theme="day"] body.page-torrents.carousel-off #outer.outer {
-		padding-top: 98px !important;
-	}
-}
-
-/* 种子列表：官方/原创/首发/中字/源码等标签始终换到副标题下方、独占一行、左对齐(桌面端) */
-.torrentname .tt-tags { display: block; margin-top: 5px; line-height: 2; }

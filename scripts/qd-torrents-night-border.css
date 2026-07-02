@@ -1,0 +1,25 @@
+
+
+/* qd-torrents-night-border : night-mode torrents panel borders match the table (--theme-panel-border) */
+:root[data-site-theme="night"] body.page-torrents .torrent-quick-filters,
+:root[data-site-theme="night"] body.page-torrents .torrent-view-toolbar,
+:root[data-site-theme="night"] body.page-torrents .torrent-view-switch,
+:root[data-site-theme="night"] body.page-torrents .torrent-card-grid,
+:root[data-site-theme="night"] body.page-torrents .searchbox,
+:root[data-site-theme="night"] body.page-torrents table.torrents td.colhead,
+:root[data-site-theme="night"] body.page-torrents table.torrents tr td.rowfollow,
+:root[data-site-theme="night"] body.page-torrents textarea,
+:root[data-site-theme="night"] body.page-torrents input[type="text"],
+:root[data-site-theme="night"] body.page-torrents select,
+body.theme-night.page-torrents .torrent-quick-filters,
+body.theme-night.page-torrents .torrent-view-toolbar,
+body.theme-night.page-torrents .torrent-view-switch,
+body.theme-night.page-torrents .torrent-card-grid,
+body.theme-night.page-torrents .searchbox,
+body.theme-night.page-torrents table.torrents td.colhead,
+body.theme-night.page-torrents table.torrents tr td.rowfollow,
+body.theme-night.page-torrents textarea,
+body.theme-night.page-torrents input[type="text"],
+body.theme-night.page-torrents select {
+	border-color: var(--theme-panel-border, rgba(116, 145, 196, 0.62)) !important;
+}

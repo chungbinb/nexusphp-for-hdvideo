@@ -1,0 +1,12 @@
+
+
+/* qd-wide-margin2 : also narrow mainouter so modern torrents content gets the 100px side margins */
+@media (min-width: 1100px) {
+	body.layout-wide:not(.inframe) #outer.outer,
+	body.layout-wide:not(.inframe) table.mainouter {
+		width: calc(100% - 200px) !important;
+		max-width: calc(100% - 200px) !important;
+		margin-left: auto !important;
+		margin-right: auto !important;
+	}
+}

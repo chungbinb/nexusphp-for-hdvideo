@@ -1,0 +1,91 @@
+
+
+/* qd-settings-modern : modernize the site-settings page (settings.php) */
+html[data-site-theme] body.page-settings #outer.outer,
+html[data-site-theme] body.page-settings table.mainouter {
+	max-width: 1040px !important;
+	margin-left: auto !important;
+	margin-right: auto !important;
+}
+body.page-settings h1 {
+	font-size: 22px !important;
+	font-weight: 700 !important;
+	margin: 6px 0 14px !important;
+	text-align: center !important;
+}
+body.page-settings h1 a { text-decoration: none !important; }
+/* clean form rows: drop harsh table borders, use light separators */
+body.page-settings table.main {
+	border: 0 !important;
+	border-collapse: separate !important;
+	border-spacing: 0 !important;
+	background: var(--theme-panel-bg, var(--bili-surface, #fff)) !important;
+	border-radius: 12px !important;
+	overflow: hidden !important;
+	box-shadow: 0 1px 6px rgba(0, 0, 0, 0.05) !important;
+}
+body.page-settings table.main td.rowhead,
+body.page-settings table.main td.colhead {
+	background: transparent !important;
+	background-image: none !important;
+	font-weight: 600 !important;
+	border: 0 !important;
+	border-bottom: 1px solid var(--theme-panel-border, var(--bili-border, #e6e9ef)) !important;
+	padding: 14px 18px !important;
+	width: 30% !important;
+	vertical-align: top !important;
+	color: var(--theme-page-text, var(--bili-text, #18191c)) !important;
+}
+body.page-settings table.main td.rowfollow {
+	background: transparent !important;
+	border: 0 !important;
+	border-bottom: 1px solid var(--theme-panel-border, var(--bili-border, #e6e9ef)) !important;
+	padding: 12px 18px !important;
+	color: var(--theme-page-text, var(--bili-text, #18191c)) !important;
+}
+/* modern inputs */
+body.page-settings input[type="text"],
+body.page-settings input[type="password"],
+body.page-settings input[type="number"],
+body.page-settings input[type="email"],
+body.page-settings textarea,
+body.page-settings select {
+	border: 1px solid var(--theme-panel-border, var(--bili-border, #e6e9ef)) !important;
+	border-radius: 8px !important;
+	padding: 7px 11px !important;
+	background: var(--theme-panel-bg, var(--bili-surface, #fff)) !important;
+	color: var(--theme-page-text, var(--bili-text, #18191c)) !important;
+	box-sizing: border-box;
+	font-size: 13px;
+	max-width: 100%;
+}
+body.page-settings textarea { min-height: 72px; }
+/* primary pill buttons */
+body.page-settings input[type="submit"],
+body.page-settings button.btn,
+body.page-settings .btn {
+	background: var(--bili-primary, #00aeec) !important;
+	color: #fff !important;
+	border: 0 !important;
+	border-radius: 8px !important;
+	padding: 8px 22px !important;
+	font-size: 14px !important;
+	font-weight: 600 !important;
+	cursor: pointer !important;
+}
+body.page-settings input[type="submit"]:hover { filter: brightness(1.08); }
+/* notice box */
+body.page-settings .settings-notice {
+	border-radius: 10px !important;
+	padding: 12px 16px !important;
+	font-size: 13px !important;
+	border: 0 !important;
+}
+/* home-menu note text muted */
+body.page-settings table.main td.rowfollow font.medium,
+body.page-settings table.main td.rowfollow .medium {
+	color: var(--theme-page-text, #888) !important;
+	opacity: 0.65;
+	margin-left: 10px;
+	font-size: 12px;
+}

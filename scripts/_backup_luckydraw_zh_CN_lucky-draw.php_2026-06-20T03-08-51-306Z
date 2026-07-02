@@ -1,0 +1,82 @@
+<?php
+
+return [
+    'label' => '幸运大转盘',
+    'home_display' => [
+        'go' => '去抽奖',
+        'tr_content' => '[:time] :username 获得 :type_text :amount_text',
+    ],
+    'type' => [
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_THANKS => '谢谢参与',
+
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_PERSONALIZED_USERNAME => '彩虹 ID',
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_CHANGE_USERNAME => '改名卡',
+
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_BONUS => '魔力',
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_ATTENDANCE_CARD => '补签卡',
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_UPLOADED => '上传量',
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_INVITE => '邀请',
+
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_VIP => 'VIP',
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_MEDAL => '勋章',
+    ],
+    'prize' => [
+        'type' => '类别',
+        'amount' => '数量/有效天数/ID',
+        'amount_help' => '类别不同，含义不同：<br/>[魔力/补签卡/邀请/上传量] 时表示数量(上传量的单位为：GB)，<br/>[彩虹 ID/VIP] 时表示有效天数, <br/>[勋章] 时表示勋章 ID,<br/>[谢谢参与/改名卡] 时恒为 1',
+        'probability' => '比重',
+        'probability_help' => '中奖概率 = 比重 / 全部奖品比重之和',
+        'probability_real' => '中奖概率',
+    ],
+    'winning_records' => [
+        'label' => '抽奖记录',
+        'cost_bonus' => '花费魔力',
+        'result' => '中奖结果',
+    ],
+    'setting' => [
+        'require_bonus' => '每次抽奖需要魔力',
+        'vip_nullify_reward_bonus' => '已经是 VIP 或以上却中奖 VIP 时奖励魔力',
+        'medal_nullify_reward_bonus' => '已经拥有勋章却中奖勋章时奖励魔力',
+        'extra_description' => '其他说明',
+        'continuous_times' => '连抽次数',
+        'continuous_times_help' => '多个空格隔开。单个数量不要过大，避免响应时间过长',
+    ],
+    'consume_bonus_comment' => ':bonus 魔力 :name 抽奖',
+    'issuance_benefit_subject' => ':name 中奖通知',
+    'issuance_benefit_body' => [
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_PERSONALIZED_USERNAME => '获得 彩虹 ID，有效期：:amount_text',
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_CHANGE_USERNAME => '获得 改名卡，数量：:amount_text',
+
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_BONUS => ':name 增加 :type_text :amount_text',
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_UPLOADED => ':name :type_text 增加 :amount_text',
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_ATTENDANCE_CARD => ':name :type_text 增加 :amount_text',
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_INVITE => ':name :type_text 增加 :amount_text',
+
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_VIP => ':name 获得 VIP 等级，有效期：:amount_text',
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_MEDAL => ':name 获得勋章: :amount_text',
+    ],
+    'issuance_benefit_body_vip_nullify' => '中奖 VIP 却已经是 VIP 或以上等级，奖励魔力：:reward_bonus',
+    'issuance_benefit_body_medal_nullify' => '中奖勋章却已经拥有此勋章，奖励魔力：:reward_bonus',
+    'basic_description_title' => '基本说明',
+    'basic_description_content' => ['当前用户拥有魔力：:user_bonus', '每次抽奖需要魔力：:require_bonus'],
+    'bonus_description' => [
+        '当中奖 [VIP] 时，如果用户已经是 VIP 或以上等级，奖励魔力：:reward_bonus',
+        '当中奖 [勋章] 时，如果用户已经拥有此勋章，奖励魔力：:reward_bonus',
+        '当中奖 [改名卡] 时，多次数量不累计，可在个人详情页使用',
+        '当中奖 [彩虹 ID] 时，多次时间累计',
+    ],
+    'winning_records_title' => '抽奖记录',
+    'congratulations' => '恭喜！本次抽奖获得 ',
+    'click_duplicate' => '不要重复点击！',
+    'bonus_not_enough' => '魔力不足！',
+    'config_error' => '转盘配置错误！',
+    'continuous_times_header' => '连抽',
+    'continuous_times_text' => '连抽',
+    'invalid_continuous_times' => '无效的连抽次数',
+    'multiple_times_unit' => '次',
+    'continuous_description' => [
+        '如果嫌一次次点击太慢，可以试试连抽',
+        '连抽消耗魔力 = 次数 x 每次抽奖需要魔力',
+        '连抽一次性返回全部结果',
+    ],
+];

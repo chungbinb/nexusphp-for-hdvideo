@@ -1,0 +1,60 @@
+
+
+/* qd-torrents-themed : make the torrents page follow personalization (--bili-* vars) */
+html[data-site-theme] body.page-torrents .torrent-quick-filters,
+html[data-site-theme] body.page-torrents .torrent-view-toolbar,
+html[data-site-theme] body.page-torrents .torrent-view-switch,
+html[data-site-theme] body.page-torrents table.torrents td.colhead,
+html[data-site-theme] body.page-torrents table.torrents tr td.rowfollow,
+html[data-site-theme] body.page-torrents .searchbox,
+html[data-site-theme] body.page-torrents .searchbox td.colhead,
+html[data-site-theme] body.page-torrents td.comment,
+html[data-site-theme] body.page-torrents td.embedded,
+html[data-site-theme] body.page-torrents .torrent-card-grid,
+html[data-site-theme] body.page-torrents .torrent-poster-media,
+html[data-site-theme] body.page-torrents .top-account-dropdown,
+html[data-site-theme] body.page-torrents .top-message-dropdown,
+html[data-site-theme] body.page-torrents #mainmenu.menu .nav-submenu,
+html[data-site-theme] body.page-torrents .torrent-advanced-search-dialog,
+html[data-site-theme] body.page-torrents .torrent-advanced-search-dialog .searchbox,
+html[data-site-theme] body.page-torrents .torrent-advanced-search-dialog .searchbox td.embedded,
+html[data-site-theme] body.page-torrents .torrent-advanced-search-dialog select,
+html[data-site-theme] body.page-torrents .torrent-quick-filter-modal,
+html[data-site-theme] body.page-torrents .torrent-quick-filter-modal-list a,
+html[data-site-theme] body.page-torrents textarea,
+html[data-site-theme] body.page-torrents input[type="text"],
+html[data-site-theme] body.page-torrents select {
+	background: var(--bili-surface) !important;
+	background-image: none !important;
+}
+html[data-site-theme] body.page-torrents .torrent-quick-filters,
+html[data-site-theme] body.page-torrents .torrent-view-toolbar,
+html[data-site-theme] body.page-torrents .torrent-card-grid,
+html[data-site-theme] body.page-torrents .searchbox,
+html[data-site-theme] body.page-torrents table.torrents tr td.rowfollow,
+html[data-site-theme] body.page-torrents table.torrents td.colhead,
+html[data-site-theme] body.page-torrents .torrent-view-switch,
+html[data-site-theme] body.page-torrents textarea,
+html[data-site-theme] body.page-torrents input[type="text"],
+html[data-site-theme] body.page-torrents select {
+	border-color: var(--bili-border) !important;
+}
+/* highlight / primary-colored controls */
+html[data-site-theme] body.page-torrents .btn,
+html[data-site-theme] body.page-torrents .torrent-view-btn.is-active,
+html[data-site-theme] body.page-torrents .torrent-quick-filter-links a.is-active,
+html[data-site-theme] body.page-torrents .torrent-quick-filter-modal-list a.is-active,
+html[data-site-theme] body.page-torrents .nexus-pagination font.gray b,
+html[data-site-theme] body.page-torrents .torrent-advanced-search-dialog input[type="submit"],
+html[data-site-theme] body.page-torrents #mainmenu.menu li.selected a {
+	background: var(--bili-primary) !important;
+	background-image: none !important;
+	color: #fff !important;
+}
+/* subtle hover tints follow primary */
+html[data-site-theme] body.page-torrents .torrent-view-btn:hover,
+html[data-site-theme] body.page-torrents .nexus-pagination a:hover,
+html[data-site-theme] body.page-torrents .torrent-quick-filter-modal-list a:hover {
+	background: color-mix(in srgb, var(--bili-primary) 14%, transparent) !important;
+	background-image: none !important;
+}

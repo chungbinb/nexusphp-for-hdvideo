@@ -1,0 +1,9 @@
+
+
+/* qd-account-noarrow : remove the › arrows on account dropdown menu items (no submenu) */
+html[data-site-theme] body:not(.inframe) .top-account-links .top-account-menu-item::after,
+html[data-site-theme] body.page-torrents .top-account-links .top-account-menu-item::after,
+html[data-site-theme] .top-account-links .top-account-menu-item::after {
+	content: none !important;
+	display: none !important;
+}

@@ -1,0 +1,40 @@
+
+
+/* qd-adv-inline : advanced search as inline collapsible panel (between search bar and quick-filters) */
+.qd-adv-inline { margin: 0 0 12px; }
+.qd-adv-inline[hidden] { display: none !important; }
+html[data-site-theme] body.page-torrents #qd-adv-inline .torrent-advanced-search-dialog {
+	position: static !important;
+	transform: none !important;
+	inset: auto !important;
+	width: 100% !important;
+	max-width: 100% !important;
+	height: auto !important;
+	max-height: none !important;
+	margin: 0 !important;
+	border-radius: 12px !important;
+	overflow: visible !important;
+	box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06) !important;
+	background: var(--theme-panel-bg, var(--bili-surface, #fff)) !important;
+	border: 1px solid var(--theme-panel-border, var(--bili-border, #e6e9ef)) !important;
+	color: var(--theme-page-text, var(--bili-text, #18191c)) !important;
+}
+#qd-adv-inline .searchbox,
+#qd-adv-inline .searchbox table,
+#qd-adv-inline table td:not(.colhead),
+#qd-adv-inline .searchbox td:not(.colhead) {
+	background: var(--theme-panel-bg, var(--bili-surface, #fff)) !important;
+	background-image: none !important;
+	border-color: var(--theme-panel-border, var(--bili-border, #e6e9ef)) !important;
+	color: var(--theme-page-text, var(--bili-text, #18191c)) !important;
+}
+#qd-adv-inline input[type="text"],
+#qd-adv-inline input[type="number"],
+#qd-adv-inline input:not([type]),
+#qd-adv-inline select,
+#qd-adv-inline textarea {
+	background: var(--theme-panel-bg, var(--bili-surface, #fff)) !important;
+	background-image: none !important;
+	color: var(--theme-page-text, var(--bili-text, #18191c)) !important;
+	border: 1px solid var(--theme-panel-border, var(--bili-border, #e6e9ef)) !important;
+}

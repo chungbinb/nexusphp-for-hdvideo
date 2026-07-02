@@ -1,0 +1,82 @@
+<?php
+
+return [
+    'label' => '幸運大轉盤',
+    'home_display' => [
+        'go' => '去抽獎',
+        'tr_content' => '[:time] :username 獲得 :type_text :amount_text',
+    ],
+    'type' => [
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_THANKS => '謝謝參與',
+
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_PERSONALIZED_USERNAME => '彩虹 ID',
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_CHANGE_USERNAME => '改名卡',
+
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_BONUS => '魔力',
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_ATTENDANCE_CARD => '補簽卡',
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_UPLOADED => '上傳量',
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_INVITE => '邀請',
+
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_VIP => 'VIP',
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_MEDAL => '勛章',
+    ],
+    'prize' => [
+        'type' => '類別',
+        'amount' => '數量/有效天數',
+        'amount_help' => '類別不同，含義不同：<br/>[魔力/補簽卡/邀請/上傳量] 時表示數量(上傳量的單位為：GB)，<br/>[彩虹 ID/VIP] 時表示有效天數, <br/>[謝謝參與/改名卡] 時恒為 1',
+        'probability' => '比重',
+        'probability_help' => '中獎概率 = 比重 / 全部獎品比重之和',
+        'probability_real' => '中獎概率',
+    ],
+    'winning_records' => [
+        'label' => '抽獎記錄',
+        'cost_bonus' => '花費魔力',
+        'result' => '中獎結果',
+    ],
+    'setting' => [
+        'require_bonus' => '每次抽獎需要魔力',
+        'vip_nullify_reward_bonus' => '已經是 VIP 或以上卻中獎 VIP 時獎勵魔力',
+        'medal_nullify_reward_bonus' => '已經擁有勛章卻中獎勛章時獎勵魔力',
+        'extra_description' => '其他說明',
+        'continuous_times' => '連抽次數',
+        'continuous_times_help' => '多個空格隔開。單個數量不要過大，避免響應時間過長',
+    ],
+    'consume_bonus_comment' => ':bonus 魔力 :name 抽獎',
+    'issuance_benefit_subject' => ':name 中獎通知',
+    'issuance_benefit_body' => [
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_PERSONALIZED_USERNAME => '獲得 彩虹 ID，有效期：:amount_text',
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_CHANGE_USERNAME => '獲得 改名卡，數量：:amount_text',
+
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_BONUS => ':name 增加 :type_text :amount_text',
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_UPLOADED => ':name :type_text 增加 :amount_text',
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_ATTENDANCE_CARD => ':name :type_text 增加 :amount_text',
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_INVITE => ':name :type_text 增加 :amount_text',
+
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_VIP => ':name 獲得 VIP 等級，有效期：:amount_text',
+        \NexusPlugin\LuckyDraw\Models\LuckyDrawPrize::TYPE_MEDAL => ':name 獲得勛章: :amount_text',
+    ],
+    'issuance_benefit_body_vip_nullify' => '中獎 VIP 卻已經是 VIP 或以上等級，獎勵魔力：:reward_bonus',
+    'issuance_benefit_body_medal_nullify' => '中獎勛章卻已經擁有此勛章，獎勵魔力：:reward_bonus',
+    'basic_description_title' => '基本說明',
+    'basic_description_content' => ['當前用戶擁有魔力：:user_bonus', '每次抽獎需要魔力：:require_bonus'],
+    'bonus_description' => [
+        '當中獎 [VIP] 時，如果用戶已經是 VIP 或以上等級，獎勵魔力：:reward_bonus',
+        '當中獎 [勛章] 時，如果用戶已經擁有此勛章，獎勵魔力：:reward_bonus',
+        '當中獎 [改名卡] 時，多次數量不累計，可在個人詳情頁使用',
+        '當中獎 [彩虹 ID] 時，多次時間累計',
+    ],
+    'winning_records_title' => '抽獎記錄',
+    'congratulations' => '恭喜！本次抽獎獲得 ',
+    'click_duplicate' => '不要重復點擊！',
+    'bonus_not_enough' => '魔力不足！',
+    'config_error' => '轉盤配置錯誤！',
+    'continuous_times_header' => '連抽',
+    'continuous_times_text' => '連抽',
+    'invalid_continuous_times' => '無效的連抽次數',
+    'multiple_times_unit' => '次',
+    'continuous_description' => [
+        '如果嫌一次次點擊太慢，可以試試連抽',
+        '連抽消耗魔力 = 次數 x 每次抽獎需要魔力',
+        '連抽一次性返回全部結果',
+    ],
+];

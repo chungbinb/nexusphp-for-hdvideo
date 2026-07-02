@@ -1,0 +1,27 @@
+
+
+/* qd-dropdown-final : dropdowns + submenu use --theme-panel-bg (day=personalized surface, night=dark gradient) */
+:root[data-site-theme="day"] body:not(.inframe) .top-account-dropdown,
+:root[data-site-theme="day"] body.page-torrents .top-account-dropdown,
+:root[data-site-theme="night"] body:not(.inframe) .top-account-dropdown,
+:root[data-site-theme="night"] body.page-torrents .top-account-dropdown,
+body.theme-day:not(.inframe) .top-account-dropdown,
+body.theme-night:not(.inframe) .top-account-dropdown,
+:root[data-site-theme="day"] body:not(.inframe) .top-message-dropdown,
+:root[data-site-theme="night"] body:not(.inframe) .top-message-dropdown,
+body.theme-day:not(.inframe) .top-message-dropdown,
+body.theme-night:not(.inframe) .top-message-dropdown,
+:root[data-site-theme="day"] body #mainmenu.menu .nav-submenu,
+:root[data-site-theme="night"] body #mainmenu.menu .nav-submenu {
+	background: var(--theme-panel-bg) !important;
+}
+:root[data-site-theme="night"] body:not(.inframe) .top-account-dropdown,
+:root[data-site-theme="night"] body:not(.inframe) .top-message-dropdown,
+body.theme-night:not(.inframe) .top-account-dropdown,
+body.theme-night:not(.inframe) .top-message-dropdown,
+:root[data-site-theme="night"] body #mainmenu.menu .nav-submenu {
+	border-color: rgba(255, 255, 255, 0.10) !important;
+}
+:root[data-site-theme="night"] body:not(.inframe) .top-account-header {
+	border-bottom-color: rgba(255, 255, 255, 0.10) !important;
+}

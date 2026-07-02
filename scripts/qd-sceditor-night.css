@@ -1,0 +1,39 @@
+
+
+/* qd-sceditor-night : dark SCEditor chrome in night mode (toolbar/container live in parent DOM) */
+:root[data-site-theme="night"] .sceditor-container,
+body.theme-night .sceditor-container {
+	background: #0b1422 !important;
+	border-color: var(--theme-panel-border, rgba(116, 145, 196, 0.45)) !important;
+}
+:root[data-site-theme="night"] .sceditor-toolbar,
+body.theme-night .sceditor-toolbar {
+	background: #0e1728 !important;
+	border-bottom-color: var(--theme-panel-border, rgba(116, 145, 196, 0.45)) !important;
+}
+:root[data-site-theme="night"] .sceditor-group:not(:last-child)::after,
+body.theme-night .sceditor-group:not(:last-child)::after {
+	background: var(--theme-panel-border, rgba(116, 145, 196, 0.45)) !important;
+}
+:root[data-site-theme="night"] .sceditor-button svg,
+body.theme-night .sceditor-button svg {
+	fill: #c2d0e6 !important;
+	color: #c2d0e6 !important;
+}
+:root[data-site-theme="night"] .sceditor-button:hover,
+body.theme-night .sceditor-button:hover {
+	background: rgba(95, 167, 255, 0.16) !important;
+}
+:root[data-site-theme="night"] .sceditor-button:hover svg,
+:root[data-site-theme="night"] .sceditor-button.active svg,
+body.theme-night .sceditor-button:hover svg,
+body.theme-night .sceditor-button.active svg {
+	fill: #6fb0ff !important;
+	color: #6fb0ff !important;
+}
+:root[data-site-theme="night"] .sceditor-dropdown,
+body.theme-night .sceditor-dropdown {
+	background: #0e1728 !important;
+	border-color: var(--theme-panel-border, rgba(116, 145, 196, 0.45)) !important;
+	color: #dbe5f3 !important;
+}

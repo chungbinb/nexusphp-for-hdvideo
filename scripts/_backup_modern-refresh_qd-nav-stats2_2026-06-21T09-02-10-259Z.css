@@ -959,9 +959,7 @@ a:focus-visible {
     flex-wrap: nowrap;
     gap: 8px;
     margin: 22px 0 !important;
-    max-width: 100%;
-    min-width: 0;
-    overflow-x: auto;
+    white-space: nowrap;
 }
 
 .nexus-pagination a,
@@ -1378,8 +1376,6 @@ body.page-torrents .torrent-view-pager .nexus-pagination {
     margin: 0 !important;
     gap: 6px;
     overflow-x: auto;
-    min-width: 0;
-    max-width: 100%;
     padding: 2px 4px;
 }
 
@@ -6566,23 +6562,20 @@ body.theme-night .qd-dl-progress > i {
 /* qd-postsort-btn : forum topic post-order toggle button */
 .qd-postsort-btn {
 	display: inline-block;
-	padding: 2px 12px;
+	padding: 1px 11px;
 	margin-left: 6px;
 	border-radius: 12px;
-	background: color-mix(in srgb, var(--bili-primary, #00aeec) 16%, var(--theme-panel-bg, #fff)) !important;
-	color: var(--theme-page-text, #18191c) !important;
-	border: 1px solid color-mix(in srgb, var(--bili-primary, #00aeec) 55%, transparent) !important;
+	background: var(--bili-primary, #00aeec) !important;
+	color: #fff !important;
 	font-size: 12px;
-	font-weight: 600;
 	line-height: 18px;
 	white-space: nowrap;
 	text-decoration: none !important;
 	vertical-align: middle;
 }
 .qd-postsort-btn:hover {
-	background: color-mix(in srgb, var(--bili-primary, #00aeec) 30%, var(--theme-panel-bg, #fff)) !important;
-	color: var(--theme-page-text, #18191c) !important;
-	filter: none;
+	filter: brightness(1.08);
+	color: #fff !important;
 }
 
 
@@ -6999,225 +6992,3 @@ html[data-site-theme] body.page-torrents #qd-adv-inline .torrent-advanced-search
 @media (max-width: 1280px) {
 	#top-stats-bar.top-stats-bar { display: none !important; }
 }
-
-
-/* qd-nav-stats2 : stats as a 2-row grid left of the avatar (inside the fixed top-account-widget) */
-html[data-site-theme] body:not(.inframe) #top-account-widget,
-body:not(.inframe) #top-account-widget {
-	display: flex !important;
-	align-items: center !important;
-	gap: 14px !important;
-}
-#top-stats-bar.top-stats-bar {
-	display: grid !important;
-	grid-template-columns: repeat(4, auto) !important;
-	grid-auto-flow: row !important;
-	gap: 2px 14px !important;
-	align-items: baseline !important;
-	margin: 0 !important;
-	flex: 0 0 auto !important;
-	justify-content: end !important;
-}
-#top-stats-bar .top-stat {
-	color: var(--theme-page-text, var(--bili-text, #333)) !important;
-}
-#top-stats-bar .top-stat i.up,
-#top-stats-bar .top-stat em.up { color: #3fae5a !important; }
-#top-stats-bar .top-stat i.dn,
-#top-stats-bar .top-stat em.dn { color: #e06666 !important; }
-@media (max-width: 1280px) {
-	#top-stats-bar.top-stats-bar { display: none !important; }
-}
-
-
-/* qd-nav-stats3 : push stats left so the enlarged (hovered) avatar doesn't overlap them */
-#top-stats-bar.top-stats-bar {
-	margin-right: 42px !important;
-}
-
-
-/* qd-stats-exclusive : nav stats (wide) and dropdown stats (narrow) are mutually exclusive */
-@media (min-width: 1281px) {
-	html[data-site-theme] .top-account-stats,
-	.top-account-stats {
-		display: none !important;
-	}
-}
-
-
-/* qd-help-subsubmenu : nested (二级) submenu under 管理组 flies out to the right */
-#mainmenu.menu .nav-submenu li.has-subsubmenu > a {
-	display: flex !important;
-	justify-content: space-between !important;
-	align-items: center !important;
-	gap: 10px;
-}
-#mainmenu.menu .nav-submenu li.has-subsubmenu > a::after {
-	content: "\203A" !important;
-	border: 0 !important;
-	width: auto !important;
-	height: auto !important;
-	margin: 0 0 0 6px !important;
-	opacity: 0.6;
-	font-size: 14px;
-	line-height: 1;
-}
-#mainmenu.menu .nav-submenu li.has-subsubmenu > .nav-subsubmenu {
-	top: -9px !important;
-	left: calc(100% - 4px) !important;
-	transform: translateX(-6px) !important;
-}
-#mainmenu.menu .nav-submenu li.has-subsubmenu:hover > .nav-subsubmenu,
-#mainmenu.menu .nav-submenu li.has-subsubmenu:focus-within > .nav-subsubmenu {
-	transform: translateX(0) !important;
-}
-
-
-/* qd-account-noarrow : remove the › arrows on account dropdown menu items (no submenu) */
-html[data-site-theme] body:not(.inframe) .top-account-links .top-account-menu-item::after,
-html[data-site-theme] body.page-torrents .top-account-links .top-account-menu-item::after,
-html[data-site-theme] .top-account-links .top-account-menu-item::after {
-	content: none !important;
-	display: none !important;
-}
-
-
-/* qd-torrents-catmenu : category dropdown under 种子 nav item, single-column */
-#mainmenu.menu .nav-torrents-submenu {
-	grid-template-columns: minmax(96px, 1fr) !important;
-	min-width: 128px !important;
-}
-
-
-/* qd-settings-modern : modernize the site-settings page (settings.php) */
-/* qd-settings width cap removed (follow layout width) */
-body.page-settings h1 {
-	font-size: 22px !important;
-	font-weight: 700 !important;
-	margin: 6px 0 14px !important;
-	text-align: center !important;
-}
-body.page-settings h1 a { text-decoration: none !important; }
-/* clean form rows: drop harsh table borders, use light separators */
-body.page-settings table.main {
-	border: 0 !important;
-	border-collapse: separate !important;
-	border-spacing: 0 !important;
-	background: var(--theme-panel-bg, var(--bili-surface, #fff)) !important;
-	border-radius: 12px !important;
-	overflow: hidden !important;
-	box-shadow: 0 1px 6px rgba(0, 0, 0, 0.05) !important;
-}
-body.page-settings table.main td.rowhead,
-body.page-settings table.main td.colhead {
-	background: transparent !important;
-	background-image: none !important;
-	font-weight: 600 !important;
-	border: 0 !important;
-	border-bottom: 1px solid var(--theme-panel-border, var(--bili-border, #e6e9ef)) !important;
-	padding: 14px 18px !important;
-	width: 30% !important;
-	vertical-align: top !important;
-	color: var(--theme-page-text, var(--bili-text, #18191c)) !important;
-}
-body.page-settings table.main td.rowfollow {
-	background: transparent !important;
-	border: 0 !important;
-	border-bottom: 1px solid var(--theme-panel-border, var(--bili-border, #e6e9ef)) !important;
-	padding: 12px 18px !important;
-	color: var(--theme-page-text, var(--bili-text, #18191c)) !important;
-}
-/* modern inputs */
-body.page-settings input[type="text"],
-body.page-settings input[type="password"],
-body.page-settings input[type="number"],
-body.page-settings input[type="email"],
-body.page-settings textarea,
-body.page-settings select {
-	border: 1px solid var(--theme-panel-border, var(--bili-border, #e6e9ef)) !important;
-	border-radius: 8px !important;
-	padding: 7px 11px !important;
-	background: var(--theme-panel-bg, var(--bili-surface, #fff)) !important;
-	color: var(--theme-page-text, var(--bili-text, #18191c)) !important;
-	box-sizing: border-box;
-	font-size: 13px;
-	max-width: 100%;
-}
-body.page-settings textarea { min-height: 72px; }
-/* primary pill buttons */
-body.page-settings input[type="submit"],
-body.page-settings button.btn,
-body.page-settings .btn {
-	background: var(--bili-primary, #00aeec) !important;
-	color: #fff !important;
-	border: 0 !important;
-	border-radius: 8px !important;
-	padding: 8px 22px !important;
-	font-size: 14px !important;
-	font-weight: 600 !important;
-	cursor: pointer !important;
-}
-body.page-settings input[type="submit"]:hover { filter: brightness(1.08); }
-/* notice box */
-body.page-settings .settings-notice {
-	border-radius: 10px !important;
-	padding: 12px 16px !important;
-	font-size: 13px !important;
-	border: 0 !important;
-}
-/* home-menu note text muted */
-body.page-settings table.main td.rowfollow font.medium,
-body.page-settings table.main td.rowfollow .medium {
-	color: var(--theme-page-text, #888) !important;
-	opacity: 0.65;
-	margin-left: 10px;
-	font-size: 12px;
-}
-
-
-/* qd-settings-tabs : top tab bar for the settings page (restored) */
-.qd-settings-tabs {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 6px;
-	margin: 0 auto 18px;
-	max-width: none;
-	padding: 7px;
-	background: var(--theme-panel-bg, var(--bili-surface, #fff));
-	border: 1px solid var(--theme-panel-border, var(--bili-border, #e6e9ef));
-	border-radius: 0;
-	box-sizing: border-box;
-}
-.qd-settings-tab {
-	padding: 7px 15px;
-	border-radius: 0;
-	font-size: 13px;
-	font-weight: 500;
-	color: var(--theme-page-text, var(--bili-text, #18191c)) !important;
-	text-decoration: none !important;
-	white-space: nowrap;
-	transition: background 0.12s ease, color 0.12s ease;
-}
-.qd-settings-tab:hover {
-	background: color-mix(in srgb, var(--bili-primary, #00aeec) 14%, transparent);
-}
-.qd-settings-tab.is-active {
-	background: var(--bili-primary, #00aeec) !important;
-	color: #fff !important;
-}
-
-
-/* qd-carousel-off-pad : when the top carousel is disabled (body.carousel-off), the page must
-   reserve the fixed-nav height itself. On torrents in day theme, #outer padding-top was tuned
-   down to 18px assuming the carousel above provided the clearance; restore it when off. */
-:root[data-site-theme="day"] body.page-torrents.carousel-off #outer.outer {
-	padding-top: 72px !important;
-}
-@media (max-width: 1100px) {
-	:root[data-site-theme="day"] body.page-torrents.carousel-off #outer.outer {
-		padding-top: 98px !important;
-	}
-}
-
-/* 种子列表：官方/原创/首发/中字/源码等标签始终换到副标题下方、独占一行、左对齐(桌面端) */
-.torrentname .tt-tags { display: block; margin-top: 5px; line-height: 2; }

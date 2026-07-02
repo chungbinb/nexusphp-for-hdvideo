@@ -1,0 +1,103 @@
+<style>
+.qd-swatch{width:48px;height:28px;border:1px solid var(--bili-border,#e6e9ef);border-radius:6px;cursor:pointer;padding:0;box-shadow:inset 0 0 0 1px rgba(255,255,255,.5);}
+.qd-picker{position:absolute;z-index:10002;width:212px;background:var(--bili-surface,#fff);border:1px solid var(--bili-border,#e6e9ef);border-radius:12px;box-shadow:0 14px 44px rgba(0,0,0,.3);padding:12px;}
+.qd-picker[hidden]{display:none;}
+.qd-pk-sv{position:relative;width:100%;height:128px;border-radius:8px;cursor:crosshair;overflow:hidden;}
+.qd-pk-sv-thumb{position:absolute;width:12px;height:12px;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.45);transform:translate(-50%,-50%);pointer-events:none;}
+.qd-pk-hue{position:relative;width:100%;height:14px;margin:12px 0 10px;border-radius:7px;cursor:pointer;background:linear-gradient(to right,#f00 0%,#ff0 17%,#0f0 33%,#0ff 50%,#00f 67%,#f0f 83%,#f00 100%);}
+.qd-pk-hue-thumb{position:absolute;top:50%;width:16px;height:16px;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.45);transform:translate(-50%,-50%);pointer-events:none;}
+.qd-pk-foot{display:flex;gap:8px;align-items:center;}
+.qd-pk-hex{flex:1;min-width:0;border:1px solid var(--bili-border,#e6e9ef);border-radius:6px;padding:6px 8px;font-size:13px;text-transform:uppercase;background:var(--bili-surface,#fff);color:var(--bili-text,#18191c);}
+.qd-pk-ok{background:var(--bili-primary,#00aeec);color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:13px;cursor:pointer;white-space:nowrap;}
+</style>
+<div class="qd-modal" id="qd-personalize-modal" hidden>
+	<div class="qd-modal-mask" data-qd-close></div>
+	<div class="qd-modal-card">
+		<h3>个性化配色</h3>
+		<p class="qd-modal-sub">点色块选颜色，实时预览，应用后全站生效（仅本浏览器）。</p>
+		<div class="qd-color-row"><label>主色调</label><button type="button" class="qd-swatch" data-var="--bili-primary"></button></div>
+		<div class="qd-color-row"><label>强调色</label><button type="button" class="qd-swatch" data-var="--bili-accent"></button></div>
+		<div class="qd-color-row"><label>页面背景</label><button type="button" class="qd-swatch" data-var="--bili-bg"></button></div>
+		<div class="qd-color-row"><label>卡片背景</label><button type="button" class="qd-swatch" data-var="--bili-surface"></button></div>
+		<div class="qd-color-row"><label>文字颜色</label><button type="button" class="qd-swatch" data-var="--bili-text"></button></div>
+		<div class="qd-presets"><span class="qd-presets-label">预设</span><span id="qd-presets"></span></div>
+		<div class="qd-modal-actions">
+			<button type="button" class="qd-btn-reset" id="qd-color-reset">恢复默认</button>
+			<button type="button" class="qd-btn-apply" id="qd-color-apply">应用</button>
+		</div>
+		<div class="qd-picker" id="qd-picker" hidden>
+			<div class="qd-pk-sv" id="qd-pk-sv"><div class="qd-pk-sv-thumb" id="qd-pk-sv-thumb"></div></div>
+			<div class="qd-pk-hue" id="qd-pk-hue"><div class="qd-pk-hue-thumb" id="qd-pk-hue-thumb"></div></div>
+			<div class="qd-pk-foot"><input type="text" class="qd-pk-hex" id="qd-pk-hex" maxlength="7" spellcheck="false"><button type="button" class="qd-pk-ok" id="qd-pk-ok">确定</button></div>
+		</div>
+	</div>
+</div>
+<script>
+(function(){
+	var KEY='qd_custom_colors';
+	var VARS=['--bili-primary','--bili-accent','--bili-bg','--bili-surface','--bili-text'];
+	var root=document.documentElement;
+	function getSaved(){try{return JSON.parse(localStorage.getItem(KEY)||'{}')||{};}catch(e){return {};}}
+	function applySaved(){var c=getSaved();for(var i=0;i<VARS.length;i++){if(c[VARS[i]]){root.style.setProperty(VARS[i],c[VARS[i]]);}}}
+	applySaved();
+	function curVal(v){var s=getComputedStyle(root).getPropertyValue(v).trim();return s||'#000000';}
+	function toHex(c){
+		if(/^#([0-9a-f]{6})$/i.test(c)){return c.toLowerCase();}
+		if(/^#([0-9a-f]{3})$/i.test(c)){return ('#'+c[1]+c[1]+c[2]+c[2]+c[3]+c[3]).toLowerCase();}
+		var m=c.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+		if(m){var h='#';for(var i=1;i<=3;i++){h+=('0'+parseInt(m[i],10).toString(16)).slice(-2);}return h;}
+		return '#00aeec';
+	}
+	function hex2rgb(h){h=h.replace('#','');return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];}
+	function rgb2hex(r,g,b){return '#'+[r,g,b].map(function(x){return ('0'+Math.round(Math.max(0,Math.min(255,x))).toString(16)).slice(-2);}).join('');}
+	function rgb2hsv(r,g,b){r/=255;g/=255;b/=255;var mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn,h=0;if(d){if(mx===r)h=(((g-b)/d)%6+6)%6;else if(mx===g)h=(b-r)/d+2;else h=(r-g)/d+4;h*=60;}return [h,mx?d/mx:0,mx];}
+	function hsv2rgb(h,s,v){var c=v*s,x=c*(1-Math.abs((h/60)%2-1)),m=v-c,r=0,g=0,b=0;if(h<60){r=c;g=x;}else if(h<120){r=x;g=c;}else if(h<180){g=c;b=x;}else if(h<240){g=x;b=c;}else if(h<300){r=x;b=c;}else{r=c;b=x;}return [(r+m)*255,(g+m)*255,(b+m)*255];}
+
+	var modal=document.getElementById('qd-personalize-modal');
+	var openBtn=document.getElementById('qd-personalize-btn');
+	function swatches(){return modal.querySelectorAll('.qd-swatch');}
+	function setSwatch(el,hex){el.style.setProperty('background',hex,'important');el.setAttribute('data-color',hex);}
+	function openModal(){var sw=swatches();for(var i=0;i<sw.length;i++){setSwatch(sw[i],toHex(curVal(sw[i].getAttribute('data-var'))));}modal.hidden=false;}
+	function closeModal(){modal.hidden=true;picker.hidden=true;}
+	if(openBtn){openBtn.addEventListener('click',openModal);}
+	modal.addEventListener('click',function(e){if(e.target&&e.target.hasAttribute&&e.target.hasAttribute('data-qd-close')){applySaved();closeModal();}});
+
+	var picker=document.getElementById('qd-picker');
+	var svEl=document.getElementById('qd-pk-sv'),svThumb=document.getElementById('qd-pk-sv-thumb');
+	var hueEl=document.getElementById('qd-pk-hue'),hueThumb=document.getElementById('qd-pk-hue-thumb');
+	var hexInput=document.getElementById('qd-pk-hex'),okBtn=document.getElementById('qd-pk-ok');
+	var curSwatch=null,H=0,S=1,V=1;
+	function paint(live){
+		svEl.style.background='linear-gradient(to top,#000,rgba(0,0,0,0)),linear-gradient(to right,#fff,rgba(255,255,255,0)),'+rgb2hex.apply(null,hsv2rgb(H,1,1));
+		svThumb.style.left=(S*100)+'%';svThumb.style.top=((1-V)*100)+'%';
+		hueThumb.style.left=(H/360*100)+'%';
+		var hex=rgb2hex.apply(null,hsv2rgb(H,S,V));
+		hexInput.value=hex.toUpperCase();
+		if(curSwatch){setSwatch(curSwatch,hex);if(live!==false){root.style.setProperty(curSwatch.getAttribute('data-var'),hex);}}
+		return hex;
+	}
+	function openPicker(sw){
+		curSwatch=sw;
+		var hsv=rgb2hsv.apply(null,hex2rgb(toHex(sw.getAttribute('data-color')||curVal(sw.getAttribute('data-var')))));
+		H=hsv[0];S=hsv[1];V=hsv[2];
+		picker.hidden=false;
+		var card=sw.closest('.qd-modal-card'),cr=card.getBoundingClientRect(),sr=sw.getBoundingClientRect();
+		picker.style.left=Math.min(card.clientWidth-224,sr.left-cr.left)+'px';
+		picker.style.top=(sr.bottom-cr.top+6)+'px';
+		paint(false);
+	}
+	modal.addEventListener('click',function(e){var sw=e.target.closest?e.target.closest('.qd-swatch'):null;if(sw){e.stopPropagation();openPicker(sw);}else if(!e.target.closest('.qd-picker')){picker.hidden=true;}});
+	function dragSV(e){var r=svEl.getBoundingClientRect();var x=( (e.touches?e.touches[0].clientX:e.clientX)-r.left)/r.width;var y=((e.touches?e.touches[0].clientY:e.clientY)-r.top)/r.height;S=Math.max(0,Math.min(1,x));V=Math.max(0,Math.min(1,1-y));paint();}
+	function dragHue(e){var r=hueEl.getBoundingClientRect();var x=((e.touches?e.touches[0].clientX:e.clientX)-r.left)/r.width;H=Math.max(0,Math.min(359.99,x*360));paint();}
+	function bindDrag(el,fn){el.addEventListener('mousedown',function(e){e.preventDefault();fn(e);function mv(ev){fn(ev);}function up(){document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up);}document.addEventListener('mousemove',mv);document.addEventListener('mouseup',up);});el.addEventListener('touchstart',function(e){fn(e);function mv(ev){ev.preventDefault();fn(ev);}function up(){document.removeEventListener('touchmove',mv);document.removeEventListener('touchend',up);}document.addEventListener('touchmove',mv,{passive:false});document.addEventListener('touchend',up);},{passive:false});}
+	bindDrag(svEl,dragSV);bindDrag(hueEl,dragHue);
+	hexInput.addEventListener('input',function(){var val=hexInput.value.trim();if(/^#?[0-9a-fA-F]{6}$/.test(val)){var hsv=rgb2hsv.apply(null,hex2rgb(val.replace('#','').length===6?(val[0]==='#'?val:'#'+val):val));H=hsv[0];S=hsv[1];V=hsv[2];paint();}});
+	okBtn.addEventListener('click',function(){picker.hidden=true;});
+
+	var PRESETS=[['#00aeec','#fb7299','#f6f7fb','#ffffff','#18191c'],['#fb7299','#00aeec','#fff5f8','#ffffff','#33272f'],['#7c5cff','#22c3aa','#f5f4ff','#ffffff','#1c1830'],['#ff8a3d','#ff5252','#fff8f2','#ffffff','#2b1f16'],['#22c55e','#0ea5e9','#f3fbf5','#ffffff','#14241a']];
+	var pc=document.getElementById('qd-presets');
+	for(var p=0;p<PRESETS.length;p++){(function(preset){var d=document.createElement('span');d.className='qd-preset';d.style.background=preset[0];d.title='套用预设';d.addEventListener('click',function(){var sw=swatches();for(var i=0;i<sw.length;i++){setSwatch(sw[i],preset[i]);root.style.setProperty(VARS[i],preset[i]);}picker.hidden=true;});pc.appendChild(d);})(PRESETS[p]);}
+	document.getElementById('qd-color-apply').addEventListener('click',function(){var c={},sw=swatches();for(var i=0;i<sw.length;i++){var v=sw[i].getAttribute('data-var'),hex=sw[i].getAttribute('data-color');c[v]=hex;root.style.setProperty(v,hex);}try{localStorage.setItem(KEY,JSON.stringify(c));}catch(e){}closeModal();});
+	document.getElementById('qd-color-reset').addEventListener('click',function(){try{localStorage.removeItem(KEY);}catch(e){}for(var i=0;i<VARS.length;i++){root.style.removeProperty(VARS[i]);}closeModal();});
+})();
+</script>

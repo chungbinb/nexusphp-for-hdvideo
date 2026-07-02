@@ -1,0 +1,17 @@
+
+
+/* qd-upload-inputs : upload-form fields follow theme (day=personalized surface, night=dark) */
+html[data-site-theme] #compose input[type="text"],
+html[data-site-theme] #compose input[type="url"],
+html[data-site-theme] #compose input:not([type]),
+html[data-site-theme] #compose textarea,
+html[data-site-theme] #compose select {
+	background: var(--theme-panel-bg) !important;
+	background-image: none !important;
+	color: var(--theme-page-text, var(--bili-text, #18191c)) !important;
+	border-color: var(--theme-panel-border, var(--bili-border, #e6e9ef)) !important;
+}
+html[data-site-theme] #compose input::placeholder,
+html[data-site-theme] #compose textarea::placeholder {
+	color: color-mix(in srgb, var(--theme-page-text, #888) 55%, transparent) !important;
+}

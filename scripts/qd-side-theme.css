@@ -1,0 +1,27 @@
+
+
+/* qd-side-themed : floating side buttons follow theme (day=personalized surface, night=dark) */
+html[data-site-theme] .qd-side-btn {
+	background: var(--bili-surface) !important;
+	color: var(--bili-primary) !important;
+}
+html[data-site-theme] .qd-side-btn + .qd-side-btn {
+	border-top-color: var(--bili-border) !important;
+}
+html[data-site-theme] .qd-side-btn:hover {
+	background: var(--bili-surface-soft) !important;
+	color: var(--bili-primary) !important;
+}
+:root[data-site-theme="night"] .qd-side-btn,
+body.theme-night .qd-side-btn {
+	background: #0e1728 !important;
+	color: var(--bili-primary) !important;
+}
+:root[data-site-theme="night"] .qd-side-btn + .qd-side-btn,
+body.theme-night .qd-side-btn + .qd-side-btn {
+	border-top-color: rgba(255, 255, 255, 0.08) !important;
+}
+:root[data-site-theme="night"] .qd-side-btn:hover,
+body.theme-night .qd-side-btn:hover {
+	background: #17243d !important;
+}

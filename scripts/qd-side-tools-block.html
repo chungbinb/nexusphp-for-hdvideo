@@ -1,0 +1,87 @@
+<!-- QD floating side tools: 返回旧版 / 个性化 (injected site-wide via stdhead) -->
+<style>
+.qd-side-tools{position:fixed;right:14px;top:50%;transform:translateY(-50%);z-index:9990;display:flex;flex-direction:column;gap:14px;}
+.qd-side-btn{width:56px;height:56px;border:none;border-radius:50%;background:var(--bili-surface,#fff);color:var(--bili-primary,#00aeec);box-shadow:var(--bili-shadow-md,0 8px 24px rgba(24,25,28,.12));display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;text-decoration:none;line-height:1.05;transition:transform .15s ease,box-shadow .15s ease,color .15s ease;padding:0;}
+.qd-side-btn:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(24,25,28,.2);color:var(--bili-primary-hover,#38bff2);}
+.qd-side-btn svg{width:21px;height:21px;margin-bottom:3px;}
+.qd-side-btn .qd-side-text{font-size:10px;white-space:nowrap;}
+@media (max-width:768px){.qd-side-tools{right:8px;gap:10px;}.qd-side-btn{width:48px;height:48px;}.qd-side-btn svg{width:18px;height:18px;}}
+.qd-modal{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;}
+.qd-modal[hidden]{display:none;}
+.qd-modal-mask{position:absolute;inset:0;background:rgba(0,0,0,.45);}
+.qd-modal-card{position:relative;width:340px;max-width:92vw;background:var(--bili-surface,#fff);color:var(--bili-text,#18191c);border-radius:var(--bili-radius-lg,16px);box-shadow:0 20px 60px rgba(0,0,0,.3);padding:20px 22px;}
+.qd-modal-card h3{margin:0 0 6px;font-size:17px;}
+.qd-modal-card .qd-modal-sub{margin:0 0 14px;font-size:12px;color:var(--bili-text-muted,#9499a0);}
+.qd-color-row{display:flex;align-items:center;justify-content:space-between;margin:11px 0;}
+.qd-color-row label{font-size:13px;color:var(--bili-text-secondary,#61666d);}
+.qd-color-row input[type=color]{width:44px;height:28px;border:1px solid var(--bili-border,#e6e9ef);border-radius:6px;background:none;cursor:pointer;padding:0;}
+.qd-presets{display:flex;gap:9px;margin:16px 0 4px;flex-wrap:wrap;align-items:center;}
+.qd-presets .qd-presets-label{font-size:12px;color:var(--bili-text-secondary,#61666d);margin-right:2px;}
+.qd-preset{width:26px;height:26px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--bili-border,#e6e9ef);cursor:pointer;}
+.qd-modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;}
+.qd-modal-actions button{border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer;}
+.qd-btn-reset{background:var(--bili-surface-soft,#f2f3f5);color:var(--bili-text-secondary,#61666d);}
+.qd-btn-apply{background:var(--bili-primary,#00aeec);color:#fff;}
+</style>
+<div class="qd-side-tools" id="qd-side-tools">
+	<a class="qd-side-btn" href="/old/" title="返回旧版">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path></svg>
+		<span class="qd-side-text">返回旧版</span>
+	</a>
+	<button type="button" class="qd-side-btn" id="qd-personalize-btn" title="个性化配色">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="1.3"></circle><circle cx="17.5" cy="10.5" r="1.3"></circle><circle cx="8.5" cy="7.5" r="1.3"></circle><circle cx="6.5" cy="12.5" r="1.3"></circle><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c.93 0 1.5-.75 1.5-1.5 0-.4-.18-.74-.42-1-.24-.27-.42-.6-.42-1 0-.83.67-1.5 1.5-1.5H16c3.31 0 6-2.69 6-6 0-4.42-4.48-8-10-8z"></path></svg>
+		<span class="qd-side-text">个性化</span>
+	</button>
+</div>
+<div class="qd-modal" id="qd-personalize-modal" hidden>
+	<div class="qd-modal-mask" data-qd-close></div>
+	<div class="qd-modal-card">
+		<h3>个性化配色</h3>
+		<p class="qd-modal-sub">选择颜色实时预览，应用后全站生效（仅本浏览器）。</p>
+		<div class="qd-color-row"><label>主色调</label><input type="color" data-var="--bili-primary"></div>
+		<div class="qd-color-row"><label>强调色</label><input type="color" data-var="--bili-accent"></div>
+		<div class="qd-color-row"><label>页面背景</label><input type="color" data-var="--bili-bg"></div>
+		<div class="qd-color-row"><label>卡片背景</label><input type="color" data-var="--bili-surface"></div>
+		<div class="qd-color-row"><label>文字颜色</label><input type="color" data-var="--bili-text"></div>
+		<div class="qd-presets"><span class="qd-presets-label">预设</span><span id="qd-presets"></span></div>
+		<div class="qd-modal-actions">
+			<button type="button" class="qd-btn-reset" id="qd-color-reset">恢复默认</button>
+			<button type="button" class="qd-btn-apply" id="qd-color-apply">应用</button>
+		</div>
+	</div>
+</div>
+<script>
+(function(){
+	var KEY='qd_custom_colors';
+	var VARS=['--bili-primary','--bili-accent','--bili-bg','--bili-surface','--bili-text'];
+	var root=document.documentElement;
+	function getSaved(){try{return JSON.parse(localStorage.getItem(KEY)||'{}')||{};}catch(e){return {};}}
+	function applySaved(){var c=getSaved();for(var i=0;i<VARS.length;i++){if(c[VARS[i]]){root.style.setProperty(VARS[i],c[VARS[i]]);}}}
+	applySaved();
+	function curVal(v){var s=getComputedStyle(root).getPropertyValue(v).trim();return s||'#000000';}
+	function toHex(c){
+		if(/^#([0-9a-f]{6})$/i.test(c)){return c;}
+		if(/^#([0-9a-f]{3})$/i.test(c)){return '#'+c[1]+c[1]+c[2]+c[2]+c[3]+c[3];}
+		var m=c.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+		if(m){var h='#';for(var i=1;i<=3;i++){h+=('0'+parseInt(m[i],10).toString(16)).slice(-2);}return h;}
+		return '#00aeec';
+	}
+	var modal=document.getElementById('qd-personalize-modal');
+	var openBtn=document.getElementById('qd-personalize-btn');
+	function openModal(){
+		var inputs=modal.querySelectorAll('input[data-var]');
+		for(var i=0;i<inputs.length;i++){inputs[i].value=toHex(curVal(inputs[i].getAttribute('data-var')));}
+		modal.hidden=false;
+	}
+	function closeModal(){modal.hidden=true;}
+	if(openBtn){openBtn.addEventListener('click',openModal);}
+	modal.addEventListener('input',function(e){var t=e.target;if(t&&t.getAttribute&&t.getAttribute('data-var')){root.style.setProperty(t.getAttribute('data-var'),t.value);}});
+	modal.addEventListener('click',function(e){if(e.target&&e.target.hasAttribute&&e.target.hasAttribute('data-qd-close')){applySaved();closeModal();}});
+	var PRESETS=[['#00aeec','#fb7299','#f6f7fb','#ffffff','#18191c'],['#fb7299','#00aeec','#fff5f8','#ffffff','#33272f'],['#7c5cff','#22c3aa','#f5f4ff','#ffffff','#1c1830'],['#ff8a3d','#ff5252','#fff8f2','#ffffff','#2b1f16'],['#22c55e','#0ea5e9','#f3fbf5','#ffffff','#14241a']];
+	var pc=document.getElementById('qd-presets');
+	for(var p=0;p<PRESETS.length;p++){(function(preset){var d=document.createElement('span');d.className='qd-preset';d.style.background=preset[0];d.title='套用预设';d.addEventListener('click',function(){var inputs=modal.querySelectorAll('input[data-var]');for(var i=0;i<inputs.length;i++){inputs[i].value=preset[i];root.style.setProperty(VARS[i],preset[i]);}});pc.appendChild(d);})(PRESETS[p]);}
+	document.getElementById('qd-color-apply').addEventListener('click',function(){var c={};var inputs=modal.querySelectorAll('input[data-var]');for(var i=0;i<inputs.length;i++){var v=inputs[i].getAttribute('data-var');c[v]=inputs[i].value;root.style.setProperty(v,inputs[i].value);}try{localStorage.setItem(KEY,JSON.stringify(c));}catch(e){}closeModal();});
+	document.getElementById('qd-color-reset').addEventListener('click',function(){try{localStorage.removeItem(KEY);}catch(e){}for(var i=0;i<VARS.length;i++){root.style.removeProperty(VARS[i]);}closeModal();});
+})();
+</script>
+<!-- /QD floating side tools -->

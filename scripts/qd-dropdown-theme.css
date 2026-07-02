@@ -1,0 +1,16 @@
+
+
+/* qd-dropdown-themed : account / message dropdowns + nav submenu follow personalization (all pages) */
+html[data-site-theme] .top-account-dropdown,
+html[data-site-theme] .top-message-dropdown,
+html[data-site-theme] #mainmenu.menu .nav-submenu {
+	background: var(--bili-surface) !important;
+	background-image: none !important;
+	border-color: var(--bili-border) !important;
+}
+html[data-site-theme] .top-account-header {
+	border-bottom-color: var(--bili-border) !important;
+}
+html[data-site-theme] #mainmenu.menu .nav-submenu li a {
+	color: var(--bili-text) !important;
+}

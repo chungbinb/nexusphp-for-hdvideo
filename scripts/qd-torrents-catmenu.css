@@ -1,0 +1,7 @@
+
+
+/* qd-torrents-catmenu : category dropdown under 种子 nav item, 2-column */
+#mainmenu.menu .nav-torrents-submenu {
+	grid-template-columns: repeat(2, minmax(92px, auto)) !important;
+	min-width: 200px !important;
+}

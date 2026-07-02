@@ -1,0 +1,32 @@
+
+
+/* qd-settings-tabs : top tab bar for the settings page */
+.qd-settings-tabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 0 auto 18px;
+	max-width: 1040px;
+	padding: 7px;
+	background: var(--theme-panel-bg, var(--bili-surface, #fff));
+	border: 1px solid var(--theme-panel-border, var(--bili-border, #e6e9ef));
+	border-radius: 12px;
+	box-sizing: border-box;
+}
+.qd-settings-tab {
+	padding: 7px 15px;
+	border-radius: 8px;
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--theme-page-text, var(--bili-text, #18191c)) !important;
+	text-decoration: none !important;
+	white-space: nowrap;
+	transition: background 0.12s ease, color 0.12s ease;
+}
+.qd-settings-tab:hover {
+	background: color-mix(in srgb, var(--bili-primary, #00aeec) 14%, transparent);
+}
+.qd-settings-tab.is-active {
+	background: var(--bili-primary, #00aeec) !important;
+	color: #fff !important;
+}

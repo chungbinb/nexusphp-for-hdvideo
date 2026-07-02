@@ -1,0 +1,29 @@
+
+
+/* qd-nav-stats2 : stats as a 2-row grid left of the avatar (inside the fixed top-account-widget) */
+html[data-site-theme] body:not(.inframe) #top-account-widget,
+body:not(.inframe) #top-account-widget {
+	display: flex !important;
+	align-items: center !important;
+	gap: 14px !important;
+}
+#top-stats-bar.top-stats-bar {
+	display: grid !important;
+	grid-template-columns: repeat(4, auto) !important;
+	grid-auto-flow: row !important;
+	gap: 2px 14px !important;
+	align-items: baseline !important;
+	margin: 0 !important;
+	flex: 0 0 auto !important;
+	justify-content: end !important;
+}
+#top-stats-bar .top-stat {
+	color: var(--theme-page-text, var(--bili-text, #333)) !important;
+}
+#top-stats-bar .top-stat i.up,
+#top-stats-bar .top-stat em.up { color: #3fae5a !important; }
+#top-stats-bar .top-stat i.dn,
+#top-stats-bar .top-stat em.dn { color: #e06666 !important; }
+@media (max-width: 1280px) {
+	#top-stats-bar.top-stats-bar { display: none !important; }
+}

@@ -1,0 +1,24 @@
+
+
+/* qd-dropdown-fix2 : beat the day/night .top-account-dropdown white-gradient (specificity 0,4,1) */
+:root[data-site-theme="day"] body:not(.inframe) .top-account-dropdown,
+:root[data-site-theme="day"] body.page-torrents .top-account-dropdown,
+:root[data-site-theme="night"] body:not(.inframe) .top-account-dropdown,
+:root[data-site-theme="night"] body.page-torrents .top-account-dropdown,
+body.theme-day:not(.inframe) .top-account-dropdown,
+body.theme-night:not(.inframe) .top-account-dropdown,
+:root[data-site-theme="day"] body:not(.inframe) .top-message-dropdown,
+:root[data-site-theme="day"] body.page-torrents .top-message-dropdown,
+:root[data-site-theme="night"] body:not(.inframe) .top-message-dropdown,
+body.theme-day:not(.inframe) .top-message-dropdown,
+body.theme-night:not(.inframe) .top-message-dropdown {
+	background: var(--bili-surface) !important;
+	background-image: none !important;
+	border-color: var(--bili-border) !important;
+}
+:root[data-site-theme="day"] body:not(.inframe) .top-account-header,
+:root[data-site-theme="night"] body:not(.inframe) .top-account-header,
+body.theme-day:not(.inframe) .top-account-header,
+body.theme-night:not(.inframe) .top-account-header {
+	border-bottom-color: var(--bili-border) !important;
+}

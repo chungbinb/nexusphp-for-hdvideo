@@ -1,0 +1,15 @@
+
+
+/* qd-submenu-fix : nav submenu container beats the rgba(255,255,255,.98) day rule (specificity 1,5,1) */
+:root[data-site-theme="day"] body:not(.inframe) #mainmenu.menu .nav-submenu,
+:root[data-site-theme="day"] body.page-torrents #mainmenu.menu .nav-submenu,
+body.theme-day:not(.inframe) #mainmenu.menu .nav-submenu,
+:root[data-site-theme="night"] body:not(.inframe) #mainmenu.menu .nav-submenu,
+:root[data-site-theme="night"] body.page-torrents #mainmenu.menu .nav-submenu,
+body.theme-night:not(.inframe) #mainmenu.menu .nav-submenu {
+	background: var(--theme-panel-bg) !important;
+}
+:root[data-site-theme="night"] body #mainmenu.menu .nav-submenu li a,
+body.theme-night #mainmenu.menu .nav-submenu li a {
+	color: rgba(233, 238, 248, 0.92) !important;
+}

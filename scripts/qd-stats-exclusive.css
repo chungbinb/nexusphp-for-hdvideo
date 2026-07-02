@@ -1,0 +1,9 @@
+
+
+/* qd-stats-exclusive : nav stats (wide) and dropdown stats (narrow) are mutually exclusive */
+@media (min-width: 1281px) {
+	html[data-site-theme] .top-account-stats,
+	.top-account-stats {
+		display: none !important;
+	}
+}
