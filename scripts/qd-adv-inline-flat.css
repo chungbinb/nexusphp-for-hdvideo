@@ -1,0 +1,10 @@
+
+
+/* qd-adv-inline-flat : drop the extra outer dialog box; keep only the inner searchbox panel */
+html[data-site-theme] body.page-torrents #qd-adv-inline .torrent-advanced-search-dialog {
+	background: transparent !important;
+	border: 0 !important;
+	box-shadow: none !important;
+	border-radius: 0 !important;
+	padding: 0 !important;
+}

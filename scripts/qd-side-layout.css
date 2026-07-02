@@ -1,0 +1,16 @@
+
+
+/* qd-side-layout : layout toggle moved to side bar; hide nav original; normalize its text */
+#nav .top-link-layout,
+.top-right-tools .top-link-layout {
+	display: none !important;
+}
+.qd-side-btn .top-link-layout-text {
+	font-size: 10px !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	color: inherit !important;
+	line-height: 1.1 !important;
+	display: inline !important;
+	letter-spacing: normal !important;
+}

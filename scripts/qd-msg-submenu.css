@@ -1,0 +1,61 @@
+
+
+/* qd-side-submenu : 消息 left-flyout submenu (bar must not clip it) */
+.qd-side-tools { overflow: visible !important; }
+.qd-side-tools > :first-child,
+.qd-side-tools > :first-child .qd-side-btn {
+	border-top-left-radius: 14px !important;
+}
+.qd-side-tools > :last-child,
+.qd-side-tools > :last-child .qd-side-btn {
+	border-bottom-left-radius: 14px !important;
+}
+.qd-side-msg-wrap { position: relative; }
+.qd-side-msg-wrap .qd-side-btn { width: 58px; }
+.qd-side-submenu {
+	position: absolute;
+	right: 100%;
+	top: 0;
+	min-width: 184px;
+	background: var(--theme-panel-bg, var(--bili-surface, #fff)) !important;
+	border: 1px solid var(--theme-panel-border, var(--bili-border, #e6e9ef));
+	border-radius: 12px;
+	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+	padding: 6px;
+	opacity: 0;
+	visibility: hidden;
+	transform: translateX(8px);
+	transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s;
+	z-index: 10001;
+}
+.qd-side-msg-wrap:hover .qd-side-submenu {
+	opacity: 1;
+	visibility: visible;
+	transform: translateX(0);
+}
+.qd-side-submenu a {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 14px;
+	padding: 8px 13px;
+	border-radius: 8px;
+	color: var(--theme-page-text, var(--bili-text, #18191c)) !important;
+	text-decoration: none !important;
+	font-size: 13px;
+	line-height: 1.3;
+	white-space: nowrap;
+}
+.qd-side-submenu a:hover {
+	background: color-mix(in srgb, var(--bili-primary, #00aeec) 16%, transparent) !important;
+}
+.qd-side-submenu a b {
+	color: var(--bili-primary, #00aeec);
+	font-size: 12px;
+	font-weight: 700;
+}
+:root[data-site-theme="night"] .qd-side-submenu,
+body.theme-night .qd-side-submenu {
+	background: #0e1728 !important;
+	border-color: var(--theme-panel-border, rgba(116, 145, 196, 0.45));
+}

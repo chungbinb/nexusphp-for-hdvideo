@@ -1,0 +1,13 @@
+
+
+/* qd-carousel-off-pad : when the top carousel is disabled (body.carousel-off), the page must
+   reserve the fixed-nav height itself. On torrents in day theme, #outer padding-top was tuned
+   down to 18px assuming the carousel above provided the clearance; restore it when off. */
+:root[data-site-theme="day"] body.page-torrents.carousel-off #outer.outer {
+	padding-top: 72px !important;
+}
+@media (max-width: 1100px) {
+	:root[data-site-theme="day"] body.page-torrents.carousel-off #outer.outer {
+		padding-top: 98px !important;
+	}
+}

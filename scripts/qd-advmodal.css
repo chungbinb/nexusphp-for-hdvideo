@@ -1,0 +1,31 @@
+
+
+/* qd-advmodal : advanced-search modal follows theme (day=personalized, night=dark) */
+#torrent-advanced-search-modal .torrent-advanced-search-dialog {
+	background: var(--theme-panel-bg, var(--bili-surface, #fff)) !important;
+	background-image: none !important;
+	color: var(--theme-page-text, var(--bili-text, #18191c)) !important;
+	border-color: var(--theme-panel-border, var(--bili-border, #e6e9ef)) !important;
+}
+#torrent-advanced-search-modal .searchbox,
+#torrent-advanced-search-modal .searchbox table,
+#torrent-advanced-search-modal table td:not(.colhead),
+#torrent-advanced-search-modal .searchbox td:not(.colhead) {
+	background: var(--theme-panel-bg, var(--bili-surface, #fff)) !important;
+	background-image: none !important;
+	border-color: var(--theme-panel-border, var(--bili-border, #e6e9ef)) !important;
+	color: var(--theme-page-text, var(--bili-text, #18191c)) !important;
+}
+#torrent-advanced-search-modal input[type="text"],
+#torrent-advanced-search-modal input[type="number"],
+#torrent-advanced-search-modal input:not([type]),
+#torrent-advanced-search-modal select,
+#torrent-advanced-search-modal textarea {
+	background: var(--theme-panel-bg, var(--bili-surface, #fff)) !important;
+	background-image: none !important;
+	color: var(--theme-page-text, var(--bili-text, #18191c)) !important;
+	border: 1px solid var(--theme-panel-border, var(--bili-border, #e6e9ef)) !important;
+}
+#torrent-advanced-search-modal .torrent-advanced-search-close {
+	color: var(--theme-page-text, var(--bili-text)) !important;
+}

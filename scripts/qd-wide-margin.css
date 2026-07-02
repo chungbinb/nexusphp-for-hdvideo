@@ -1,0 +1,11 @@
+
+
+/* qd-wide-margin : widescreen (layout-wide) leaves ~100px left/right margins on large screens */
+@media (min-width: 1100px) {
+	body.layout-wide:not(.inframe) #outer.outer {
+		width: calc(100% - 200px) !important;
+		max-width: calc(100% - 200px) !important;
+		margin-left: auto !important;
+		margin-right: auto !important;
+	}
+}

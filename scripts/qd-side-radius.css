@@ -1,0 +1,6 @@
+
+
+/* qd-side-radius : square the right side of the floating tool bar (TR of top btn + BR of bottom btn), keep left rounded */
+.qd-side-tools {
+	border-radius: 14px 0 0 14px !important;
+}

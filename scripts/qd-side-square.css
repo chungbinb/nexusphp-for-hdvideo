@@ -1,0 +1,8 @@
+
+
+/* qd-side-square : the personalize <button> inherits the global button border-radius; force it square like the <a> siblings */
+.qd-side-btn,
+button.qd-side-btn,
+#qd-personalize-btn {
+	border-radius: 0 !important;
+}

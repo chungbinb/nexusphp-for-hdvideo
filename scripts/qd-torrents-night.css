@@ -1,0 +1,38 @@
+
+
+/* qd-torrents-night : night-mode torrents panels use --theme-panel-bg (qd-torrents-themed used --bili-surface = white in night) */
+:root[data-site-theme="night"] body.page-torrents .torrent-quick-filters,
+:root[data-site-theme="night"] body.page-torrents .torrent-view-toolbar,
+:root[data-site-theme="night"] body.page-torrents .torrent-view-switch,
+:root[data-site-theme="night"] body.page-torrents table.torrents td.colhead,
+:root[data-site-theme="night"] body.page-torrents table.torrents tr td.rowfollow,
+:root[data-site-theme="night"] body.page-torrents .searchbox,
+:root[data-site-theme="night"] body.page-torrents .searchbox td.colhead,
+:root[data-site-theme="night"] body.page-torrents td.comment,
+:root[data-site-theme="night"] body.page-torrents td.embedded,
+:root[data-site-theme="night"] body.page-torrents .torrent-card-grid,
+:root[data-site-theme="night"] body.page-torrents .torrent-poster-media,
+:root[data-site-theme="night"] body.page-torrents .torrent-advanced-search-dialog,
+:root[data-site-theme="night"] body.page-torrents .torrent-advanced-search-dialog .searchbox,
+:root[data-site-theme="night"] body.page-torrents .torrent-advanced-search-dialog .searchbox td.embedded,
+:root[data-site-theme="night"] body.page-torrents .torrent-quick-filter-modal,
+:root[data-site-theme="night"] body.page-torrents .torrent-quick-filter-modal-list a,
+:root[data-site-theme="night"] body.page-torrents textarea,
+:root[data-site-theme="night"] body.page-torrents input[type="text"],
+:root[data-site-theme="night"] body.page-torrents select,
+body.theme-night.page-torrents .torrent-quick-filters,
+body.theme-night.page-torrents .torrent-view-toolbar,
+body.theme-night.page-torrents .torrent-view-switch,
+body.theme-night.page-torrents table.torrents td.colhead,
+body.theme-night.page-torrents table.torrents tr td.rowfollow,
+body.theme-night.page-torrents .searchbox,
+body.theme-night.page-torrents .searchbox td.colhead,
+body.theme-night.page-torrents td.comment,
+body.theme-night.page-torrents td.embedded,
+body.theme-night.page-torrents .torrent-card-grid,
+body.theme-night.page-torrents .torrent-poster-media,
+body.theme-night.page-torrents textarea,
+body.theme-night.page-torrents input[type="text"],
+body.theme-night.page-torrents select {
+	background: var(--theme-panel-bg) !important;
+}

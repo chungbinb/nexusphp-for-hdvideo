@@ -1,0 +1,6 @@
+
+
+/* qd-nav-stats3 : push stats left so the enlarged (hovered) avatar doesn't overlap them */
+#top-stats-bar.top-stats-bar {
+	margin-right: 22px !important;
+}

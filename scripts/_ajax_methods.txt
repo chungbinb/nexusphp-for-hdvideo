@@ -1,0 +1,32 @@
+
+    public static function savePersonalize($params)
+    {
+        global $CURUSER;
+        $json = (string)($params['data'] ?? '');
+        $decoded = json_decode($json, true);
+        $allowed = ['--bili-primary', '--bili-accent', '--bili-bg', '--bili-surface', '--bili-text'];
+        $clean = [];
+        if (is_array($decoded)) {
+            foreach ($allowed as $k) {
+                if (isset($decoded[$k]) && is_string($decoded[$k]) && preg_match('/^#[0-9a-fA-F]{6}$/', $decoded[$k])) {
+                    $clean[$k] = strtolower($decoded[$k]);
+                }
+            }
+        }
+        $uid = (int)$CURUSER['id'];
+        \App\Models\UserMeta::query()->updateOrCreate(
+            ['uid' => $uid, 'meta_key' => 'PERSONALIZE'],
+            ['meta_value' => json_encode($clean), 'status' => 0]
+        );
+        \Nexus\Database\NexusDB::cache_del("qd_personalize_$uid");
+        return true;
+    }
+
+    public static function clearPersonalize($params)
+    {
+        global $CURUSER;
+        $uid = (int)$CURUSER['id'];
+        \App\Models\UserMeta::query()->where('uid', $uid)->where('meta_key', 'PERSONALIZE')->delete();
+        \Nexus\Database\NexusDB::cache_del("qd_personalize_$uid");
+        return true;
+    }

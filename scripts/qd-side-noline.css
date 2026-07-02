@@ -1,0 +1,10 @@
+
+
+/* qd-side-noline : remove divider lines between floating side buttons (seamless connected bar) */
+.qd-side-btn + .qd-side-btn,
+html[data-site-theme] .qd-side-btn + .qd-side-btn,
+:root[data-site-theme="night"] .qd-side-btn + .qd-side-btn,
+body.theme-night .qd-side-btn + .qd-side-btn {
+	border-top: 0 !important;
+	border-top-color: transparent !important;
+}

@@ -1,0 +1,15 @@
+		print ("<li" . ($selected == "rules" ? " class=\"selected\"" : "") . "><a href=\"rules.php\">".$normalizeMenuText($lang_functions['text_rules'])."</a></li>");
+		print ("<li" . ($selected == "faq" ? " class=\"selected\"" : "") . "><a href=\"faq.php\">".$normalizeMenuText($lang_functions['text_faq'])."</a></li>");
+		if (user_can('log')) {
+			print ("<li" . ($selected == "log" ? " class=\"selected\"" : "") . "><a href=\"log.php\">".$normalizeMenuText($lang_functions['text_log'])."</a></li>");
+		}
+		print ("<li><a href=\"user-ban-log.php\">封禁记录</a></li>");
+		if (user_can('staffmem')) {
+			print ("<li class=\"has-submenu has-subsubmenu\"><a href=\"staff.php\">管理组</a><ul class=\"nav-submenu nav-subsubmenu\">");
+			print ("<li><a href=\"staffbox.php\">管理组信箱</a></li>");
+			print ("<li><a href=\"reports.php\">举报信箱</a></li>");
+			print ("<li><a href=\"cheaterbox.php\">作弊者</a></li>");
+			print ("<li><a href=\"complains.php?action=list\">申诉处理</a></li>");
+			print ("</ul></li>");
+		}
+		print ("<li" . ($selected == "contactstaff" ? " class=\"selected\"" : "") . "><a href=\"contactstaff.php\">".$normalizeMenuText($lang_functions['text_contactstaff'])."</a></li>");

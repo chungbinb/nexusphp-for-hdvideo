@@ -1,0 +1,28 @@
+
+<?php
+$qdPV = ''; $qdPJ = 'null';
+if (!empty($GLOBALS['CURUSER']['id'])) {
+    $qdUid = (int)$GLOBALS['CURUSER']['id'];
+    try {
+        $qdM = \Nexus\Database\NexusDB::remember("qd_personalize_$qdUid", 3600, function () use ($qdUid) {
+            return (string)(\App\Models\UserMeta::query()->where('uid', $qdUid)->where('meta_key', 'PERSONALIZE')->where('status', 0)->value('meta_value') ?: '');
+        });
+        if ($qdM !== '') {
+            $qdArr = json_decode($qdM, true);
+            if (is_array($qdArr)) {
+                $qdAllow = ['--bili-primary', '--bili-accent', '--bili-bg', '--bili-surface', '--bili-text'];
+                $qdClean = [];
+                foreach ($qdAllow as $qdK) {
+                    if (isset($qdArr[$qdK]) && preg_match('/^#[0-9a-fA-F]{6}$/', $qdArr[$qdK])) {
+                        $qdClean[$qdK] = $qdArr[$qdK];
+                        $qdPV .= $qdK . ':' . $qdArr[$qdK] . ';';
+                    }
+                }
+                $qdPJ = json_encode($qdClean);
+            }
+        }
+    } catch (\Throwable $qdE) {}
+}
+echo '<style id="qd-personalize-vars">' . ($qdPV !== '' ? (':root{' . $qdPV . '}') : '') . '</style>';
+echo '<script>window.__QD_P__=' . $qdPJ . ';</script>';
+?>

@@ -1,0 +1,30 @@
+
+
+/* qd-dl-progress : torrent download progress (list mode) — clean 2px green bar at bottom of the row */
+.torrentname .qd-dl-progress,
+.qd-dl-progress {
+	position: relative;
+	height: 2px;
+	margin-top: 4px;
+	margin-bottom: 1px;
+	width: 100%;
+	background: rgba(0, 0, 0, 0.08);
+	border-radius: 2px;
+	overflow: hidden;
+	line-height: 0;
+}
+.qd-dl-progress > i {
+	display: block;
+	height: 100%;
+	min-width: 2px;
+	background: #21ba45;
+	border-radius: 2px;
+}
+html[data-site-theme="night"] .qd-dl-progress,
+body.theme-night .qd-dl-progress {
+	background: rgba(255, 255, 255, 0.14);
+}
+html[data-site-theme="night"] .qd-dl-progress > i,
+body.theme-night .qd-dl-progress > i {
+	background: #2ecc40;
+}

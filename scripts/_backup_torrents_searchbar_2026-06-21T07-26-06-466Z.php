@@ -6,39 +6,6 @@ require_once(get_langfile_path('special.php'));
 loggedinorreturn();
 parked();
 
-// 手机端：套用与首页/论坛一致的手机外壳，并复用桌面版的卡片视图/筛选(modern-refresh.css + 内联JS)；?pc=1 强制电脑版。
-$GLOBALS['T_MOBILE'] = empty($_GET['pc']) && preg_match('/Mobile|Android|iPhone|iPod|Windows Phone|BlackBerry|webOS|HarmonyOS/i', (string)($_SERVER['HTTP_USER_AGENT'] ?? ''));
-if ($GLOBALS['T_MOBILE']) { require_once ROOT_PATH . 'include/mobile_shell.php'; }
-function t_mhead($title = '') {
-    if (!empty($GLOBALS['T_MOBILE']) && function_exists('mobile_shell_page_head')) {
-        mobile_shell_page_head(trim(strip_tags((string)$title)) ?: '种子', 'torrents', 'page-torrents');
-        $mrv = @filemtime(ROOT_PATH . 'public/styles/modern-refresh.css') ?: 1;
-        echo '<link rel="stylesheet" type="text/css" href="styles/modern-refresh.css?v=' . intval($mrv) . '">';
-        echo '<link rel="stylesheet" type="text/css" href="styles/torrents-mobile.css?v=20260702a">';
-        // modern-refresh.css 的 :root 覆盖了 page_head 注入的个性化 --bili-*；而 --mh-* 在 mobile-shell.css 里是 :root 上 var(--bili-*) 映射，
-        // 只按 :root(html) 上的 --bili-* 计算。必须在 modern-refresh 之后、同样用 :root 重新声明个性化 --bili-*，--mh-* 才会重新算成个性化色。
-        if (function_exists('mobile_shell_colors')) {
-            $tc = mobile_shell_colors();
-            echo '<style>:root{--bili-primary:' . $tc['primary'] . ';--bili-accent:' . $tc['accent'] . ';--bili-bg:' . $tc['bg'] . ';--bili-surface:' . $tc['surface'] . ';--bili-text:' . $tc['text'] . ';}</style>';
-        }
-        echo '<script type="text/javascript" src="js/jquery-1.12.4.min.js"></script>';
-        echo '<script>jQuery.noConflict();window.nexusLayerOptions={confirm:{btnAlign:"c",title:"Confirm",btn:["OK","Cancel"]},alert:{btnAlign:"c",title:"Info",btn:["OK","Cancel"]}};</script>';
-        echo '<script type="text/javascript" src="vendor/layer-v3.5.1/layer/layer.js"></script>';
-        echo '<script type="text/javascript" src="js/common.js"></script>';
-        echo '<script type="text/javascript" src="js/ajaxbasic.js"></script>';
-    } else {
-        stdhead($title);
-    }
-}
-function t_mfoot() {
-    if (!empty($GLOBALS['T_MOBILE']) && function_exists('mobile_shell_page_foot')) {
-        foreach (\Nexus\Nexus::getAppendFooters() as $v) { print($v); }
-        mobile_shell_page_foot('torrents');
-    } else {
-        stdfoot();
-    }
-}
-
 if (!function_exists('hdvideo_torrent_styles')) {
 	function hdvideo_run_schema_sql($sql) {
 		$res = @sql_query($sql);
@@ -222,23 +189,7 @@ if (isset($_GET['sort']) && $_GET['sort'] && isset($_GET['type']) && $_GET['type
 
 } else {
 
-	// 置顶只保留最新的 N 个真正生效（后台「种子列表设置」可调，默认 5；超出的置顶按普通最新排）。
-	// 死种/急需求种不再前置——需要保种的种子改到「保种区」单独展示。其余一律按最新（id 倒序）。
-	$stickyLimit = 5;
-	try {
-		$cfgRes = sql_query("SELECT `sticky_count` FROM `hdvideo_torrent_settings` WHERE `id` = 1 LIMIT 1");
-		if ($cfgRes && ($cfgRow = mysql_fetch_assoc($cfgRes))) { $stickyLimit = max(0, (int)$cfgRow['sticky_count']); }
-	} catch (\Throwable $e) { $stickyLimit = 5; }
-	$stickyIds = [];
-	if ($stickyLimit > 0) {
-		$sres = sql_query("SELECT `id` FROM `torrents` WHERE `pos_state` <> 'normal' ORDER BY `pos_state` DESC, `id` DESC LIMIT " . (int)$stickyLimit);
-		while ($sres && ($sr = mysql_fetch_assoc($sres))) { $stickyIds[] = (int)$sr['id']; }
-	}
-	if ($stickyIds) {
-		$orderby = "ORDER BY CASE WHEN torrents.id IN (" . implode(',', $stickyIds) . ") THEN 0 ELSE 1 END, torrents.id DESC";
-	} else {
-		$orderby = "ORDER BY torrents.id DESC";
-	}
+	$orderby = "ORDER BY pos_state DESC, torrents.id DESC";
 	$pagerlink = "";
 
 }
@@ -255,14 +206,6 @@ $whereprocessingina = array();
 $whereteamina = array();
 $whereaudiocodecina = array();
 $whereothera = [];
-// 保种区：只看需要保种的种子（做种数<=1）。濒死(有人下却0做种)最前，其次断种，再按最新。
-$requireSeedMode = !empty($_GET['requireseed']);
-if ($requireSeedMode) {
-	$whereothera[] = "visible = 'yes'";
-	$whereothera[] = "seeders <= 1";
-	$orderby = "ORDER BY CASE WHEN torrents.seeders = 0 AND torrents.leechers > 0 THEN 0 WHEN torrents.seeders = 0 THEN 1 ELSE 2 END, torrents.leechers DESC, torrents.id DESC";
-	$addparam .= "requireseed=1&";
-}
 $style_get = intval($_GET['style'] ?? 0);
 $region_get = intval($_GET['region'] ?? 0);
 //----------------- start whether show torrents from all sections---------------------//
@@ -346,15 +289,9 @@ elseif ($include_dead == 2)		//dead
     $whereothera[] = "visible = 'no'";
 }
 
-// In active/dead views, prioritize torrents tagged as official — but only while an
-// official-group promotion (官组优惠) is actually running. Outside a promotion the
-// list stays newest-first, matching the stock ordering.
-// 仅在“默认排序(用户未点某列排序)”时才把官组种子置顶；用户显式点了大小/做种等列排序时，纯按该列排序，
-// 否则官组优惠期间点大小排序会看着“没排序”(官组种子被强制置顶)。
+// In active/dead views, prioritize torrents tagged as official.
 $officialTag = intval(get_setting('bonus.official_tag', 0));
-$officialPromoActive = get_official_sp_state() != \App\Models\Torrent::PROMOTION_NORMAL;
-$userExplicitSort = !empty($_GET['sort']) && !empty($_GET['type']);
-if ($officialTag > 0 && $officialPromoActive && !$userExplicitSort && in_array($include_dead, [1, 2], true) && empty($requireSeedMode)) {
+if ($officialTag > 0 && in_array($include_dead, [1, 2], true)) {
 	$officialOrder = "CASE WHEN EXISTS (SELECT 1 FROM torrent_tags tt WHERE tt.torrent_id = torrents.id AND tt.tag_id = {$officialTag}) THEN 1 ELSE 0 END DESC, ";
 	$orderby = preg_replace('/^ORDER BY\s+/i', 'ORDER BY ' . $officialOrder, $orderby);
 }
@@ -397,13 +334,93 @@ if($special_state == 0)	//all
 {
 	$addparam .= "spstate=0&";
 }
-elseif (in_array($special_state, array(1,2,3,4,5,6,7), true))
+elseif ($special_state == 1)	//normal
 {
-	// Filter by *effective* promotion: a global promotion applies to all torrents,
-	// an official-group promotion applies to official-tagged torrents (overriding
-	// global for them). See get_promotion_filter_where_clause().
-	$addparam .= "spstate={$special_state}&";
-	$wherea[] = get_promotion_filter_where_clause($special_state);
+	$addparam .= "spstate=1&";
+
+	$wherea[] = "sp_state = 1";
+
+	if(get_global_sp_state() == 1)
+	{
+		$wherea[] = "sp_state = 1";
+	}
+}
+elseif ($special_state == 2)	//free
+{
+	$addparam .= "spstate=2&";
+
+	if(get_global_sp_state() == 1)
+	{
+		$wherea[] = "sp_state = 2";
+	}
+	else if(get_global_sp_state() == 2)
+	{
+		;
+	}
+}
+elseif ($special_state == 3)	//2x up
+{
+	$addparam .= "spstate=3&";
+	if(get_global_sp_state() == 1)	//only sp state
+	{
+		$wherea[] = "sp_state = 3";
+	}
+	else if(get_global_sp_state() == 3)	//all
+	{
+		;
+	}
+}
+elseif ($special_state == 4)	//2x up and free
+{
+	$addparam .= "spstate=4&";
+
+	if(get_global_sp_state() == 1)	//only sp state
+	{
+		$wherea[] = "sp_state = 4";
+	}
+	else if(get_global_sp_state() == 4)	//all
+	{
+		;
+	}
+}
+elseif ($special_state == 5)	//half down
+{
+	$addparam .= "spstate=5&";
+
+	if(get_global_sp_state() == 1)	//only sp state
+	{
+		$wherea[] = "sp_state = 5";
+	}
+	else if(get_global_sp_state() == 5)	//all
+	{
+		;
+	}
+}
+elseif ($special_state == 6)	//half down
+{
+	$addparam .= "spstate=6&";
+
+	if(get_global_sp_state() == 1)	//only sp state
+	{
+		$wherea[] = "sp_state = 6";
+	}
+	else if(get_global_sp_state() == 6)	//all
+	{
+		;
+	}
+}
+elseif ($special_state == 7)	//30% down
+{
+	$addparam .= "spstate=7&";
+
+	if(get_global_sp_state() == 1)	//only sp state
+	{
+		$wherea[] = "sp_state = 7";
+	}
+	else if(get_global_sp_state() == 7)	//all
+	{
+		;
+	}
 }
 
 $category_get = intval($_GET["cat"] ?? 0);
@@ -1121,10 +1138,10 @@ if ($count)
 }
 
 if (isset($searchstr))
-	t_mhead($lang_torrents['head_search_results_for'].$searchstr_ori);
+	stdhead($lang_torrents['head_search_results_for'].$searchstr_ori);
 elseif ($sectiontype == $browsecatmode)
-	t_mhead($lang_torrents['head_torrents']);
-else t_mhead($lang_torrents['head_special']);
+	stdhead($lang_torrents['head_torrents']);
+else stdhead($lang_torrents['head_special']);
 
 function torrent_quick_filter_url($field, $value = null) {
 	$params = $_GET;
@@ -1213,15 +1230,13 @@ function render_torrent_quick_filters($lang_torrents, $cats, $category_get, $sou
 	if (!$groups) {
 		return;
 	}
-	print('<form class="qd-torrent-search" method="get" action="?" role="search"><input type="text" name="search" value="' . htmlspecialchars((string)($_GET['search'] ?? '')) . '" placeholder="搜索关键字..." autocomplete="off" /><button type="submit">搜索</button><button type="button" class="qd-torrent-search-adv top-advanced-search-trigger">高级搜索</button></form>');
-	print('<div id="qd-adv-inline" class="qd-adv-inline" hidden></div>');
 	print('<div class="torrent-quick-filters">' . implode('', $groups) . '</div>');
 	print('<div class="torrent-quick-filter-modal" id="torrent-quick-filter-modal" aria-hidden="true"><div class="torrent-quick-filter-modal-backdrop" data-quick-filter-close="1"></div><div class="torrent-quick-filter-modal-dialog" role="dialog" aria-modal="true"><button type="button" class="torrent-quick-filter-modal-close" data-quick-filter-close="1">&times;</button><h2></h2><div class="torrent-quick-filter-modal-list"></div></div></div>');
 }
 
 print("<table width=\"97%\" class=\"main\" border=\"0\" cellspacing=\"0\" cellpadding=\"0\"><tr><td class=\"embedded\">");
 
-if (empty($GLOBALS['T_MOBILE'])) displayHotAndClassic(); // 手机端不显示桌面版"热门/经典"海报横排(nowrap会横向溢出)
+displayHotAndClassic();
 $searchBoxRightTdStyle = 'padding: 1px;padding-left: 10px;white-space: nowrap';
 if ($allsec != 1 || $enablespecial != 'yes'){ //do not print searchbox if showing bookmarked torrents from all sections;
 ?>
@@ -1497,7 +1512,7 @@ if ($allTags->isNotEmpty()) {
 </div>
 <?php
 }
-	if (empty($GLOBALS['T_MOBILE']) && $Advertisement->enable_ad()){ // 手机端不显示搜索框下方广告位(避免顶部黑块)
+	if ($Advertisement->enable_ad()){
         $belowsearchboxad = $Advertisement->get_ad('belowsearchbox');
         if (!empty($belowsearchboxad[0])) {
             echo "<div align=\"center\" style=\"margin-top: 10px\" id=\"\">".$belowsearchboxad[0]."</div>";
@@ -1541,7 +1556,7 @@ if ($count) {
     }
 	$rows = apply_filter('torrent_list', $rows, $page, $sectiontype, $_GET['search'] ?? '');
 	print('<div class="torrent-view-toolbar">'
-	. '<div class="torrent-view-title">' . (!empty($requireSeedMode) ? '🌱 保种区 · 做种数≤1的种子，求大佬做种回血' : 'Torrent List') . '</div>'
+	. '<div class="torrent-view-title">Torrent List</div>'
 		. '<div class="torrent-view-pager">' . $pagertop . '</div>'
 		. '<div class="torrent-view-switch" role="tablist" aria-label="Torrent View Switch">'
 	. '<button type="button" class="torrent-view-btn is-active" data-view="list">List</button>'
@@ -2164,10 +2179,9 @@ if ($CURUSER){
 		});
 	}
 
-	var defaultView = body.classList.contains('m-shell') ? 'card' : 'list';
-	var saved = defaultView;
+	var saved = 'list';
 	try {
-		saved = window.localStorage.getItem(storageKey) || defaultView;
+		saved = window.localStorage.getItem(storageKey) || 'list';
 	} catch (e) {}
 	setView(saved);
 })();
@@ -2178,18 +2192,16 @@ if ($CURUSER){
 		return;
 	}
 
+	var trigger = document.querySelector('.top-advanced-search-trigger');
 	var modal = document.getElementById('torrent-advanced-search-modal');
-	var dialog = modal ? modal.querySelector('.torrent-advanced-search-dialog') : null;
-	var inline = document.getElementById('qd-adv-inline');
-	if (!modal || !dialog || !inline) {
+	if (!trigger || !modal) {
 		return;
 	}
-	inline.appendChild(dialog);
-	modal.style.display = 'none';
 
-	var closeNodes = dialog.querySelectorAll('[data-advanced-search-close]');
-	var filterWrap = dialog.querySelector('#ksearchboxmain');
-	var filterIcon = dialog.querySelector('#picsearchboxmain');
+	var closeNodes = modal.querySelectorAll('[data-advanced-search-close]');
+	var filterWrap = modal.querySelector('#ksearchboxmain');
+	var filterIcon = modal.querySelector('#picsearchboxmain');
+	var previousOverflow = '';
 
 	function expandFilterPanel() {
 		if (filterWrap && filterWrap.style.display === 'none') {
@@ -2203,8 +2215,11 @@ if ($CURUSER){
 
 	function openModal() {
 		expandFilterPanel();
-		inline.hidden = false;
-		var input = dialog.querySelector('#searchinput') || dialog.querySelector('input[name="search"]');
+		modal.setAttribute('aria-hidden', 'false');
+		body.classList.add('searchbox-modal-open');
+		previousOverflow = body.style.overflow;
+		body.style.overflow = 'hidden';
+		var input = modal.querySelector('#searchinput') || modal.querySelector('input[name="search"]');
 		if (input) {
 			window.setTimeout(function () {
 				input.focus();
@@ -2213,14 +2228,14 @@ if ($CURUSER){
 	}
 
 	function closeModal() {
-		inline.hidden = true;
+		modal.setAttribute('aria-hidden', 'true');
+		body.classList.remove('searchbox-modal-open');
+		body.style.overflow = previousOverflow || '';
 	}
 
-	document.querySelectorAll('.top-advanced-search-trigger').forEach(function (tg) {
-		tg.addEventListener('click', function (e) {
-			e.preventDefault();
-			if (inline.hidden) { openModal(); } else { closeModal(); }
-		});
+	trigger.addEventListener('click', function (e) {
+		e.preventDefault();
+		openModal();
 	});
 
 	for (var i = 0; i < closeNodes.length; i++) {
@@ -2231,7 +2246,7 @@ if ($CURUSER){
 	}
 
 	document.addEventListener('keydown', function (e) {
-		if (e.key === 'Escape' && !inline.hidden) {
+		if (e.key === 'Escape' && body.classList.contains('searchbox-modal-open')) {
 			closeModal();
 		}
 	});
@@ -2291,74 +2306,6 @@ if ($CURUSER){
 	});
 })();
 </script>
-<script>
-/* 手机 List 视图：把评分(IMDb/豆)从标题区移到「发布者」那一行右侧，IMDb 优先 */
-(function () {
-	var body = document.body;
-	if (!body || !body.classList.contains('m-shell') || !body.classList.contains('page-torrents')) return;
-	var table = document.querySelector('table.torrents');
-	if (!table) return;
-	function siteRank(d) {
-		var img = d.querySelector('img');
-		var s = img ? ((img.getAttribute('src') || '') + (img.getAttribute('alt') || '')).toLowerCase() : '';
-		if (s.indexOf('imdb') >= 0) return 0;
-		if (s.indexOf('douban') >= 0) return 1;
-		return 2;
-	}
-	var rows = table.querySelectorAll('tbody > tr');
-	for (var i = 0; i < rows.length; i++) {
-		var tr = rows[i];
-		if (tr.querySelector('td.colhead')) continue;
-		var ratingTd = tr.querySelector('.torrentname td[style*="width: 40px"]');
-		var wrap = ratingTd ? ratingTd.querySelector('div') : null;
-		if (!wrap) continue;
-		var ratings = [].slice.call(wrap.children).filter(function (n) { return n.nodeType === 1; });
-		if (!ratings.length) continue;
-		var upLink = tr.querySelector('td[data-label] a[href*="userdetails.php"]');
-		var uploaderTd = upLink ? upLink.closest('td') : null;
-		if (!uploaderTd) continue;
-		ratings.sort(function (a, b) { return siteRank(a) - siteRank(b); });
-		var box = document.createElement('span');
-		box.className = 'tt-rating-inline';
-		ratings.forEach(function (d) { box.appendChild(d); });
-		uploaderTd.classList.add('tt-uploader');
-		uploaderTd.appendChild(box);
-		if (ratingTd) ratingTd.style.display = 'none';
-	}
-})();
-</script>
 <?php
-if (!empty($GLOBALS['T_MOBILE'])) {
-?>
-<div class="t-scrollnav" id="tScrollNav">
-	<button type="button" id="tScrollTop" aria-label="回到顶部"><svg viewBox="0 0 24 24"><path d="M12 19V6M6 11l6-5 6 5"/></svg></button>
-	<button type="button" id="tScrollBottom" aria-label="到底部"><svg viewBox="0 0 24 24"><path d="M12 5v13M6 13l6 5 6-5"/></svg></button>
-</div>
-<script>
-(function () {
-	var nav = document.getElementById('tScrollNav');
-	var topBtn = document.getElementById('tScrollTop'), botBtn = document.getElementById('tScrollBottom');
-	if (!nav || !topBtn || !botBtn) return;
-	topBtn.addEventListener('click', function () { window.scrollTo({ top: 0, behavior: 'smooth' }); });
-	botBtn.addEventListener('click', function () { window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' }); });
-	// 滚到底部时抬高按钮，避免遮挡底部分页控件
-	var list = document.querySelectorAll('.nexus-pagination');
-	var pager = list.length ? list[list.length - 1] : null;
-	var ticking = false;
-	function reposition() {
-		ticking = false;
-		if (!pager) return;
-		var r = pager.getBoundingClientRect();
-		var need = window.innerHeight - r.top + 12; // 让按钮底边落在分页控件上沿之上
-		nav.style.bottom = (r.top < window.innerHeight && need > 72) ? (need + 'px') : '';
-	}
-	function onScroll() { if (!ticking) { ticking = true; requestAnimationFrame(reposition); } }
-	window.addEventListener('scroll', onScroll, { passive: true });
-	window.addEventListener('resize', onScroll);
-	reposition();
-})();
-</script>
-<?php
-}
 print("</td></tr></table>");
-t_mfoot();
+stdfoot();

@@ -1,0 +1,20 @@
+
+
+/* qd-postsort-btn : forum topic post-order toggle button */
+.qd-postsort-btn {
+	display: inline-block;
+	padding: 1px 11px;
+	margin-left: 6px;
+	border-radius: 12px;
+	background: var(--bili-primary, #00aeec) !important;
+	color: #fff !important;
+	font-size: 12px;
+	line-height: 18px;
+	white-space: nowrap;
+	text-decoration: none !important;
+	vertical-align: middle;
+}
+.qd-postsort-btn:hover {
+	filter: brightness(1.08);
+	color: #fff !important;
+}

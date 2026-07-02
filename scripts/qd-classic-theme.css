@@ -1,0 +1,17 @@
+
+
+/* qd-classic-themed : classic pages (details/userdetails/forums posts...) follow personalization */
+html[data-site-theme] td[bgcolor="#FFFFFF"],
+html[data-site-theme] td[bgcolor="#ffffff"],
+html[data-site-theme] td[bgcolor="#FFF"],
+html[data-site-theme] td[bgcolor="white"],
+html[data-site-theme] table[bgcolor="#FFFFFF"],
+html[data-site-theme] table[bgcolor="#ffffff"] {
+	background-color: var(--bili-surface) !important;
+}
+html[data-site-theme] td.rowhead {
+	background: color-mix(in srgb, var(--bili-surface) 88%, var(--bili-text)) !important;
+}
+html[data-site-theme] td.embedded {
+	background-color: transparent !important;
+}
