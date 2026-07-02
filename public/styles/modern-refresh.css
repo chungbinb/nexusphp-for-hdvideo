@@ -7218,3 +7218,6 @@ body.page-settings table.main td.rowfollow .medium {
 		padding-top: 98px !important;
 	}
 }
+
+/* 种子列表：官方/原创/首发/中字/源码等标签始终换到副标题下方、独占一行、左对齐(桌面端) */
+.torrentname .tt-tags { display: block; margin-top: 5px; line-height: 2; }
