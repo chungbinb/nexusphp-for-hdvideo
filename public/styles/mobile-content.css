@@ -347,6 +347,43 @@ body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > 
     font-weight: 900;
     text-align: left !important;
 }
+body.page-staff .m-main table.staff-forummods-table > tbody > tr.staff-forummod-row {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 8px 10px;
+    padding-bottom: 14px;
+}
+body.page-staff .m-main table.staff-forummods-table > tbody > tr.staff-forummod-row > td.staff-forummod-forums {
+    grid-column: 1 / -1;
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding-top: 8px !important;
+    border-top: 1px solid rgba(20,40,90,.08) !important;
+    font-size: 0;
+    line-height: 1.35;
+}
+body.page-staff .m-main table.staff-forummods-table > tbody > tr.staff-forummod-row > td.staff-forummod-forums::before {
+    content: "负责论坛";
+    flex-basis: 100%;
+    margin: 0 0 1px;
+    font-size: 11px;
+}
+body.page-staff .m-main table.staff-forummods-table > tbody > tr.staff-forummod-row > td.staff-forummod-forums a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 26px;
+    max-width: 100%;
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.46);
+    border: 1px solid rgba(20,40,90,.08);
+    color: var(--mh-primary) !important;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.2;
+    text-decoration: none;
+    overflow-wrap: anywhere;
+}
 
 /* ===== 消息页(page-messages)精修 ===== */
 /* 收件箱/发件箱菜单 → 横向胶囊标签 */

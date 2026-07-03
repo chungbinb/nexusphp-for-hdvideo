@@ -7,7 +7,7 @@ loggedinorreturn(true);
 user_can('staffmem', true);
 mp_head($lang_staff['head_staff']);
 
-$Cache->new_page(mobile_is() ? 'staff_page_mobile_20260703' : 'staff_page', 900, true);
+$Cache->new_page(mobile_is() ? 'staff_page_mobile_20260703b' : 'staff_page_20260703', 900, true);
 if (!$Cache->get_page()){
 $Cache->add_whole_row();
 begin_main_frame();
@@ -92,7 +92,7 @@ end_frame();
 
 //--------------------- forum moderators section ---------------------------//
 $ppl = '';
-$res = sql_query("SELECT forummods.userid AS userid, users.last_access, users.country FROM forummods LEFT JOIN users ON forummods.userid = users.id GROUP BY userid,users.last_access, users.country,forummods.forumid, forummods.userid ORDER BY forummods.forumid, forummods.userid") or sqlerr();
+$res = sql_query("SELECT DISTINCT forummods.userid AS userid, users.username, users.last_access, users.country FROM forummods LEFT JOIN users ON forummods.userid = users.id ORDER BY users.username") or sqlerr();
 while ($arr = mysql_fetch_assoc($res))
 {
 	$countryrow = get_country_row($arr['country']);
@@ -102,17 +102,17 @@ while ($arr = mysql_fetch_assoc($res))
 		$forums .= "<a href=forums.php?action=viewforum&forumid=".$forumrow['id'].">".$forumrow['name']."</a>, ";
 	}
 	$forums = rtrim(trim($forums),",");
-	$ppl .= "<tr height=15><td class=embedded>". get_username($arr['userid']) ."</td><td class=embedded ><img width=24 height=15 src=\"pic/flag/".$countryrow['flagpic']."\" title=\"".$countryrow['name']."\" style=\"padding-bottom:1px;\"></td>
+	$ppl .= "<tr class=\"staff-forummod-row\" height=15><td class=embedded>". get_username($arr['userid']) ."</td><td class=embedded ><img width=24 height=15 src=\"pic/flag/".$countryrow['flagpic']."\" title=\"".$countryrow['name']."\" style=\"padding-bottom:1px;\"></td>
  <td class=embedded> ".(strtotime($arr['last_access']) > $dt ? $onlineimg : $offlineimg)."</td>".
  "<td class=embedded><a href=sendmessage.php?receiver=".$arr['userid']." title=\"".$lang_staff['title_send_pm']."\">".$sendpmimg."</a></td>".
- "<td class=embedded>".$forums."</td></tr>\n";
+ "<td class=\"embedded staff-forummod-forums\">".$forums."</td></tr>\n";
 }
 
 begin_frame($lang_staff['text_forum_moderators']."<font class=small> - [<a class=altlink href=contactstaff.php><b>".$lang_staff['text_apply_for_it']."</b></a>]</font>");
 ?>
 <?php echo $lang_staff['text_forum_moderators_note'] ?>
 <br /><br />
-<table width=100% cellspacing=0 align=center>
+<table class="staff-forummods-table" width=100% cellspacing=0 align=center>
 	<tr>
 		<td class=embedded><b><?php echo $lang_staff['text_username'] ?></b></td>
 		<td class=embedded align=center><b><?php echo $lang_staff['text_country'] ?></b></td>
