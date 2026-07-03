@@ -101,3 +101,326 @@ body.page-forums.m-shell { overflow-x: hidden !important; max-width: 100vw; }
 .page-forums .m-main textarea, .page-forums .m-main input[type="text"], .page-forums .m-main select { width: 100% !important; max-width: 100% !important; box-sizing: border-box; font-size: 16px; padding: 9px 11px; }
 .page-forums .m-main textarea { min-height: 140px; }
 .page-forums .m-main input[type="submit"], .page-forums .m-main input[type="button"], .page-forums .m-main .btn { min-height: 40px; padding: 0 16px; font-size: 15px; }
+
+/* 论坛管理(forummanage.php)：老式管理表格改为手机卡片 */
+.page-forummanage .m-main { padding: 10px 12px 0; }
+.page-forummanage .m-main h1,
+.page-forummanage .m-main h2 {
+    text-align: center;
+    font-size: 18px;
+    line-height: 1.35;
+    margin: 12px 0 14px;
+    color: var(--mh-text);
+}
+.page-forummanage .m-main > table.main,
+.page-forummanage .m-main > table.main > tbody {
+    display: block !important;
+    width: 100% !important;
+    border: 0 !important;
+    background: transparent !important;
+}
+.page-forummanage .fm-actions {
+    margin: 0 0 14px !important;
+    box-shadow: none !important;
+}
+.page-forummanage .fm-actions tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+.page-forummanage .fm-actions td.embedded {
+    display: block !important;
+    width: auto !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+}
+.page-forummanage .fm-actions form { margin: 0; }
+.page-forummanage .fm-actions input[type="submit"] {
+    width: 100% !important;
+    min-height: 40px !important;
+    border: 0 !important;
+    border-radius: 10px !important;
+    background: var(--mh-primary) !important;
+    color: #fff !important;
+    box-shadow: 0 8px 18px rgba(20,40,90,.16);
+    font-size: 14px !important;
+    font-weight: 800 !important;
+    cursor: pointer;
+}
+
+.page-forummanage .fm-list,
+.page-forummanage .fm-list > tbody {
+    display: block !important;
+    width: 100% !important;
+    border: 0 !important;
+    background: transparent !important;
+}
+.page-forummanage .fm-list > tbody > tr:first-child {
+    display: none !important;
+}
+.page-forummanage .fm-list > tbody > tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px 10px;
+    margin: 0 0 12px;
+    padding: 13px 14px;
+    background: var(--mh-surface);
+    border: 1px solid rgba(20,40,90,.08);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(20,40,90,.05);
+}
+.page-forummanage .fm-list td {
+    display: block;
+    width: auto !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    text-align: left !important;
+    color: var(--mh-text);
+    font-size: 13px;
+    line-height: 1.45;
+    word-break: normal;
+    overflow-wrap: anywhere;
+}
+.page-forummanage .fm-list td::before {
+    display: block;
+    margin-bottom: 2px;
+    color: #8a96ad;
+    font-size: 11px;
+    line-height: 1.2;
+    font-weight: 700;
+}
+.page-forummanage .fm-list td:nth-child(1) {
+    grid-column: 1 / -1;
+    padding-bottom: 3px !important;
+    border-bottom: 1px solid rgba(20,40,90,.07) !important;
+}
+.page-forummanage .fm-list td:nth-child(1) a {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--mh-text) !important;
+    font-size: 16px;
+    line-height: 1.35;
+    text-decoration: none;
+}
+.page-forummanage .fm-list td:nth-child(1) br { display: none; }
+.page-forummanage .fm-list td:nth-child(2)::before { content: "分区"; }
+.page-forummanage .fm-list td:nth-child(3)::before { content: "读取"; }
+.page-forummanage .fm-list td:nth-child(4)::before { content: "回复"; }
+.page-forummanage .fm-list td:nth-child(5)::before { content: "发主题"; }
+.page-forummanage .fm-list td:nth-child(6) {
+    grid-column: 1 / -1;
+    padding-top: 4px !important;
+}
+.page-forummanage .fm-list td:nth-child(6)::before { content: "版主"; }
+.page-forummanage .fm-list td:nth-child(6) img {
+    display: inline-block;
+    width: auto;
+    max-width: 18px;
+    max-height: 18px;
+    vertical-align: -3px;
+}
+.page-forummanage .fm-list td:nth-child(7) {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 4px;
+    padding-top: 9px !important;
+    border-top: 1px solid rgba(20,40,90,.07) !important;
+    font-weight: 800;
+}
+.page-forummanage .fm-list td:nth-child(7) b {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.page-forummanage .fm-list td:nth-child(7) a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: var(--mh-soft);
+    color: var(--mh-primary) !important;
+    text-decoration: none !important;
+    font-size: 13px;
+}
+.page-forummanage .fm-list td:nth-child(7) a font {
+    color: #d92323 !important;
+}
+
+.page-moforums .mo-list,
+.page-moforums .mo-list > tbody {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-sizing: border-box;
+}
+.page-moforums .m-main > table,
+.page-moforums .m-main > table > tbody,
+.page-moforums .m-main > table > tbody > tr,
+.page-moforums .m-main > table > tbody > tr > td {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+}
+.page-moforums .mo-list > tbody > tr:first-child {
+    display: none !important;
+}
+.page-moforums .mo-list > tbody > tr {
+    display: grid;
+    width: 100% !important;
+    max-width: 100% !important;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin: 0 0 12px;
+    padding: 13px 14px;
+    box-sizing: border-box;
+    background: var(--mh-surface);
+    border: 1px solid rgba(20,40,90,.08);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(20,40,90,.05);
+}
+.page-moforums .mo-list td {
+    display: block;
+    width: auto !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    text-align: left !important;
+    color: var(--mh-text);
+    font-size: 13px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+.page-moforums .mo-list td::before {
+    display: block;
+    margin-bottom: 2px;
+    color: #8a96ad;
+    font-size: 11px;
+    line-height: 1.2;
+    font-weight: 700;
+}
+.page-moforums .mo-list td:nth-child(1) {
+    padding-bottom: 6px !important;
+    border-bottom: 1px solid rgba(20,40,90,.07) !important;
+}
+.page-moforums .mo-list td:nth-child(1) a {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--mh-text) !important;
+    font-size: 16px;
+    line-height: 1.35;
+    text-decoration: none;
+}
+.page-moforums .mo-list td:nth-child(1) br { display: none; }
+.page-moforums .mo-list td:nth-child(2)::before { content: "最低浏览等级"; }
+.page-moforums .mo-list td:nth-child(3) {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 2px;
+    padding-top: 9px !important;
+    border-top: 1px solid rgba(20,40,90,.07) !important;
+    font-weight: 800;
+}
+.page-moforums .mo-list td:nth-child(3) b {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.page-moforums .mo-list td:nth-child(3) a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: var(--mh-soft);
+    color: var(--mh-primary) !important;
+    text-decoration: none !important;
+    font-size: 13px;
+}
+.page-moforums .mo-list td:nth-child(3) a font {
+    color: #d92323 !important;
+}
+
+.page-forummanage .fm-form,
+.page-forummanage .fm-form > tbody {
+    display: block !important;
+    width: 100% !important;
+    border: 0 !important;
+    background: transparent !important;
+}
+.page-forummanage .fm-form > tbody > tr {
+    display: block;
+    margin: 0 0 10px;
+    padding: 12px 13px;
+    background: var(--mh-surface);
+    border: 1px solid rgba(20,40,90,.08);
+    border-radius: 12px;
+}
+.page-forummanage .fm-form > tbody > tr:has(td[colspan]) {
+    padding: 0;
+    background: transparent;
+    border: 0;
+}
+.page-forummanage .fm-form td {
+    display: block;
+    width: 100% !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    text-align: left !important;
+    box-sizing: border-box;
+}
+.page-forummanage .fm-form td:first-child {
+    margin-bottom: 7px;
+    color: var(--mh-text);
+    font-size: 14px;
+    font-weight: 800;
+}
+.page-forummanage .fm-form td.colhead {
+    margin: 0 0 10px;
+    color: var(--mh-primary) !important;
+    font-size: 15px;
+}
+.page-forummanage .fm-form input[type="text"],
+.page-forummanage .fm-form select {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 40px !important;
+    box-sizing: border-box;
+    border: 1px solid rgba(20,40,90,.14) !important;
+    border-radius: 10px !important;
+    background: color-mix(in srgb, var(--mh-surface) 88%, var(--mh-bg)) !important;
+    color: var(--mh-text) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.45);
+    font-size: 16px !important;
+    line-height: 1.35;
+    padding: 9px 12px !important;
+    outline: none;
+}
+.page-forummanage .fm-form input[type="text"]:focus,
+.page-forummanage .fm-form select:focus {
+    border-color: color-mix(in srgb, var(--mh-primary) 55%, rgba(20,40,90,.14)) !important;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--mh-primary) 16%, transparent);
+}
+.page-forummanage .fm-form input[type="submit"] {
+    width: 100% !important;
+    min-height: 44px !important;
+    border: 0 !important;
+    border-radius: 10px !important;
+    background: var(--mh-primary) !important;
+    color: #fff !important;
+    box-shadow: 0 8px 18px rgba(20,40,90,.16);
+    font-weight: 800 !important;
+    font-size: 15px !important;
+    cursor: pointer;
+}

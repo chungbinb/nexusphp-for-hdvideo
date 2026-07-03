@@ -5,6 +5,30 @@ require_once(get_langfile_path());
 loggedinorreturn();
 user_can('forummanage', true);
 
+// 手机端：套用统一手机外壳；?pc=1 强制电脑版
+$GLOBALS['MOF_MOBILE'] = empty($_GET['pc']) && preg_match('/Mobile|Android|iPhone|iPod|Windows Phone|BlackBerry|webOS|HarmonyOS/i', (string)($_SERVER['HTTP_USER_AGENT'] ?? ''));
+if ($GLOBALS['MOF_MOBILE']) { require_once ROOT_PATH . 'include/mobile_shell.php'; }
+function mof_mhead($title = '') {
+    if (!empty($GLOBALS['MOF_MOBILE']) && function_exists('mobile_shell_page_head')) {
+        mobile_shell_page_head(trim(strip_tags((string)$title)) ?: '论坛分区管理', 'forums', 'page-forums page-forummanage page-moforums');
+        echo '<link rel="stylesheet" type="text/css" href="styles/forums-mobile.css?v=20260703e">';
+        echo '<script type="text/javascript" src="js/jquery-1.12.4.min.js"></script>';
+        echo '<script>jQuery.noConflict();window.nexusLayerOptions={confirm:{btnAlign:"c",title:"Confirm",btn:["OK","Cancel"]},alert:{btnAlign:"c",title:"Info",btn:["OK","Cancel"]}};</script>';
+        echo '<script type="text/javascript" src="vendor/layer-v3.5.1/layer/layer.js"></script>';
+        echo '<script type="text/javascript" src="js/common.js"></script>';
+    } else {
+        stdhead($title);
+    }
+}
+function mof_mfoot() {
+    if (!empty($GLOBALS['MOF_MOBILE']) && function_exists('mobile_shell_page_foot')) {
+        foreach (\Nexus\Nexus::getAppendFooters() as $v) { print($v); }
+        mobile_shell_page_foot('forums');
+    } else {
+        stdfoot();
+    }
+}
+
 //Presets
 $act = $_GET['action'] ?? '';
 $id = intval($_GET['id'] ?? 0);
@@ -65,7 +89,7 @@ die();
 
 
 
-stdhead($lang_moforums['head_overforum_management']);
+mof_mhead($lang_moforums['head_overforum_management']);
 begin_main_frame();
 
 if ($act == "forum")
@@ -77,7 +101,7 @@ if ($act == "forum")
 <h2 class=transparentbg align=center><a class=faqlink href=forummanage.php><?php echo $lang_moforums['text_forum_management']?></a><b>--></b><?php echo $lang_moforums['text_overforum_management']?></h2>
 <br />
 <?php
-echo '<table width="100%"  border="0" align="center" cellpadding="2" cellspacing="0">';
+echo '<table class="mo-list" width="100%"  border="0" align="center" cellpadding="2" cellspacing="0">';
 echo "<tr><td class=colhead align=left>".$lang_moforums['col_name']."</td><td class=colhead>".$lang_moforums['col_viewed_by']."</td><td class=colhead>".$lang_moforums['col_modify']."</td></tr>";
 $result = sql_query ("SELECT  * FROM overforums ORDER BY sort ASC");
 if ($row = mysql_fetch_array($result)) {
@@ -94,7 +118,7 @@ echo "</table>";
 ?>
 <br /><br />
 <form method=post action="<?php echo $PHP_SELF;?>">
-<table width="100%"  border="0" cellspacing="0" cellpadding="3" align="center">
+<table class="fm-form" width="100%"  border="0" cellspacing="0" cellpadding="3" align="center">
 <tr align="center">
     <td colspan="2" class=colhead><?php echo $lang_moforums['text_new_overforum']?></td>
   </tr>
@@ -158,7 +182,7 @@ do {
 ?>
 <h2 class=transparentbg align=center><a class=faqlink href=forummanage.php><?php echo $lang_moforums['text_forum_management']?></a><b>--></b><a class=faqlink href=moforums.php><?php echo $lang_moforums['text_overforum_management']?></a><b>--></b><?php echo $lang_moforums['text_edit_overforum']?></h2><br />
 <form method=post action="<?php echo $PHP_SELF;?>">
-<table width="100%"  border="0" cellspacing="0" cellpadding="3" align="center">
+<table class="fm-form" width="100%"  border="0" cellspacing="0" cellpadding="3" align="center">
 <tr align="center">
     <td colspan="2" class=colhead><?php echo $lang_moforums['text_edit_overforum']?> -- <?php echo htmlspecialchars($row["name"]);?></td>
   </tr>
@@ -212,4 +236,4 @@ $nr = mysql_num_rows($res);
 } else {print $lang_moforums['text_no_records_found'];}
 }
 end_main_frame();
-stdfoot();
+mof_mfoot();

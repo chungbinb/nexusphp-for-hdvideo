@@ -61,6 +61,413 @@ body.page-std .m-main .text, body.page-std .m-main .comment {
     border-radius: 12px; padding: 12px 14px !important;
 }
 
+/* ===== 站点设定(page-settings)：把老式二列表格改成手机表单 ===== */
+body.page-settings .m-main { padding-left: 12px; padding-right: 12px; }
+body.page-settings .qd-settings-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 8px;
+    margin: 0 -2px 12px;
+    padding: 2px 2px 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    background: transparent !important;
+    border: 0 !important;
+}
+body.page-settings .qd-settings-tabs::-webkit-scrollbar { display: none; }
+body.page-settings .qd-settings-tab {
+    flex: 0 0 auto;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: var(--mh-surface);
+    border: 1px solid rgba(20,40,90,.12);
+    color: var(--mh-text) !important;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none !important;
+    white-space: nowrap;
+}
+body.page-settings .qd-settings-tab.is-active {
+    background: var(--mh-primary) !important;
+    border-color: var(--mh-primary) !important;
+    color: #fff !important;
+}
+body.page-settings .m-main > table,
+body.page-settings .m-main > table > tbody {
+    display: block !important;
+    width: 100% !important;
+    border: 0 !important;
+    background: transparent !important;
+}
+body.page-settings .m-main > table > tbody > tr {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 0 10px;
+    padding: 12px 13px;
+    box-sizing: border-box;
+    background: var(--mh-surface) !important;
+    border: 1px solid rgba(20,40,90,.08) !important;
+    border-radius: 12px;
+}
+body.page-settings .m-main > table > tbody > tr:has(.settings-notice),
+body.page-settings .m-main > table > tbody > tr:has(td[colspan]) {
+    padding: 0;
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0;
+}
+body.page-settings .m-main > table > tbody > tr > td {
+    display: block !important;
+    width: 100% !important;
+    box-sizing: border-box;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    text-align: left !important;
+}
+body.page-settings .m-main td.rowhead,
+body.page-settings .m-main td.colhead {
+    background: transparent !important;
+    margin: 0 0 7px;
+    color: var(--mh-text) !important;
+    font-size: 14px;
+    line-height: 1.35;
+    font-weight: 800 !important;
+    white-space: normal !important;
+}
+body.page-settings .m-main td.rowfollow {
+    color: #5f6f87 !important;
+    font-size: 13px;
+    line-height: 1.55;
+}
+body.page-settings .m-main td.rowfollow br:first-child { display: none; }
+body.page-settings .settings-notice {
+    display: block;
+    margin: 0 0 12px;
+    padding: 11px 12px !important;
+    background: color-mix(in srgb, var(--mh-primary) 8%, var(--mh-surface)) !important;
+    border: 1px solid color-mix(in srgb, var(--mh-primary) 14%, transparent) !important;
+    border-radius: 12px !important;
+    color: var(--mh-text) !important;
+    text-align: left !important;
+    line-height: 1.55;
+}
+body.page-settings .m-main input[type="text"],
+body.page-settings .m-main input[type="password"],
+body.page-settings .m-main input[type="email"],
+body.page-settings .m-main input[type="number"],
+body.page-settings .m-main input:not([type]),
+body.page-settings .m-main textarea,
+body.page-settings .m-main select {
+    display: block;
+    width: 100% !important;
+    min-height: 38px;
+    margin: 0 0 6px;
+    font-size: 16px;
+    line-height: 1.35;
+}
+body.page-settings .m-main textarea { min-height: 132px; }
+body.page-settings .m-main label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 28px;
+    margin-right: 12px;
+    color: var(--mh-text);
+    font-weight: 600;
+}
+body.page-settings .m-main input[type="radio"],
+body.page-settings .m-main input[type="checkbox"] {
+    width: 17px;
+    height: 17px;
+    margin: 0 4px 0 0;
+    vertical-align: -3px;
+}
+body.page-settings .m-main input[type="submit"] {
+    width: 100% !important;
+    min-height: 44px !important;
+    border-radius: 10px !important;
+    font-size: 15px !important;
+    font-weight: 800 !important;
+}
+body.page-settings .m-main tr:has(> td.rowfollow > input[type="submit"]) {
+    padding: 0 !important;
+    background: transparent !important;
+    border: 0 !important;
+}
+body.page-settings .m-main tr:has(> td.rowfollow > input[type="submit"]) td.rowhead {
+    display: none !important;
+}
+body.page-settings .m-main ul {
+    margin: 8px 0 0;
+    padding-left: 18px;
+}
+body.page-settings .m-main li {
+    margin: 0 0 8px;
+}
+body.page-settings .m-main li input[type="text"],
+body.page-settings .m-main li input[type="number"] {
+    display: inline-block;
+    width: 96px !important;
+    margin: 4px 5px;
+    font-size: 15px;
+}
+body.page-settings .m-main table table,
+body.page-settings .m-main table table tbody,
+body.page-settings .m-main table table tr,
+body.page-settings .m-main table table td {
+    display: block !important;
+    width: 100% !important;
+}
+
+/* ===== 管理组(page-staff)：人员表格改为手机卡片 ===== */
+body.page-staff .m-main {
+    padding-left: 12px;
+    padding-right: 12px;
+}
+body.page-staff .m-main > table,
+body.page-staff .m-main > table > tbody,
+body.page-staff .m-main > table > tbody > tr,
+body.page-staff .m-main > table > tbody > tr > td {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+}
+body.page-staff .m-main table {
+    border: 0 !important;
+    background: transparent !important;
+}
+body.page-staff .m-main .embedded {
+    background: transparent !important;
+    border: 0 !important;
+}
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody {
+    display: block !important;
+    width: 100% !important;
+}
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr {
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr) auto;
+    gap: 8px 12px;
+    height: auto !important;
+    min-height: 72px;
+    align-items: start;
+    margin: 0 0 10px;
+    padding: 12px 13px;
+    background: var(--mh-surface) !important;
+    border: 1px solid rgba(20,40,90,.08);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(20,40,90,.05);
+}
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr:has(> td.embedded > b):not(:has(> td:first-child a)) {
+    display: none !important;
+}
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr:has(> td.embedded[colspan] > hr) {
+    display: none !important;
+}
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td {
+    display: block !important;
+    width: auto !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    text-align: left !important;
+    word-break: normal;
+    overflow-wrap: anywhere;
+}
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td:nth-child(1) {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+    font-size: 15px;
+    line-height: 1.25;
+    font-weight: 800;
+}
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td:nth-child(1) a {
+    overflow-wrap: normal;
+    word-break: keep-all;
+}
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td:nth-child(2) {
+    grid-column: 3;
+    grid-row: 1;
+    align-self: center;
+}
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td:nth-child(2) img {
+    display: block;
+    width: 32px !important;
+    max-width: 32px !important;
+    height: auto !important;
+    border-radius: 3px;
+}
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td:nth-child(3) {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
+    justify-self: start;
+}
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td:nth-child(3) img.button_online,
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td:nth-child(3) img.button_offline {
+    display: block;
+    width: 11px !important;
+    height: 11px !important;
+    max-width: 11px !important;
+    border-radius: 999px;
+    background-image: none !important;
+    border: 2px solid rgba(255,255,255,.78);
+    box-shadow: 0 0 0 1px rgba(20,40,90,.12);
+}
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td:nth-child(3) img.button_online {
+    background-color: #20c56b !important;
+}
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td:nth-child(3) img.button_offline {
+    background-color: #93a4b8 !important;
+}
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td:nth-child(4) {
+    grid-column: 3;
+    grid-row: 2;
+    align-self: start;
+    justify-self: center;
+}
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td:nth-child(3) img,
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td:nth-child(4) img {
+    display: block;
+    max-width: 20px;
+    height: auto;
+}
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td:nth-child(4) a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    height: 24px;
+    padding: 0 8px;
+    border-radius: 8px;
+    background: rgba(255,255,255,.5);
+    border: 1px solid rgba(20,40,90,.1);
+    text-decoration: none;
+}
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td:nth-child(4) a::after {
+    content: "PM";
+    margin-left: 4px;
+    color: var(--mh-primary);
+    font-size: 11px;
+    font-weight: 900;
+    line-height: 1;
+}
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td:nth-child(5) {
+    grid-column: 1 / 3;
+    grid-row: 2;
+    align-self: start;
+    font-size: 13px;
+    line-height: 1.55;
+    color: #5f6f87;
+}
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td:nth-child(6) {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    font-size: 13px;
+    line-height: 1.55;
+    color: #5f6f87;
+}
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td:nth-child(5)::before,
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td:nth-child(6)::before {
+    display: block;
+    margin: 2px 0 3px;
+    color: #8a96ad;
+    font-size: 11px;
+    line-height: 1.2;
+    font-weight: 800;
+}
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td:nth-child(5)::before { content: "负责"; }
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td:nth-child(6)::before { content: "支持范围"; }
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td[colspan] {
+    grid-column: 1 / -1;
+    padding: 8px 2px 2px !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    color: var(--mh-primary);
+    font-size: 14px;
+    font-weight: 900;
+    text-align: left !important;
+}
+body.page-staff .m-main table.staff-forummods-table > tbody > tr.staff-forummod-row {
+    grid-template-columns: 18px minmax(0, 1fr) auto;
+    gap: 8px 10px;
+    padding-bottom: 14px;
+}
+body.page-staff .m-main table.staff-forummods-table > tbody > tr.staff-forummod-row > td.staff-forummod-forums {
+    grid-column: 1 / -1;
+    display: block !important;
+    padding-top: 8px !important;
+    border-top: 1px solid rgba(20,40,90,.08) !important;
+    font-size: 13px;
+    line-height: 1.45;
+}
+body.page-staff .m-main table.staff-forummods-table > tbody > tr.staff-forummod-row > td.staff-forummod-forums::before {
+    display: none;
+    content: "";
+}
+body.page-staff .m-main .staff-forums-detail {
+    display: block;
+}
+body.page-staff .m-main .staff-forums-detail summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 30px;
+    padding: 0 10px;
+    border-radius: 10px;
+    background: rgba(255,255,255,.45);
+    border: 1px solid rgba(20,40,90,.08);
+    color: var(--mh-primary);
+    font-size: 13px;
+    font-weight: 900;
+    cursor: pointer;
+    list-style: none;
+}
+body.page-staff .m-main .staff-forums-detail summary::-webkit-details-marker {
+    display: none;
+}
+body.page-staff .m-main .staff-forums-detail summary::after {
+    content: "展开";
+    color: #8a96ad;
+    font-size: 11px;
+    font-weight: 800;
+}
+body.page-staff .m-main .staff-forums-detail[open] summary::after {
+    content: "收起";
+}
+body.page-staff .m-main .staff-forums-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding-top: 8px;
+}
+body.page-staff .m-main .staff-forums-links a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 26px;
+    max-width: 100%;
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.46);
+    border: 1px solid rgba(20,40,90,.08);
+    color: var(--mh-primary) !important;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.2;
+    text-decoration: none;
+    overflow-wrap: anywhere;
+}
+
 /* ===== 消息页(page-messages)精修 ===== */
 /* 收件箱/发件箱菜单 → 横向胶囊标签 */
 body.page-messages #pmboxnav, body.page-messages #pmboxnav .main { background: none !important; border: none !important; box-shadow: none !important; padding: 0 !important; }
