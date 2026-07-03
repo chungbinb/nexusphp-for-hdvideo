@@ -254,8 +254,8 @@ body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > 
 }
 body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
-    gap: 6px 10px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 12px;
     height: auto !important;
     min-height: 72px;
     align-items: start;
@@ -306,9 +306,7 @@ body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > 
     border-radius: 2px;
 }
 body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td:nth-child(3) {
-    grid-column: 3;
-    grid-row: 1;
-    align-self: center;
+    display: none !important;
 }
 body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td:nth-child(4) {
     grid-column: 2;
@@ -342,9 +340,17 @@ body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > 
     font-weight: 900;
     line-height: 1;
 }
-body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td:nth-child(5),
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td:nth-child(5) {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: start;
+    font-size: 13px;
+    line-height: 1.55;
+    color: #5f6f87;
+}
 body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td:nth-child(6) {
     grid-column: 1 / -1;
+    grid-row: 3;
     font-size: 13px;
     line-height: 1.55;
     color: #5f6f87;
