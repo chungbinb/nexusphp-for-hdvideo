@@ -2071,6 +2071,32 @@ if ($CURUSER){
 		return Array.prototype.slice.call(bodyRows || []);
 	}
 
+	function findTorrentNameCell(cells) {
+		for (var i = 0; i < cells.length; i++) {
+			if (cells[i].querySelector('table.torrentname a[href*="details.php"], .torrentname a[href*="details.php"]')) {
+				return cells[i];
+			}
+		}
+		for (var j = 0; j < cells.length; j++) {
+			if (cells[j].querySelector('a[href*="details.php"]')) {
+				return cells[j];
+			}
+		}
+		return null;
+	}
+
+	function findTorrentTypeCell(cells, nameCell) {
+		for (var i = 0; i < cells.length; i++) {
+			if (cells[i] === nameCell) {
+				continue;
+			}
+			if (cells[i].querySelector('img[class], img[src*="pic/cat"], img[src*="categories"]')) {
+				return cells[i];
+			}
+		}
+		return cells.length > 1 ? cells[1] : null;
+	}
+
 	function buildCardGrid() {
 		var rows = getTorrentRows();
 		cardGrid.innerHTML = '';
@@ -2079,8 +2105,11 @@ if ($CURUSER){
 			if (cells.length < 2) {
 				continue;
 			}
-			var typeCell = cells[0];
-			var nameCell = cells[1];
+			var nameCell = findTorrentNameCell(cells);
+			if (!nameCell) {
+				continue;
+			}
+			var typeCell = findTorrentTypeCell(cells, nameCell);
 			var link = nameCell.querySelector('a[href*="details.php"]');
 			if (!link) {
 				continue;
