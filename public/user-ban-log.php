@@ -1,5 +1,6 @@
 <?php
 require "../include/bittorrent.php";
+require_once ROOT_PATH . 'include/mobile_shell.php';
 
 $query = \App\Models\UserBanLog::query();
 $q = htmlspecialchars($_REQUEST['q'] ?? '');
@@ -34,4 +35,3 @@ begin_main_frame();
 echo $filterForm . $table . $paginationBottom;
 end_main_frame();
 mp_foot();
-
