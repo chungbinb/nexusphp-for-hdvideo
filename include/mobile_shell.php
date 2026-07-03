@@ -191,6 +191,11 @@ function mobile_shell_render(string $active = ''): void
 </div>
 </div><!-- /#mhShell -->
 
+<button type="button" class="m-bank-float" id="mhBankFloat" aria-label="高清银行">
+    <svg viewBox="0 0 24 24"><path d="M3 10l9-6 9 6"/><path d="M4 10v9h16v-9"/><path d="M8 19v-6M12 19v-6M16 19v-6"/><path d="M3 21h18"/></svg>
+    <span>银行</span>
+</button>
+
 <script>
 (function () {
     var body = document.body;
@@ -255,6 +260,86 @@ function mobile_shell_render(string $active = ''): void
             fetch('/ajax.php', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'action=clearPersonalize&params%5Bx%5D=1' }).then(function () { location.reload(); }).catch(function () { location.reload(); });
         });
     }
+
+    var bankFloat = document.getElementById('mhBankFloat');
+    if (bankFloat) {
+        var bankKey = 'hdvideo_mobile_bank_float_pos';
+        var moved = false, dragging = false, startX = 0, startY = 0, originX = 0, originY = 0;
+        function bankSize() { return bankFloat.offsetWidth || 58; }
+        function bankClamp(pos) {
+            var size = bankSize();
+            var gap = 12;
+            var minY = Math.max(70, 54 + (window.visualViewport ? window.visualViewport.offsetTop : 0));
+            var maxY = Math.max(minY, window.innerHeight - size - 84);
+            return {
+                x: Math.min(Math.max(pos.x, gap), window.innerWidth - size - gap),
+                y: Math.min(Math.max(pos.y, minY), maxY)
+            };
+        }
+        function bankApply(pos, save) {
+            pos = bankClamp(pos);
+            bankFloat.style.left = pos.x + 'px';
+            bankFloat.style.top = pos.y + 'px';
+            bankFloat.style.right = 'auto';
+            bankFloat.style.bottom = 'auto';
+            if (save) {
+                try { localStorage.setItem(bankKey, JSON.stringify(pos)); } catch (e) {}
+            }
+        }
+        function bankDefaultPos() {
+            var size = bankSize();
+            return bankClamp({ x: window.innerWidth - size - 14, y: window.innerHeight - size - 96 });
+        }
+        function bankRestore() {
+            var pos = null;
+            try { pos = JSON.parse(localStorage.getItem(bankKey) || 'null'); } catch (e) {}
+            bankApply(pos && typeof pos.x === 'number' && typeof pos.y === 'number' ? pos : bankDefaultPos(), false);
+        }
+        function bankSnap() {
+            var rect = bankFloat.getBoundingClientRect();
+            var size = bankSize();
+            var gap = 12;
+            var leftSide = rect.left + size / 2 < window.innerWidth / 2;
+            bankApply({ x: leftSide ? gap : window.innerWidth - size - gap, y: rect.top }, true);
+        }
+        bankRestore();
+        window.addEventListener('resize', function () {
+            var rect = bankFloat.getBoundingClientRect();
+            bankApply({ x: rect.left, y: rect.top }, true);
+        });
+        bankFloat.addEventListener('pointerdown', function (e) {
+            if (e.button !== undefined && e.button !== 0) return;
+            dragging = true; moved = false; startX = e.clientX; startY = e.clientY;
+            var rect = bankFloat.getBoundingClientRect();
+            originX = rect.left; originY = rect.top;
+            bankFloat.classList.add('dragging');
+            if (bankFloat.setPointerCapture) bankFloat.setPointerCapture(e.pointerId);
+        });
+        bankFloat.addEventListener('pointermove', function (e) {
+            if (!dragging) return;
+            var dx = e.clientX - startX, dy = e.clientY - startY;
+            if (Math.abs(dx) + Math.abs(dy) > 5) moved = true;
+            bankApply({ x: originX + dx, y: originY + dy }, false);
+        });
+        function finishDrag(e) {
+            if (!dragging) return;
+            dragging = false;
+            bankFloat.classList.remove('dragging');
+            if (bankFloat.releasePointerCapture) {
+                try { bankFloat.releasePointerCapture(e.pointerId); } catch (err) {}
+            }
+            if (moved) {
+                bankSnap();
+            }
+        }
+        bankFloat.addEventListener('pointerup', finishDrag);
+        bankFloat.addEventListener('pointercancel', finishDrag);
+        bankFloat.addEventListener('click', function (e) {
+            if (moved) { e.preventDefault(); moved = false; return; }
+            var bankBtn = document.getElementById('qd-bank-btn');
+            if (bankBtn) bankBtn.click();
+        });
+    }
 })();
 </script>
     <?php
@@ -279,7 +364,7 @@ function mobile_shell_page_head(string $title = '', string $active = '', string 
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="mobile-web-app-capable" content="yes" />
 <title><?php echo htmlspecialchars($t) ?></title>
-<link rel="stylesheet" href="/styles/mobile-shell.css?v=20260701e" type="text/css" />
+<link rel="stylesheet" href="/styles/mobile-shell.css?v=20260703a" type="text/css" />
 <style>:root{--bili-primary:<?php echo $col['primary'] ?>;--bili-accent:<?php echo $col['accent'] ?>;--bili-bg:<?php echo $col['bg'] ?>;--bili-surface:<?php echo $col['surface'] ?>;--bili-text:<?php echo $col['text'] ?>;}</style>
 </head>
 <body class="<?php echo htmlspecialchars($bodyClass) ?>">

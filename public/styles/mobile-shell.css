@@ -76,6 +76,51 @@ body.menu-open .m-drawer { transform: translateY(0); }
 .m-pz-reset { background: var(--mh-bg); color: var(--mh-text); }
 .m-pz-save { background: var(--mh-primary); color: #fff; }
 
+body.m-shell .qd-side-tools { display: none !important; }
+.m-bank-float {
+    position: fixed;
+    z-index: 1040;
+    width: 58px;
+    height: 58px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--mh-primary);
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    box-shadow: 0 10px 24px rgba(20,40,90,.24);
+    cursor: pointer;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    padding: 0;
+}
+.m-bank-float svg {
+    width: 23px;
+    height: 23px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+.m-bank-float span {
+    font-size: 10px;
+    line-height: 1;
+    font-weight: 800;
+}
+.m-bank-float.dragging {
+    transform: scale(1.04);
+    box-shadow: 0 14px 30px rgba(20,40,90,.32);
+}
+body.m-locked .m-bank-float,
+body.menu-open .m-bank-float {
+    display: none;
+}
+
 /* 用户名按等级配色(独立手机页不加载电脑版主题，这里补上) */
 .StaffLeader_Name { color: #8b0000 !important; }
 .SysOp_Name { color: #a0522d !important; }
