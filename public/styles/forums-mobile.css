@@ -252,6 +252,91 @@ body.page-forums.m-shell { overflow-x: hidden !important; max-width: 100vw; }
     color: #d92323 !important;
 }
 
+.page-moforums .mo-list,
+.page-moforums .mo-list > tbody {
+    display: block !important;
+    width: 100% !important;
+    border: 0 !important;
+    background: transparent !important;
+}
+.page-moforums .mo-list > tbody > tr:first-child {
+    display: none !important;
+}
+.page-moforums .mo-list > tbody > tr {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin: 0 0 12px;
+    padding: 13px 14px;
+    background: var(--mh-surface);
+    border: 1px solid rgba(20,40,90,.08);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(20,40,90,.05);
+}
+.page-moforums .mo-list td {
+    display: block;
+    width: auto !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    text-align: left !important;
+    color: var(--mh-text);
+    font-size: 13px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+.page-moforums .mo-list td::before {
+    display: block;
+    margin-bottom: 2px;
+    color: #8a96ad;
+    font-size: 11px;
+    line-height: 1.2;
+    font-weight: 700;
+}
+.page-moforums .mo-list td:nth-child(1) {
+    padding-bottom: 6px !important;
+    border-bottom: 1px solid rgba(20,40,90,.07) !important;
+}
+.page-moforums .mo-list td:nth-child(1) a {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--mh-text) !important;
+    font-size: 16px;
+    line-height: 1.35;
+    text-decoration: none;
+}
+.page-moforums .mo-list td:nth-child(1) br { display: none; }
+.page-moforums .mo-list td:nth-child(2)::before { content: "最低浏览等级"; }
+.page-moforums .mo-list td:nth-child(3) {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 2px;
+    padding-top: 9px !important;
+    border-top: 1px solid rgba(20,40,90,.07) !important;
+    font-weight: 800;
+}
+.page-moforums .mo-list td:nth-child(3) b {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.page-moforums .mo-list td:nth-child(3) a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: var(--mh-soft);
+    color: var(--mh-primary) !important;
+    text-decoration: none !important;
+    font-size: 13px;
+}
+.page-moforums .mo-list td:nth-child(3) a font {
+    color: #d92323 !important;
+}
+
 .page-forummanage .fm-form,
 .page-forummanage .fm-form > tbody {
     display: block !important;
