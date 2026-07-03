@@ -138,10 +138,15 @@ body.page-forums.m-shell { overflow-x: hidden !important; max-width: 100vw; }
 .page-forummanage .fm-actions form { margin: 0; }
 .page-forummanage .fm-actions input[type="submit"] {
     width: 100% !important;
-    min-height: 40px;
-    border-radius: 10px;
-    font-size: 14px;
-    font-weight: 800;
+    min-height: 40px !important;
+    border: 0 !important;
+    border-radius: 10px !important;
+    background: var(--mh-primary) !important;
+    color: #fff !important;
+    box-shadow: 0 8px 18px rgba(20,40,90,.16);
+    font-size: 14px !important;
+    font-weight: 800 !important;
+    cursor: pointer;
 }
 
 .page-forummanage .fm-list,
