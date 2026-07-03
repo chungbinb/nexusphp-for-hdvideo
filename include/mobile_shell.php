@@ -264,7 +264,7 @@ function mobile_shell_render(string $active = ''): void
     var bankFloat = document.getElementById('mhBankFloat');
     if (bankFloat) {
         var bankKey = 'hdvideo_mobile_bank_float_pos';
-        var moved = false, dragging = false, startX = 0, startY = 0, originX = 0, originY = 0;
+        var moved = false, dragging = false, suppressClick = false, startX = 0, startY = 0, originX = 0, originY = 0;
         function bankSize() { return bankFloat.offsetWidth || 58; }
         function bankClamp(pos) {
             var size = bankSize();
@@ -302,6 +302,19 @@ function mobile_shell_render(string $active = ''): void
             var leftSide = rect.left + size / 2 < window.innerWidth / 2;
             bankApply({ x: leftSide ? gap : window.innerWidth - size - gap, y: rect.top }, true);
         }
+        function openBank() {
+            if (typeof window.hdvideoOpenBank === 'function') {
+                window.hdvideoOpenBank();
+                return;
+            }
+            var bankBtn = document.getElementById('qd-bank-btn');
+            if (bankBtn) {
+                bankBtn.click();
+                return;
+            }
+            var bankModal = document.getElementById('qd-bank-modal');
+            if (bankModal) bankModal.hidden = false;
+        }
         bankRestore();
         window.addEventListener('resize', function () {
             var rect = bankFloat.getBoundingClientRect();
@@ -330,23 +343,19 @@ function mobile_shell_render(string $active = ''): void
             }
             if (moved) {
                 bankSnap();
+                suppressClick = true;
+                window.setTimeout(function () { suppressClick = false; moved = false; }, 0);
+            } else {
+                suppressClick = true;
+                openBank();
+                window.setTimeout(function () { suppressClick = false; }, 0);
             }
         }
         bankFloat.addEventListener('pointerup', finishDrag);
         bankFloat.addEventListener('pointercancel', finishDrag);
         bankFloat.addEventListener('click', function (e) {
-            if (moved) { e.preventDefault(); moved = false; return; }
-            if (typeof window.hdvideoOpenBank === 'function') {
-                window.hdvideoOpenBank();
-                return;
-            }
-            var bankBtn = document.getElementById('qd-bank-btn');
-            if (bankBtn) {
-                bankBtn.click();
-                return;
-            }
-            var bankModal = document.getElementById('qd-bank-modal');
-            if (bankModal) bankModal.hidden = false;
+            if (suppressClick || moved) { e.preventDefault(); return; }
+            openBank();
         });
     }
 })();
