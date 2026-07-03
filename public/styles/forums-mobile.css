@@ -256,18 +256,32 @@ body.page-forums.m-shell { overflow-x: hidden !important; max-width: 100vw; }
 .page-moforums .mo-list > tbody {
     display: block !important;
     width: 100% !important;
+    max-width: 100% !important;
     border: 0 !important;
     background: transparent !important;
+    box-sizing: border-box;
+}
+.page-moforums .m-main > table,
+.page-moforums .m-main > table > tbody,
+.page-moforums .m-main > table > tbody > tr,
+.page-moforums .m-main > table > tbody > tr > td {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
 }
 .page-moforums .mo-list > tbody > tr:first-child {
     display: none !important;
 }
 .page-moforums .mo-list > tbody > tr {
     display: grid;
+    width: 100% !important;
+    max-width: 100% !important;
     grid-template-columns: 1fr;
     gap: 8px;
     margin: 0 0 12px;
     padding: 13px 14px;
+    box-sizing: border-box;
     background: var(--mh-surface);
     border: 1px solid rgba(20,40,90,.08);
     border-radius: 12px;
