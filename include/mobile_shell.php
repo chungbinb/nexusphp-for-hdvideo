@@ -156,6 +156,7 @@ html[data-site-theme="night"] #qd-bank-modal .qd-bank-bal .k{color:#9fb0c8;}
     var busy = false, termsSet = false;
     function $(id) { return document.getElementById(id); }
     function fmt(n) { return Number(Math.round((n || 0) * 100) / 100).toLocaleString('en-US', { maximumFractionDigits: 2 }); }
+    function inputAmount(n) { return String(Math.round((Number(n) || 0) * 100) / 100); }
     function dateStr(ts) { if (!ts) return '-'; var d = new Date(ts * 1000); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
     function show(id, on) { var e = $(id); if (e) e.style.display = on ? '' : 'none'; }
     function setTerms(d) {
@@ -192,6 +193,7 @@ html[data-site-theme="night"] #qd-bank-modal .qd-bank-bal .k{color:#9fb0c8;}
             var fz = d.loan.frozen ? ' · <b style="color:#8e44ad">已暂停计息</b>' : '';
             var ins = d.loan.insured ? ' · <b style="color:#2e8b57">已投保</b>' : '';
             $('qd-bank-loan-detail').innerHTML = '当前欠款 <b style="color:#c0392b">' + fmt(d.loan.owed) + '</b>（本金 ' + fmt(d.loan.principal) + '）· ' + d.loan.periods + '期 · 月息 ' + d.loan.rate_m + '% · ' + od + mg + fz + ins + (d.restricted ? '<br><span class="warn">逾期已暂停娱乐功能，并启用每日自动还款/担保代偿</span>' : '');
+            var repayInput = $('qd-amt-repay'); if (repayInput) repayInput.value = inputAmount(d.loan.owed);
             var sb = '';
             if (!d.loan.insured) sb += '<button type="button" class="qd-b1 qd-bank-withdraw" data-bank="buy_insurance">购买保险(' + d.insurance_pct + '%)</button>';
             else sb += '<button type="button" class="qd-b1 qd-bank-deposit" data-bank="apply_request" data-type="insurance_claim">申请保险理赔</button>';
@@ -232,7 +234,7 @@ html[data-site-theme="night"] #qd-bank-modal .qd-bank-bal .k{color:#9fb0c8;}
         fetch('/bank.php', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body })
             .then(function (r) { return r.json(); }).then(function (d) {
                 if (!d.ok) { msg.style.color = '#c0392b'; msg.textContent = d.error || '出错了'; return; }
-                paint(d); if (amtId && $(amtId)) $(amtId).value = '';
+                paint(d); if (amtId && amtId !== 'qd-amt-repay' && $(amtId)) $(amtId).value = '';
                 msg.style.color = '#16a34a'; msg.textContent = '操作成功';
             }).catch(function () { msg.style.color = '#c0392b'; msg.textContent = '网络错误'; })
             .finally(function () { busy = false; });
