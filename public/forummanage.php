@@ -15,8 +15,8 @@ $GLOBALS['F_MOBILE'] = empty($_GET['pc']) && preg_match('/Mobile|Android|iPhone|
 if ($GLOBALS['F_MOBILE']) { require_once ROOT_PATH . 'include/mobile_shell.php'; }
 function fm_mhead($title = '') {
     if (!empty($GLOBALS['F_MOBILE']) && function_exists('mobile_shell_page_head')) {
-        mobile_shell_page_head(trim(strip_tags((string)$title)) ?: '版块管理', 'forums', 'page-forums');
-        echo '<link rel="stylesheet" type="text/css" href="styles/forums-mobile.css?v=20260701i">';
+        mobile_shell_page_head(trim(strip_tags((string)$title)) ?: '版块管理', 'forums', 'page-forums page-forummanage');
+        echo '<link rel="stylesheet" type="text/css" href="styles/forums-mobile.css?v=20260703a">';
         echo '<script type="text/javascript" src="js/jquery-1.12.4.min.js"></script>';
         echo '<script>jQuery.noConflict();window.nexusLayerOptions={confirm:{btnAlign:"c",title:"Confirm",btn:["OK","Cancel"]},alert:{btnAlign:"c",title:"Info",btn:["OK","Cancel"]}};</script>';
         echo '<script type="text/javascript" src="vendor/layer-v3.5.1/layer/layer.js"></script>';
@@ -111,7 +111,7 @@ if (isset($_GET['action']) && $_GET['action'] == "editforum") {
 <h1 align=center><a class=faqlink href=forummanage.php><?php echo $lang_forummanage['text_forum_management']?></a><b>--></b><?php echo $lang_forummanage['text_edit_forum']?></h2>
 <br />
 <form method=post action="<?php echo $_SERVER["PHP_SELF"];?>">
-<table width="100%"  border="0" cellspacing="0" cellpadding="3" align="center">
+<table class="fm-form" width="100%"  border="0" cellspacing="0" cellpadding="3" align="center">
 <tr align="center">
     <td colspan="2" class=colhead><?php echo $lang_forummanage['text_edit_forum']?> -- <?php echo htmlspecialchars($row["name"]);?></td>
   </tr>
@@ -215,7 +215,7 @@ elseif (isset($_GET['action']) && $_GET['action'] == "newforum"){
 <h2 class=transparentbg align=center><a class=faqlink href=forummanage.php><?php echo $lang_forummanage['text_forum_management']?></a><b>--></b><?php echo $lang_forummanage['text_add_forum']?></h2>
 <br />
 <form method=post action="<?php echo $_SERVER["PHP_SELF"];?>">
-<table width="100%"  border="0" cellspacing="0" cellpadding="3" align="center">
+<table class="fm-form" width="100%"  border="0" cellspacing="0" cellpadding="3" align="center">
 <tr align="center">
     <td colspan="2" class=colhead><?php echo $lang_forummanage['text_make_new_forum']?></td>
   </tr>
@@ -302,11 +302,11 @@ $nr = mysql_num_rows($res);
 else {
 ?>
 <h2 class=transparentbg align=center><?php echo $lang_forummanage['text_forum_management']?></h2>
-<table border=0 class=main cellspacing=0 cellpadding=5 width=1%><tr>
+<table border=0 class="main fm-actions" cellspacing=0 cellpadding=5 width=1%><tr>
 <td class=embedded align=left><form method="get" action="moforums.php"><input type="submit" value="<?php echo $lang_forummanage['submit_overforum_management']?>" class="btn"></form></td><td class=embedded align=left><form method="get" action="forummanage.php"><input type=hidden name="action" value="newforum"><input type="submit" value="<?php echo $lang_forummanage['submit_add_forum']?>" class="btn"></form></td>
 </tr></table>
 <?php
-echo '<table width="100%"  border="0" align="center" cellpadding="2" cellspacing="0">';
+echo '<table class="fm-list" width="100%"  border="0" align="center" cellpadding="2" cellspacing="0">';
 echo "<tr><td class=colhead align=left>".$lang_forummanage['col_name']."</td><td class=colhead>".$lang_forummanage['col_overforum']."</td><td class=colhead>".$lang_forummanage['col_read']."</td><td class=colhead>".$lang_forummanage['col_write']."</td><td class=colhead>".$lang_forummanage['col_create_topic']."</td><td class=colhead>".$lang_forummanage['col_moderator']."</td><td class=colhead>".$lang_forummanage['col_modify']."</td></tr>";
 $result = sql_query ("SELECT forums.*, overforums.name AS of_name FROM forums LEFT JOIN overforums ON forums.forid=overforums.id ORDER BY forums.sort ASC");
 if ($row = mysql_fetch_array($result)) {

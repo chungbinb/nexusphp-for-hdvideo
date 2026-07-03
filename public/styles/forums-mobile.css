@@ -101,3 +101,200 @@ body.page-forums.m-shell { overflow-x: hidden !important; max-width: 100vw; }
 .page-forums .m-main textarea, .page-forums .m-main input[type="text"], .page-forums .m-main select { width: 100% !important; max-width: 100% !important; box-sizing: border-box; font-size: 16px; padding: 9px 11px; }
 .page-forums .m-main textarea { min-height: 140px; }
 .page-forums .m-main input[type="submit"], .page-forums .m-main input[type="button"], .page-forums .m-main .btn { min-height: 40px; padding: 0 16px; font-size: 15px; }
+
+/* 论坛管理(forummanage.php)：老式管理表格改为手机卡片 */
+.page-forummanage .m-main { padding: 10px 12px 0; }
+.page-forummanage .m-main h1,
+.page-forummanage .m-main h2 {
+    text-align: center;
+    font-size: 18px;
+    line-height: 1.35;
+    margin: 12px 0 14px;
+    color: var(--mh-text);
+}
+.page-forummanage .m-main > table.main,
+.page-forummanage .m-main > table.main > tbody {
+    display: block !important;
+    width: 100% !important;
+    border: 0 !important;
+    background: transparent !important;
+}
+.page-forummanage .fm-actions {
+    margin: 0 0 14px !important;
+    box-shadow: none !important;
+}
+.page-forummanage .fm-actions tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+.page-forummanage .fm-actions td.embedded {
+    display: block !important;
+    width: auto !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+}
+.page-forummanage .fm-actions form { margin: 0; }
+.page-forummanage .fm-actions input[type="submit"] {
+    width: 100% !important;
+    min-height: 40px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.page-forummanage .fm-list,
+.page-forummanage .fm-list > tbody {
+    display: block !important;
+    width: 100% !important;
+    border: 0 !important;
+    background: transparent !important;
+}
+.page-forummanage .fm-list > tbody > tr:first-child {
+    display: none !important;
+}
+.page-forummanage .fm-list > tbody > tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px 10px;
+    margin: 0 0 12px;
+    padding: 13px 14px;
+    background: var(--mh-surface);
+    border: 1px solid rgba(20,40,90,.08);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(20,40,90,.05);
+}
+.page-forummanage .fm-list td {
+    display: block;
+    width: auto !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    text-align: left !important;
+    color: var(--mh-text);
+    font-size: 13px;
+    line-height: 1.45;
+    word-break: normal;
+    overflow-wrap: anywhere;
+}
+.page-forummanage .fm-list td::before {
+    display: block;
+    margin-bottom: 2px;
+    color: #8a96ad;
+    font-size: 11px;
+    line-height: 1.2;
+    font-weight: 700;
+}
+.page-forummanage .fm-list td:nth-child(1) {
+    grid-column: 1 / -1;
+    padding-bottom: 3px !important;
+    border-bottom: 1px solid rgba(20,40,90,.07) !important;
+}
+.page-forummanage .fm-list td:nth-child(1) a {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--mh-text) !important;
+    font-size: 16px;
+    line-height: 1.35;
+    text-decoration: none;
+}
+.page-forummanage .fm-list td:nth-child(1) br { display: none; }
+.page-forummanage .fm-list td:nth-child(2)::before { content: "分区"; }
+.page-forummanage .fm-list td:nth-child(3)::before { content: "读取"; }
+.page-forummanage .fm-list td:nth-child(4)::before { content: "回复"; }
+.page-forummanage .fm-list td:nth-child(5)::before { content: "发主题"; }
+.page-forummanage .fm-list td:nth-child(6) {
+    grid-column: 1 / -1;
+    padding-top: 4px !important;
+}
+.page-forummanage .fm-list td:nth-child(6)::before { content: "版主"; }
+.page-forummanage .fm-list td:nth-child(6) img {
+    display: inline-block;
+    width: auto;
+    max-width: 18px;
+    max-height: 18px;
+    vertical-align: -3px;
+}
+.page-forummanage .fm-list td:nth-child(7) {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 4px;
+    padding-top: 9px !important;
+    border-top: 1px solid rgba(20,40,90,.07) !important;
+    font-weight: 800;
+}
+.page-forummanage .fm-list td:nth-child(7) b {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.page-forummanage .fm-list td:nth-child(7) a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: var(--mh-soft);
+    color: var(--mh-primary) !important;
+    text-decoration: none !important;
+    font-size: 13px;
+}
+.page-forummanage .fm-list td:nth-child(7) a font {
+    color: #d92323 !important;
+}
+
+.page-forummanage .fm-form,
+.page-forummanage .fm-form > tbody {
+    display: block !important;
+    width: 100% !important;
+    border: 0 !important;
+    background: transparent !important;
+}
+.page-forummanage .fm-form > tbody > tr {
+    display: block;
+    margin: 0 0 10px;
+    padding: 12px 13px;
+    background: var(--mh-surface);
+    border: 1px solid rgba(20,40,90,.08);
+    border-radius: 12px;
+}
+.page-forummanage .fm-form > tbody > tr:has(td[colspan]) {
+    padding: 0;
+    background: transparent;
+    border: 0;
+}
+.page-forummanage .fm-form td {
+    display: block;
+    width: 100% !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    text-align: left !important;
+    box-sizing: border-box;
+}
+.page-forummanage .fm-form td:first-child {
+    margin-bottom: 7px;
+    color: var(--mh-text);
+    font-size: 14px;
+    font-weight: 800;
+}
+.page-forummanage .fm-form td.colhead {
+    margin: 0 0 10px;
+    color: var(--mh-primary) !important;
+    font-size: 15px;
+}
+.page-forummanage .fm-form input[type="text"],
+.page-forummanage .fm-form select {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+.page-forummanage .fm-form input[type="submit"] {
+    width: 100% !important;
+    min-height: 44px;
+    border-radius: 10px;
+    font-weight: 800;
+}
