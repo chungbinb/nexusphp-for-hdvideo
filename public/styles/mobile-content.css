@@ -221,6 +221,133 @@ body.page-settings .m-main table table td {
     width: 100% !important;
 }
 
+/* ===== 管理组(page-staff)：人员表格改为手机卡片 ===== */
+body.page-staff .m-main {
+    padding-left: 12px;
+    padding-right: 12px;
+}
+body.page-staff .m-main > table,
+body.page-staff .m-main > table > tbody,
+body.page-staff .m-main > table > tbody > tr,
+body.page-staff .m-main > table > tbody > tr > td {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+}
+body.page-staff .m-main table {
+    border: 0 !important;
+    background: transparent !important;
+}
+body.page-staff .m-main .embedded {
+    background: transparent !important;
+    border: 0 !important;
+}
+body.page-staff .m-main table:has(td.embedded) {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+body.page-staff .m-main table:has(td.embedded) > tbody {
+    display: block !important;
+    width: 100% !important;
+}
+body.page-staff .m-main table:has(td.embedded) > tbody > tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 6px 10px;
+    margin: 0 0 10px;
+    padding: 12px 13px;
+    background: var(--mh-surface) !important;
+    border: 1px solid rgba(20,40,90,.08);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(20,40,90,.05);
+}
+body.page-staff .m-main table:has(td.embedded) > tbody > tr:has(> td.embedded > b) {
+    display: none !important;
+}
+body.page-staff .m-main table:has(td.embedded) > tbody > tr:has(hr) {
+    display: none !important;
+}
+body.page-staff .m-main table:has(td.embedded) > tbody > tr > td {
+    display: block !important;
+    width: auto !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    text-align: left !important;
+    word-break: normal;
+    overflow-wrap: anywhere;
+}
+body.page-staff .m-main table:has(td.embedded) > tbody > tr > td:nth-child(1) {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
+    font-size: 15px;
+    line-height: 1.25;
+    font-weight: 800;
+}
+body.page-staff .m-main table:has(td.embedded) > tbody > tr > td:nth-child(1) a {
+    overflow-wrap: normal;
+    word-break: keep-all;
+}
+body.page-staff .m-main table:has(td.embedded) > tbody > tr > td:nth-child(2) {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+}
+body.page-staff .m-main table:has(td.embedded) > tbody > tr > td:nth-child(2) img {
+    display: block;
+    max-width: 24px;
+    height: auto;
+    border-radius: 2px;
+}
+body.page-staff .m-main table:has(td.embedded) > tbody > tr > td:nth-child(3) {
+    grid-column: 3;
+    grid-row: 1;
+    align-self: center;
+}
+body.page-staff .m-main table:has(td.embedded) > tbody > tr > td:nth-child(4) {
+    grid-column: 3;
+    grid-row: 2;
+    align-self: start;
+}
+body.page-staff .m-main table:has(td.embedded) > tbody > tr > td:nth-child(3) img,
+body.page-staff .m-main table:has(td.embedded) > tbody > tr > td:nth-child(4) img {
+    display: block;
+    max-width: 20px;
+    height: auto;
+}
+body.page-staff .m-main table:has(td.embedded) > tbody > tr > td:nth-child(5),
+body.page-staff .m-main table:has(td.embedded) > tbody > tr > td:nth-child(6) {
+    grid-column: 1 / -1;
+    font-size: 13px;
+    line-height: 1.55;
+    color: #5f6f87;
+}
+body.page-staff .m-main table:has(td.embedded) > tbody > tr > td:nth-child(5)::before,
+body.page-staff .m-main table:has(td.embedded) > tbody > tr > td:nth-child(6)::before {
+    display: block;
+    margin: 2px 0 3px;
+    color: #8a96ad;
+    font-size: 11px;
+    line-height: 1.2;
+    font-weight: 800;
+}
+body.page-staff .m-main table:has(td.embedded) > tbody > tr > td:nth-child(5)::before { content: "负责"; }
+body.page-staff .m-main table:has(td.embedded) > tbody > tr > td:nth-child(6)::before { content: "支持范围"; }
+body.page-staff .m-main table:has(td.embedded) > tbody > tr > td[colspan] {
+    grid-column: 1 / -1;
+    padding: 8px 2px 2px !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    color: var(--mh-primary);
+    font-size: 14px;
+    font-weight: 900;
+    text-align: left !important;
+}
+
 /* ===== 消息页(page-messages)精修 ===== */
 /* 收件箱/发件箱菜单 → 横向胶囊标签 */
 body.page-messages #pmboxnav, body.page-messages #pmboxnav .main { background: none !important; border: none !important; box-shadow: none !important; padding: 0 !important; }
