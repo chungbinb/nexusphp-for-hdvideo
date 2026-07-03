@@ -468,6 +468,70 @@ body.page-staff .m-main .staff-forums-links a {
     overflow-wrap: anywhere;
 }
 
+/* ===== 发短讯(page-sendmessage)：PM compose 手机化 ===== */
+body.page-sendmessage .m-main {
+    padding-left: 12px;
+    padding-right: 12px;
+}
+body.page-sendmessage .m-main form#compose > table,
+body.page-sendmessage .m-main form#compose > table > tbody,
+body.page-sendmessage .m-main form#compose > table > tbody > tr,
+body.page-sendmessage .m-main form#compose > table > tbody > tr > td {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+}
+body.page-sendmessage .m-main form#compose table {
+    border: 0 !important;
+    background: transparent !important;
+}
+body.page-sendmessage .m-main form#compose td.rowhead {
+    padding: 10px 0 5px !important;
+    background: transparent !important;
+    color: var(--mh-text) !important;
+    font-size: 13px;
+    font-weight: 800;
+}
+body.page-sendmessage .m-main form#compose td.rowfollow,
+body.page-sendmessage .m-main form#compose td.toolbox {
+    padding: 0 0 12px !important;
+    background: transparent !important;
+    border: 0 !important;
+}
+body.page-sendmessage .m-main .nexus-bbcode-editor {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+    border-radius: 12px;
+    overflow: hidden;
+}
+body.page-sendmessage .m-main .nexus-bbcode-toolbar {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+body.page-sendmessage .m-main .nexus-bbcode-textarea {
+    min-height: 220px !important;
+}
+body.page-sendmessage .m-main .nexus-bbcode-smilies {
+    display: none;
+}
+body.page-sendmessage .m-main form#compose td.toolbox label,
+body.page-sendmessage .m-main form#compose td.toolbox input[type="checkbox"] {
+    vertical-align: middle;
+}
+body.page-sendmessage .m-main form#compose input[type="submit"],
+body.page-sendmessage .m-main form#compose input[type="button"] {
+    width: auto !important;
+    min-width: 104px;
+    margin: 4px;
+}
+body.page-sendmessage .m-main form#compose + p,
+body.page-sendmessage .m-main p[align="center"] {
+    margin: 8px 0 2px;
+    font-size: 13px;
+}
+
 /* ===== 消息页(page-messages)精修 ===== */
 /* 收件箱/发件箱菜单 → 横向胶囊标签 */
 body.page-messages #pmboxnav, body.page-messages #pmboxnav .main { background: none !important; border: none !important; box-shadow: none !important; padding: 0 !important; }
