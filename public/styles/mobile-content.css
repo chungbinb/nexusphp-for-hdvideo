@@ -354,21 +354,53 @@ body.page-staff .m-main table.staff-forummods-table > tbody > tr.staff-forummod-
 }
 body.page-staff .m-main table.staff-forummods-table > tbody > tr.staff-forummod-row > td.staff-forummod-forums {
     grid-column: 1 / -1;
-    display: flex !important;
-    flex-wrap: wrap;
-    gap: 6px;
+    display: block !important;
     padding-top: 8px !important;
     border-top: 1px solid rgba(20,40,90,.08) !important;
-    font-size: 0;
-    line-height: 1.35;
+    font-size: 13px;
+    line-height: 1.45;
 }
 body.page-staff .m-main table.staff-forummods-table > tbody > tr.staff-forummod-row > td.staff-forummod-forums::before {
-    content: "负责论坛";
-    flex-basis: 100%;
-    margin: 0 0 1px;
-    font-size: 11px;
+    display: none;
+    content: "";
 }
-body.page-staff .m-main table.staff-forummods-table > tbody > tr.staff-forummod-row > td.staff-forummod-forums a {
+body.page-staff .m-main .staff-forums-detail {
+    display: block;
+}
+body.page-staff .m-main .staff-forums-detail summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 30px;
+    padding: 0 10px;
+    border-radius: 10px;
+    background: rgba(255,255,255,.45);
+    border: 1px solid rgba(20,40,90,.08);
+    color: var(--mh-primary);
+    font-size: 13px;
+    font-weight: 900;
+    cursor: pointer;
+    list-style: none;
+}
+body.page-staff .m-main .staff-forums-detail summary::-webkit-details-marker {
+    display: none;
+}
+body.page-staff .m-main .staff-forums-detail summary::after {
+    content: "展开";
+    color: #8a96ad;
+    font-size: 11px;
+    font-weight: 800;
+}
+body.page-staff .m-main .staff-forums-detail[open] summary::after {
+    content: "收起";
+}
+body.page-staff .m-main .staff-forums-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding-top: 8px;
+}
+body.page-staff .m-main .staff-forums-links a {
     display: inline-flex;
     align-items: center;
     min-height: 26px;

@@ -7,7 +7,7 @@ loggedinorreturn(true);
 user_can('staffmem', true);
 mp_head($lang_staff['head_staff']);
 
-$Cache->new_page(mobile_is() ? 'staff_page_mobile_20260703b' : 'staff_page_20260703', 900, true);
+$Cache->new_page(mobile_is() ? 'staff_page_mobile_20260703c' : 'staff_page_20260703', 900, true);
 if (!$Cache->get_page()){
 $Cache->add_whole_row();
 begin_main_frame();
@@ -96,12 +96,16 @@ $res = sql_query("SELECT DISTINCT forummods.userid AS userid, users.username, us
 while ($arr = mysql_fetch_assoc($res))
 {
 	$countryrow = get_country_row($arr['country']);
-	$forums = "";
+	$forumlinks = [];
 	$forumres = sql_query("SELECT forums.id, forums.name FROM forums LEFT JOIN forummods ON forums.id = forummods.forumid WHERE forummods.userid = ".sqlesc($arr['userid']));
 	while ($forumrow = mysql_fetch_array($forumres)){
-		$forums .= "<a href=forums.php?action=viewforum&forumid=".$forumrow['id'].">".$forumrow['name']."</a>, ";
+		$forumlinks[] = "<a href=forums.php?action=viewforum&forumid=".$forumrow['id'].">".$forumrow['name']."</a>";
 	}
-	$forums = rtrim(trim($forums),",");
+	if (mobile_is()) {
+		$forums = "<details class=\"staff-forums-detail\"><summary>负责 ".count($forumlinks)." 个论坛</summary><div class=\"staff-forums-links\">".implode("", $forumlinks)."</div></details>";
+	} else {
+		$forums = implode(", ", $forumlinks);
+	}
 	$ppl .= "<tr class=\"staff-forummod-row\" height=15><td class=embedded>". get_username($arr['userid']) ."</td><td class=embedded ><img width=24 height=15 src=\"pic/flag/".$countryrow['flagpic']."\" title=\"".$countryrow['name']."\" style=\"padding-bottom:1px;\"></td>
  <td class=embedded> ".(strtotime($arr['last_access']) > $dt ? $onlineimg : $offlineimg)."</td>".
  "<td class=embedded><a href=sendmessage.php?receiver=".$arr['userid']." title=\"".$lang_staff['title_send_pm']."\">".$sendpmimg."</a></td>".
