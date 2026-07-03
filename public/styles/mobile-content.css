@@ -536,8 +536,8 @@ body.page-sendmessage .m-main .nexus-bbcode-toolbar {
     display: flex !important;
     flex-wrap: wrap !important;
     align-items: flex-start;
-    gap: 0;
-    min-height: 36px;
+    gap: 1px;
+    min-height: 34px;
     width: 100% !important;
     max-width: 100% !important;
     padding: 0;
@@ -545,47 +545,46 @@ body.page-sendmessage .m-main .nexus-bbcode-toolbar {
     overflow-y: visible;
 }
 body.page-sendmessage .m-main .nexus-editor-group {
-    flex: 0 1 auto;
-    flex-wrap: nowrap;
-    min-height: 36px;
-    padding: 0 4px;
-    max-width: 100%;
-}
-body.page-sendmessage .m-main .nexus-editor-group-style,
-body.page-sendmessage .m-main .nexus-editor-group-selects,
-body.page-sendmessage .m-main .nexus-editor-group-list,
-body.page-sendmessage .m-main .nexus-editor-group-insert,
-body.page-sendmessage .m-main .nexus-editor-group-actions {
-    border-top: 1px solid rgba(20,40,90,.08);
+    display: contents !important;
 }
 body.page-sendmessage .m-main .nexus-bbcode-toolbar .nexus-editor-btn {
-    min-width: 34px !important;
-    min-height: 36px !important;
-    height: 36px !important;
-    padding: 0 8px !important;
+    flex: 0 0 auto;
+    min-width: 30px !important;
+    min-height: 34px !important;
+    height: 34px !important;
+    padding: 0 6px !important;
     border-radius: 0 !important;
-    font-size: 13px !important;
+    font-size: 12px !important;
     white-space: nowrap;
 }
+body.page-sendmessage .m-main .nexus-bbcode-toolbar .nexus-editor-btn-text {
+    max-width: 66px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+body.page-sendmessage .m-main .nexus-bbcode-toolbar .nexus-editor-btn-lineheight {
+    max-width: 70px;
+}
 body.page-sendmessage .m-main .nexus-editor-select-wrap {
-    height: 36px !important;
-    min-width: 86px !important;
-    width: 98px !important;
-    max-width: 98px !important;
+    flex: 0 0 auto;
+    height: 34px !important;
+    min-width: 72px !important;
+    width: 78px !important;
+    max-width: 78px !important;
 }
 body.page-sendmessage .m-main .nexus-editor-select-wrap-color {
-    min-width: 42px !important;
-    width: 42px !important;
-    max-width: 42px !important;
+    min-width: 38px !important;
+    width: 38px !important;
+    max-width: 38px !important;
 }
 body.page-sendmessage .m-main .nexus-editor-select-wrap-font {
-    width: 112px !important;
-    max-width: 112px !important;
+    width: 92px !important;
+    max-width: 92px !important;
 }
 body.page-sendmessage .m-main .nexus-bbcode-toolbar .nexus-editor-select {
-    min-height: 36px !important;
-    height: 36px !important;
-    font-size: 12px !important;
+    min-height: 34px !important;
+    height: 34px !important;
+    font-size: 11px !important;
     padding-top: 0 !important;
     padding-bottom: 0 !important;
 }
