@@ -291,10 +291,32 @@ body.page-forums.m-shell { overflow-x: hidden !important; max-width: 100vw; }
 .page-forummanage .fm-form select {
     width: 100% !important;
     max-width: 100% !important;
+    min-height: 40px !important;
+    box-sizing: border-box;
+    border: 1px solid rgba(20,40,90,.14) !important;
+    border-radius: 10px !important;
+    background: color-mix(in srgb, var(--mh-surface) 88%, var(--mh-bg)) !important;
+    color: var(--mh-text) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.45);
+    font-size: 16px !important;
+    line-height: 1.35;
+    padding: 9px 12px !important;
+    outline: none;
+}
+.page-forummanage .fm-form input[type="text"]:focus,
+.page-forummanage .fm-form select:focus {
+    border-color: color-mix(in srgb, var(--mh-primary) 55%, rgba(20,40,90,.14)) !important;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--mh-primary) 16%, transparent);
 }
 .page-forummanage .fm-form input[type="submit"] {
     width: 100% !important;
-    min-height: 44px;
-    border-radius: 10px;
-    font-weight: 800;
+    min-height: 44px !important;
+    border: 0 !important;
+    border-radius: 10px !important;
+    background: var(--mh-primary) !important;
+    color: #fff !important;
+    box-shadow: 0 8px 18px rgba(20,40,90,.16);
+    font-weight: 800 !important;
+    font-size: 15px !important;
+    cursor: pointer;
 }
