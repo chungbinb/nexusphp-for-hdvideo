@@ -7,7 +7,7 @@ loggedinorreturn(true);
 user_can('staffmem', true);
 mp_head($lang_staff['head_staff']);
 
-$Cache->new_page(mobile_is() ? 'staff_page_mobile_20260703c' : 'staff_page_20260703', 900, true);
+$Cache->new_page(mobile_is() ? 'staff_page_mobile_20260703d' : 'staff_page_20260703', 900, true);
 if (!$Cache->get_page()){
 $Cache->add_whole_row();
 begin_main_frame();

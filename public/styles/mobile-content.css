@@ -256,6 +256,9 @@ body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > 
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto auto;
     gap: 6px 10px;
+    height: auto !important;
+    min-height: 72px;
+    align-items: start;
     margin: 0 0 10px;
     padding: 12px 13px;
     background: var(--mh-surface) !important;
