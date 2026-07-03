@@ -312,6 +312,23 @@ body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > 
     align-self: center;
     justify-self: start;
 }
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td:nth-child(3) img.button_online,
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td:nth-child(3) img.button_offline {
+    display: block;
+    width: 11px !important;
+    height: 11px !important;
+    max-width: 11px !important;
+    border-radius: 999px;
+    background-image: none !important;
+    border: 2px solid rgba(255,255,255,.78);
+    box-shadow: 0 0 0 1px rgba(20,40,90,.12);
+}
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td:nth-child(3) img.button_online {
+    background-color: #20c56b !important;
+}
+body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td:nth-child(3) img.button_offline {
+    background-color: #93a4b8 !important;
+}
 body.page-staff .m-main table[align="center"]:has(> tbody > tr > td.embedded) > tbody > tr > td:nth-child(4) {
     grid-column: 3;
     grid-row: 2;
