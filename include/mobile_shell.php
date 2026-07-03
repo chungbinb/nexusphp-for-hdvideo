@@ -59,7 +59,7 @@ function mobile_shell_render(string $active = ''): void
         ['usercp.php', '个人中心', '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>', false],
         ['messages.php', '消息', '<path d="M4 5h16v12H8l-4 4z"/>', true],
         ['attendance.php', '签到', '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 9h18M9 15l2 2 4-4"/>', false],
-        ['mybonus.php', '魔力', '<circle cx="12" cy="12" r="8"/><path d="M9.5 12h5"/>', false],
+        ['mybonus.php', '电影票', '<circle cx="12" cy="12" r="8"/><path d="M9.5 12h5"/>', false],
         ['invite.php', '邀请', '<circle cx="9" cy="8" r="4"/><path d="M3 20c0-3.5 3-5 6-5s6 1.5 6 5M19 8v6M16 11h6"/>', false],
         ['medal.php', '勋章', '<circle cx="12" cy="9" r="5"/><path d="M9 13l-2 8 5-3 5 3-2-8"/>', false],
         ['logout.php', '退出登录', '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>', false],
