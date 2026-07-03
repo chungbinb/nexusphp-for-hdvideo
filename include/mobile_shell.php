@@ -645,11 +645,21 @@ function mobile_is(): bool
 /** 从当前脚本名推断底部Tab高亮键(未显式传入时)。 */
 function mobile_std_active(): string
 {
+    $path = strtolower((string)(parse_url((string)($_SERVER['SCRIPT_NAME'] ?? $_SERVER['PHP_SELF'] ?? ''), PHP_URL_PATH) ?: ''));
+    if (strpos($path, '/games/') !== false) {
+        return 'games';
+    }
     $s = strtolower(basename((string)($_SERVER['PHP_SELF'] ?? ''), '.php'));
     $map = [
         'index' => 'home', 'torrents' => 'torrents', 'forums' => 'forums', 'forummanage' => 'forums',
+        'moforums' => 'forums', 'rules' => 'forums', 'faq' => 'forums', 'userhistory' => 'forums',
+        'details' => 'torrents', 'upload' => 'torrents', 'edit' => 'torrents', 'offers' => 'torrents',
+        'viewrequests' => 'torrents', 'viewsnatches' => 'torrents', 'claim' => 'torrents', 'comment' => 'torrents',
+        'subtitles' => 'torrents', 'topten' => 'torrents', 'search' => 'torrents', 'tags' => 'torrents',
         'messages' => 'me', 'sendmessage' => 'me', 'usercp' => 'me', 'attendance' => 'me', 'mybonus' => 'me', 'medal' => 'me',
-        'invite' => 'me', 'userdetails' => 'me', 'friends' => 'me', 'getrss' => 'me',
+        'invite' => 'me', 'userdetails' => 'me', 'friends' => 'me', 'getrss' => 'me', 'staff' => 'me', 'staffbox' => 'me',
+        'staffpanel' => 'me', 'users' => 'me', 'bonus-log' => 'me', 'reports' => 'me', 'complains' => 'me', 'cheaterbox' => 'me',
+        'contactstaff' => 'me', 'donate' => 'me', 'donorlist' => 'me',
     ];
     return $map[$s] ?? '';
 }
@@ -661,7 +671,13 @@ function mobile_std_head(string $title = '', string $active = '', string $pageCl
         if ($active === '') { $active = mobile_std_active(); }
         if ($pageClass === '') { $pageClass = 'page-' . preg_replace('/[^a-z0-9]+/', '-', $s ?: 'std'); }
         mobile_shell_page_head(trim(strip_tags($title)), $active, 'page-std ' . $pageClass);
-        echo '<link rel="stylesheet" type="text/css" href="/styles/mobile-content.css?v=20260703s">';
+        echo '<link rel="stylesheet" type="text/css" href="/styles/mobile-content.css?v=20260703u">';
+        do_action('nexus_header');
+        if (class_exists('\\Nexus\\Nexus')) {
+            foreach (\Nexus\Nexus::getAppendHeaders() as $value) {
+                print($value);
+            }
+        }
         echo '<script type="text/javascript" src="js/jquery-1.12.4.min.js"></script>';
         echo '<script>jQuery.noConflict();window.nexusLayerOptions={confirm:{btnAlign:"c",title:"Confirm",btn:["OK","Cancel"]},alert:{btnAlign:"c",title:"Info",btn:["OK","Cancel"]}};</script>';
         echo '<script type="text/javascript" src="vendor/layer-v3.5.1/layer/layer.js"></script>';

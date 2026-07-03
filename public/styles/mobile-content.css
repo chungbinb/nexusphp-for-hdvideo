@@ -755,3 +755,198 @@ body.page-medal .m-main table:has(td.md-desc) td.md-gift input[type="button"] { 
 body.page-medal .m-main table:has(td.md-desc) td.md-gift .nowrap { flex-basis: 100%; font-size: 12px; color: #8a96ad; margin-top: 2px; }
 /* 按钮做小 */
 body.page-medal .m-main table:has(td.md-desc) td.md-buy input, body.page-medal .m-main table:has(td.md-desc) td.md-gift input[type="button"] { min-height: 30px !important; height: 30px; padding: 0 12px !important; font-size: 13px !important; width: auto !important; }
+
+/* ===== 旧 stdhead 页面兜底：让未精修页面先有可用手机结构 ===== */
+body.page-std .m-main > form:not(:has(table)) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 12px;
+    padding: 10px;
+    border: 1px solid rgba(20,40,90,.08);
+    border-radius: 12px;
+    background: var(--mh-surface);
+}
+body.page-std .m-main > form:not(:has(table)) input[type="text"],
+body.page-std .m-main > form:not(:has(table)) input[type="search"],
+body.page-std .m-main > form:not(:has(table)) select {
+    flex: 1 1 132px;
+    width: auto !important;
+    min-width: 0;
+    margin: 0;
+}
+body.page-std .m-main > form:not(:has(table)) input[type="submit"],
+body.page-std .m-main > form:not(:has(table)) input[type="button"] {
+    width: auto !important;
+    min-width: 76px;
+    margin: 0;
+}
+body.page-std .m-main > p {
+    margin: 8px 2px 12px;
+}
+body.page-std .m-main > p a,
+body.page-std .m-main > p b,
+body.page-std .m-main .pager a,
+body.page-std .m-main .pager b {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 28px;
+    min-width: 28px;
+    margin: 2px;
+    padding: 0 8px;
+    border-radius: 8px;
+    background: var(--mh-surface);
+    border: 1px solid rgba(20,40,90,.08);
+    text-decoration: none;
+    font-size: 13px;
+}
+body.page-std .m-main > p b,
+body.page-std .m-main .pager b {
+    background: var(--mh-primary);
+    border-color: var(--mh-primary);
+    color: #fff;
+}
+body.page-std .m-main table:not(.nexus-bbcode-table) {
+    margin-bottom: 12px;
+}
+
+/* 用户列表：老式 5 列表格改为紧凑卡片 */
+body.page-users .m-main > table,
+body.page-users .m-main > table > tbody {
+    display: block !important;
+    width: 100% !important;
+    border: 0 !important;
+    background: transparent !important;
+}
+body.page-users .m-main > table > tbody > tr:first-child {
+    display: none !important;
+}
+body.page-users .m-main > table > tbody > tr {
+    display: grid !important;
+    grid-template-columns: 1fr auto;
+    gap: 5px 12px;
+    margin: 0 0 10px;
+    padding: 12px 13px;
+    border: 1px solid rgba(20,40,90,.08) !important;
+    border-radius: 12px;
+    background: var(--mh-surface) !important;
+}
+body.page-users .m-main > table > tbody > tr > td {
+    display: block !important;
+    width: auto !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    text-align: left !important;
+    font-size: 13px;
+    color: #5f6f87;
+}
+body.page-users .m-main > table > tbody > tr > td:nth-child(1) {
+    grid-column: 1;
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--mh-text);
+}
+body.page-users .m-main > table > tbody > tr > td:nth-child(5) {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+}
+body.page-users .m-main > table > tbody > tr > td:nth-child(5) img {
+    width: 28px !important;
+    max-width: 28px !important;
+    height: auto !important;
+    border-radius: 3px;
+}
+body.page-users .m-main > table > tbody > tr > td:nth-child(2)::before { content: "注册 "; color: #8a96ad; }
+body.page-users .m-main > table > tbody > tr > td:nth-child(3)::before { content: "最近访问 "; color: #8a96ad; }
+body.page-users .m-main > table > tbody > tr > td:nth-child(4)::before { content: "等级 "; color: #8a96ad; }
+
+/* 电影票记录：流水表在手机上拆成可扫描卡片 */
+body.page-bonus-log .m-main #filterForm {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 12px;
+    padding: 10px;
+    border: 1px solid rgba(20,40,90,.08);
+    border-radius: 12px;
+    background: var(--mh-surface);
+}
+body.page-bonus-log .m-main #filterForm span {
+    flex: 0 0 auto;
+    color: #5f6f87;
+    font-size: 13px;
+    font-weight: 700;
+}
+body.page-bonus-log .m-main #filterForm select {
+    flex: 1 1 132px;
+    width: auto !important;
+}
+body.page-bonus-log .m-main #filterForm input[type="submit"],
+body.page-bonus-log .m-main #filterForm input[type="button"] {
+    width: auto !important;
+    min-width: 76px;
+}
+body.page-bonus-log .m-main #bonus-log-table,
+body.page-bonus-log .m-main #bonus-log-table > tbody {
+    display: block !important;
+    width: 100% !important;
+    border: 0 !important;
+    background: transparent !important;
+}
+body.page-bonus-log .m-main #bonus-log-table > tbody > tr:first-child {
+    display: none !important;
+}
+body.page-bonus-log .m-main #bonus-log-table > tbody > tr {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 14px;
+    margin: 0 0 10px;
+    padding: 12px 13px;
+    border: 1px solid rgba(20,40,90,.08) !important;
+    border-radius: 12px;
+    background: var(--mh-surface) !important;
+}
+body.page-bonus-log .m-main #bonus-log-table td {
+    display: flex !important;
+    justify-content: space-between;
+    gap: 8px;
+    width: auto !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    text-align: left !important;
+    white-space: normal !important;
+    font-size: 13px;
+    color: var(--mh-text);
+}
+body.page-bonus-log .m-main #bonus-log-table td::before {
+    flex: none;
+    color: #8a96ad;
+    font-size: 12px;
+}
+body.page-bonus-log .m-main #bonus-log-table td:nth-child(1) {
+    grid-column: 1 / -1;
+    font-size: 15px;
+    font-weight: 800;
+}
+body.page-bonus-log .m-main #bonus-log-table td:nth-child(1)::before { content: ""; display: none; }
+body.page-bonus-log .m-main #bonus-log-table td:nth-child(2)::before { content: "原有"; }
+body.page-bonus-log .m-main #bonus-log-table td:nth-child(3)::before { content: "变动"; }
+body.page-bonus-log .m-main #bonus-log-table td:nth-child(4)::before { content: "现在"; }
+body.page-bonus-log .m-main #bonus-log-table td:nth-child(5) {
+    grid-column: 1 / -1;
+    flex-direction: column;
+    gap: 2px;
+}
+body.page-bonus-log .m-main #bonus-log-table td:nth-child(5)::before { content: "备注"; }
+body.page-bonus-log .m-main #bonus-log-table td:nth-child(6) {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    color: #5f6f87;
+}
+body.page-bonus-log .m-main #bonus-log-table td:nth-child(6)::before { content: "时间"; }
