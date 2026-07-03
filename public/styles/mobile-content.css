@@ -263,7 +263,7 @@ body.page-staff .m-main table:has(td.embedded) > tbody > tr {
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(20,40,90,.05);
 }
-body.page-staff .m-main table:has(td.embedded) > tbody > tr:has(> td.embedded > b) {
+body.page-staff .m-main table:has(td.embedded) > tbody > tr:has(> td.embedded > b):not(:has(> td:first-child a)) {
     display: none !important;
 }
 body.page-staff .m-main table:has(td.embedded) > tbody > tr:has(hr) {
