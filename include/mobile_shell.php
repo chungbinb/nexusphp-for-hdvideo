@@ -336,8 +336,17 @@ function mobile_shell_render(string $active = ''): void
         bankFloat.addEventListener('pointercancel', finishDrag);
         bankFloat.addEventListener('click', function (e) {
             if (moved) { e.preventDefault(); moved = false; return; }
+            if (typeof window.hdvideoOpenBank === 'function') {
+                window.hdvideoOpenBank();
+                return;
+            }
             var bankBtn = document.getElementById('qd-bank-btn');
-            if (bankBtn) bankBtn.click();
+            if (bankBtn) {
+                bankBtn.click();
+                return;
+            }
+            var bankModal = document.getElementById('qd-bank-modal');
+            if (bankModal) bankModal.hidden = false;
         });
     }
 })();

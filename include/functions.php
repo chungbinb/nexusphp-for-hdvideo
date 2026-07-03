@@ -3470,7 +3470,8 @@ html[data-site-theme="night"] #qd-bank-modal .qd-btn-reset{background:#16223a;co
 			}).catch(function () { msg.style.color = '#c0392b'; msg.textContent = '网络错误'; })
 			.finally(function () { busy = false; });
 	}
-	btn.addEventListener('click', function () { modal.hidden = false; msg.textContent = ''; load(); });
+	window.hdvideoOpenBank = function () { modal.hidden = false; msg.textContent = ''; load(); };
+	btn.addEventListener('click', window.hdvideoOpenBank);
 	modal.addEventListener('click', function (e) {
 		var c = e.target.closest ? e.target.closest('[data-qd-close]') : null;
 		if (c && modal.contains(c)) { modal.hidden = true; return; }
