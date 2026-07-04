@@ -3097,3 +3097,98 @@ body.page-adduser .adduser-submit input[type="submit"] {
     font-size: 15px !important;
     font-weight: 900;
 }
+
+/* 重置用户密码 */
+body.page-reset .m-main,
+body.page-reset .m-main * {
+    box-sizing: border-box;
+}
+body.page-reset .m-main {
+    padding: 12px;
+}
+body.page-reset .reset-form,
+body.page-reset .reset-table {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+body.page-reset .reset-table {
+    display: block !important;
+    padding: 12px;
+    border: 1px solid rgba(20,40,90,.08) !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    border-radius: 12px;
+    background: var(--mh-surface);
+    box-shadow: 0 1px 0 rgba(255,255,255,.35) inset;
+}
+body.page-reset .reset-table > tbody,
+body.page-reset .reset-table > tbody > tr,
+body.page-reset .reset-table > tbody > tr > td {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+body.page-reset .reset-table > tbody > tr {
+    margin: 0 0 13px;
+}
+body.page-reset .reset-table > tbody > tr:first-child {
+    margin-bottom: 16px;
+}
+body.page-reset .reset-table > tbody > tr:last-child {
+    margin-bottom: 0;
+}
+body.page-reset .reset-table td {
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    text-align: left !important;
+}
+body.page-reset .reset-heading {
+    padding: 0 0 10px !important;
+    border-bottom: 1px solid rgba(20,40,90,.08) !important;
+    color: var(--mh-text) !important;
+    font-size: 17px;
+    font-weight: 900;
+    line-height: 1.35;
+    text-align: center !important;
+}
+body.page-reset .reset-table td.rowhead {
+    margin: 0 0 7px;
+    color: #6f7f99 !important;
+    font-size: 13px;
+    font-weight: 900;
+    line-height: 1.35;
+    white-space: normal !important;
+}
+body.page-reset .reset-table input[type="text"],
+body.page-reset .reset-table input[type="password"],
+body.page-reset .reset-table input:not([type]) {
+    display: block;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    min-height: 38px;
+    padding: 8px 10px !important;
+    border: 1px solid rgba(20,40,90,.12) !important;
+    border-radius: 10px;
+    background: rgba(255,255,255,.36) !important;
+    color: var(--mh-text) !important;
+    font-size: 14px !important;
+    line-height: 1.4;
+}
+body.page-reset .reset-hint {
+    display: block;
+    margin-top: 6px;
+    color: #6f7f99;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.35;
+}
+body.page-reset .reset-submit input[type="submit"] {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 42px;
+    margin: 0 !important;
+    font-size: 15px !important;
+    font-weight: 900;
+}
