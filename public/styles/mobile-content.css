@@ -1028,17 +1028,38 @@ body.page-staffbox .staffbox-subject {
     overflow-wrap: anywhere;
 }
 body.page-staffbox .staffbox-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px 10px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 5px;
     margin-bottom: 8px;
     color: #5f6f87;
     font-size: 12px;
     line-height: 1.4;
 }
-body.page-staffbox .staffbox-meta span {
+body.page-staffbox .staffbox-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     min-width: 0;
-    overflow-wrap: anywhere;
+}
+body.page-staffbox .staffbox-meta-label {
+    flex: 0 0 42px;
+    color: #7d8aa3;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+body.page-staffbox .staffbox-meta-value {
+    min-width: 0;
+    color: var(--mh-text);
+    font-size: 13px;
+    line-height: 1.4;
+    overflow-wrap: break-word;
+    word-break: normal;
+}
+body.page-staffbox .staffbox-time .staffbox-meta-value {
+    white-space: nowrap;
+    overflow-wrap: normal;
 }
 body.page-staffbox .staffbox-answer {
     display: inline-flex;

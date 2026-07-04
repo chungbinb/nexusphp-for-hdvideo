@@ -80,7 +80,7 @@ if (!$action) {
                 print("<label class=\"staffbox-select\"><input type=\"checkbox\" name=\"setanswered[]\" value=\"" . (int)$arr['id'] . "\" /><span></span></label>");
                 print("<a class=\"staffbox-card-body\" href=\"".htmlspecialchars($viewUrl)."\">");
                 print("<span class=\"staffbox-subject\">".htmlspecialchars($arr['subject'])."</span>");
-                print("<span class=\"staffbox-meta\"><span>".$lang_staffbox['col_sender']." " . get_username($arr['sender']) . "</span><span>".gettime($arr['added'], true, false)."</span></span>");
+                print("<span class=\"staffbox-meta\"><span class=\"staffbox-meta-row\"><span class=\"staffbox-meta-label\">".$lang_staffbox['col_sender']."</span><span class=\"staffbox-meta-value\">" . get_username($arr['sender']) . "</span></span><span class=\"staffbox-meta-row staffbox-time\"><span class=\"staffbox-meta-label\">".$lang_staffbox['col_added']."</span><span class=\"staffbox-meta-value\">".gettime($arr['added'], true, false)."</span></span></span>");
                 print("<span class=\"staffbox-answer\"><b>".$lang_staffbox['col_answered']." ".$answeredLabel."</b>".($answeredBy ? " <span>".$answeredBy."</span>" : "")."</span>");
                 print("</a>");
                 print("</article>\n");
