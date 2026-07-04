@@ -3536,3 +3536,224 @@ body.page-warned .warned-menu {
     line-height: 1.4;
     overflow-wrap: anywhere;
 }
+
+/* FAQ 管理 */
+body.page-faqmanage .m-main,
+body.page-faqmanage .m-main * {
+    box-sizing: border-box;
+}
+body.page-faqmanage .m-main {
+    padding: 12px;
+}
+body.page-faqmanage .m-main > table,
+body.page-faqmanage .m-main > table > tbody,
+body.page-faqmanage .m-main > table > tbody > tr,
+body.page-faqmanage .m-main > table > tbody > tr > td,
+body.page-faqmanage .faqmanage-form {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+body.page-faqmanage .m-main > table,
+body.page-faqmanage .m-main > table > tbody > tr > td {
+    border: 0 !important;
+    background: transparent !important;
+}
+body.page-faqmanage .faqmanage-title {
+    margin: 4px 0 12px;
+    color: var(--mh-text);
+    font-size: 18px;
+    line-height: 1.3;
+    text-align: center;
+}
+body.page-faqmanage .faqmanage-section-card,
+body.page-faqmanage .faqmanage-orphan-card {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin: 0 0 10px;
+    padding: 12px;
+    border: 1px solid rgba(20,40,90,.08);
+    border-radius: 12px;
+    background: var(--mh-surface);
+    box-shadow: 0 1px 0 rgba(255,255,255,.35) inset;
+}
+body.page-faqmanage .faqmanage-section-head {
+    display: grid;
+    grid-template-columns: 78px minmax(0, 1fr);
+    gap: 10px;
+    min-width: 0;
+    align-items: start;
+}
+body.page-faqmanage .faqmanage-order {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+}
+body.page-faqmanage .faqmanage-order span {
+    color: #6f7f99;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1.25;
+}
+body.page-faqmanage .faqmanage-order select {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 34px;
+    padding: 6px 8px !important;
+    border: 1px solid rgba(20,40,90,.12) !important;
+    border-radius: 9px;
+    background: rgba(255,255,255,.38) !important;
+    color: var(--mh-text) !important;
+    font-size: 13px !important;
+    font-weight: 900;
+}
+body.page-faqmanage .faqmanage-section-title {
+    min-width: 0;
+}
+body.page-faqmanage .faqmanage-section-title b {
+    display: block;
+    min-width: 0;
+    color: var(--mh-text);
+    font-size: 15px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+body.page-faqmanage .faqmanage-section-title span {
+    display: block;
+    margin-top: 4px;
+    color: #6f7f99;
+    font-size: 12px;
+    font-weight: 900;
+}
+body.page-faqmanage .faqmanage-section-tools,
+body.page-faqmanage .faqmanage-item-tools {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 74px 74px;
+    gap: 8px;
+    min-width: 0;
+    margin-top: 10px;
+    align-items: center;
+}
+body.page-faqmanage .faqmanage-section-tools a,
+body.page-faqmanage .faqmanage-item-tools a,
+body.page-faqmanage .faqmanage-add-item,
+body.page-faqmanage .faqmanage-bottom-actions a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+    padding: 0 10px;
+    border-radius: 9px;
+    background: var(--mh-primary);
+    color: #fff !important;
+    font-size: 13px;
+    font-weight: 900;
+    text-decoration: none !important;
+}
+body.page-faqmanage .faqmanage-section-tools a.faqmanage-danger,
+body.page-faqmanage .faqmanage-item-tools a.faqmanage-danger {
+    background: #ef4444;
+}
+body.page-faqmanage .faqmanage-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 28px;
+    max-width: 100%;
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: rgba(34,197,94,.14);
+    color: #16a34a;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1.25;
+}
+body.page-faqmanage .faqmanage-status.is-hidden {
+    background: rgba(239,68,68,.14);
+    color: #dc2626;
+}
+body.page-faqmanage .faqmanage-status.is-updated {
+    background: rgba(59,130,246,.14);
+    color: #2563eb;
+}
+body.page-faqmanage .faqmanage-status.is-new {
+    background: rgba(34,197,94,.14);
+    color: #16a34a;
+}
+body.page-faqmanage .faqmanage-status img {
+    max-width: 52px;
+    height: auto;
+}
+body.page-faqmanage .faqmanage-items {
+    display: grid;
+    gap: 8px;
+    margin-top: 10px;
+}
+body.page-faqmanage .faqmanage-item-card,
+body.page-faqmanage .faqmanage-empty {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid rgba(20,40,90,.06);
+    border-radius: 10px;
+    background: rgba(255,255,255,.3);
+}
+body.page-faqmanage .faqmanage-item-main {
+    display: grid;
+    grid-template-columns: 70px minmax(0, 1fr);
+    gap: 9px;
+    min-width: 0;
+}
+body.page-faqmanage .faqmanage-item-title {
+    min-width: 0;
+    color: var(--mh-text);
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+body.page-faqmanage .faqmanage-empty {
+    color: #6f7f99;
+    font-size: 13px;
+    font-weight: 800;
+    text-align: center;
+}
+body.page-faqmanage .faqmanage-add-item {
+    width: 100%;
+    margin-top: 10px;
+    background: #16a34a;
+}
+body.page-faqmanage .faqmanage-orphan-card h2 {
+    margin: 0 0 10px;
+    color: #dc2626;
+    font-size: 16px;
+    line-height: 1.35;
+    text-align: center;
+}
+body.page-faqmanage .faqmanage-bottom-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin-top: 10px;
+}
+body.page-faqmanage .faqmanage-bottom-actions input[type="submit"] {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 42px;
+    margin: 0 !important;
+    font-size: 15px !important;
+    font-weight: 900;
+}
+body.page-faqmanage .faqmanage-note {
+    margin: 10px 0 0;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(255,255,255,.28);
+    color: #6f7f99;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
