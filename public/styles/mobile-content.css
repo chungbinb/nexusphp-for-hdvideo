@@ -4337,7 +4337,10 @@ body.page-ipcheck .ipcheck-table tr {
     box-shadow: 0 1px 0 rgba(255,255,255,.35) inset;
 }
 body.page-ipcheck .ipcheck-table tr.ipcheck-row-alt {
-    background: rgba(255,255,255,.32) !important;
+    background: #ECE9D8 !important;
+}
+body.page-ipcheck .ipcheck-table tr[bgcolor="ECE9D8"] {
+    background: #ECE9D8 !important;
 }
 body.page-ipcheck .ipcheck-table td {
     display: grid !important;
@@ -4373,8 +4376,11 @@ body.page-ipcheck .ipcheck-table td::before {
 body.page-ipcheck .ipcheck-table td:first-child {
     font-size: 14px;
 }
-body.page-ipcheck .ipcheck-table a {
+body.page-ipcheck .ipcheck-table a:not([class$="_Name"]) {
     color: var(--mh-primary) !important;
+    text-decoration: none !important;
+}
+body.page-ipcheck .ipcheck-table a[class$="_Name"] {
     text-decoration: none !important;
 }
 body.page-ipcheck .ipcheck-empty {
