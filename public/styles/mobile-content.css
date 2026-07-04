@@ -6301,6 +6301,13 @@ body.page-upload .m-main * {
 body.page-upload .m-main {
     padding: 12px;
     overflow-x: hidden;
+    --upload-surface: color-mix(in srgb, var(--mh-surface) 74%, var(--mh-bg));
+    --upload-surface-soft: color-mix(in srgb, var(--mh-surface) 54%, var(--mh-bg));
+    --upload-field: color-mix(in srgb, var(--mh-bg) 62%, var(--mh-surface));
+    --upload-accent-soft: color-mix(in srgb, var(--mh-primary) 12%, var(--mh-bg));
+    --upload-border: color-mix(in srgb, var(--mh-primary) 22%, transparent);
+    --upload-muted: color-mix(in srgb, var(--mh-text) 62%, var(--mh-bg));
+    --upload-shadow: color-mix(in srgb, var(--mh-primary) 14%, transparent);
 }
 body.page-upload .upload-page,
 body.page-upload .upload-form,
@@ -6317,9 +6324,9 @@ body.page-upload .upload-form {
 body.page-upload .upload-form > p[align="center"] {
     margin: 0 0 12px !important;
     padding: 10px 12px;
-    border: 1px solid rgba(20,40,90,.14);
+    border: 1px solid var(--upload-border);
     border-radius: 12px;
-    background: rgba(255,255,255,.38);
+    background: var(--upload-accent-soft);
     color: var(--mh-text);
     font-size: 13px;
     font-weight: 850;
@@ -6343,10 +6350,10 @@ body.page-upload .upload-table > tbody > tr {
     display: block;
     width: 100%;
     padding: 12px;
-    border: 1px solid rgba(20,40,90,.16) !important;
+    border: 1px solid var(--upload-border) !important;
     border-radius: 12px;
-    background: rgba(255,255,255,.44) !important;
-    box-shadow: 0 8px 20px rgba(35,70,120,.08), 0 1px 0 rgba(255,255,255,.55) inset;
+    background: var(--upload-surface) !important;
+    box-shadow: 0 8px 20px var(--upload-shadow);
 }
 body.page-upload .upload-table > tbody > tr[style*="display: none"] {
     display: none !important;
@@ -6375,7 +6382,7 @@ body.page-upload .upload-table > tbody > tr > td.colhead {
 }
 body.page-upload .upload-table > tbody > tr > td.rowhead {
     margin: 0 0 8px;
-    color: #6f7f99 !important;
+    color: var(--upload-muted) !important;
     font-size: 13px;
     font-weight: 900;
     line-height: 1.35;
@@ -6396,9 +6403,9 @@ body.page-upload .upload-table textarea {
     min-height: 38px;
     margin: 4px 0 !important;
     padding: 8px 10px !important;
-    border: 1px solid rgba(20,40,90,.12) !important;
+    border: 1px solid var(--upload-border) !important;
     border-radius: 10px;
-    background: rgba(255,255,255,.56) !important;
+    background: var(--upload-field) !important;
     color: var(--mh-text) !important;
     font-size: 14px !important;
 }
@@ -6408,9 +6415,9 @@ body.page-upload .upload-table input[type="file"] {
     min-height: 40px;
     margin: 4px 0 !important;
     padding: 8px 10px !important;
-    border: 1px solid rgba(20,40,90,.12) !important;
+    border: 1px solid var(--upload-border) !important;
     border-radius: 10px;
-    background: rgba(255,255,255,.56) !important;
+    background: var(--upload-field) !important;
     color: var(--mh-text) !important;
     font-size: 13px !important;
 }
@@ -6442,7 +6449,7 @@ body.page-upload .upload-table font.medium,
 body.page-upload .upload-table .medium {
     display: block;
     margin-top: 5px;
-    color: #6f7f99 !important;
+    color: var(--upload-muted) !important;
     font-size: 12px !important;
     font-weight: 700;
     line-height: 1.45;
@@ -6474,7 +6481,7 @@ body.page-upload .upload-table > tbody > tr > td.toolbox {
 }
 body.page-upload .upload-table > tbody > tr > td.toolbox b {
     display: block;
-    color: #6f7f99;
+    color: var(--upload-muted);
     font-size: 12px;
     line-height: 1.45;
 }
@@ -6515,7 +6522,9 @@ body.page-upload .nexus-bbcode-textarea {
 body.page-upload .sceditor-container {
     display: block !important;
     min-width: 0 !important;
+    border: 1px solid var(--upload-border) !important;
     border-radius: 12px !important;
+    background: var(--upload-field) !important;
     overflow: hidden !important;
 }
 body.page-upload .sceditor-toolbar {
@@ -6526,6 +6535,8 @@ body.page-upload .sceditor-toolbar {
     width: 100% !important;
     max-width: 100% !important;
     padding: 4px !important;
+    border-bottom: 1px solid var(--upload-border) !important;
+    background: var(--upload-accent-soft) !important;
     overflow-x: hidden !important;
     white-space: normal !important;
 }
@@ -6537,6 +6548,7 @@ body.page-upload .sceditor-button {
     width: 32px !important;
     height: 32px !important;
     margin: 0 !important;
+    background: var(--upload-surface-soft) !important;
     border-radius: 6px !important;
 }
 body.page-upload .sceditor-button div {

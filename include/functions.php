@@ -2651,7 +2651,7 @@ function qd_mobile_std_auto_head(string $title = ''): bool
     $GLOBALS['QD_STD_MOBILE_AUTO'] = true;
     $active = function_exists('mobile_std_active') ? mobile_std_active() : '';
     mobile_shell_page_head(trim(strip_tags($title)), $active, qd_mobile_std_auto_page_class());
-    echo '<link rel="stylesheet" type="text/css" href="/styles/mobile-content.css?v=20260704ai">';
+    echo '<link rel="stylesheet" type="text/css" href="/styles/mobile-content.css?v=20260704aj">';
     do_action('nexus_header');
     if (class_exists('\\Nexus\\Nexus')) {
         foreach (\Nexus\Nexus::getAppendHeaders() as $value) {
