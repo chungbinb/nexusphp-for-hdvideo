@@ -6,6 +6,18 @@ require_once(get_langfile_path());
 loggedinorreturn();
 parked();
 
+function reports_mobile_username($uid): string
+{
+	$uid = (int)$uid;
+	$user = get_user_row($uid);
+	if (!$user) {
+		return '<span class="reports-user-color">' . htmlspecialchars(trim(strip_tags(get_username($uid)))) . '</span>';
+	}
+
+	$className = preg_replace('/[^A-Za-z0-9_-]/', '', get_user_class_name($user['class'], true, false, false));
+	return '<span class="reports-user-color ' . htmlspecialchars($className . '_Name') . '">' . htmlspecialchars($user['username']) . '</span>';
+}
+
 user_can('staffmem', true);
 
 $count = get_row_count("reports");
@@ -15,12 +27,19 @@ if (!$count){
 mp_head($lang_reports['head_reports']);
 $perpage = 10;
 list($pagertop, $pagerbottom, $limit) = pager($perpage, $count, "reports.php?");
+$isMobileReports = function_exists('mobile_is') && mobile_is();
 begin_main_frame();
 print("<h1 align=center>".$lang_reports['text_reports']."</h1>");
-print("<table border=1 cellspacing=0 cellpadding=5 align=center>\n");
-print("<tr><td class=colhead><nobr>".$lang_reports['col_added']."</nobr></td><td class=colhead>".$lang_reports['col_reporter']."</td><td class=colhead>".$lang_reports['col_reporting']."</td><td class=colhead><nobr>".$lang_reports['col_type']."</nobr></td><td class=colhead>".$lang_reports['col_reason']."</td><td class=colhead><nobr>".$lang_reports['col_dealt_with']."</nobr></td><td class=colhead><nobr>".$lang_reports['col_action']."</nobr></td>");
-
-print("<form method=post action=takeupdate.php>");
+print("<form method=post action=takeupdate.php class=\"reports-form\">");
+if ($isMobileReports) {
+	if ($count > $perpage) {
+		echo $pagertop;
+	}
+	print("<div class=\"reports-list\">\n");
+} else {
+	print("<table border=1 cellspacing=0 cellpadding=5 align=center>\n");
+	print("<tr><td class=colhead><nobr>".$lang_reports['col_added']."</nobr></td><td class=colhead>".$lang_reports['col_reporter']."</td><td class=colhead>".$lang_reports['col_reporting']."</td><td class=colhead><nobr>".$lang_reports['col_type']."</nobr></td><td class=colhead>".$lang_reports['col_reason']."</td><td class=colhead><nobr>".$lang_reports['col_dealt_with']."</nobr></td><td class=colhead><nobr>".$lang_reports['col_action']."</nobr></td>");
+}
 $reportres = sql_query("SELECT * FROM reports ORDER BY dealtwith ASC, id DESC $limit");
 
 while ($row = mysql_fetch_array($reportres))
@@ -53,7 +72,7 @@ while ($row = mysql_fetch_array($reportres))
 			else
 			{
 				$arr = mysql_fetch_array($res);
-				$reporting = get_username($arr['id']);
+				$reporting = $isMobileReports ? reports_mobile_username($arr['id']) : get_username($arr['id']);
 			}
 			break;
 		}
@@ -143,13 +162,34 @@ while ($row = mysql_fetch_array($reportres))
 		}
 	}
 
-	print("<tr><td class=rowfollow><nobr>".gettime($row['added'])."</nobr></td><td class=rowfollow>" . get_username($row['addedby']) . "</td><td class=rowfollow>".$reporting."</td><td class=rowfollow><nobr>".$type."</nobr></td><td class=rowfollow>".htmlspecialchars($row['reason'])."</td><td class=rowfollow><nobr>".$dealtwith."</nobr></td><td class=rowfollow><input type=\"checkbox\" name=\"delreport[]\" value=\"" . $row['id'] . "\" /></td></tr>\n");
+	if ($isMobileReports) {
+		$dealtClass = $row['dealtwith'] ? 'is-dealt' : 'is-open';
+		$dealtLabel = $row['dealtwith'] ? $lang_reports['text_yes'] : $lang_reports['text_no'];
+		$dealtByName = $row['dealtwith'] ? reports_mobile_username($row['dealtby']) : '';
+		$reason = trim($row['reason']) !== '' ? htmlspecialchars($row['reason']) : '-';
+
+		print("<article class=\"reports-card $dealtClass\">");
+		print("<label class=\"reports-select\"><input type=\"checkbox\" name=\"delreport[]\" value=\"" . (int)$row['id'] . "\" /><span></span></label>");
+		print("<div class=\"reports-card-body\">");
+		print("<div class=\"reports-card-head\"><span class=\"reports-type\">".htmlspecialchars($type)."</span><span class=\"reports-time\">".gettime($row['added'])."</span></div>");
+		print("<div class=\"reports-target\">".$reporting."</div>");
+		print("<div class=\"reports-meta\"><div class=\"reports-meta-row\"><span class=\"reports-meta-label\">".$lang_reports['col_reporter']."</span><span class=\"reports-meta-value\">" . reports_mobile_username($row['addedby']) . "</span></div></div>");
+		print("<div class=\"reports-reason\"><span>".$lang_reports['col_reason']."</span><p>".$reason."</p></div>");
+		print("<div class=\"reports-status\"><span class=\"reports-status-label\">".$lang_reports['col_dealt_with']."</span><span class=\"reports-status-value\"><b>".$dealtLabel."</b>".($dealtByName ? " " . $dealtByName : "")."</span></div>");
+		print("</div>");
+		print("</article>\n");
+	} else {
+		print("<tr><td class=rowfollow><nobr>".gettime($row['added'])."</nobr></td><td class=rowfollow>" . get_username($row['addedby']) . "</td><td class=rowfollow>".$reporting."</td><td class=rowfollow><nobr>".$type."</nobr></td><td class=rowfollow>".htmlspecialchars($row['reason'])."</td><td class=rowfollow><nobr>".$dealtwith."</nobr></td><td class=rowfollow><input type=\"checkbox\" name=\"delreport[]\" value=\"" . $row['id'] . "\" /></td></tr>\n");
+	}
 }
-?>
-<tr><td class="colhead" colspan="7" align="right"><input type="submit" name="setdealt" value="<?php echo $lang_reports['submit_set_dealt']?>" /><input type="submit" name="delete" value="<?php echo $lang_reports['submit_delete']?>" /></td></tr>
-</form>
-<?php
-print("</table>");
+if ($isMobileReports) {
+	print("</div>");
+	print("<div class=\"reports-actions\"><input type=\"submit\" name=\"setdealt\" value=\"".$lang_reports['submit_set_dealt']."\" /><input class=\"reports-danger\" type=\"submit\" name=\"delete\" value=\"".$lang_reports['submit_delete']."\" /></div>");
+} else {
+	print("<tr><td class=\"colhead\" colspan=\"7\" align=\"right\"><input type=\"submit\" name=\"setdealt\" value=\"".$lang_reports['submit_set_dealt']."\" /><input type=\"submit\" name=\"delete\" value=\"".$lang_reports['submit_delete']."\" /></td></tr>");
+	print("</table>");
+}
+print("</form>");
 print($pagerbottom);
 end_main_frame();
 mp_foot();
