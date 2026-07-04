@@ -1072,6 +1072,14 @@ body.page-staffbox .staffbox-answer * {
     overflow-wrap: normal !important;
     word-break: keep-all !important;
 }
+body.page-staffbox .staffbox-user-color {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: bottom;
+    font-weight: 800;
+}
 body.page-staffbox .staffbox-time .staffbox-meta-value {
     white-space: nowrap;
     overflow-wrap: normal;
@@ -1104,6 +1112,9 @@ body.page-staffbox .staffbox-answer-value {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap !important;
+}
+body.page-staffbox .staffbox-answer-value .staffbox-user-color {
+    font-weight: 800;
 }
 body.page-staffbox .staffbox-card.is-answered .staffbox-answer b {
     color: #16a34a;
