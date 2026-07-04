@@ -1808,3 +1808,231 @@ body.page-cheaterbox input.cheaterbox-danger {
     background: #ef4444 !important;
     color: #fff !important;
 }
+
+/* MySQL 状态页 */
+body.page-mysql-stats .m-main,
+body.page-mysql-stats .m-main * {
+    box-sizing: border-box;
+}
+body.page-mysql-stats .m-main {
+    padding: 12px;
+}
+body.page-mysql-stats .m-main h1 {
+    margin: 4px 0 12px;
+    color: var(--mh-text);
+    font-size: 18px;
+    line-height: 1.25;
+}
+body.page-mysql-stats .mysql-stats-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    max-width: 100%;
+}
+body.page-mysql-stats .mysql-stats-hero,
+body.page-mysql-stats .mysql-stats-section,
+body.page-mysql-stats .mysql-stats-more {
+    width: 100%;
+    max-width: 100%;
+    border: 1px solid rgba(20,40,90,.08);
+    border-radius: 12px;
+    background: var(--mh-surface);
+    box-shadow: 0 1px 0 rgba(255,255,255,.35) inset;
+}
+body.page-mysql-stats .mysql-stats-hero {
+    padding: 13px;
+}
+body.page-mysql-stats .mysql-stats-hero span,
+body.page-mysql-stats .mysql-stats-section p,
+body.page-mysql-stats .mysql-stats-row span,
+body.page-mysql-stats .mysql-stats-overview span,
+body.page-mysql-stats .mysql-stats-query-item em,
+body.page-mysql-stats .mysql-stats-query-item i,
+body.page-mysql-stats .mysql-stats-var-list span {
+    color: #6f7f99;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.35;
+}
+body.page-mysql-stats .mysql-stats-hero strong {
+    display: block;
+    margin-top: 4px;
+    color: var(--mh-text);
+    font-size: 18px;
+    line-height: 1.35;
+}
+body.page-mysql-stats .mysql-stats-hero p {
+    margin: 8px 0 0;
+    color: #586a86;
+    font-size: 13px;
+    line-height: 1.5;
+}
+body.page-mysql-stats .mysql-stats-section {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    padding: 12px;
+}
+body.page-mysql-stats .mysql-stats-section h2 {
+    margin: 0;
+    color: var(--mh-text);
+    font-size: 16px;
+    line-height: 1.25;
+}
+body.page-mysql-stats .mysql-stats-section p {
+    margin: -2px 0 2px;
+    font-weight: 600;
+}
+body.page-mysql-stats .mysql-stats-card {
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid rgba(20,40,90,.07);
+    border-radius: 10px;
+    background: rgba(255,255,255,.32);
+}
+body.page-mysql-stats .mysql-stats-card h3 {
+    margin: 0 0 8px;
+    color: var(--mh-text);
+    font-size: 14px;
+    line-height: 1.25;
+}
+body.page-mysql-stats .mysql-stats-row {
+    display: grid;
+    grid-template-columns: minmax(86px, 1fr) minmax(0, 1fr) minmax(74px, .85fr);
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 8px 0;
+    border-top: 1px solid rgba(20,40,90,.06);
+}
+body.page-mysql-stats .mysql-stats-row:first-of-type {
+    border-top: 0;
+}
+body.page-mysql-stats .mysql-stats-row-four {
+    grid-template-columns: minmax(86px, 1.15fr) minmax(0, .8fr) minmax(58px, .7fr) minmax(48px, .55fr);
+}
+body.page-mysql-stats .mysql-stats-row b,
+body.page-mysql-stats .mysql-stats-row em,
+body.page-mysql-stats .mysql-stats-row i {
+    min-width: 0;
+    overflow: hidden;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+body.page-mysql-stats .mysql-stats-row b {
+    color: var(--mh-text);
+    font-size: 13px;
+}
+body.page-mysql-stats .mysql-stats-row em,
+body.page-mysql-stats .mysql-stats-row i {
+    font-style: normal;
+}
+body.page-mysql-stats .mysql-stats-overview {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+body.page-mysql-stats .mysql-stats-overview div {
+    min-width: 0;
+    padding: 10px;
+    border-radius: 10px;
+    background: rgba(255,255,255,.35);
+    border: 1px solid rgba(20,40,90,.06);
+}
+body.page-mysql-stats .mysql-stats-overview b {
+    display: block;
+    min-width: 0;
+    margin-top: 4px;
+    color: var(--mh-text);
+    font-size: 15px;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+body.page-mysql-stats .mysql-stats-query-list,
+body.page-mysql-stats .mysql-stats-var-list {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+}
+body.page-mysql-stats .mysql-stats-query-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(58px, .7fr) minmax(58px, .7fr) minmax(44px, .55fr);
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 9px 10px;
+    border-radius: 10px;
+    background: rgba(255,255,255,.35);
+    border: 1px solid rgba(20,40,90,.06);
+}
+body.page-mysql-stats .mysql-stats-query-item b {
+    min-width: 0;
+    color: var(--mh-text);
+    font-size: 13px;
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+body.page-mysql-stats .mysql-stats-query-item span,
+body.page-mysql-stats .mysql-stats-query-item em,
+body.page-mysql-stats .mysql-stats-query-item i {
+    min-width: 0;
+    overflow: hidden;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+body.page-mysql-stats .mysql-stats-query-item span {
+    color: var(--mh-text);
+    font-size: 13px;
+    font-weight: 800;
+}
+body.page-mysql-stats .mysql-stats-query-item em,
+body.page-mysql-stats .mysql-stats-query-item i {
+    font-style: normal;
+}
+body.page-mysql-stats .mysql-stats-more {
+    padding: 0;
+    overflow: hidden;
+}
+body.page-mysql-stats .mysql-stats-more summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 42px;
+    padding: 0 12px;
+    color: var(--mh-text);
+    font-size: 14px;
+    font-weight: 900;
+    cursor: pointer;
+}
+body.page-mysql-stats .mysql-stats-var-list {
+    padding: 0 12px 12px;
+}
+body.page-mysql-stats .mysql-stats-var-list div {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(80px, .75fr);
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 8px 9px;
+    border-radius: 9px;
+    background: rgba(255,255,255,.32);
+    border: 1px solid rgba(20,40,90,.06);
+}
+body.page-mysql-stats .mysql-stats-var-list b {
+    min-width: 0;
+    color: var(--mh-text);
+    font-size: 13px;
+    line-height: 1.35;
+    overflow: hidden;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
