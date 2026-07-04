@@ -1013,14 +1013,16 @@ body.page-staffbox .staffbox-select input {
     margin: 0;
 }
 body.page-staffbox .staffbox-card-body {
-    display: block;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 8px;
     min-width: 0;
     color: var(--mh-text) !important;
     text-decoration: none !important;
 }
 body.page-staffbox .staffbox-subject {
     display: block;
-    margin-bottom: 7px;
+    margin: 0;
     color: var(--mh-text);
     font-size: 15px;
     font-weight: 850;
@@ -1031,13 +1033,14 @@ body.page-staffbox .staffbox-meta {
     display: grid;
     grid-template-columns: 1fr;
     gap: 5px;
-    margin-bottom: 8px;
+    margin: 0;
     color: #5f6f87;
     font-size: 12px;
     line-height: 1.4;
 }
 body.page-staffbox .staffbox-meta-row {
-    display: flex;
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
     align-items: center;
     gap: 8px;
     min-width: 0;
@@ -1062,10 +1065,13 @@ body.page-staffbox .staffbox-time .staffbox-meta-value {
     overflow-wrap: normal;
 }
 body.page-staffbox .staffbox-answer {
-    display: inline-flex;
+    display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 5px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     min-height: 24px;
     padding: 2px 8px;
     border-radius: 999px;
