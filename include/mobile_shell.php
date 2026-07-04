@@ -611,6 +611,7 @@ function mobile_shell_page_head(string $title = '', string $active = '', string 
 <meta name="mobile-web-app-capable" content="yes" />
 <title><?php echo htmlspecialchars($t) ?></title>
 <link rel="stylesheet" href="/styles/mobile-shell.css?v=20260703a" type="text/css" />
+<link rel="stylesheet" href="/styles/sprites.css?v=20260704a" type="text/css" />
 <style>:root{--bili-primary:<?php echo $col['primary'] ?>;--bili-accent:<?php echo $col['accent'] ?>;--bili-bg:<?php echo $col['bg'] ?>;--bili-surface:<?php echo $col['surface'] ?>;--bili-text:<?php echo $col['text'] ?>;}</style>
 </head>
 <body class="<?php echo htmlspecialchars($bodyClass) ?>">
@@ -671,7 +672,7 @@ function mobile_std_head(string $title = '', string $active = '', string $pageCl
         if ($active === '') { $active = mobile_std_active(); }
         if ($pageClass === '') { $pageClass = 'page-' . preg_replace('/[^a-z0-9]+/', '-', $s ?: 'std'); }
         mobile_shell_page_head(trim(strip_tags($title)), $active, 'page-std ' . $pageClass);
-        echo '<link rel="stylesheet" type="text/css" href="/styles/mobile-content.css?v=20260704x">';
+        echo '<link rel="stylesheet" type="text/css" href="/styles/mobile-content.css?v=20260704y">';
         do_action('nexus_header');
         if (class_exists('\\Nexus\\Nexus')) {
             foreach (\Nexus\Nexus::getAppendHeaders() as $value) {

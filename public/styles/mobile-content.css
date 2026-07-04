@@ -4376,6 +4376,24 @@ body.page-ipcheck .ipcheck-table td::before {
 body.page-ipcheck .ipcheck-table td:first-child {
     font-size: 14px;
 }
+body.page-ipcheck .ipcheck-table td:first-child .nowrap {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 2px;
+    white-space: normal;
+}
+body.page-ipcheck .ipcheck-table img.disabled,
+body.page-ipcheck .ipcheck-table img.leechwarned,
+body.page-ipcheck .ipcheck-table img.warned,
+body.page-ipcheck .ipcheck-table img.star {
+    display: inline-block !important;
+    flex: 0 0 auto;
+    max-width: none !important;
+    width: 11px !important;
+    height: 11px !important;
+    vertical-align: -1px;
+}
 body.page-ipcheck .ipcheck-table a:not([class$="_Name"]) {
     color: var(--mh-primary) !important;
     text-decoration: none !important;
