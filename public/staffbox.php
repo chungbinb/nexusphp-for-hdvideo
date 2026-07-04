@@ -40,16 +40,24 @@ if (!$action) {
 	}
 	else
 	{
+        $isMobileStaffbox = function_exists('mobile_is') && mobile_is();
 		begin_main_frame();
-		print("<form method=post action=\"?action=takecontactanswered\">");
-		print("<table width=940 border=1 cellspacing=0 cellpadding=5 align=center>\n");
-		print("<tr>
-			<td class=colhead align=left>".$lang_staffbox['col_subject']."</td>
-			<td class=colhead align=center>".$lang_staffbox['col_sender']."</td>
-			<td class=colhead align=center><nobr>".$lang_staffbox['col_added']."</nobr></td>
-			<td class=colhead align=center>".$lang_staffbox['col_answered']."</td>
-			<td class=colhead align=center><nobr>".$lang_staffbox['col_action']."</nobr></td>
-		</tr>");
+		print("<form method=post action=\"?action=takecontactanswered\" class=\"staffbox-form\">");
+        if ($isMobileStaffbox) {
+            if ($count > $perpage) {
+                echo $pagertop;
+            }
+            print("<div class=\"staffbox-list\">\n");
+        } else {
+            print("<table width=940 border=1 cellspacing=0 cellpadding=5 align=center>\n");
+            print("<tr>
+                <td class=colhead align=left>".$lang_staffbox['col_subject']."</td>
+                <td class=colhead align=center>".$lang_staffbox['col_sender']."</td>
+                <td class=colhead align=center><nobr>".$lang_staffbox['col_added']."</nobr></td>
+                <td class=colhead align=center>".$lang_staffbox['col_answered']."</td>
+                <td class=colhead align=center><nobr>".$lang_staffbox['col_action']."</nobr></td>
+            </tr>");
+        }
 
 	$res = $query->forPage($pageNum + 1, $perpage)->orderBy('id', 'desc')->get()->toArray();
 	do_log(last_query());
@@ -63,12 +71,32 @@ if (!$action) {
 			$answered = "<font color=red>".$lang_staffbox['text_no']."</font>";
 
     		$pmid = $arr["id"];
-		print("<tr><td width=100% class=rowfollow align=left><a href=staffbox.php?action=viewpm&pmid=$pmid&return=".urlencode($_SERVER['QUERY_STRING']).">".htmlspecialchars($arr['subject'])."</td><td class=rowfollow align=center>" . get_username($arr['sender']) . "</td><td class=rowfollow align=center><nobr>".gettime($arr['added'], true, false)."</nobr></td><td class=rowfollow align=center>$answered</td><td class=rowfollow align=center><input type=\"checkbox\" name=\"setanswered[]\" value=\"" . $arr['id'] . "\" /></td></tr>\n");
+            $viewUrl = "staffbox.php?action=viewpm&pmid=$pmid&return=".urlencode($_SERVER['QUERY_STRING']);
+            if ($isMobileStaffbox) {
+                $answeredClass = $arr['answered'] ? 'is-answered' : 'is-open';
+                $answeredLabel = $arr['answered'] ? $lang_staffbox['text_yes'] : $lang_staffbox['text_no'];
+                $answeredBy = $arr['answered'] ? get_username($arr['answeredby']) : '';
+                print("<article class=\"staffbox-card $answeredClass\">");
+                print("<label class=\"staffbox-select\"><input type=\"checkbox\" name=\"setanswered[]\" value=\"" . (int)$arr['id'] . "\" /><span></span></label>");
+                print("<a class=\"staffbox-card-body\" href=\"".htmlspecialchars($viewUrl)."\">");
+                print("<span class=\"staffbox-subject\">".htmlspecialchars($arr['subject'])."</span>");
+                print("<span class=\"staffbox-meta\"><span>".$lang_staffbox['col_sender']." " . get_username($arr['sender']) . "</span><span>".gettime($arr['added'], true, false)."</span></span>");
+                print("<span class=\"staffbox-answer\"><b>".$lang_staffbox['col_answered']." ".$answeredLabel."</b>".($answeredBy ? " <span>".$answeredBy."</span>" : "")."</span>");
+                print("</a>");
+                print("</article>\n");
+            } else {
+                print("<tr><td width=100% class=rowfollow align=left><a href=".htmlspecialchars($viewUrl).">".htmlspecialchars($arr['subject'])."</a></td><td class=rowfollow align=center>" . get_username($arr['sender']) . "</td><td class=rowfollow align=center><nobr>".gettime($arr['added'], true, false)."</nobr></td><td class=rowfollow align=center>$answered</td><td class=rowfollow align=center><input type=\"checkbox\" name=\"setanswered[]\" value=\"" . $arr['id'] . "\" /></td></tr>\n");
+            }
 	}
     $checkAll = $lang_functions['input_check_all'];
     $uncheckAll = $lang_functions['input_uncheck_all'];
-    print("<tr><td class=rowfollow align=right colspan=5><input type=\"button\" value=\"$checkAll\" onclick=\"this.value=check(form, '$checkAll', '$uncheckAll')\"/><input type=\"submit\" name=\"setdealt\" value=\"".$lang_staffbox['submit_set_answered']."\" /><input type=\"submit\" name=\"delete\" value=\"".$lang_staffbox['submit_delete']."\" /></td></tr>");
-    print("</table>\n");
+    if ($isMobileStaffbox) {
+        print("</div>\n");
+        print("<div class=\"staffbox-actions\"><input type=\"button\" value=\"$checkAll\" onclick=\"this.value=check(form, '$checkAll', '$uncheckAll')\"/><input type=\"submit\" name=\"setdealt\" value=\"".$lang_staffbox['submit_set_answered']."\" /><input class=\"staffbox-danger\" type=\"submit\" name=\"delete\" value=\"".$lang_staffbox['submit_delete']."\" /></div>");
+    } else {
+        print("<tr><td class=rowfollow align=right colspan=5><input type=\"button\" value=\"$checkAll\" onclick=\"this.value=check(form, '$checkAll', '$uncheckAll')\"/><input type=\"submit\" name=\"setdealt\" value=\"".$lang_staffbox['submit_set_answered']."\" /><input type=\"submit\" name=\"delete\" value=\"".$lang_staffbox['submit_delete']."\" /></td></tr>");
+        print("</table>\n");
+    }
 	print("</form>");
 	echo $pagerbottom;
 	end_main_frame();
@@ -107,28 +135,51 @@ $width = "50";
 }
 mp_head($lang_staffbox['head_view_staff_pm']);
 print("<h1 align=\"center\"><a class=\"faqlink\" href=\"staffbox.php\">".$lang_staffbox['text_staff_pm']."</a>-->".$subject."</h1>");
-print("<table width=\"737\" border=\"0\" cellpadding=\"4\" cellspacing=\"0\">");
-print("<tr><td width=\"".$width."%\" class=\"colhead\" align=\"left\">".$lang_staffbox['col_from']."</td>");
-if ($arr4["answered"] == 1)
-print("<td width=\"34%\" class=\"colhead\" align=\"left\">".$lang_staffbox['col_answered_by']."</td>");
-print("<td width=\"".$width."%\" class=\"colhead\" align=\"left\">".$lang_staffbox['col_date']."</td></tr>");
-print("<tr><td class=\"rowfollow\" align=\"left\">".$sender."</td>");
-if ($arr4["answered"] == 1)
-print("<td class=\"rowfollow\" align=\"left\">".$answeredby."</td>");
-print("<td class=\"rowfollow\" align=\"left\">".gettime($arr4["added"])."</td></tr>");
-print("<tr><td colspan=\"".$colspan."\" align=\"left\">".format_comment($arr4["msg"])."</td></tr>");
-if ($arr4["answered"] == 1 && $arr4["answer"])
-{
-print("<tr><td colspan=\"".$colspan."\" align=\"left\">".format_comment($arr4["answer"])."</td></tr>");
+$isMobileStaffbox = function_exists('mobile_is') && mobile_is();
+if ($isMobileStaffbox) {
+    print("<section class=\"staffbox-detail\">");
+    print("<div class=\"staffbox-detail-head\">");
+    print("<div><span>".$lang_staffbox['col_from']."</span><b>".$sender."</b></div>");
+    if ($arr4["answered"] == 1) {
+        print("<div><span>".$lang_staffbox['col_answered_by']."</span><b>".$answeredby."</b></div>");
+    }
+    print("<div><span>".$lang_staffbox['col_date']."</span><b>".gettime($arr4["added"])."</b></div>");
+    print("</div>");
+    print("<div class=\"staffbox-message\"><div class=\"staffbox-message-label\">".$lang_staffbox['col_subject']."</div>".format_comment($arr4["msg"])."</div>");
+    if ($arr4["answered"] == 1 && $arr4["answer"]) {
+        print("<div class=\"staffbox-message staffbox-reply\"><div class=\"staffbox-message-label\">".$lang_staffbox['col_answered']."</div>".format_comment($arr4["answer"])."</div>");
+    }
+    print("<div class=\"staffbox-detail-actions\">");
+    if ($arr4["answered"] == 0) {
+        print("<a href=\"staffbox.php?action=answermessage&receiver=" . $arr4['sender'] . "&answeringto=".$arr4['id']."\">".$lang_staffbox['text_reply']."</a>");
+        print("<a href=\"staffbox.php?action=setanswered&id=".$arr4['id']."&return=".urlencode($_GET['return'] ?? '')."\">".$lang_staffbox['text_mark_answered']."</a>");
+    }
+    print("<a class=\"staffbox-danger\" href=\"staffbox.php?action=deletestaffmessage&id=" . $arr4["id"] . "\">".$lang_staffbox['text_delete']."</a>");
+    print("</div></section>");
+} else {
+    print("<table width=\"737\" border=\"0\" cellpadding=\"4\" cellspacing=\"0\">");
+    print("<tr><td width=\"".$width."%\" class=\"colhead\" align=\"left\">".$lang_staffbox['col_from']."</td>");
+    if ($arr4["answered"] == 1)
+    print("<td width=\"34%\" class=\"colhead\" align=\"left\">".$lang_staffbox['col_answered_by']."</td>");
+    print("<td width=\"".$width."%\" class=\"colhead\" align=\"left\">".$lang_staffbox['col_date']."</td></tr>");
+    print("<tr><td class=\"rowfollow\" align=\"left\">".$sender."</td>");
+    if ($arr4["answered"] == 1)
+    print("<td class=\"rowfollow\" align=\"left\">".$answeredby."</td>");
+    print("<td class=\"rowfollow\" align=\"left\">".gettime($arr4["added"])."</td></tr>");
+    print("<tr><td colspan=\"".$colspan."\" align=\"left\">".format_comment($arr4["msg"])."</td></tr>");
+    if ($arr4["answered"] == 1 && $arr4["answer"])
+    {
+    print("<tr><td colspan=\"".$colspan."\" align=\"left\">".format_comment($arr4["answer"])."</td></tr>");
+    }
+    print("<tr><td colspan=\"".$colspan."\" align=\"right\">");
+    print("<font color=white>");
+    if ($arr4["answered"] == 0)
+    print("[ <a href=\"staffbox.php?action=answermessage&receiver=" . $arr4['sender'] . "&answeringto=".$arr4['id']."\">".$lang_staffbox['text_reply']."</a> ] [ <a href=\"staffbox.php?action=setanswered&id=".$arr4['id']."&return=".urlencode($_GET['return'] ?? '')."\">".$lang_staffbox['text_mark_answered']."</a> ] ");
+    print("[ <a href=\"staffbox.php?action=deletestaffmessage&id=" . $arr4["id"] . "\">".$lang_staffbox['text_delete']."</a> ]");
+    print("</font>");
+    print("</td></tr>");
+    print("</table>");
 }
-print("<tr><td colspan=\"".$colspan."\" align=\"right\">");
-print("<font color=white>");
-if ($arr4["answered"] == 0)
-print("[ <a href=\"staffbox.php?action=answermessage&receiver=" . $arr4['sender'] . "&answeringto=".$arr4['id']."\">".$lang_staffbox['text_reply']."</a> ] [ <a href=\"staffbox.php?action=setanswered&id=".$arr4['id']."&return=".urlencode($_GET['return'] ?? '')."\">".$lang_staffbox['text_mark_answered']."</a> ] ");
-print("[ <a href=\"staffbox.php?action=deletestaffmessage&id=" . $arr4["id"] . "\">".$lang_staffbox['text_delete']."</a> ]");
-print("</font>");
-print("</td></tr>");
-print("</table>");
 mp_foot();
 }
          //////////////////////////
