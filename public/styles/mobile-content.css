@@ -1040,10 +1040,12 @@ body.page-staffbox .staffbox-meta {
 }
 body.page-staffbox .staffbox-meta-row {
     display: grid;
-    grid-template-columns: 42px minmax(0, 1fr);
+    grid-template-columns: 42px minmax(0, max-content);
     align-items: center;
     gap: 8px;
     min-width: 0;
+    width: 100%;
+    max-width: 100%;
 }
 body.page-staffbox .staffbox-meta-label {
     flex: 0 0 42px;
@@ -1054,11 +1056,21 @@ body.page-staffbox .staffbox-meta-label {
 }
 body.page-staffbox .staffbox-meta-value {
     min-width: 0;
+    max-width: 100%;
     color: var(--mh-text);
     font-size: 13px;
     line-height: 1.4;
-    overflow-wrap: break-word;
-    word-break: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap !important;
+    overflow-wrap: normal !important;
+    word-break: keep-all !important;
+}
+body.page-staffbox .staffbox-meta-value *,
+body.page-staffbox .staffbox-answer * {
+    white-space: nowrap !important;
+    overflow-wrap: normal !important;
+    word-break: keep-all !important;
 }
 body.page-staffbox .staffbox-time .staffbox-meta-value {
     white-space: nowrap;
@@ -1080,6 +1092,7 @@ body.page-staffbox .staffbox-answer {
     color: #5f6f87;
     font-size: 12px;
     line-height: 1.3;
+    order: 3;
 }
 body.page-staffbox .staffbox-card.is-answered .staffbox-answer b {
     color: #16a34a;
