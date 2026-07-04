@@ -255,6 +255,8 @@ if (get_user_class() >= UC_PEASANT)
 {
 	//$url = $_COOKIE["subsurl"];
 
+	print("<div class=\"subtitles-page\">\n");
+	print("<div class=\"subtitles-upload-panel\">\n");
 	begin_main_frame();
 
 	?>
@@ -272,6 +274,7 @@ if (get_user_class() >= UC_PEASANT)
 	</div>
 <?php
 
+	print("<div class=\"subtitles-rules\">\n");
 	print("<p align=left><b><font size=5>".$lang_subtitles['text_rules']."</font></b></p>\n");
 	print("<p align=left>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp ".$lang_subtitles['text_rule_one']."</p>\n");
 	print("<p align=left>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp ".$lang_subtitles['text_rule_two']."</p>\n");
@@ -279,17 +282,18 @@ if (get_user_class() >= UC_PEASANT)
 	print("<p align=left>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp ".$lang_subtitles['text_rule_four']."</p>\n");
 	print("<p align=left>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp ".$lang_subtitles['text_rule_five']."</p>\n");
 	print("<p align=left>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp ".$lang_subtitles['text_rule_six']."</p>\n");
+	print("</div>\n");
 
 	print($lang_subtitles['text_red_star_required']);
 	if($in_detail != "")
 	{
-		print("<p >".$lang_subtitles['text_uploading_subtitles_for_torrent']."<b>$torrent_name</b></p>\n");
+		print("<p class=\"subtitles-for-torrent\">".$lang_subtitles['text_uploading_subtitles_for_torrent']."<b>".htmlspecialchars($torrent_name)."</b></p>\n");
 		print("<br />");
 	}
 
-	print("<form enctype=multipart/form-data method=post action=?>\n");
+	print("<form class=\"subtitles-upload-form\" enctype=multipart/form-data method=post action=?>\n");
 	print("<input type=hidden name=action value=upload>");
-	print("<table class=main border=1 cellspacing=0 cellpadding=5>\n");
+	print("<table class=\"main subtitles-upload-table\" border=1 cellspacing=0 cellpadding=5>\n");
 
 	print("<tr><td class=rowhead>".$lang_subtitles['row_file']."<font color=red>*</font></td><td class=rowfollow align=left><input type=file name=file>");
 	if ($maxsubsize_main > 0)
@@ -327,13 +331,14 @@ if (get_user_class() >= UC_PEASANT)
 	end_frame();
 
 	end_main_frame();
+	print("</div>\n");
 }
 
 if(get_user_class() >= UC_PEASANT)
 {
-		print("<form method=get action=?>\n");
-		print("<br /><br />");
-		print("<input type=text style=\"width:200px\" name=search>\n");
+		print("<div class=\"subtitles-list-panel\">\n");
+		print("<form class=\"subtitles-search-form\" method=get action=?>\n");
+		print("<input type=text name=search>\n");
 
 		$s = "<select name=\"lang_id\"><option value=\"0\">".$lang_subtitles['select_all_languages']."</option>\n";
 		$langs = langlist("sub_lang");
@@ -347,6 +352,7 @@ if(get_user_class() >= UC_PEASANT)
 		print("<input type=submit class=btn value=\"".$lang_subtitles['submit_search']."\">\n");
 		print("</form>\n");
 
+		print("<div class=\"subtitles-letters\">\n");
 		for ($i = 97; $i < 123; ++$i)
 		{
 			$l = chr($i);
@@ -356,6 +362,7 @@ if(get_user_class() >= UC_PEASANT)
 			else
 				print("<a href=?letter=$l><b>$L</b></a>\n");
 		}
+		print("</div>\n");
 
 		$perpage = 30;
 		$query = ($query ? " WHERE ".$query : "");
@@ -364,6 +371,7 @@ if(get_user_class() >= UC_PEASANT)
 		$num = $arr[0];
 		if (!$num)
 		{
+			print("</div>\n</div>\n");
 			stdmsg($lang_subtitles['text_sorry'],$lang_subtitles['text_nothing_here']);
 			mp_foot();
 			die;
@@ -375,9 +383,9 @@ if(get_user_class() >= UC_PEASANT)
 		$i = 0;
 		$res = sql_query("SELECT subs.*, language.flagpic, language.lang_name FROM subs LEFT JOIN language ON subs.lang_id=language.id $query ORDER BY id DESC $limit") or sqlerr();
 
-		print("<table width=940 border=1 cellspacing=0 cellpadding=5>\n");
-		print("<tr><td class=colhead>".$lang_subtitles['col_lang']."</td><td width=100% class=colhead align=center>".$lang_subtitles['col_title']."</td><td class=colhead align=center><img class=\"time\" src=\"pic/trans.gif\" alt=\"time\" title=\"".$lang_subtitles['title_date_added']."\" /></td>
-		<td class=colhead align=center><img class=\"size\" src=\"pic/trans.gif\" alt=\"size\" title=\"".$lang_subtitles['title_size']."\" /></td><td class=colhead align=center>".$lang_subtitles['col_hits']."</td><td class=colhead align=center>".$lang_subtitles['col_upped_by']."</td><td class=colhead align=center>".$lang_subtitles['col_report']."</td></tr>\n");
+		print("<table class=\"subtitles-table\" width=940 border=1 cellspacing=0 cellpadding=5>\n");
+		print("<thead><tr><td class=colhead>".$lang_subtitles['col_lang']."</td><td width=100% class=colhead align=center>".$lang_subtitles['col_title']."</td><td class=colhead align=center><img class=\"time\" src=\"pic/trans.gif\" alt=\"time\" title=\"".$lang_subtitles['title_date_added']."\" /></td>
+		<td class=colhead align=center><img class=\"size\" src=\"pic/trans.gif\" alt=\"size\" title=\"".$lang_subtitles['title_size']."\" /></td><td class=colhead align=center>".$lang_subtitles['col_hits']."</td><td class=colhead align=center>".$lang_subtitles['col_upped_by']."</td><td class=colhead align=center>".$lang_subtitles['col_report']."</td></tr></thead><tbody>\n");
 
 		$mod = user_can('submanage');
 		$pu = user_can('delownsub');
@@ -385,21 +393,22 @@ if(get_user_class() >= UC_PEASANT)
 		while ($arr = mysql_fetch_assoc($res))
 		{
 			// the number $start_subid is just for legacy support of prevoiusly uploaded subs, if the site is completely new, it should be 0 or just remove it
-			$lang = "<td class=rowfollow align=center valign=middle>" . "<img border=\"0\" src=\"pic/flag/". $arr["flagpic"] . "\" alt=\"" . $arr["lang_name"] . "\" title=\"" . $arr["lang_name"] . "\"/>" . "</td>\n";
-			$title = "<td class=rowfollow align=left><a href=\"" . (isset($start_subid) && $arr['id'] <= $start_subid ?  "downloadsubs_legacy.php/" . $arr['filename'] : "downloadsubs.php?torrentid=" . $arr['torrent_id'] ."&subid=" .$arr['id']) . "\"<b>" . htmlspecialchars($arr["title"]) . "</b></a>" .
-			($mod || ($pu && $arr["uppedby"] == $CURUSER["id"]) ? " <font class=small><a href=?delete=$arr[id]>".$lang_subtitles['text_delete']."</a></font>" : "") ."</td>\n";
+			$lang = "<td data-label=\"".$lang_subtitles['col_lang']."\" class=\"rowfollow subtitles-lang\" align=center valign=middle>" . "<img border=\"0\" src=\"pic/flag/". $arr["flagpic"] . "\" alt=\"" . $arr["lang_name"] . "\" title=\"" . $arr["lang_name"] . "\"/>" . "</td>\n";
+			$title = "<td data-label=\"".$lang_subtitles['col_title']."\" class=\"rowfollow subtitles-title\" align=left><a href=\"" . (isset($start_subid) && $arr['id'] <= $start_subid ?  "downloadsubs_legacy.php/" . $arr['filename'] : "downloadsubs.php?torrentid=" . $arr['torrent_id'] ."&subid=" .$arr['id']) . "\"><b>" . htmlspecialchars($arr["title"]) . "</b></a>" .
+			($mod || ($pu && $arr["uppedby"] == $CURUSER["id"]) ? " <font class=\"small subtitles-delete\"><a href=?delete=$arr[id]>".$lang_subtitles['text_delete']."</a></font>" : "") ."</td>\n";
 			$addtime = gettime($arr["added"],false,false);
-			$added = "<td class=rowfollow align=center><nobr>" . $addtime . "</nobr></td>\n";
-			$size = "<td class=rowfollow align=center>" . mksize_loose($arr['size']) . "</td>\n";
-			$hits = "<td class=rowfollow align=center>" . number_format($arr['hits']) . "</td>\n";
-			$uppedby = "<td class=rowfollow align=center>" . ($arr["anonymous"] == 'yes' ? $lang_subtitles['text_anonymous'] . (user_can('viewanonymous') ? "<br />".get_username($arr['uppedby'],false,true,true,false,true) : "") : get_username($arr['uppedby'])) . "</td>\n";
-			$report = "<td class=rowfollow align=center><a href=\"report.php?subtitle=$arr[id]\"><img class=\"f_report\" src=\"pic/trans.gif\" alt=\"Report\" title=\"".$lang_subtitles['title_report_subtitle']."\" /></a></td>\n";
-			print("<tr>".$lang.$title.$added.$size.$hits.$uppedby.$report."</tr>\n");
+			$added = "<td data-label=\"".$lang_subtitles['title_date_added']."\" class=\"rowfollow\" align=center><nobr>" . $addtime . "</nobr></td>\n";
+			$size = "<td data-label=\"".$lang_subtitles['title_size']."\" class=\"rowfollow\" align=center>" . mksize_loose($arr['size']) . "</td>\n";
+			$hits = "<td data-label=\"".$lang_subtitles['col_hits']."\" class=\"rowfollow\" align=center>" . number_format($arr['hits']) . "</td>\n";
+			$uppedby = "<td data-label=\"".$lang_subtitles['col_upped_by']."\" class=\"rowfollow subtitles-user\" align=center>" . ($arr["anonymous"] == 'yes' ? $lang_subtitles['text_anonymous'] . (user_can('viewanonymous') ? "<br />".get_username($arr['uppedby'],false,true,true,false,true) : "") : get_username($arr['uppedby'])) . "</td>\n";
+			$report = "<td data-label=\"".$lang_subtitles['col_report']."\" class=\"rowfollow subtitles-report\" align=center><a href=\"report.php?subtitle=$arr[id]\"><img class=\"f_report\" src=\"pic/trans.gif\" alt=\"Report\" title=\"".$lang_subtitles['title_report_subtitle']."\" /></a></td>\n";
+			print("<tr class=\"subtitles-row\">".$lang.$title.$added.$size.$hits.$uppedby.$report."</tr>\n");
 			$i++;
 		}
 
-		print("</table>\n");
+		print("</tbody></table>\n");
 		print($pagerbottom);
+		print("</div>\n</div>\n");
 }
 
 mp_foot();

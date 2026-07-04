@@ -1,6 +1,7 @@
 <?php
 require "../include/bittorrent.php";
 dbconn();
+require_once ROOT_PATH . 'include/mobile_shell.php';
 require_once(get_langfile_path());
 loggedinorreturn();
 parked();
@@ -39,7 +40,7 @@ parked();
 		else $subject = "Re: " . $msga['subject'];
 		$subject = htmlspecialchars($subject);
 	}
-	stdhead($lang_sendmessage['head_send_message'], false);
+	mp_head($lang_sendmessage['head_send_message'], false);
 	begin_main_frame();
 	print("<form id=compose name=\"compose\" method=post action=takemessage.php>");
 	print("<input type=hidden name=receiver value=".$receiver.">");
@@ -56,5 +57,5 @@ parked();
 	print("</td></tr>");
 	end_compose();
 	end_main_frame();
-	stdfoot();
+	mp_foot();
 ?>

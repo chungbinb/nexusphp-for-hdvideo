@@ -146,21 +146,14 @@ unset($row);
 //Uptime calculation
 $res = @sql_query('SELECT UNIX_TIMESTAMP() - ' . $serverStatus['Uptime']);
 $row = mysql_fetch_row($res);
-//echo sprintf("Server Status Uptime", timespanFormat($serverStatus['Uptime']), localisedDate($row[0])) . "\n";
-?>
-
-	<table id="torrenttable" border="1"><tr><td>
-
-<?php
-print("This MySQL server has been running for ". timespanFormat($serverStatus['Uptime']) .". It started up on ". localisedDate($row[0])) . "\n";
-?>
-
-	</td></tr></table>
-
-<?php
+$uptime = max(1, (int)($serverStatus['Uptime'] ?? 1));
+$uptimeText = timespanFormat((int)($serverStatus['Uptime'] ?? 0));
+$startedAt = localisedDate((int)$row[0]);
+$isMobileMysqlStats = function_exists('mobile_is') && mobile_is();
 mysql_free_result($res);
 unset($res);
 unset($row);
+
 //Get query statistics
 $queryStats = array();
 $tmp_array = $serverStatus;
@@ -171,7 +164,130 @@ $tmp_array = $serverStatus;
 		}
 	}
 unset($tmp_array);
+
+$byteText = function ($value) {
+    return join(' ', formatByteDown((float)$value));
+};
+$perHourText = function ($value) use ($uptime) {
+    return number_format(((float)$value * 3600 / $uptime), 2, '.', ',');
+};
+$percentText = function ($value, $total) {
+    return ((float)$total > 0) ? number_format(((float)$value * 100 / (float)$total), 2, '.', ',') . ' %' : '---';
+};
+
+$bytesReceived = (float)($serverStatus['Bytes_received'] ?? 0);
+$bytesSent = (float)($serverStatus['Bytes_sent'] ?? 0);
+$connections = (float)($serverStatus['Connections'] ?? 0);
+$questions = (float)($serverStatus['Questions'] ?? 0);
+$queryDenominator = max(1, $questions - $connections);
+
+$trafficRows = array(
+    array('Received', $byteText($bytesReceived), $byteText($bytesReceived * 3600 / $uptime)),
+    array('Sent', $byteText($bytesSent), $byteText($bytesSent * 3600 / $uptime)),
+    array('Total', $byteText($bytesReceived + $bytesSent), $byteText(($bytesReceived + $bytesSent) * 3600 / $uptime)),
+);
+$connectionRows = array(
+    array('Failed Attempts', number_format((float)($serverStatus['Aborted_connects'] ?? 0), 0, '.', ','), $perHourText($serverStatus['Aborted_connects'] ?? 0), $percentText($serverStatus['Aborted_connects'] ?? 0, $connections)),
+    array('Aborted Clients', number_format((float)($serverStatus['Aborted_clients'] ?? 0), 0, '.', ','), $perHourText($serverStatus['Aborted_clients'] ?? 0), $percentText($serverStatus['Aborted_clients'] ?? 0, $connections)),
+    array('Total', number_format($connections, 0, '.', ','), $perHourText($connections), number_format(100, 2, '.', ',') . ' %'),
+);
+$queryOverview = array(
+    array('Total', number_format($questions, 0, '.', ',')),
+    array('Per Hour', $perHourText($questions)),
+    array('Per Minute', number_format(($questions * 60 / $uptime), 2, '.', ',')),
+    array('Per Second', number_format(($questions / $uptime), 2, '.', ',')),
+);
+$queryRows = array();
+foreach ($queryStats as $name => $value) {
+    $queryRows[] = array(
+        htmlspecialchars($name),
+        number_format((float)$value, 0, '.', ','),
+        $perHourText($value),
+        $percentText($value, $queryDenominator),
+    );
+}
+
+$moreStatus = $serverStatus;
+unset($moreStatus['Aborted_clients']);
+unset($moreStatus['Aborted_connects']);
+unset($moreStatus['Bytes_received']);
+unset($moreStatus['Bytes_sent']);
+unset($moreStatus['Connections']);
+unset($moreStatus['Questions']);
+unset($moreStatus['Uptime']);
+
+if ($isMobileMysqlStats) {
 ?>
+<section class="mysql-stats-mobile">
+    <div class="mysql-stats-hero">
+        <span>Server Uptime</span>
+        <strong><?php echo htmlspecialchars($uptimeText); ?></strong>
+        <p>Started up on <?php echo htmlspecialchars($startedAt); ?></p>
+    </div>
+
+    <section class="mysql-stats-section">
+        <h2>Server Traffic</h2>
+        <p>Network traffic statistics since this MySQL server started.</p>
+        <div class="mysql-stats-card">
+            <h3>Traffic</h3>
+            <?php foreach ($trafficRows as $trafficRow) { ?>
+                <div class="mysql-stats-row">
+                    <span><?php echo $trafficRow[0]; ?></span>
+                    <b><?php echo $trafficRow[1]; ?></b>
+                    <em><?php echo $trafficRow[2]; ?>/h</em>
+                </div>
+            <?php } ?>
+        </div>
+        <div class="mysql-stats-card">
+            <h3>Connections</h3>
+            <?php foreach ($connectionRows as $connectionRow) { ?>
+                <div class="mysql-stats-row mysql-stats-row-four">
+                    <span><?php echo $connectionRow[0]; ?></span>
+                    <b><?php echo $connectionRow[1]; ?></b>
+                    <em><?php echo $connectionRow[2]; ?>/h</em>
+                    <i><?php echo $connectionRow[3]; ?></i>
+                </div>
+            <?php } ?>
+        </div>
+    </section>
+
+    <section class="mysql-stats-section">
+        <h2>Query Statistics</h2>
+        <p>Since startup, <?php echo number_format($questions, 0, '.', ','); ?> queries have been sent to the server.</p>
+        <div class="mysql-stats-overview">
+            <?php foreach ($queryOverview as $overviewRow) { ?>
+                <div><span><?php echo $overviewRow[0]; ?></span><b><?php echo $overviewRow[1]; ?></b></div>
+            <?php } ?>
+        </div>
+        <div class="mysql-stats-query-list">
+            <?php foreach ($queryRows as $queryRow) { ?>
+                <div class="mysql-stats-query-item">
+                    <b><?php echo $queryRow[0]; ?></b>
+                    <span><?php echo $queryRow[1]; ?></span>
+                    <em><?php echo $queryRow[2]; ?>/h</em>
+                    <i><?php echo $queryRow[3]; ?></i>
+                </div>
+            <?php } ?>
+        </div>
+    </section>
+
+    <?php if (!empty($moreStatus)) { ?>
+        <details class="mysql-stats-more">
+            <summary>More status variables</summary>
+            <div class="mysql-stats-var-list">
+                <?php foreach($moreStatus AS $name => $value) { ?>
+                    <div><span><?php echo htmlspecialchars(str_replace('_', ' ', $name)); ?></span><b><?php echo htmlspecialchars($value); ?></b></div>
+                <?php } ?>
+            </div>
+        </details>
+    <?php } ?>
+</section>
+<?php
+} else {
+?>
+<table id="torrenttable" border="1"><tr><td>
+<?php print("This MySQL server has been running for ". $uptimeText .". It started up on ". $startedAt) . "\n"; ?>
+</td></tr></table>
 
 <ul>
     <li>
@@ -185,21 +301,13 @@ unset($tmp_array);
                             <th colspan="2" bgcolor="lightgrey">&nbsp;Traffic&nbsp;</th>
                             <th bgcolor="lightgrey">&nbsp;&nbsp;Per Hour&nbsp;</th>
                         </tr>
-                        <tr>
-                            <td bgcolor="#EFF3FF">&nbsp;Received&nbsp;</td>
-                            <td bgcolor="#EFF3FF" align="right">&nbsp;<?php echo join(' ', formatByteDown($serverStatus['Bytes_received'])); ?>&nbsp;</td>
-                            <td bgcolor="#EFF3FF" align="right">&nbsp;<?php echo join(' ', formatByteDown($serverStatus['Bytes_received'] * 3600 / $serverStatus['Uptime'])); ?>&nbsp;</td>
-                        </tr>
-                        <tr>
-                            <td bgcolor="#EFF3FF">&nbsp;Sent&nbsp;</td>
-                            <td bgcolor="#EFF3FF" align="right">&nbsp;<?php echo join(' ', formatByteDown($serverStatus['Bytes_sent'])); ?>&nbsp;</td>
-                            <td bgcolor="#EFF3FF" align="right">&nbsp;<?php echo join(' ', formatByteDown($serverStatus['Bytes_sent'] * 3600 / $serverStatus['Uptime'])); ?>&nbsp;</td>
-                        </tr>
-                        <tr>
-                            <td bgcolor="lightgrey">&nbsp;Total&nbsp;</td>
-                            <td bgcolor="lightgrey" align="right">&nbsp;<?php echo join(' ', formatByteDown($serverStatus['Bytes_received'] + $serverStatus['Bytes_sent'])); ?>&nbsp;</td>
-                            <td bgcolor="lightgrey" align="right">&nbsp;<?php echo join(' ', formatByteDown(($serverStatus['Bytes_received'] + $serverStatus['Bytes_sent']) * 3600 / $serverStatus['Uptime'])); ?>&nbsp;</td>
-                        </tr>
+                        <?php foreach ($trafficRows as $trafficRow) { ?>
+                            <tr>
+                                <td bgcolor="#EFF3FF">&nbsp;<?php echo $trafficRow[0]; ?>&nbsp;</td>
+                                <td bgcolor="#EFF3FF" align="right">&nbsp;<?php echo $trafficRow[1]; ?>&nbsp;</td>
+                                <td bgcolor="#EFF3FF" align="right">&nbsp;<?php echo $trafficRow[2]; ?>&nbsp;</td>
+                            </tr>
+                        <?php } ?>
                     </table>
                 </td>
                 <td valign="top">
@@ -209,24 +317,14 @@ unset($tmp_array);
                             <th bgcolor="lightgrey">&nbsp;&oslash;&nbsp;Per Hour&nbsp;</th>
                             <th bgcolor="lightgrey">&nbsp;%&nbsp;</th>
                         </tr>
-                        <tr>
-                            <td bgcolor="#EFF3FF">&nbsp;Failed Attempts&nbsp;</td>
-                            <td bgcolor="#EFF3FF" align="right">&nbsp;<?php echo number_format($serverStatus['Aborted_connects'], 0, '.', ','); ?>&nbsp;</td>
-                            <td bgcolor="#EFF3FF" align="right">&nbsp;<?php echo number_format(($serverStatus['Aborted_connects'] * 3600 / $serverStatus['Uptime']), 2, '.', ','); ?>&nbsp;</td>
-                            <td bgcolor="#EFF3FF" align="right">&nbsp;<?php echo ($serverStatus['Connections'] > 0 ) ? number_format(($serverStatus['Aborted_connects'] * 100 / $serverStatus['Connections']), 2, '.', ',') . '&nbsp;%' : '---'; ?>&nbsp;</td>
-                        </tr>
-                        <tr>
-                            <td bgcolor="#EFF3FF">&nbsp;Aborted Clients&nbsp;</td>
-                            <td bgcolor="#EFF3FF" align="right">&nbsp;<?php echo number_format($serverStatus['Aborted_clients'], 0, '.', ','); ?>&nbsp;</td>
-                            <td bgcolor="#EFF3FF" align="right">&nbsp;<?php echo number_format(($serverStatus['Aborted_clients'] * 3600 / $serverStatus['Uptime']), 2, '.', ','); ?>&nbsp;</td>
-                            <td bgcolor="#EFF3FF" align="right">&nbsp;<?php echo ($serverStatus['Connections'] > 0 ) ? number_format(($serverStatus['Aborted_clients'] * 100 / $serverStatus['Connections']), 2 , '.', ',') . '&nbsp;%' : '---'; ?>&nbsp;</td>
-                        </tr>
-                        <tr>
-                            <td bgcolor="lightgrey">&nbsp;Total&nbsp;</td>
-                            <td bgcolor="lightgrey" align="right">&nbsp;<?php echo number_format($serverStatus['Connections'], 0, '.', ','); ?>&nbsp;</td>
-                            <td bgcolor="lightgrey" align="right">&nbsp;<?php echo number_format(($serverStatus['Connections'] * 3600 / $serverStatus['Uptime']), 2, '.', ','); ?>&nbsp;</td>
-                            <td bgcolor="lightgrey" align="right">&nbsp;<?php echo number_format(100, 2, '.', ','); ?>&nbsp;%&nbsp;</td>
-                        </tr>
+                        <?php foreach ($connectionRows as $connectionRow) { ?>
+                            <tr>
+                                <td bgcolor="#EFF3FF">&nbsp;<?php echo $connectionRow[0]; ?>&nbsp;</td>
+                                <td bgcolor="#EFF3FF" align="right">&nbsp;<?php echo $connectionRow[1]; ?>&nbsp;</td>
+                                <td bgcolor="#EFF3FF" align="right">&nbsp;<?php echo $connectionRow[2]; ?>&nbsp;</td>
+                                <td bgcolor="#EFF3FF" align="right">&nbsp;<?php echo $connectionRow[3]; ?>&nbsp;</td>
+                            </tr>
+                        <?php } ?>
                     </table>
                 </td>
             </tr>
@@ -234,28 +332,30 @@ unset($tmp_array);
     </li>
     <br />
     <li>
-        <?php print("<b>Query Statistics:</b> Since it's start up, ". number_format($serverStatus['Questions'], 0, '.', ',')." queries have been sent to the server.\n"); ?>
+        <?php print("<b>Query Statistics:</b> Since it's start up, ". number_format($questions, 0, '.', ',')." queries have been sent to the server.\n"); ?>
         <table border="0">
             <tr>
                 <td colspan="2">
                     <br />
                     <table id="torrenttable" border="0" align="right">
                         <tr>
-                            <th bgcolor="lightgrey">&nbsp;Total&nbsp;</th>
-                            <th bgcolor="lightgrey">&nbsp;&oslash;&nbsp;Per&nbsp;Hour&nbsp;</th>
-                            <th bgcolor="lightgrey">&nbsp;&oslash;&nbsp;Per&nbsp;Minute&nbsp;</th>
-                            <th bgcolor="lightgrey">&nbsp;&oslash;&nbsp;Per&nbsp;Second&nbsp;</th>
+                            <?php foreach ($queryOverview as $overviewRow) { ?>
+                                <th bgcolor="lightgrey">&nbsp;<?php echo $overviewRow[0]; ?>&nbsp;</th>
+                            <?php } ?>
                         </tr>
                         <tr>
-                            <td bgcolor="#EFF3FF" align="right">&nbsp;<?php echo number_format($serverStatus['Questions'], 0, '.', ','); ?>&nbsp;</td>
-                            <td bgcolor="#EFF3FF" align="right">&nbsp;<?php echo number_format(($serverStatus['Questions'] * 3600 / $serverStatus['Uptime']), 2, '.', ','); ?>&nbsp;</td>
-                            <td bgcolor="#EFF3FF" align="right">&nbsp;<?php echo number_format(($serverStatus['Questions'] * 60 / $serverStatus['Uptime']), 2, '.', ','); ?>&nbsp;</td>
-                            <td bgcolor="#EFF3FF" align="right">&nbsp;<?php echo number_format(($serverStatus['Questions'] / $serverStatus['Uptime']), 2, '.', ','); ?>&nbsp;</td>
+                            <?php foreach ($queryOverview as $overviewRow) { ?>
+                                <td bgcolor="#EFF3FF" align="right">&nbsp;<?php echo $overviewRow[1]; ?>&nbsp;</td>
+                            <?php } ?>
                         </tr>
                     </table>
                 </td>
             </tr>
             <tr>
+                <?php
+                $queryColumns = array_chunk($queryRows, max(1, (int)ceil(count($queryRows) / 2)));
+                foreach ($queryColumns as $queryColumn) {
+                ?>
                 <td valign="top">
                     <table id="torrenttable" border="0">
                         <tr>
@@ -263,108 +363,52 @@ unset($tmp_array);
                             <th bgcolor="lightgrey">&nbsp;&oslash;&nbsp;Per&nbsp;Hour&nbsp;</th>
                             <th bgcolor="lightgrey">&nbsp;%&nbsp;</th>
                         </tr>
-<?php
-
-$useBgcolorOne = TRUE;
-$countRows = 0;
-foreach ($queryStats as $name => $value) {
-
-// For the percentage column, use Questions - Connections, because
-// the number of connections is not an item of the Query types
-// but is included in Questions. Then the total of the percentages is 100.
-?>
-                        <tr>
-                            <td bgcolor="#EFF3FF">&nbsp;<?php echo htmlspecialchars($name); ?>&nbsp;</td>
-                            <td bgcolor="#EFF3FF" align="right">&nbsp;<?php echo number_format($value, 0, '.', ','); ?>&nbsp;</td>
-                            <td bgcolor="#EFF3FF" align="right">&nbsp;<?php echo number_format(($value * 3600 / $serverStatus['Uptime']), 2, '.', ','); ?>&nbsp;</td>
-                            <td bgcolor="#EFF3FF" align="right">&nbsp;<?php echo number_format(($value * 100 / ($serverStatus['Questions'] - $serverStatus['Connections'])), 2, '.', ','); ?>&nbsp;%&nbsp;</td>
-                        </tr>
-<?php
-    $useBgcolorOne = !$useBgcolorOne;
-    if (++$countRows == ceil(count($queryStats) / 2)) {
-        $useBgcolorOne = TRUE;
-?>
+                        <?php foreach ($queryColumn as $queryRow) { ?>
+                            <tr>
+                                <td bgcolor="#EFF3FF">&nbsp;<?php echo $queryRow[0]; ?>&nbsp;</td>
+                                <td bgcolor="#EFF3FF" align="right">&nbsp;<?php echo $queryRow[1]; ?>&nbsp;</td>
+                                <td bgcolor="#EFF3FF" align="right">&nbsp;<?php echo $queryRow[2]; ?>&nbsp;</td>
+                                <td bgcolor="#EFF3FF" align="right">&nbsp;<?php echo $queryRow[3]; ?>&nbsp;</td>
+                            </tr>
+                        <?php } ?>
                     </table>
                 </td>
-                <td valign="top">
-                    <table id="torrenttable" border="0">
-                        <tr>
-                            <th colspan="2" bgcolor="lightgrey">&nbsp;Query&nbsp;Type&nbsp;</th>
-                            <th bgcolor="lightgrey">&nbsp;&oslash;&nbsp;Per&nbsp;Hour&nbsp;</th>
-                            <th bgcolor="lightgrey">&nbsp;%&nbsp;</th>
-                        </tr>
-<?php
-    }
-}
-unset($countRows);
-unset($useBgcolorOne);
-?>
-                    </table>
-                </td>
+                <?php } ?>
             </tr>
         </table>
     </li>
-<?php
-//Unset used variables
-unset($serverStatus['Aborted_clients']);
-unset($serverStatus['Aborted_connects']);
-unset($serverStatus['Bytes_received']);
-unset($serverStatus['Bytes_sent']);
-unset($serverStatus['Connections']);
-unset($serverStatus['Questions']);
-unset($serverStatus['Uptime']);
-
-if (!empty($serverStatus)) {
-?>
+    <?php if (!empty($moreStatus)) { ?>
     <br />
     <li>
         <b>More status variables</b><br />
         <table border="0">
             <tr>
+                <?php
+                $statusColumns = array_chunk($moreStatus, max(1, (int)ceil(count($moreStatus) / 3)), true);
+                foreach($statusColumns as $statusColumn) {
+                ?>
                 <td valign="top">
                     <table id="torrenttable" border="0">
                         <tr>
                             <th bgcolor="lightgrey">&nbsp;Variable&nbsp;</th>
                             <th bgcolor="lightgrey">&nbsp;Value&nbsp;</th>
                         </tr>
-<?php
-    $useBgcolorOne = TRUE;
-    $countRows = 0;
-    foreach($serverStatus AS $name => $value) {
-?>
+                        <?php foreach($statusColumn AS $name => $value) { ?>
                         <tr>
                             <td bgcolor="#EFF3FF">&nbsp;<?php echo htmlspecialchars(str_replace('_', ' ', $name)); ?>&nbsp;</td>
                             <td bgcolor="#EFF3FF" align="right">&nbsp;<?php echo htmlspecialchars($value); ?>&nbsp;</td>
                         </tr>
-<?php
-        $useBgcolorOne = !$useBgcolorOne;
-        if (++$countRows == ceil(count($serverStatus) / 3) || $countRows == ceil(count($serverStatus) * 2 / 3)) {
-            $useBgcolorOne = TRUE;
-?>
+                        <?php } ?>
                     </table>
                 </td>
-                <td valign="top">
-                    <table id="torrenttable" border="0">
-                        <tr>
-                            <th bgcolor="lightgrey">&nbsp;Variable&nbsp;</th>
-                            <th bgcolor="lightgrey">&nbsp;Value&nbsp;</th>
-                        </tr>
-<?php
-        }
-    }
-    unset($useBgcolorOne);
-?>
-                    </table>
-                </td>
+                <?php } ?>
             </tr>
         </table>
     </li>
+    <?php } ?>
+</ul>
 <?php
 }
-
 ?>
-</ul>
-
-
 <?php
 stdfoot();

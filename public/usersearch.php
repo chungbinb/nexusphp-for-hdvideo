@@ -10,11 +10,12 @@ if (get_user_class() < UC_MODERATOR)
 	stderr("Error", "Permission denied.");
 
 stdhead("Administrative User Search");
-echo "<h1>Administrative User Search</h1>\n";
+echo "<div class=\"usersearch-page\">\n";
+echo "<h1 class=\"usersearch-title\">Administrative User Search</h1>\n";
 
 if (!empty($_GET['h']))
 {
-	echo "<table width=65% border=0 align=center><tr><td class=embedded bgcolor='#F5F4EA'><div align=left>\n
+	echo "<table class=\"usersearch-help\" width=65% border=0 align=center><tr><td class=embedded bgcolor='#F5F4EA'><div align=left>\n
 	Fields left blank will be ignored;\n
 	Wildcards * and ? may be used in Name, Email and Comments, as well as multiple values\n
 	separated by spaces (e.g. 'wyz Max*' in Name will list both users named\n
@@ -37,7 +38,7 @@ if (!empty($_GET['h']))
 }
 else
 {
-	echo "<p align=center>(<a href='".$_SERVER["REQUEST_URI"]."?h=1'>Instructions</a>)";
+	echo "<p class=\"usersearch-links\" align=center>(<a href='".$_SERVER["REQUEST_URI"]."?h=1'>Instructions</a>)";
 	echo "&nbsp;-&nbsp;(<a href='".$_SERVER["REQUEST_URI"]."'>Reset</a>)</p>\n";
 }
 
@@ -45,8 +46,8 @@ $highlight = " bgcolor=#BBAF9B";
 
 ?>
 
-<form method=get action=<?php echo $_SERVER["REQUEST_URI"]?>>
-<table border="1" cellspacing="0" cellpadding="5">
+<form class="usersearch-form" method="get" action="<?php echo htmlspecialchars($_SERVER["REQUEST_URI"])?>">
+<table class="usersearch-form-table" border="1" cellspacing="0" cellpadding="5">
 <tr>
 
   <td valign="middle" class=rowhead>Name:</td>
@@ -762,8 +763,8 @@ if (count($_GET) > 0 && !$_GET['h'])
   {
   	if ($count > $perpage)
   		echo $pagertop;
-    echo "<table border=1 cellspacing=0 cellpadding=5>\n";
-    echo "<tr><td class=colhead align=left>Name</td>
+    echo "<table class=\"usersearch-results-table\" border=1 cellspacing=0 cellpadding=5>\n";
+    echo "<thead><tr><td class=colhead align=left>Name</td>
     		<td class=colhead align=left>Ratio</td>
         <td class=colhead align=left>IP</td>
         <td class=colhead align=left>Email</td>".
@@ -774,7 +775,7 @@ if (count($_GET) > 0 && !$_GET['h'])
         "<td class=colhead>pR</td>".
         "<td class=colhead>pUL</td>".
         "<td class=colhead>pDL</td>".
-        "<td class=colhead>History</td></tr>";
+        "<td class=colhead>History</td></tr></thead><tbody>";
     while ($user = mysql_fetch_array($res))
     {
     	if ($user['added'] == '0000-00-00 00:00:00' || $user['added'] == null)
@@ -814,22 +815,22 @@ if (count($_GET) > 0 && !$_GET['h'])
       $n = mysql_fetch_row($auxres);
       $n_comments = $n[0];
 
-    	echo "<tr><td>" .
-      		get_username($user['id']) . "</td>" .
-          "<td>" . ratios($user['uploaded'], $user['downloaded']) . "</td>
-          <td>" . $ipstr . "</td><td>" . $user['email'] . "</td>
-          <td><div align=center>" . $user['added'] . "</div></td>
-          <td><div align=center>" . $user['last_access'] . "</div></td>
-          <td><div align=center>" . $user['status'] . "</div></td>
-          <td><div align=center>" . $user['enabled']."</div></td>
-          <td><div align=center>" . ratios($pul,$pdl) . "</div></td>" .
-          "<td><div align=right>" . mksize($pul) . "</div></td>
-          <td><div align=right>" . mksize($pdl) . "</div></td>
-          <td><div align=center>".($n_posts?"<a href=userhistory.php?action=viewposts&id=".$user['id'].">$n_posts</a>":$n_posts).
+      echo "<tr class=\"usersearch-result-row\"><td class=\"usersearch-user\" data-label=\"Name\">" .
+          get_username($user['id']) . "</td>" .
+          "<td data-label=\"Ratio\">" . ratios($user['uploaded'], $user['downloaded']) . "</td>
+          <td data-label=\"IP\">" . $ipstr . "</td><td data-label=\"Email\">" . htmlspecialchars($user['email']) . "</td>
+          <td data-label=\"Joined\"><div align=center>" . $user['added'] . "</div></td>
+          <td data-label=\"Last seen\"><div align=center>" . $user['last_access'] . "</div></td>
+          <td data-label=\"Status\"><div align=center>" . $user['status'] . "</div></td>
+          <td data-label=\"Enabled\"><div align=center>" . $user['enabled']."</div></td>
+          <td data-label=\"pR\"><div align=center>" . ratios($pul,$pdl) . "</div></td>" .
+          "<td data-label=\"pUL\"><div align=right>" . mksize($pul) . "</div></td>
+          <td data-label=\"pDL\"><div align=right>" . mksize($pdl) . "</div></td>
+          <td data-label=\"History\"><div align=center>".($n_posts?"<a href=userhistory.php?action=viewposts&id=".$user['id'].">$n_posts</a>":$n_posts).
           "|".($n_comments?"<a href=userhistory.php?action=viewcomments&id=".$user['id'].">$n_comments</a>":$n_comments).
           "</div></td></tr>\n";
     }
-    echo "</table>";
+    echo "</tbody></table>";
     if ($count > $perpage)
     	echo "$pagerbottom";
 
@@ -852,7 +853,8 @@ if (count($_GET) > 0 && !$_GET['h'])
   }
 }
 
-print("<p>$pagemenu<br />$browsemenu</p>");
+print("<p class=\"usersearch-bottom-menu\">$pagemenu<br />$browsemenu</p>");
+print("</div>\n");
 stdfoot();
 die;
 

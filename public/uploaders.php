@@ -22,7 +22,7 @@ else $order .= ' DESC';
 stdhead($lang_uploaders['head_uploaders']);
 begin_main_frame();
 ?>
-<div style="width: 940px">
+<div class="uploaders-page" style="width: 940px">
 <?php
 $year2 = substr($datefounded, 0, 4);
 $yearfounded = ($year2 ? $year2 : 2007);
@@ -33,7 +33,7 @@ $sqlstarttime=date("Y-m-d H:i:s", $timestart);
 $timeend=strtotime("+1 month", $timestart);
 $sqlendtime=date("Y-m-d H:i:s", $timeend);
 
-print("<h1 align=\"center\">".$lang_uploaders['text_uploaders']." - ".date("Y-m",$timestart)."</h1>");
+print("<h1 class=\"uploaders-title\" align=\"center\">".$lang_uploaders['text_uploaders']." - ".date("Y-m",$timestart)."</h1>");
 
 $yearselection="<select name=\"year\">";
 for($i=$yearfounded; $i<=$yearnow; $i++)
@@ -46,10 +46,13 @@ for($i=1; $i<=12; $i++)
 $monthselection.="</select>";
 
 ?>
-<div>
-<form method="get" action="?">
-<span>
-<?php echo $lang_uploaders['text_select_month']?><?php echo $yearselection?>&nbsp;&nbsp;<?php echo $monthselection?>&nbsp;&nbsp;<input type="submit" value="<?php echo $lang_uploaders['submit_go']?>" />
+<div class="uploaders-filter">
+<form class="uploaders-filter-form" method="get" action="?">
+<span class="uploaders-filter-row">
+<span class="uploaders-filter-label"><?php echo $lang_uploaders['text_select_month']?></span>
+<span class="uploaders-filter-control"><?php echo $yearselection?></span>
+<span class="uploaders-filter-control"><?php echo $monthselection?></span>
+<input type="submit" value="<?php echo $lang_uploaders['submit_go']?>" />
 </span>
 </form>
 </div>
@@ -59,18 +62,18 @@ $numres = sql_query("SELECT COUNT(users.id) FROM users WHERE class >= ".UC_UPLOA
 $numrow = mysql_fetch_array($numres);
 $num=$numrow[0];
 if (!$num)
-	print("<p align=\"center\">".$lang_uploaders['text_no_uploaders_yet']."</p>");
+	print("<p class=\"uploaders-empty\" align=\"center\">".$lang_uploaders['text_no_uploaders_yet']."</p>");
 else{
 ?>
-<div style="margin-top: 8px">
+<div class="uploaders-list-wrap" style="margin-top: 8px">
 <?php
-	print("<table border=\"1\" cellspacing=\"0\" cellpadding=\"5\" align=\"center\" width=\"97%\"><tr>");
+	print("<table class=\"uploaders-table\" border=\"1\" cellspacing=\"0\" cellpadding=\"5\" align=\"center\" width=\"97%\"><thead><tr>");
 	print("<td class=\"colhead\">".$lang_uploaders['col_username']."</td>");
 	print("<td class=\"colhead\">".$lang_uploaders['col_torrents_size']."</td>");
 	print("<td class=\"colhead\">".$lang_uploaders['col_torrents_num']."</td>");
 	print("<td class=\"colhead\">".$lang_uploaders['col_last_upload_time']."</td>");
 	print("<td class=\"colhead\">".$lang_uploaders['col_last_upload']."</td>");
-	print("</tr>");
+	print("</tr></thead><tbody>");
 	$res = sql_query("SELECT users.id AS userid, users.username AS username, COUNT(torrents.id) AS torrent_count, SUM(torrents.size) AS torrent_size FROM torrents LEFT JOIN users ON torrents.owner=users.id WHERE users.class >= ".UC_UPLOADER." AND torrents.added > ".sqlesc($sqlstarttime)." AND torrents.added < ".sqlesc($sqlendtime)." GROUP BY userid ORDER BY ".$order);
 	$hasupuserid=array();
 	while($row = mysql_fetch_array($res))
@@ -78,11 +81,11 @@ else{
 		$res2 = sql_query("SELECT torrents.id, torrents.name, torrents.added FROM torrents WHERE owner=".$row['userid']." ORDER BY id DESC LIMIT 1");
 		$row2 = mysql_fetch_array($res2);
 		print("<tr>");
-		print("<td class=\"colfollow\">".get_username($row['userid'], false, true, true, false, false, true)."</td>");
-		print("<td class=\"colfollow\">".($row['torrent_size'] ? mksize($row['torrent_size']) : "0")."</td>");
-		print("<td class=\"colfollow\">".$row['torrent_count']."</td>");
-		print("<td class=\"colfollow\">".($row2['added'] ? gettime($row2['added']) : $lang_uploaders['text_not_available'])."</td>");
-		print("<td class=\"colfollow\">".($row2['name'] ? "<a href=\"details.php?id=".$row2['id']."\">".htmlspecialchars($row2['name'])."</a>" : $lang_uploaders['text_not_available'])."</td>");
+		print("<td class=\"colfollow uploaders-user\" data-label=\"".htmlspecialchars($lang_uploaders['col_username'])."\">".get_username($row['userid'], false, true, true, false, false, true)."</td>");
+		print("<td class=\"colfollow\" data-label=\"".htmlspecialchars($lang_uploaders['col_torrents_size'])."\">".($row['torrent_size'] ? mksize($row['torrent_size']) : "0")."</td>");
+		print("<td class=\"colfollow\" data-label=\"".htmlspecialchars($lang_uploaders['col_torrents_num'])."\">".$row['torrent_count']."</td>");
+		print("<td class=\"colfollow\" data-label=\"".htmlspecialchars($lang_uploaders['col_last_upload_time'])."\">".($row2['added'] ? gettime($row2['added']) : $lang_uploaders['text_not_available'])."</td>");
+		print("<td class=\"colfollow uploaders-last\" data-label=\"".htmlspecialchars($lang_uploaders['col_last_upload'])."\">".($row2['name'] ? "<a href=\"details.php?id=".$row2['id']."\">".htmlspecialchars($row2['name'])."</a>" : $lang_uploaders['text_not_available'])."</td>");
 		print("</tr>");
 		$hasupuserid[]=$row['userid'];
 		unset($row2);
@@ -94,20 +97,20 @@ else{
 		$res2 = sql_query("SELECT torrents.id, torrents.name, torrents.added FROM torrents WHERE owner=".$row['userid']." ORDER BY id DESC LIMIT 1");
 		$row2 = mysql_fetch_array($res2);
 		print("<tr>");
-		print("<td class=\"colfollow\">".get_username($row['userid'], false, true, true, false, false, true)."</td>");
-		print("<td class=\"colfollow\">".($row['torrent_size'] ? mksize($row['torrent_size']) : "0")."</td>");
-		print("<td class=\"colfollow\">".$row['torrent_count']."</td>");
-		print("<td class=\"colfollow\">".($row2['added'] ? gettime($row2['added']) : $lang_uploaders['text_not_available'])."</td>");
-		print("<td class=\"colfollow\">".($row2['name'] ? "<a href=\"details.php?id=".$row2['id']."\">".htmlspecialchars($row2['name'])."</a>" : $lang_uploaders['text_not_available'])."</td>");
+		print("<td class=\"colfollow uploaders-user\" data-label=\"".htmlspecialchars($lang_uploaders['col_username'])."\">".get_username($row['userid'], false, true, true, false, false, true)."</td>");
+		print("<td class=\"colfollow\" data-label=\"".htmlspecialchars($lang_uploaders['col_torrents_size'])."\">".($row['torrent_size'] ? mksize($row['torrent_size']) : "0")."</td>");
+		print("<td class=\"colfollow\" data-label=\"".htmlspecialchars($lang_uploaders['col_torrents_num'])."\">".$row['torrent_count']."</td>");
+		print("<td class=\"colfollow\" data-label=\"".htmlspecialchars($lang_uploaders['col_last_upload_time'])."\">".($row2['added'] ? gettime($row2['added']) : $lang_uploaders['text_not_available'])."</td>");
+		print("<td class=\"colfollow uploaders-last\" data-label=\"".htmlspecialchars($lang_uploaders['col_last_upload'])."\">".($row2['name'] ? "<a href=\"details.php?id=".$row2['id']."\">".htmlspecialchars($row2['name'])."</a>" : $lang_uploaders['text_not_available'])."</td>");
 		print("</tr>");
 		$count++;
 		unset($row2);
 	}
-	print("</table>");
+	print("</tbody></table>");
 ?>
 </div>
-<div style="margin-top: 8px; margin-bottom: 8px;">
-<span id="order" onclick="dropmenu(this);"><span style="cursor: pointer;" class="big"><b><?php echo $lang_uploaders['text_order_by']?></b></span>
+<div class="uploaders-order" style="margin-top: 8px; margin-bottom: 8px;">
+<span id="order" class="uploaders-order-trigger" onclick="dropmenu(this);"><span style="cursor: pointer;" class="big"><b><?php echo $lang_uploaders['text_order_by']?></b></span>
 <span id="orderlist" class="dropmenu" style="display: none"><ul>
 <li><a href="?year=<?php echo $year?>&amp;month=<?php echo $month?>&amp;order=username"><?php echo $lang_uploaders['text_username']?></a></li>
 <li><a href="?year=<?php echo $year?>&amp;month=<?php echo $month?>&amp;order=torrent_size"><?php echo $lang_uploaders['text_torrent_size']?></a></li>

@@ -2621,6 +2621,75 @@ function get_style_highlight()
 	return $hltr;
 }
 
+function qd_mobile_std_auto_page_class(): string
+{
+    $path = strtolower((string)(parse_url((string)($_SERVER['SCRIPT_NAME'] ?? ''), PHP_URL_PATH) ?: ''));
+    $path = trim($path, '/');
+    if ($path === '') {
+        $path = strtolower((string)(nexus()->getScript() ?: 'std'));
+    }
+    if (str_starts_with($path, 'public/')) {
+        $path = substr($path, 7);
+    }
+    $path = preg_replace('/\.php$/', '', $path);
+    $path = preg_replace('/[^a-z0-9]+/', '-', $path);
+    $path = trim((string)$path, '-');
+    return 'page-std page-' . ($path !== '' ? $path : 'std');
+}
+
+function qd_mobile_std_auto_head(string $title = ''): bool
+{
+    global $CURUSER;
+    if (!defined('ROOT_PATH') || !empty($GLOBALS['QD_STD_MOBILE_AUTO_DISABLED']) || !empty($_GET['inframe']) || empty($CURUSER['id'])) {
+        return false;
+    }
+    require_once ROOT_PATH . 'include/mobile_shell.php';
+    if (!function_exists('mobile_is') || !mobile_is() || !function_exists('mobile_shell_page_head')) {
+        return false;
+    }
+
+    $GLOBALS['QD_STD_MOBILE_AUTO'] = true;
+    $active = function_exists('mobile_std_active') ? mobile_std_active() : '';
+    mobile_shell_page_head(trim(strip_tags($title)), $active, qd_mobile_std_auto_page_class());
+    echo '<link rel="stylesheet" type="text/css" href="/styles/mobile-content.css?v=20260704am">';
+    do_action('nexus_header');
+    if (class_exists('\\Nexus\\Nexus')) {
+        foreach (\Nexus\Nexus::getAppendHeaders() as $value) {
+            print($value);
+        }
+    }
+    echo '<script type="text/javascript" src="js/jquery-1.12.4.min.js"></script>';
+    echo '<script>jQuery.noConflict();window.nexusLayerOptions={confirm:{btnAlign:"c",title:"Confirm",btn:["OK","Cancel"]},alert:{btnAlign:"c",title:"Info",btn:["OK","Cancel"]}};</script>';
+    echo '<script type="text/javascript" src="vendor/layer-v3.5.1/layer/layer.js"></script>';
+    echo '<script type="text/javascript" src="js/common.js"></script>';
+    echo '<script type="text/javascript" src="js/ajaxbasic.js"></script>';
+    return true;
+}
+
+function qd_mobile_std_auto_foot(): bool
+{
+    global $CURUSER, $USERUPDATESET;
+    if (empty($GLOBALS['QD_STD_MOBILE_AUTO'])) {
+        return false;
+    }
+    if ($CURUSER && count($USERUPDATESET)) {
+        sql_query("UPDATE users SET " . join(",", $USERUPDATESET) . " WHERE id = ".$CURUSER['id']);
+        $USERUPDATESET = [];
+    }
+    if (class_exists('\\Nexus\\Nexus')) {
+        foreach (\Nexus\Nexus::getAppendFooters() as $value) {
+            print($value);
+        }
+    }
+    require_once ROOT_PATH . 'include/mobile_shell.php';
+    if (function_exists('mobile_shell_page_foot')) {
+        mobile_shell_page_foot(function_exists('mobile_std_active') ? mobile_std_active() : '');
+        $GLOBALS['QD_STD_MOBILE_AUTO'] = false;
+        return true;
+    }
+    return false;
+}
+
 function stdhead($title = "", $msgalert = true, $script = "", $place = "")
 {
 	global $lang_functions;
@@ -2628,6 +2697,7 @@ function stdhead($title = "", $msgalert = true, $script = "", $place = "")
 	global $tstart;
 	global $Cache;
 	global $Advertisement;
+	$qdMobileTitle = trim(strip_tags((string)$title));
 
 	$Cache->setLanguage($CURLANGDIR);
 
@@ -2664,6 +2734,9 @@ function stdhead($title = "", $msgalert = true, $script = "", $place = "")
 			$offlinemsg = true;
 		}
 	}
+    if (qd_mobile_std_auto_head($qdMobileTitle)) {
+        return;
+    }
 ?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -4567,6 +4640,9 @@ if ($msgalert)
 function stdfoot() {
 	global $SITENAME,$BASEURL,$Cache,$datefounded,$tstart,$icplicense_main,$add_key_shortcut,$query_name, $USERUPDATESET, $CURUSER, $enablesqldebug_tweak, $sqldebug_tweak, $Advertisement, $analyticscode_tweak;
 	global $hook;
+	if (qd_mobile_std_auto_foot()) {
+		return;
+	}
 	print("</td></tr></table>");
 	print("<div id=\"footer\">");
 	if ($Advertisement && $Advertisement->enable_ad()){
