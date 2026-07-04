@@ -6301,9 +6301,9 @@ body.page-upload .m-main * {
 body.page-upload .m-main {
     padding: 12px;
     overflow-x: hidden;
-    --upload-surface: color-mix(in srgb, var(--mh-surface) 74%, var(--mh-bg));
-    --upload-surface-soft: color-mix(in srgb, var(--mh-surface) 54%, var(--mh-bg));
-    --upload-field: color-mix(in srgb, var(--mh-bg) 62%, var(--mh-surface));
+    --upload-surface: color-mix(in srgb, var(--mh-surface) 58%, var(--mh-bg));
+    --upload-surface-soft: color-mix(in srgb, var(--mh-primary) 10%, var(--mh-bg));
+    --upload-field: color-mix(in srgb, var(--mh-primary) 7%, var(--mh-bg));
     --upload-accent-soft: color-mix(in srgb, var(--mh-primary) 12%, var(--mh-bg));
     --upload-border: color-mix(in srgb, var(--mh-primary) 22%, transparent);
     --upload-muted: color-mix(in srgb, var(--mh-text) 62%, var(--mh-bg));
@@ -6332,6 +6332,10 @@ body.page-upload .upload-form > p[align="center"] {
     font-weight: 850;
     line-height: 1.5;
     text-align: center !important;
+}
+body.page-upload .m-main .upload-form > p[align="center"] b,
+body.page-upload .m-main .upload-form > p[align="center"] strong {
+    background: transparent !important;
 }
 body.page-upload .upload-table {
     display: block;
@@ -6375,6 +6379,9 @@ body.page-upload .upload-table > tbody > tr > td {
     overflow-wrap: anywhere;
 }
 body.page-upload .upload-table > tbody > tr > td.colhead {
+    padding: 10px 12px !important;
+    border-radius: 0;
+    background: var(--upload-accent-soft) !important;
     text-align: center !important;
     color: var(--mh-text) !important;
     font-size: 13px;
@@ -6382,6 +6389,9 @@ body.page-upload .upload-table > tbody > tr > td.colhead {
 }
 body.page-upload .upload-table > tbody > tr > td.rowhead {
     margin: 0 0 8px;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
     color: var(--upload-muted) !important;
     font-size: 13px;
     font-weight: 900;
@@ -6389,7 +6399,14 @@ body.page-upload .upload-table > tbody > tr > td.rowhead {
 }
 body.page-upload .upload-table > tbody > tr > td.rowfollow,
 body.page-upload .upload-table > tbody > tr > td.toolbox {
+    background: transparent !important;
     color: var(--mh-text);
+}
+body.page-upload .m-main .upload-table > tbody > tr > td.rowhead,
+body.page-upload .m-main .upload-table > tbody > tr > td.rowfollow,
+body.page-upload .m-main .upload-table > tbody > tr > td.toolbox,
+body.page-upload .m-main .upload-table > tbody > tr > td.colhead {
+    box-shadow: none !important;
 }
 body.page-upload .upload-table input[type="text"],
 body.page-upload .upload-table input[type="number"],
@@ -6420,6 +6437,14 @@ body.page-upload .upload-table input[type="file"] {
     background: var(--upload-field) !important;
     color: var(--mh-text) !important;
     font-size: 13px !important;
+}
+body.page-upload .upload-table input[type="file"]::file-selector-button {
+    margin: 0 8px 0 0;
+    border: 0;
+    border-radius: 8px;
+    background: var(--mh-primary);
+    color: #fff;
+    font-weight: 850;
 }
 body.page-upload .upload-table textarea {
     min-height: 160px;
