@@ -47,10 +47,10 @@ stderr("Error", "Try again.");
 stdhead("Mass E-mail Gateway");
 ?>
 
-<p><table border=0 class=main cellspacing=0 cellpadding=0><tr>
+<p><table border=0 class="main massmail-heading" cellspacing=0 cellpadding=0><tr>
 <td class=embedded style='padding-left: 10px'><font size=3><b>Send mass e-mail to all members</b></font></td>
 </tr></table></p>
-<table border=1 cellspacing=0 cellpadding=5>
+<table border=1 cellspacing=0 cellpadding=5 class="massmail-form-table">
 <form method=post action=massmail.php>
 
 <?php

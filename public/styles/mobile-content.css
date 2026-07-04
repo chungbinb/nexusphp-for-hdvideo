@@ -2036,3 +2036,110 @@ body.page-mysql-stats .mysql-stats-var-list b {
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+/* 群发邮件 */
+body.page-massmail .m-main,
+body.page-massmail .m-main * {
+    box-sizing: border-box;
+}
+body.page-massmail .m-main {
+    padding: 12px;
+}
+body.page-massmail .m-main p {
+    margin: 0 0 10px;
+}
+body.page-massmail .massmail-heading,
+body.page-massmail .massmail-form-table {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+}
+body.page-massmail .massmail-heading,
+body.page-massmail .massmail-heading tbody,
+body.page-massmail .massmail-heading tr,
+body.page-massmail .massmail-heading td,
+body.page-massmail .massmail-form-table,
+body.page-massmail .massmail-form-table tbody,
+body.page-massmail .massmail-form-table tr,
+body.page-massmail .massmail-form-table td {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+body.page-massmail .massmail-heading td {
+    padding: 12px 13px !important;
+    border-radius: 12px;
+    border: 1px solid rgba(20,40,90,.08);
+    background: var(--mh-surface) !important;
+    color: var(--mh-text);
+    font-size: 16px;
+    line-height: 1.35;
+}
+body.page-massmail .massmail-heading font {
+    font-size: inherit !important;
+}
+body.page-massmail .massmail-form-table {
+    padding: 12px;
+    border: 1px solid rgba(20,40,90,.08) !important;
+    border-radius: 12px;
+    background: var(--mh-surface);
+}
+body.page-massmail .massmail-form-table tr {
+    margin: 0 0 12px;
+}
+body.page-massmail .massmail-form-table tr:last-child {
+    margin-bottom: 0;
+}
+body.page-massmail .massmail-form-table td {
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+}
+body.page-massmail .massmail-form-table td.rowhead {
+    margin: 0 0 6px;
+    color: #6f7f99 !important;
+    font-size: 13px;
+    font-weight: 900;
+    line-height: 1.35;
+    text-align: left !important;
+    white-space: normal !important;
+}
+body.page-massmail .massmail-form-table select,
+body.page-massmail .massmail-form-table input[type="text"],
+body.page-massmail .massmail-form-table textarea {
+    max-width: 100% !important;
+    min-width: 0 !important;
+    min-height: 38px;
+    border: 1px solid rgba(20,40,90,.12) !important;
+    border-radius: 10px;
+    background: rgba(255,255,255,.36) !important;
+    color: var(--mh-text) !important;
+    font-size: 14px !important;
+    line-height: 1.4;
+}
+body.page-massmail .massmail-form-table input[type="text"],
+body.page-massmail .massmail-form-table textarea {
+    display: block;
+    width: 100% !important;
+    padding: 8px 10px !important;
+}
+body.page-massmail .massmail-form-table textarea {
+    min-height: 230px;
+    resize: vertical;
+}
+body.page-massmail .massmail-form-table select {
+    display: inline-block;
+    width: calc(50% - 5px) !important;
+    margin: 0 6px 0 0;
+    padding: 0 8px !important;
+    vertical-align: top;
+}
+body.page-massmail .massmail-form-table select:last-child {
+    margin-right: 0;
+}
+body.page-massmail .massmail-form-table input[type="submit"] {
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+}
