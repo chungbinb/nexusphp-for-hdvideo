@@ -22,6 +22,18 @@ if (empty($userInfo)) {
 $pageTitle = $userInfo->username . ' - H&R';
 mp_head($pageTitle);
 print("<h1>$pageTitle</h1>");
+$hrLabels = [
+    'id' => htmlspecialchars($lang_myhr['th_hr_id']),
+    'torrent' => htmlspecialchars($lang_myhr['th_torrent_name']),
+    'uploaded' => htmlspecialchars($lang_myhr['th_uploaded']),
+    'downloaded' => htmlspecialchars($lang_myhr['th_downloaded']),
+    'ratio' => htmlspecialchars($lang_myhr['th_share_ratio']),
+    'seed_time' => htmlspecialchars($lang_myhr['th_seed_time_required']),
+    'completed_at' => htmlspecialchars($lang_myhr['th_completed_at']),
+    'ttl' => htmlspecialchars($lang_myhr['th_ttl']),
+    'comment' => htmlspecialchars($lang_myhr['th_comment']),
+    'action' => htmlspecialchars($lang_functions['std_action']),
+];
 
 $status = $_GET['status'] ?? \App\Models\HitAndRun::STATUS_INSPECTING;
 $allStatus = \App\Models\HitAndRun::listStatus();
@@ -83,22 +95,22 @@ if ($rescount) {
     $list = $query->get();
     $hasActionRemove = false;
    foreach($list as $row) {
-       $columnAction = '<td class="rowfollow nowrap" align="center">';
+       $columnAction = '<td class="rowfollow nowrap" align="center" data-label="' . $hrLabels['action'] . '">';
        if ($row->uid == $CURUSER['id'] && in_array($row->status, \App\Models\HitAndRun::CAN_PARDON_STATUS)) {
            $hasActionRemove = true;
            $columnAction .= sprintf('<input class="remove-hr" type="button" value="%s" data-id="%s">', $lang_myhr['action_remove'], $row->id);
        }
        $columnAction .= '</td>';
         print("<tr>
-				<td class='rowfollow nowrap' align='center'>" . $row->id . "</td>
-				<td class='rowfollow' align='left'><a href='details.php?id=" . $row->torrent_id . "'>" . optional($row->torrent)->name . "</a></td>
-				<td class='rowfollow nowrap' align='center'>" . mksize($row->snatch->uploaded) . "</td>
-				<td class='rowfollow nowrap' align='center'>" . mksize($row->snatch->downloaded) . "</td>
-				<td class='rowfollow nowrap' align='center'>" . get_hr_ratio($row->snatch->uploaded, $row->snatch->downloaded) . "</td>
-				<td class='rowfollow nowrap' align='center'>" . $row->seedTimeRequired . "</td>
-				<td class='rowfollow nowrap' align='center'>" . format_datetime($row->snatch->completedat) . "</td>
-				<td class='rowfollow nowrap' align='center' >" . $row->inspectTimeLeft . "</td>
-                <td class='rowfollow nowrap' align='left' style='padding-left: 10px'>" . nl2br(trim($row->comment)) . "</td>
+				<td class='rowfollow nowrap' align='center' data-label='{$hrLabels['id']}'>" . $row->id . "</td>
+				<td class='rowfollow' align='left' data-label='{$hrLabels['torrent']}'><a href='details.php?id=" . $row->torrent_id . "'>" . optional($row->torrent)->name . "</a></td>
+				<td class='rowfollow nowrap' align='center' data-label='{$hrLabels['uploaded']}'>" . mksize($row->snatch->uploaded) . "</td>
+				<td class='rowfollow nowrap' align='center' data-label='{$hrLabels['downloaded']}'>" . mksize($row->snatch->downloaded) . "</td>
+				<td class='rowfollow nowrap' align='center' data-label='{$hrLabels['ratio']}'>" . get_hr_ratio($row->snatch->uploaded, $row->snatch->downloaded) . "</td>
+				<td class='rowfollow nowrap' align='center' data-label='{$hrLabels['seed_time']}'>" . $row->seedTimeRequired . "</td>
+				<td class='rowfollow nowrap' align='center' data-label='{$hrLabels['completed_at']}'>" . format_datetime($row->snatch->completedat) . "</td>
+				<td class='rowfollow nowrap' align='center' data-label='{$hrLabels['ttl']}'>" . $row->inspectTimeLeft . "</td>
+                <td class='rowfollow nowrap' align='left' style='padding-left: 10px' data-label='{$hrLabels['comment']}'>" . nl2br(trim($row->comment)) . "</td>
                 {$columnAction}
 				</tr>");
     }
@@ -129,4 +141,3 @@ print("</table>");
 print($pagerbottom);
 end_main_frame();
 mp_foot();
-
