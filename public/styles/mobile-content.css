@@ -4789,9 +4789,9 @@ body.page-uploaders .uploaders-table tr {
 }
 body.page-uploaders .uploaders-table td {
     display: grid !important;
-    grid-template-columns: minmax(88px, 36%) minmax(0, 1fr);
+    grid-template-columns: minmax(82px, 26%) minmax(0, 1fr);
     align-items: start;
-    gap: 8px;
+    gap: 6px;
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important;
