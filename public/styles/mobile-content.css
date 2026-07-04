@@ -5941,3 +5941,354 @@ body.page-viewrequests .m-main > p[align="center"] {
     font-size: 13px;
     font-weight: 800;
 }
+
+/* 字幕页 */
+body.page-subtitles .m-main,
+body.page-subtitles .m-main * {
+    box-sizing: border-box;
+}
+body.page-subtitles .m-main {
+    padding: 12px;
+    overflow-x: hidden;
+}
+body.page-subtitles .subtitles-page,
+body.page-subtitles .subtitles-upload-panel,
+body.page-subtitles .subtitles-list-panel,
+body.page-subtitles .subtitles-upload-form,
+body.page-subtitles .subtitles-upload-table,
+body.page-subtitles .subtitles-search-form,
+body.page-subtitles .subtitles-table {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+body.page-subtitles .subtitles-upload-panel > table.main,
+body.page-subtitles .subtitles-upload-panel > table.main > tbody,
+body.page-subtitles .subtitles-upload-panel > table.main > tbody > tr,
+body.page-subtitles .subtitles-upload-panel > table.main > tbody > tr > td,
+body.page-subtitles .subtitles-upload-panel > table.main table:not(.subtitles-upload-table),
+body.page-subtitles .subtitles-upload-panel > table.main table:not(.subtitles-upload-table) > tbody,
+body.page-subtitles .subtitles-upload-panel > table.main table:not(.subtitles-upload-table) > tbody > tr,
+body.page-subtitles .subtitles-upload-panel > table.main table:not(.subtitles-upload-table) > tbody > tr > td {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border: 0 !important;
+    background: transparent !important;
+}
+body.page-subtitles .subtitles-upload-panel {
+    margin-bottom: 14px;
+}
+body.page-subtitles .subtitles-upload-panel h2 {
+    margin: 4px 0 12px !important;
+    color: var(--mh-text);
+    font-size: 18px !important;
+    line-height: 1.35;
+    text-align: center !important;
+}
+body.page-subtitles .subtitles-rules {
+    margin: 0 0 12px;
+    padding: 12px;
+    border: 1px solid rgba(20,40,90,.14);
+    border-radius: 12px;
+    background: rgba(255,255,255,.38);
+    color: var(--mh-text);
+    font-size: 13px;
+    font-weight: 760;
+    line-height: 1.55;
+}
+body.page-subtitles .subtitles-rules p {
+    margin: 0 0 7px !important;
+    padding: 0 !important;
+    text-align: left !important;
+    overflow-wrap: anywhere;
+}
+body.page-subtitles .subtitles-rules p:first-child {
+    margin-bottom: 10px !important;
+    color: var(--mh-primary);
+    font-size: 15px !important;
+    font-weight: 900;
+}
+body.page-subtitles .subtitles-rules font {
+    font-size: inherit !important;
+}
+body.page-subtitles .subtitles-for-torrent {
+    margin: 8px 0 10px !important;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(255,255,255,.42);
+    color: var(--mh-text);
+    font-size: 13px;
+    font-weight: 800;
+    overflow-wrap: anywhere;
+}
+body.page-subtitles .subtitles-upload-table {
+    display: block !important;
+    padding: 12px;
+    border: 1px solid rgba(20,40,90,.16) !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    border-radius: 12px;
+    background: rgba(255,255,255,.42);
+    box-shadow: 0 8px 20px rgba(35,70,120,.08), 0 1px 0 rgba(255,255,255,.55) inset;
+}
+body.page-subtitles .subtitles-upload-table tbody,
+body.page-subtitles .subtitles-upload-table tr,
+body.page-subtitles .subtitles-upload-table td {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+body.page-subtitles .subtitles-upload-table tr {
+    margin: 0 0 10px;
+    padding: 0 0 10px;
+    border-bottom: 1px solid rgba(20,40,90,.08);
+}
+body.page-subtitles .subtitles-upload-table tr:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: 0;
+}
+body.page-subtitles .subtitles-upload-table td {
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    text-align: left !important;
+}
+body.page-subtitles .subtitles-upload-table .rowhead {
+    margin: 0 0 6px;
+    color: #6f7f99 !important;
+    font-size: 13px;
+    font-weight: 900;
+    line-height: 1.35;
+    white-space: normal !important;
+}
+body.page-subtitles .subtitles-upload-table .rowfollow {
+    color: var(--mh-text);
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.55;
+}
+body.page-subtitles .subtitles-upload-table input[type="text"],
+body.page-subtitles .subtitles-upload-table input:not([type]),
+body.page-subtitles .subtitles-upload-table select,
+body.page-subtitles .subtitles-upload-table input[type="file"] {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    min-height: 38px;
+    margin: 0 !important;
+    padding: 8px 10px !important;
+    border: 1px solid rgba(20,40,90,.12) !important;
+    border-radius: 10px;
+    background: rgba(255,255,255,.56) !important;
+    color: var(--mh-text) !important;
+    font-size: 14px !important;
+}
+body.page-subtitles .subtitles-upload-table input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0 6px 0 0 !important;
+    vertical-align: -4px;
+}
+body.page-subtitles .subtitles-upload-table .toolbox {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+body.page-subtitles .subtitles-upload-table input[type="submit"],
+body.page-subtitles .subtitles-upload-table input[type="reset"],
+body.page-subtitles .subtitles-search-form input[type="submit"] {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 40px;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 10px;
+    background: var(--mh-primary) !important;
+    color: #fff !important;
+    font-size: 14px !important;
+    font-weight: 900;
+}
+body.page-subtitles .subtitles-upload-table input[type="reset"] {
+    background: rgba(255,255,255,.76) !important;
+    color: var(--mh-primary) !important;
+}
+body.page-subtitles .subtitles-list-panel {
+    display: block;
+}
+body.page-subtitles .subtitles-search-form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    margin: 0 0 12px;
+    padding: 12px;
+    border: 1px solid rgba(20,40,90,.16);
+    border-radius: 12px;
+    background: rgba(255,255,255,.38);
+}
+body.page-subtitles .subtitles-search-form input[type="text"],
+body.page-subtitles .subtitles-search-form select {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    min-height: 38px;
+    margin: 0 !important;
+    padding: 8px 10px !important;
+    border: 1px solid rgba(20,40,90,.12) !important;
+    border-radius: 10px;
+    background: rgba(255,255,255,.56) !important;
+    color: var(--mh-text) !important;
+    font-size: 14px !important;
+}
+body.page-subtitles .subtitles-letters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0 0 12px;
+}
+body.page-subtitles .subtitles-letters a,
+body.page-subtitles .subtitles-letters > b {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 30px;
+    min-height: 30px;
+    border-radius: 9px;
+    background: rgba(255,255,255,.68);
+    color: var(--mh-primary) !important;
+    font-size: 13px;
+    font-weight: 900;
+    text-decoration: none !important;
+}
+body.page-subtitles .subtitles-letters > b {
+    background: var(--mh-primary);
+    color: #fff !important;
+}
+body.page-subtitles .subtitles-letters a b {
+    color: inherit !important;
+    font-size: inherit !important;
+    font-weight: inherit !important;
+}
+body.page-subtitles .subtitles-letters font {
+    color: inherit !important;
+}
+body.page-subtitles .subtitles-table {
+    display: block !important;
+    border: 0 !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    background: transparent !important;
+}
+body.page-subtitles .subtitles-table thead {
+    display: none !important;
+}
+body.page-subtitles .subtitles-table tbody {
+    display: grid !important;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    width: 100%;
+}
+body.page-subtitles .subtitles-row {
+    display: block !important;
+    width: 100%;
+    padding: 12px;
+    border: 1px solid rgba(20,40,90,.16) !important;
+    border-radius: 12px;
+    background: rgba(255,255,255,.44);
+    box-shadow: 0 8px 20px rgba(35,70,120,.08), 0 1px 0 rgba(255,255,255,.55) inset;
+}
+body.page-subtitles .subtitles-row td {
+    display: grid !important;
+    grid-template-columns: minmax(82px, 28%) minmax(0, 1fr);
+    align-items: start;
+    gap: 8px;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    padding: 6px 0 !important;
+    border: 0 !important;
+    border-bottom: 1px solid rgba(20,40,90,.08) !important;
+    background: transparent !important;
+    color: var(--mh-text);
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+    text-align: left !important;
+    white-space: normal !important;
+}
+body.page-subtitles .subtitles-row td:last-child {
+    border-bottom: 0 !important;
+    padding-bottom: 0 !important;
+}
+body.page-subtitles .subtitles-row td::before {
+    content: attr(data-label);
+    color: #6f7f99;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1.45;
+}
+body.page-subtitles .subtitles-title {
+    grid-template-columns: 1fr !important;
+}
+body.page-subtitles .subtitles-title::before {
+    display: none;
+}
+body.page-subtitles .subtitles-title a {
+    color: var(--mh-primary) !important;
+    font-size: 15px;
+    line-height: 1.45;
+    text-decoration: none !important;
+}
+body.page-subtitles .subtitles-delete a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 28px;
+    margin-top: 7px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.72);
+    color: #d21f1f !important;
+    font-size: 12px;
+    font-weight: 900;
+    text-decoration: none !important;
+}
+body.page-subtitles .subtitles-lang img {
+    width: auto !important;
+    max-width: 34px !important;
+    height: auto !important;
+    vertical-align: middle;
+}
+body.page-subtitles .subtitles-user a[class$="_Name"] {
+    text-decoration: none !important;
+}
+body.page-subtitles .subtitles-user img.disabled,
+body.page-subtitles .subtitles-user img.leechwarned,
+body.page-subtitles .subtitles-user img.warned,
+body.page-subtitles .subtitles-user img.star,
+body.page-subtitles .subtitles-user img.disabledbig,
+body.page-subtitles .subtitles-user img.leechwarnedbig,
+body.page-subtitles .subtitles-user img.warnedbig,
+body.page-subtitles .subtitles-user img.starbig {
+    display: inline-block !important;
+    max-width: none !important;
+    vertical-align: -1px;
+}
+body.page-subtitles .subtitles-report a {
+    justify-content: flex-start;
+}
+body.page-subtitles .subtitles-report img.f_report {
+    display: inline-block !important;
+    max-width: none !important;
+}
+body.page-subtitles .m-main > p[align="center"] {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    margin: 12px 0 !important;
+    color: var(--mh-text);
+    font-size: 13px;
+    font-weight: 800;
+}
