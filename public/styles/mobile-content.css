@@ -4883,3 +4883,194 @@ body.page-uploaders #orderlist a {
     font-weight: 850;
     text-decoration: none !important;
 }
+
+/* 站点统计 */
+body.page-stats .m-main,
+body.page-stats .m-main * {
+    box-sizing: border-box;
+}
+body.page-stats .m-main {
+    padding: 12px;
+}
+body.page-stats .stats-page,
+body.page-stats .stats-summary,
+body.page-stats .stats-section,
+body.page-stats .stats-section table {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+body.page-stats .m-main > table,
+body.page-stats .m-main > table > tbody,
+body.page-stats .m-main > table > tbody > tr,
+body.page-stats .m-main > table > tbody > tr > td {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border: 0 !important;
+    background: transparent !important;
+    padding: 0 !important;
+}
+body.page-stats .stats-title {
+    margin: 4px 0 12px;
+    color: var(--mh-text);
+    font-size: 18px;
+    line-height: 1.3;
+    text-align: center;
+}
+body.page-stats .stats-summary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin: 0 0 12px;
+}
+body.page-stats .stats-summary > div {
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid rgba(20,40,90,.08);
+    border-radius: 12px;
+    background: var(--mh-surface);
+    box-shadow: 0 1px 0 rgba(255,255,255,.35) inset;
+}
+body.page-stats .stats-summary span {
+    display: block;
+    margin: 0 0 5px;
+    color: #6f7f99;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1.25;
+}
+body.page-stats .stats-summary b {
+    display: block;
+    color: var(--mh-text);
+    font-size: 19px;
+    font-weight: 900;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+}
+body.page-stats .stats-section {
+    margin: 0 0 14px;
+}
+body.page-stats .stats-section h2 {
+    margin: 2px 0 9px !important;
+    color: var(--mh-text);
+    font-size: 16px;
+    font-weight: 900;
+    line-height: 1.35;
+    text-align: left !important;
+}
+body.page-stats .stats-section > table,
+body.page-stats .stats-section > table > tbody,
+body.page-stats .stats-section > table > tbody > tr,
+body.page-stats .stats-section > table > tbody > tr > td.text {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border: 0 !important;
+    background: transparent !important;
+    padding: 0 !important;
+}
+body.page-stats .stats-section > table > tbody > tr > td.text {
+    text-align: left !important;
+}
+body.page-stats .stats-section table.main {
+    display: block !important;
+    border: 0 !important;
+    border-collapse: separate !important;
+    background: transparent !important;
+}
+body.page-stats .stats-section table.main tbody {
+    display: grid !important;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    width: 100%;
+}
+body.page-stats .stats-section table.main tr.stats-head-row {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 6px;
+    width: 100%;
+    padding: 0;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none;
+}
+body.page-stats .stats-section table.main tr.stats-head-row td {
+    display: block !important;
+    width: auto !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+}
+body.page-stats .stats-section table.main tr.stats-head-row td::before {
+    content: none !important;
+}
+body.page-stats .stats-section table.main tr.stats-head-row .stats-static-head {
+    display: none !important;
+}
+body.page-stats .stats-section table.main tr.stats-head-row a.colheadlink {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 31px;
+    padding: 0 10px;
+    border-radius: 9px;
+    background: rgba(255,255,255,.48);
+    color: var(--mh-primary) !important;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1.2;
+    text-decoration: none !important;
+}
+body.page-stats .stats-section table.main tr.stats-data-row {
+    display: block !important;
+    width: 100%;
+    padding: 12px;
+    border: 1px solid rgba(20,40,90,.08) !important;
+    border-radius: 12px;
+    background: var(--mh-surface);
+    box-shadow: 0 1px 0 rgba(255,255,255,.35) inset;
+}
+body.page-stats .stats-section table.main tr.stats-data-row td {
+    display: grid !important;
+    grid-template-columns: minmax(82px, 30%) minmax(0, 1fr);
+    align-items: start;
+    gap: 7px;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    padding: 6px 0 !important;
+    border: 0 !important;
+    border-bottom: 1px solid rgba(20,40,90,.08) !important;
+    background: transparent !important;
+    color: var(--mh-text);
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+    text-align: left !important;
+    white-space: normal !important;
+}
+body.page-stats .stats-section table.main tr.stats-data-row td:last-child {
+    border-bottom: 0 !important;
+    padding-bottom: 0 !important;
+}
+body.page-stats .stats-section table.main tr.stats-data-row td::before {
+    content: attr(data-label);
+    color: #6f7f99;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1.45;
+}
+body.page-stats .stats-user,
+body.page-stats .stats-name {
+    font-size: 14px !important;
+    font-weight: 900 !important;
+}
+body.page-stats .stats-user a[class$="_Name"] {
+    text-decoration: none !important;
+}
+body.page-stats .stats-last {
+    font-size: 12px !important;
+}
