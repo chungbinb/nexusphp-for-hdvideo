@@ -14,18 +14,18 @@ if (!empty($_REQUEST['tab']) && in_array($_REQUEST['tab'], $tabs)) {
 $page = $_REQUEST['page'] ?? 0;
 $title = 'Duplicate IP users';
 stdhead($title);
-print '<h1>'.$title.'</h1>';
+print '<div class="ipcheck-page">';
+print '<h1 class="ipcheck-title">'.$title.'</h1>';
 //print '<ul class="menu" style="padding-inline-start: 0">';
 //foreach ($tabs as $item) {
 //    echo sprintf('<li class="%s"><a href="?tab=%s&page=%s">%s</a></li>', $tab == $item ? 'selected' : '', $item, $page, $item);
 //}
 //print '</ul>';
-begin_table();
 
 if (get_user_class() >= UC_MODERATOR || $CURUSER["guard"] == "yes")
 {
  $res = sql_query("SELECT count(*) AS dupl, ip FROM users WHERE enabled = 'yes' AND ip <> '' AND ip <> '127.0.0.0' GROUP BY ip ORDER BY dupl DESC, ip") or sqlerr();
-  print("<tr align=center><td class=colhead width=90>User</td>
+  print("<table class=\"main ipcheck-table\" border=\"1\" cellspacing=\"0\" cellpadding=\"5\"><thead><tr align=center><td class=colhead width=90>User</td>
  <td class=colhead width=70>Email</td>
  <td class=colhead width=70>Registered</td>
  <td class=colhead width=75>Last access</td>
@@ -33,7 +33,7 @@ if (get_user_class() >= UC_MODERATOR || $CURUSER["guard"] == "yes")
  <td class=colhead width=70>Uploaded</td>
  <td class=colhead width=45>Ratio</td>
  <td class=colhead width=125>IP</td>
- <td class=colhead width=40>Peer</td></tr>\n");
+ <td class=colhead width=40>Peer</td></tr></thead><tbody>\n");
  $uc = 0;
  $ip = '';
   while($ras = mysql_fetch_assoc($res))
@@ -64,34 +64,33 @@ if (get_user_class() >= UC_MODERATOR || $CURUSER["guard"] == "yes")
 		  $added = substr($arr['added'],0,10);
 		  $last_access = substr($arr['last_access'],0,10);
 		  if($uc%2 == 0)
-			$utc = "";
+			$utc = " class=\"ipcheck-row\"";
 		  else
-			$utc = " bgcolor=\"ECE9D8\"";
+			$utc = " class=\"ipcheck-row ipcheck-row-alt\" bgcolor=\"ECE9D8\"";
 
 			$peer_res = sql_query("SELECT count(*) FROM peers WHERE ip = " . sqlesc($ras['ip']) . " AND userid = " . $arr['id']);
 			$peer_row = mysql_fetch_row($peer_res);
-		  print("<tr$utc><td align=left>" . get_username($arr["id"])."</td>
-				  <td align=center>$arr[email]</td>
-				  <td align=center>$added</td>
-				  <td align=center>$last_access</td>
-				  <td align=center>$downloaded</td>
-				  <td align=center>$uploaded</td>
-				  <td align=center>$ratio</td>
-				  <td align=center><a href=\"http://www.whois.sc/$arr[ip]\" target=\"_blank\">$arr[ip]</a></td>\n<td align=center>" .
+		  print("<tr$utc><td align=left data-label=\"User\">" . get_username($arr["id"])."</td>
+				  <td align=center data-label=\"Email\">$arr[email]</td>
+				  <td align=center data-label=\"Registered\">$added</td>
+				  <td align=center data-label=\"Last access\">$last_access</td>
+				  <td align=center data-label=\"Downloaded\">$downloaded</td>
+				  <td align=center data-label=\"Uploaded\">$uploaded</td>
+				  <td align=center data-label=\"Ratio\">$ratio</td>
+				  <td align=center data-label=\"IP\"><a href=\"http://www.whois.sc/$arr[ip]\" target=\"_blank\">$arr[ip]</a></td>\n<td align=center data-label=\"Peer\">" .
 				  ($peer_row[0] ? "ja" : "nein") . "</td></tr>\n");
 		  $ip = $arr["ip"];
 		}
 	  }
 	}
   }
+  print("</tbody></table>\n");
 }
 else
 {
- print("<br /><table width=60% border=1 cellspacing=0 cellpadding=9><tr><td align=center>");
- print("<h2>Sorry, only for Team</h2></table></td></tr>");
+ print("<div class=\"ipcheck-empty\"><h2>Sorry, only for Team</h2></div>");
 }
-end_frame();
-end_table();
+print '</div>';
 
 stdfoot();
 ?>

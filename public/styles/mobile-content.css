@@ -4291,3 +4291,102 @@ body.page-cheaters .cheaters-user a {
     color: var(--mh-primary) !important;
     text-decoration: none !important;
 }
+
+/* 重复 IP 检查 */
+body.page-ipcheck .m-main,
+body.page-ipcheck .m-main * {
+    box-sizing: border-box;
+}
+body.page-ipcheck .m-main {
+    padding: 12px;
+}
+body.page-ipcheck .ipcheck-page,
+body.page-ipcheck .ipcheck-table {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+body.page-ipcheck .ipcheck-title {
+    margin: 4px 0 12px;
+    color: var(--mh-text);
+    font-size: 18px;
+    line-height: 1.3;
+    text-align: center;
+}
+body.page-ipcheck .ipcheck-table {
+    display: block !important;
+    border: 0 !important;
+    border-collapse: separate !important;
+    background: transparent !important;
+}
+body.page-ipcheck .ipcheck-table thead {
+    display: none !important;
+}
+body.page-ipcheck .ipcheck-table tbody {
+    display: grid !important;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    width: 100%;
+}
+body.page-ipcheck .ipcheck-table tr {
+    display: block !important;
+    width: 100%;
+    padding: 12px;
+    border: 1px solid rgba(20,40,90,.08) !important;
+    border-radius: 12px;
+    background: var(--mh-surface) !important;
+    box-shadow: 0 1px 0 rgba(255,255,255,.35) inset;
+}
+body.page-ipcheck .ipcheck-table tr.ipcheck-row-alt {
+    background: rgba(255,255,255,.32) !important;
+}
+body.page-ipcheck .ipcheck-table td {
+    display: grid !important;
+    grid-template-columns: minmax(86px, 35%) minmax(0, 1fr);
+    align-items: start;
+    gap: 8px;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    padding: 6px 0 !important;
+    border: 0 !important;
+    border-bottom: 1px solid rgba(20,40,90,.08) !important;
+    background: transparent !important;
+    color: var(--mh-text);
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+    text-align: left !important;
+    white-space: normal !important;
+}
+body.page-ipcheck .ipcheck-table td:last-child {
+    border-bottom: 0 !important;
+    padding-bottom: 0 !important;
+}
+body.page-ipcheck .ipcheck-table td::before {
+    content: attr(data-label);
+    color: #6f7f99;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1.45;
+}
+body.page-ipcheck .ipcheck-table td:first-child {
+    font-size: 14px;
+}
+body.page-ipcheck .ipcheck-table a {
+    color: var(--mh-primary) !important;
+    text-decoration: none !important;
+}
+body.page-ipcheck .ipcheck-empty {
+    padding: 18px 14px;
+    border: 1px solid rgba(20,40,90,.08);
+    border-radius: 12px;
+    background: var(--mh-surface);
+    color: var(--mh-text);
+    text-align: center;
+}
+body.page-ipcheck .ipcheck-empty h2 {
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.35;
+}
