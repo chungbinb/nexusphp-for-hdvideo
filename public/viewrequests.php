@@ -72,38 +72,41 @@ else {
                 mp_head($lang_viewrequests['page_title']);
 
                 $rows = sql_query("SELECT requests.* ,(SELECT count(DISTINCT torrentid) FROM resreq  where reqid=requests.id ) as Totalreq FROM requests WHERE " . $limit . " ORDER BY $limitorder id DESC $limit2") or sqlerr(__FILE__, __LINE__);
-                print("<h1 align=center>{$lang_viewrequests['page_title']}</h1>");
-                print("<br><b><a href='viewrequests.php?action=new'>{$lang_viewrequests['add_request']}</a> | <a href='viewrequests.php?finished=all'>{$lang_viewrequests['view_request_all']}</a> | <a href='viewrequests.php?finished=yes'>{$lang_viewrequests['view_request_resolved']}</a> | <a href='viewrequests.php?finished=no'>{$lang_viewrequests['view_request_unresolved']}</a> | <a href='viewrequests.php?finished=ing'>{$lang_viewrequests['view_request_resolving']}</a> | <a href='viewrequests.php?finished=my' " . get_requestcount() . ">{$lang_viewrequests['view_request_my']}</a></b><p>\n");
-                print("<table width=98% border=1 cellspacing=0 cellpadding=5 style=border-collapse:collapse >\n");
+                print("<div class='viewrequests-page viewrequests-list-page'>");
+                print("<h1 class='viewrequests-title'>{$lang_viewrequests['page_title']}</h1>");
+                print("<div class='viewrequests-nav'><a href='viewrequests.php?action=new'>{$lang_viewrequests['add_request']}</a><a href='viewrequests.php?finished=all'>{$lang_viewrequests['view_request_all']}</a><a href='viewrequests.php?finished=yes'>{$lang_viewrequests['view_request_resolved']}</a><a href='viewrequests.php?finished=no'>{$lang_viewrequests['view_request_unresolved']}</a><a href='viewrequests.php?finished=ing'>{$lang_viewrequests['view_request_resolving']}</a><a href='viewrequests.php?finished=my' " . get_requestcount() . ">{$lang_viewrequests['view_request_my']}</a></div>\n");
+                print("<table class='viewrequests-table' width=98% border=1 cellspacing=0 cellpadding=5 style=border-collapse:collapse >\n");
 
                 if (mysql_num_rows($rows) == 0) {
-                    print("<tr><td class=colhead align=center>Nothing</td></tr>\n");
+                    print("<tbody><tr class='viewrequests-empty'><td align=center>Nothing</td></tr></tbody>\n");
                 } else {
-                    print("<tr><td class=colhead align=left>{$lang_viewrequests['thead_name']}</td><td class=colhead align=center>{$lang_viewrequests['thead_price_newest']}</td><td class=colhead align=center>{$lang_viewrequests['thead_price_original']}</td><td class=colhead  align=center>{$lang_viewrequests['thead_comment_count']}</td><td class=colhead  align=center>{$lang_viewrequests['thead_on_request_count']}</td><td class=colhead align=center>{$lang_viewrequests['thead_request_user']}</td><td class=colhead align=center>{$lang_viewrequests['thead_created_at']}</td><td class=colhead align=center>{$lang_viewrequests['thead_status']}</td></tr>\n");
+                    print("<thead><tr><td class=colhead align=left>{$lang_viewrequests['thead_name']}</td><td class=colhead align=center>{$lang_viewrequests['thead_price_newest']}</td><td class=colhead align=center>{$lang_viewrequests['thead_price_original']}</td><td class=colhead  align=center>{$lang_viewrequests['thead_comment_count']}</td><td class=colhead  align=center>{$lang_viewrequests['thead_on_request_count']}</td><td class=colhead align=center>{$lang_viewrequests['thead_request_user']}</td><td class=colhead align=center>{$lang_viewrequests['thead_created_at']}</td><td class=colhead align=center>{$lang_viewrequests['thead_status']}</td></tr></thead><tbody>\n");
                     while ($row = mysql_fetch_array($rows)) {
-                        print("<tr>
-                                <td align=left class='rowfollow'><a href='viewrequests.php?action=view&id=" . $row["id"] . "'><b>" . $row["request"] . "</b></a></td>
-                                <td align=center class='rowfollow nowrap'><font color=#ff0000><b>" . $row['amount'] . "</b></font></td>
-                                <td align=center class='rowfollow nowrap'>" . $row['ori_amount'] . "</td>
-                                <td align=center class='rowfollow nowrap'>" . ($row['comments']) . "</td>
-                                <td align=center class='rowfollow nowrap'>" . ($row['Totalreq']) . "</td>
-                                <td align=center class='rowfollow nowrap'>" . get_username($row['userid']) . "</td>
-                                <td align=center class='rowfollow nowrap'>" . gettime($row['added'], true, false) . "</td>
-                                <td align=center class='rowfollow nowrap'>" . ($row['finish'] == "yes" ? $lang_viewrequests['request_status_resolved'] : ($row['userid'] == $CURUSER['id'] ? $lang_viewrequests['request_status_resolving'] : "<a href='viewrequests.php?action=res&id=" . $row["id"] . "'>{$lang_viewrequests['request_status_resolving']}</a>")) . "</td>
+                        print("<tr class='viewrequests-row'>
+                                <td data-label='{$lang_viewrequests['thead_name']}' align=left class='rowfollow viewrequests-name'><a href='viewrequests.php?action=view&id=" . $row["id"] . "'><b>" . htmlspecialchars($row["request"]) . "</b></a></td>
+                                <td data-label='{$lang_viewrequests['thead_price_newest']}' align=center class='rowfollow nowrap viewrequests-amount'><font color=#ff0000><b>" . $row['amount'] . "</b></font></td>
+                                <td data-label='{$lang_viewrequests['thead_price_original']}' align=center class='rowfollow nowrap'>" . $row['ori_amount'] . "</td>
+                                <td data-label='{$lang_viewrequests['thead_comment_count']}' align=center class='rowfollow nowrap'>" . ($row['comments']) . "</td>
+                                <td data-label='{$lang_viewrequests['thead_on_request_count']}' align=center class='rowfollow nowrap'>" . ($row['Totalreq']) . "</td>
+                                <td data-label='{$lang_viewrequests['thead_request_user']}' align=center class='rowfollow nowrap viewrequests-user'>" . get_username($row['userid']) . "</td>
+                                <td data-label='{$lang_viewrequests['thead_created_at']}' align=center class='rowfollow nowrap'>" . gettime($row['added'], true, false) . "</td>
+                                <td data-label='{$lang_viewrequests['thead_status']}' align=center class='rowfollow nowrap viewrequests-status'>" . ($row['finish'] == "yes" ? $lang_viewrequests['request_status_resolved'] : ($row['userid'] == $CURUSER['id'] ? $lang_viewrequests['request_status_resolving'] : "<a href='viewrequests.php?action=res&id=" . $row["id"] . "'>{$lang_viewrequests['request_status_resolving']}</a>")) . "</td>
                             </tr>\n");
                     }
+                    print("</tbody>\n");
                 }
                 print("</table>\n");
                 print($pagerbottom);
                 //print("<br><b><a href=viewrequests.php?action=new>添加</a> <a href=viewrequests.php?finished=all>查看所有</a> <a href=viewrequests.php?finished=yes>查看已解决</a> <a href=viewrequests.php?finished=no>查看未解决</a></b>\n");
-                print("<table border=1 cellspacing=0  cellpadding=5>\n");
-                print("<tr><td class=toolbox align=left><form  method=\"post\" action='viewrequests.php'>\n");
-                print("<input type=\"text\" name=\"query\" style=\"width:500px\" >\n");
+                print("<table class='viewrequests-searchbox' border=1 cellspacing=0  cellpadding=5>\n");
+                print("<tr><td class=toolbox align=left><form class='viewrequests-search-form' method=\"post\" action='viewrequests.php'>\n");
+                print("<input type=\"text\" name=\"query\" >\n");
                 print("<input type=\"hidden\" name=\"action\" value='list'>");
                 print("<input type=\"hidden\" name=\"finished\" value='all'>");
 
                 print("<input type=submit value='{$lang_viewrequests['action_search']}'></form>\n");
                 print("</td></tr></table><br />\n");
+                print("</div>\n");
 
 
                 mp_foot();
@@ -120,8 +123,9 @@ else {
                 if (mysql_num_rows($res) == 0) stderr($lang_functions['std_error'], $lang_functions['std_target_not_exists']);
                 else $arr = mysql_fetch_assoc($res);
                 mp_head($lang_viewrequests['page_title']);
-                print("<h1 align=center id=top>{$lang_viewrequests['request']}-" . htmlspecialchars($arr["request"]) . "</h1>\n");
-                print("<table width=100% cellspacing=0 cellpadding=5>\n");
+                print("<div class='viewrequests-page viewrequests-detail-page'>");
+                print("<h1 class='viewrequests-title' id=top>{$lang_viewrequests['request']}-" . htmlspecialchars($arr["request"]) . "</h1>\n");
+                print("<table class='viewrequests-detail-table' width=100% cellspacing=0 cellpadding=5>\n");
                 $res = sql_query("SELECT * FROM resreq WHERE reqid ='" . $_GET["id"] . "'" . $limit) or sqlerr(__FILE__, __LINE__);
                 tr($lang_viewrequests['basic_info'], get_username($arr['userid']) . $lang_viewrequests['created_at'] . gettime($arr["added"], true, false) . "\n", 1);
                 tr($lang_viewrequests['reward'], $lang_viewrequests['newest_bidding'] . $arr['amount'] . "     {$lang_viewrequests['original_bidding']}" . $arr["ori_amount"] . "\n", 1);
@@ -130,14 +134,14 @@ else {
                     ($arr['userid'] == $CURUSER['id'] || $arr["finish"] == "yes" ? "" : " | <a href='viewrequests.php?action=res&id=" . $id . "' >{$lang_viewrequests['on_request']}</a>\n") .
                     ((get_user_class() >= UC_UPLOADER || $arr['userid'] == $CURUSER['id']) && $arr['finish'] == "no" ? " | <a href='viewrequests.php?action=delete&id=" . $id . "' " . (mysql_num_rows($res) ? ">{$lang_functions['title_delete']}" : "title='{$lang_viewrequests['recycle_title']}'>{$lang_viewrequests['recycle']}") . "</a>" : "") . "\n"
                     , 1);
-                if ($arr["finish"] == "no") tr($lang_viewrequests['add_reward'], "<form action=viewrequests.php method=post> <input type=hidden name=action value=addamount><input type=hidden name=reqid value=" . $arr["id"] . "><input size=6 name=amount value=1000 ><input type=submit value={$lang_functions['submit_submit']} > {$lang_viewrequests['add_reward_desc']}</form>", 1);
+                if ($arr["finish"] == "no") tr($lang_viewrequests['add_reward'], "<form class='viewrequests-add-reward' action=viewrequests.php method=post> <input type=hidden name=action value=addamount><input type=hidden name=reqid value=" . $arr["id"] . "><input size=6 name=amount value=1000 ><input type=submit value={$lang_functions['submit_submit']} > <span>{$lang_viewrequests['add_reward_desc']}</span></form>", 1);
                 tr($lang_functions['std_desc'], format_comment(unesc($arr["descr"])), 1);
                 $limit = ($arr['finish'] == "no" ? "" : " AND chosen = 'yes' ");
                 $ress = "";
                 if (mysql_num_rows($res) == 0) $ress = $lang_viewrequests['no_request_yet'];
                 else {
                     if ($arr['userid'] == $CURUSER['id'] || get_user_class() >= UC_UPLOADER)
-                        $ress .= "<form action=viewrequests.php method=post>\n<input type=hidden name=action value=confirm > <input type=hidden name=id value=" . $id . " >\n";
+                        $ress .= "<form class='viewrequests-supply-form' action=viewrequests.php method=post>\n<input type=hidden name=action value=confirm > <input type=hidden name=id value=" . $id . " >\n";
                     while ($row = mysql_fetch_array($res)) {
                         $each = mysql_fetch_assoc(sql_query("SELECT * FROM torrents WHERE id = '" . $row["torrentid"] . "'"));
                         if (mysql_num_rows(sql_query("SELECT * FROM torrents WHERE id = '" . $row["torrentid"] . "'")) == 1)
@@ -172,7 +176,7 @@ else {
 
 
                 print ("
-	<table style='border:1px solid #000000;'>
+	<table class='viewrequests-commentbox' style='border:1px solid #000000;'>
 	<tr><td class=\"text\" align=\"center\"><b>" . $lang_details['text_quick_comment'] . "</b><br /><br />
 	<form id=\"compose\" name=\"comment\" method=\"post\" action=\"" . htmlspecialchars("comment.php?action=add&type=request") . "\" onsubmit=\"return postvalid(this);\">
 	<input type=\"hidden\" name=\"pid\" value=\"" . $id . "\" /><br />");
@@ -182,8 +186,9 @@ else {
 
                 print ("
 
-<a class=\"index\" href='comment.php?action=add&pid=$id&type=request'>{$lang_functions['title_add_comments']}</a></td></tr></table>");
+<p class='viewrequests-add-comment'><a class=\"index\" href='comment.php?action=add&pid=$id&type=request'>{$lang_functions['title_add_comments']}</a></p>");
 
+                print("</div>");
                 mp_foot();
 
             } else stderr($lang_functions['std_error'], $lang_functions['std_target_not_exists']);
@@ -201,11 +206,11 @@ else {
             if ($arr['userid'] == $CURUSER['id'] || get_user_class() >= UC_UPLOADER) {
                 mp_head($lang_functions['title_edit'] . $lang_viewrequests['request']);
                 print(
-                    "<form id=edit method=post name=edit action=viewrequests.php >\n
+                    "<form id=edit class='viewrequests-edit-form' method=post name=edit action=viewrequests.php >\n
 		<input type=hidden name=action  value=takeedit >
 		<input type=hidden name=reqid  value=" . intval($_GET["id"] ?? 0) . " >
 		");
-                print("<table width=100% cellspacing=0 cellpadding=3><tr><td class=colhead align=center colspan=2>{$lang_functions['title_edit']}{$lang_viewrequests['request']}</td></tr>");
+                print("<table class='viewrequests-edit-table' width=100% cellspacing=0 cellpadding=3><tr><td class=colhead align=center colspan=2>{$lang_functions['title_edit']}{$lang_viewrequests['request']}</td></tr>");
                 tr("{$lang_functions['col_name']}：", "<input name=request value=\"" . $arr["request"] . "\" size=134 ><br/>", 1);
                 print("<tr><td class=rowhead align=right valign=top><b>{$lang_functions['std_desc']}：</b></td><td class=rowfollow align=left>");
                 textbbcode("edit", "descr", $arr["descr"], false, 130, true);
@@ -221,8 +226,8 @@ else {
             if (get_user_class() >= 1) {
                 mp_head($lang_viewrequests['add_request']);
                 print(
-                "<form id=edit method=post name=edit action=viewrequests.php >\n<input type=hidden name=action  value=takeadded >\n");
-                print("<table width=100% cellspacing=0 cellpadding=3><tr><td class=colhead align=center colspan=2>{$lang_viewrequests['add_request']}</td></tr>\n");
+                "<form id=edit class='viewrequests-edit-form' method=post name=edit action=viewrequests.php >\n<input type=hidden name=action  value=takeadded >\n");
+                print("<table class='viewrequests-edit-table' width=100% cellspacing=0 cellpadding=3><tr><td class=colhead align=center colspan=2>{$lang_viewrequests['add_request']}</td></tr>\n");
                 tr("{$lang_functions['col_name']}：", "<input name=request size=134><br/>", 1);
                 tr("{$lang_viewrequests['reward']}：", "<input name=amount size=11 value=2000>{$lang_viewrequests['add_request_desc']}<br/>", 1);
                 print("<tr><td class=rowhead align=right valign=top><b>{$lang_functions['std_desc']}：</b></td><td class=rowfollow align=left>");
@@ -250,8 +255,8 @@ else {
 
 
                 print(
-                    "<form id=reply name=reply method=post action=viewrequests.php >\n<input type=hidden name=action value=message ><input type=hidden name=id value=" . intval($_GET["id"] ?? 0) . " >\n");
-                print("<table width=100% cellspacing=0 cellpadding=3>\n");
+                    "<form id=reply class='viewrequests-reply-form' name=reply method=post action=viewrequests.php >\n<input type=hidden name=action value=message ><input type=hidden name=id value=" . intval($_GET["id"] ?? 0) . " >\n");
+                print("<table class='viewrequests-reply-table' width=100% cellspacing=0 cellpadding=3>\n");
 
                 print("<tr><td class=rowfollow align=left>");
                 if ($ruserid) {
@@ -274,10 +279,10 @@ else {
                 mp_head($lang_functions['text_search']);
 
 
-                print("<table border=1 cellspacing=0  cellpadding=5>\n");
+                print("<table class='viewrequests-searchbox' border=1 cellspacing=0  cellpadding=5>\n");
                 print("<tr><td class=colhead align=left>{$lang_functions['text_search']}</td></tr>\n");
-                print("<tr><td class=toolbox align=left><form  method=\"post\" action='viewrequests.php'>\n");
-                print("<input type=\"text\" name=\"query\" style=\"width:500px\" >\n");
+                print("<tr><td class=toolbox align=left><form class='viewrequests-search-form' method=\"post\" action='viewrequests.php'>\n");
+                print("<input type=\"text\" name=\"query\" >\n");
                 print("<input type=\"hidden\" name=\"action\" value='list'>");
                 print("<input type=submit value='{$lang_functions['text_search']}'></form>\n");
                 print("</td></tr></table><br />\n");
