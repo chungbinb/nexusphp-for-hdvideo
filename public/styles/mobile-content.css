@@ -1077,22 +1077,33 @@ body.page-staffbox .staffbox-time .staffbox-meta-value {
     overflow-wrap: normal;
 }
 body.page-staffbox .staffbox-answer {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
     align-items: center;
-    gap: 5px;
+    gap: 8px;
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
-    min-height: 24px;
-    padding: 2px 8px;
-    border-radius: 999px;
+    min-height: 30px;
+    padding: 5px 9px;
+    border-radius: 10px;
     background: rgba(255,255,255,.45);
     border: 1px solid rgba(20,40,90,.08);
     color: #5f6f87;
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1.3;
     order: 3;
+}
+body.page-staffbox .staffbox-answer-label {
+    color: #7d8aa3;
+    font-size: 12px;
+    font-weight: 800;
+}
+body.page-staffbox .staffbox-answer-value {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap !important;
 }
 body.page-staffbox .staffbox-card.is-answered .staffbox-answer b {
     color: #16a34a;
