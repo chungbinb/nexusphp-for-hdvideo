@@ -4926,10 +4926,10 @@ body.page-stats .stats-summary {
 body.page-stats .stats-summary > div {
     min-width: 0;
     padding: 12px;
-    border: 1px solid rgba(20,40,90,.08);
+    border: 1px solid rgba(20,40,90,.16);
     border-radius: 12px;
-    background: var(--mh-surface);
-    box-shadow: 0 1px 0 rgba(255,255,255,.35) inset;
+    background: rgba(255,255,255,.42);
+    box-shadow: 0 8px 20px rgba(35,70,120,.08), 0 1px 0 rgba(255,255,255,.55) inset;
 }
 body.page-stats .stats-summary span {
     display: block;
@@ -5016,7 +5016,7 @@ body.page-stats .stats-section table.main tr.stats-head-row a.colheadlink {
     min-height: 31px;
     padding: 0 10px;
     border-radius: 9px;
-    background: rgba(255,255,255,.48);
+    background: rgba(255,255,255,.68);
     color: var(--mh-primary) !important;
     font-size: 12px;
     font-weight: 900;
@@ -5027,10 +5027,10 @@ body.page-stats .stats-section table.main tr.stats-data-row {
     display: block !important;
     width: 100%;
     padding: 12px;
-    border: 1px solid rgba(20,40,90,.08) !important;
+    border: 1px solid rgba(20,40,90,.16) !important;
     border-radius: 12px;
-    background: var(--mh-surface);
-    box-shadow: 0 1px 0 rgba(255,255,255,.35) inset;
+    background: rgba(255,255,255,.42);
+    box-shadow: 0 8px 20px rgba(35,70,120,.08), 0 1px 0 rgba(255,255,255,.55) inset;
 }
 body.page-stats .stats-section table.main tr.stats-data-row td {
     display: grid !important;
