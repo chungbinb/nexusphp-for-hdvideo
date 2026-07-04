@@ -81,7 +81,7 @@ class Field
         $arr = [];
         foreach ($options as $value => $label) {
             $arr[] = sprintf(
-                '<label style="margin-right: 4px;"><input type="radio" name="%s" value="%s"%s />%s</label>',
+                '<label class="fields-radio-option" style="margin-right: 4px;"><input type="radio" name="%s" value="%s"%s />%s</label>',
                 $name, $value, (string)$current === (string)$value ? ' checked' : '', $label
             );
         }
@@ -103,12 +103,12 @@ class Field
 
         $id = $row['id'] ?? 0;
         $form = <<<HTML
-<div>
-<h1 align="center"><a class="faqlink" href="?action=view">{$lang_fields['text_field']}</a></h1>
-<form method="post" action="fields.php?action=submit">
-<div>
-    <table border="1" cellspacing="0" cellpadding="10" width="100%">
-            <input type="hidden" name="id" value="{$id}"/>
+<div class="fields-manage fields-form-page">
+<h1 align="center" class="fields-title"><a class="faqlink" href="?action=view">{$lang_fields['text_field']}</a></h1>
+<form method="post" action="fields.php?action=submit" class="fields-form">
+<input type="hidden" name="id" value="{$id}"/>
+<div class="fields-form-card">
+    <table border="1" cellspacing="0" cellpadding="10" width="100%" class="fields-form-table">
             {$trName}
             {$trLabel}
             {$trType}
@@ -120,7 +120,7 @@ class Field
             {$trDisplay}
     </table>
 </div>
-<div style="text-align: center; margin-top: 10px;">
+<div class="fields-submit" style="text-align: center; margin-top: 10px;">
     <input type="submit" value="{$lang_fields['submit_submit']}" />
 </div>
 </form>
@@ -159,15 +159,16 @@ HTML;
             $rows[] = $row;
         }
         $head = <<<HEAD
-<h1 align="center">{$lang_fields['field_management']}</h1>
-<div style="margin-bottom: 8px;">
+<div class="fields-manage">
+<h1 align="center" class="fields-title">{$lang_fields['field_management']}</h1>
+<div class="fields-toolbar" style="margin-bottom: 8px;">
     <span id="add">
-        <a href="?action=add" class="big"><b>{$lang_fields['text_add']}</b></a>
+        <a href="?action=add" class="big fields-add-link"><b>{$lang_fields['text_add']}</b></a>
     </span>
 </div>
 HEAD;
         $table = $this->buildTable($header, $rows);
-        return $head . $table . $paginationBottom;
+        return $head . $table . $paginationBottom . '</div>';
     }
 
     public function save($data)
@@ -229,15 +230,22 @@ HEAD;
 
     protected function buildTable(array $header, array $rows)
     {
-        $table = '<table border="1" cellspacing="0" cellpadding="5" width="100%"><thead><tr>';
+        $table = '<table border="1" cellspacing="0" cellpadding="5" width="100%" class="fields-table"><thead><tr>';
         foreach ($header as $key => $value) {
-            $table .= sprintf('<td class="colhead">%s</td>', $value);
+            $cellClass = preg_replace('/[^a-z0-9_-]+/i', '-', (string)$key);
+            $table .= sprintf('<td class="colhead fields-head fields-head-%s">%s</td>', $cellClass, $value);
         }
         $table .= '</tr></thead><tbody>';
         foreach ($rows as $row) {
             $table .= '<tr>';
             foreach ($header as $headerKey => $headerValue) {
-                $table .= sprintf('<td class="colfollow">%s</td>', $row[$headerKey] ?? '');
+                $cellClass = preg_replace('/[^a-z0-9_-]+/i', '-', (string)$headerKey);
+                $table .= sprintf(
+                    '<td class="colfollow fields-cell fields-cell-%s" data-label="%s">%s</td>',
+                    $cellClass,
+                    htmlspecialchars($headerValue, ENT_QUOTES),
+                    $row[$headerKey] ?? ''
+                );
             }
             $table .= '</tr>';
         }

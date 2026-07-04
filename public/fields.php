@@ -21,6 +21,7 @@ if ($action == 'view') {
     stdhead($lang_fields['field_management']." - ".$lang_fields['text_add']);
     begin_main_frame();
     echo $field->buildFieldForm();
+    stdfoot();
 } elseif ($action == 'submit') {
     die("This method is deprecated! This method is no longer available in 1.10, it does not save data correctly, please go to the management system!");
     try {
@@ -43,6 +44,7 @@ if ($action == 'view') {
     stdhead($lang_fields['field_management']." - ".$lang_fields['text_edit']);
     begin_main_frame();
     echo $field->buildFieldForm($row);
+    stdfoot();
 } elseif ($action == 'del') {
     $id = intval($_GET['id'] ?? 0);
     if ($id == 0) {
