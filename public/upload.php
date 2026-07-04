@@ -37,11 +37,12 @@ $searchBoxRep = new \App\Repositories\SearchBoxRepository();
 $tagRep = new \App\Repositories\TagRepository();
 mp_head($lang_upload['head_upload']);
 ?>
-	<form id="compose" enctype="multipart/form-data" action="takeupload.php" method="post" name="upload">
+	<div class="upload-page">
+	<form id="compose" class="upload-form" enctype="multipart/form-data" action="takeupload.php" method="post" name="upload">
 			<?php
 			print("<p align=\"center\">".$lang_upload['text_red_star_required']."</p>");
 			?>
-			<table border="1" cellspacing="0" cellpadding="5" width="97%">
+			<table class="upload-table" border="1" cellspacing="0" cellpadding="5" width="97%">
 				<tr>
 					<td class='colhead' colspan='2' align='center'>
 						<?php echo $lang_upload['text_tracker_url'] ?>: &nbsp;&nbsp;&nbsp;&nbsp;<b><?php echo  get_tracker_schema_and_host($CURUSER['tracker_url_id'], true)?></b>
@@ -242,6 +243,7 @@ JS;
 				<tr><td class="toolbox" align="center" colspan="2"><b><?php echo $lang_upload['text_read_rules']?></b> <input id="qr" type="submit" class="btn" value="<?php echo $lang_upload['submit_upload']?>" /></td></tr>
 		</table>
 	</form>
+	</div>
 <?php
 \Nexus\Nexus::js('vendor/jquery-loading/jquery.loading.min.js', 'footer', true);
 \Nexus\Nexus::js('js/ptgen.js', 'footer', true);

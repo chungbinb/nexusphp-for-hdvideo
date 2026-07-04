@@ -6292,3 +6292,276 @@ body.page-subtitles .m-main > p[align="center"] {
     font-size: 13px;
     font-weight: 800;
 }
+
+/* 发布种子 */
+body.page-upload .m-main,
+body.page-upload .m-main * {
+    box-sizing: border-box;
+}
+body.page-upload .m-main {
+    padding: 12px;
+    overflow-x: hidden;
+}
+body.page-upload .upload-page,
+body.page-upload .upload-form,
+body.page-upload .upload-table,
+body.page-upload .nexus-bbcode-table,
+body.page-upload .nexus-bbcode-editor,
+body.page-upload .sceditor-container {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+body.page-upload .upload-form {
+    display: block;
+}
+body.page-upload .upload-form > p[align="center"] {
+    margin: 0 0 12px !important;
+    padding: 10px 12px;
+    border: 1px solid rgba(20,40,90,.14);
+    border-radius: 12px;
+    background: rgba(255,255,255,.38);
+    color: var(--mh-text);
+    font-size: 13px;
+    font-weight: 850;
+    line-height: 1.5;
+    text-align: center !important;
+}
+body.page-upload .upload-table {
+    display: block;
+    border: 0 !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    background: transparent !important;
+}
+body.page-upload .upload-table > tbody {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    width: 100%;
+}
+body.page-upload .upload-table > tbody > tr {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    border: 1px solid rgba(20,40,90,.16) !important;
+    border-radius: 12px;
+    background: rgba(255,255,255,.44) !important;
+    box-shadow: 0 8px 20px rgba(35,70,120,.08), 0 1px 0 rgba(255,255,255,.55) inset;
+}
+body.page-upload .upload-table > tbody > tr[style*="display: none"] {
+    display: none !important;
+}
+body.page-upload .upload-table > tbody > tr > td {
+    display: block;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    color: var(--mh-text);
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.55;
+    text-align: left !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+}
+body.page-upload .upload-table > tbody > tr > td.colhead {
+    text-align: center !important;
+    color: var(--mh-text) !important;
+    font-size: 13px;
+    font-weight: 850;
+}
+body.page-upload .upload-table > tbody > tr > td.rowhead {
+    margin: 0 0 8px;
+    color: #6f7f99 !important;
+    font-size: 13px;
+    font-weight: 900;
+    line-height: 1.35;
+}
+body.page-upload .upload-table > tbody > tr > td.rowfollow,
+body.page-upload .upload-table > tbody > tr > td.toolbox {
+    color: var(--mh-text);
+}
+body.page-upload .upload-table input[type="text"],
+body.page-upload .upload-table input[type="number"],
+body.page-upload .upload-table input[type="url"],
+body.page-upload .upload-table input:not([type]),
+body.page-upload .upload-table select,
+body.page-upload .upload-table textarea {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    min-height: 38px;
+    margin: 4px 0 !important;
+    padding: 8px 10px !important;
+    border: 1px solid rgba(20,40,90,.12) !important;
+    border-radius: 10px;
+    background: rgba(255,255,255,.56) !important;
+    color: var(--mh-text) !important;
+    font-size: 14px !important;
+}
+body.page-upload .upload-table input[type="file"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 40px;
+    margin: 4px 0 !important;
+    padding: 8px 10px !important;
+    border: 1px solid rgba(20,40,90,.12) !important;
+    border-radius: 10px;
+    background: rgba(255,255,255,.56) !important;
+    color: var(--mh-text) !important;
+    font-size: 13px !important;
+}
+body.page-upload .upload-table textarea {
+    min-height: 160px;
+}
+body.page-upload .upload-table input[type="checkbox"],
+body.page-upload .upload-table input[type="radio"] {
+    width: 18px !important;
+    height: 18px !important;
+    min-height: 0 !important;
+    margin: 0 6px 0 0 !important;
+    padding: 0 !important;
+    vertical-align: -4px;
+}
+body.page-upload .upload-table label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    max-width: 100%;
+    margin: 4px 10px 4px 0;
+    color: var(--mh-text);
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.35;
+    vertical-align: middle;
+}
+body.page-upload .upload-table font.medium,
+body.page-upload .upload-table .medium {
+    display: block;
+    margin-top: 5px;
+    color: #6f7f99 !important;
+    font-size: 12px !important;
+    font-weight: 700;
+    line-height: 1.45;
+}
+body.page-upload .upload-table b {
+    font-weight: 900;
+}
+body.page-upload .upload-table .btn,
+body.page-upload .upload-table input[type="submit"],
+body.page-upload .upload-table input[type="button"] {
+    min-width: 96px;
+    min-height: 40px;
+    margin: 5px 6px 5px 0 !important;
+    border: 0 !important;
+    border-radius: 10px;
+    background: var(--mh-primary) !important;
+    color: #fff !important;
+    font-size: 14px !important;
+    font-weight: 900;
+}
+body.page-upload .upload-table .btn-parse-desc {
+    width: 100% !important;
+}
+body.page-upload .upload-table > tbody > tr > td.toolbox {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    text-align: center !important;
+}
+body.page-upload .upload-table > tbody > tr > td.toolbox b {
+    display: block;
+    color: #6f7f99;
+    font-size: 12px;
+    line-height: 1.45;
+}
+body.page-upload .upload-table > tbody > tr > td.toolbox #qr {
+    width: 100% !important;
+    margin: 0 !important;
+}
+body.page-upload .nexus-bbcode-table,
+body.page-upload .nexus-bbcode-table > tbody,
+body.page-upload .nexus-bbcode-table > tbody > tr,
+body.page-upload .nexus-bbcode-table > tbody > tr > td {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+}
+body.page-upload .nexus-bbcode-editor {
+    border-radius: 12px;
+    overflow: hidden;
+}
+body.page-upload .nexus-bbcode-toolbar,
+body.page-upload .nexus-bbcode-smilies {
+    display: none !important;
+}
+body.page-upload .nexus-bbcode-body {
+    display: block !important;
+}
+body.page-upload .nexus-bbcode-textarea {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    min-height: 220px !important;
+    border-radius: 0 !important;
+}
+body.page-upload .sceditor-container {
+    display: block !important;
+    min-width: 0 !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+}
+body.page-upload .sceditor-toolbar {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: flex-start;
+    gap: 1px;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 4px !important;
+    overflow-x: hidden !important;
+    white-space: normal !important;
+}
+body.page-upload .sceditor-group {
+    display: contents !important;
+}
+body.page-upload .sceditor-button {
+    flex: 0 0 auto;
+    width: 32px !important;
+    height: 32px !important;
+    margin: 0 !important;
+    border-radius: 6px !important;
+}
+body.page-upload .sceditor-button div {
+    margin: 7px auto !important;
+}
+body.page-upload .sceditor-container iframe,
+body.page-upload .sceditor-container textarea {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+}
+body.page-upload .sceditor-container iframe {
+    min-height: 240px !important;
+}
+body.page-upload .torrent-field-checkboxes,
+body.page-upload .torrent-tags,
+body.page-upload .tag-checkboxes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+}
+body.page-upload .m-main .select2-container,
+body.page-upload .m-main .select2,
+body.page-upload .m-main .select2-selection {
+    width: 100% !important;
+    max-width: 100% !important;
+}
