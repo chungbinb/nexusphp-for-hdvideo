@@ -1576,3 +1576,235 @@ body.page-reports input.reports-danger {
     background: #ef4444 !important;
     color: #fff !important;
 }
+
+/* 作弊者信箱 */
+body.page-cheaterbox .m-main,
+body.page-cheaterbox .m-main * {
+    box-sizing: border-box;
+}
+body.page-cheaterbox .m-main {
+    padding: 12px;
+}
+body.page-cheaterbox .m-main h1 {
+    margin: 4px 0 12px;
+    color: var(--mh-text);
+    font-size: 18px;
+    line-height: 1.25;
+}
+body.page-cheaterbox .m-main h1 .striking {
+    font-size: .8em;
+}
+body.page-cheaterbox .cheaterbox-form,
+body.page-cheaterbox .cheaterbox-list {
+    width: 100%;
+    max-width: 100%;
+}
+body.page-cheaterbox .cheaterbox-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+body.page-cheaterbox .cheaterbox-card {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr);
+    gap: 9px;
+    width: 100%;
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid rgba(20,40,90,.08);
+    border-radius: 12px;
+    background: var(--mh-surface);
+    box-shadow: 0 1px 0 rgba(255,255,255,.35) inset;
+}
+body.page-cheaterbox .cheaterbox-card.is-open {
+    border-color: rgba(239,68,68,.18);
+}
+body.page-cheaterbox .cheaterbox-select {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 2px;
+}
+body.page-cheaterbox .cheaterbox-select input {
+    width: 18px !important;
+    height: 18px !important;
+    margin: 0 !important;
+}
+body.page-cheaterbox .cheaterbox-select span {
+    display: none;
+}
+body.page-cheaterbox .cheaterbox-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+    max-width: 100%;
+}
+body.page-cheaterbox .cheaterbox-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+}
+body.page-cheaterbox .cheaterbox-suspect {
+    min-width: 0;
+    font-size: 15px;
+    font-weight: 900;
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+body.page-cheaterbox .cheaterbox-hit {
+    flex: 0 0 auto;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--mh-primary) 14%, transparent);
+    color: var(--mh-primary);
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.25;
+}
+body.page-cheaterbox .cheaterbox-time,
+body.page-cheaterbox .cheaterbox-status {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+body.page-cheaterbox .cheaterbox-time span,
+body.page-cheaterbox .cheaterbox-torrent span,
+body.page-cheaterbox .cheaterbox-stats span,
+body.page-cheaterbox .cheaterbox-comment span,
+body.page-cheaterbox .cheaterbox-status-label {
+    color: #7d8aa3;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.35;
+    white-space: nowrap;
+}
+body.page-cheaterbox .cheaterbox-time b {
+    min-width: 0;
+    color: #6b7892;
+    font-size: 12px;
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+body.page-cheaterbox .cheaterbox-torrent {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: 8px;
+    min-width: 0;
+    padding: 8px 9px;
+    border-radius: 10px;
+    background: rgba(255,255,255,.35);
+    border: 1px solid rgba(20,40,90,.06);
+}
+body.page-cheaterbox .cheaterbox-torrent p,
+body.page-cheaterbox .cheaterbox-comment p {
+    min-width: 0;
+    margin: 0;
+    color: var(--mh-text);
+    font-size: 13px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+body.page-cheaterbox .cheaterbox-torrent a {
+    color: #0b74d1 !important;
+    font-weight: 800;
+    text-decoration: none !important;
+}
+body.page-cheaterbox .cheaterbox-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    min-width: 0;
+}
+body.page-cheaterbox .cheaterbox-stats div {
+    min-width: 0;
+    padding: 8px 9px;
+    border-radius: 10px;
+    background: rgba(255,255,255,.32);
+    border: 1px solid rgba(20,40,90,.06);
+}
+body.page-cheaterbox .cheaterbox-stats b {
+    display: block;
+    min-width: 0;
+    margin-top: 3px;
+    color: var(--mh-text);
+    font-size: 13px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+body.page-cheaterbox .cheaterbox-comment {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: 8px;
+    min-width: 0;
+    padding: 8px 9px;
+    border-radius: 10px;
+    background: rgba(255,255,255,.35);
+    border: 1px solid rgba(20,40,90,.06);
+}
+body.page-cheaterbox .cheaterbox-status {
+    min-height: 30px;
+    padding: 5px 9px;
+    border-radius: 10px;
+    background: rgba(255,255,255,.45);
+    border: 1px solid rgba(20,40,90,.08);
+}
+body.page-cheaterbox .cheaterbox-status-value {
+    min-width: 0;
+    color: #5f6f87;
+    font-size: 13px;
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap !important;
+}
+body.page-cheaterbox .cheaterbox-card.is-dealt .cheaterbox-status-value b {
+    color: #16a34a;
+}
+body.page-cheaterbox .cheaterbox-card.is-open .cheaterbox-status-value b {
+    color: #dc2626;
+}
+body.page-cheaterbox .cheaterbox-user-color {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: bottom;
+    font-weight: 900;
+}
+body.page-cheaterbox .cheaterbox-card img {
+    display: none !important;
+}
+body.page-cheaterbox .cheaterbox-card * {
+    max-width: 100%;
+}
+body.page-cheaterbox .cheaterbox-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin: 12px 0 6px;
+    padding: 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(20,40,90,.08);
+    background: var(--mh-surface);
+}
+body.page-cheaterbox .cheaterbox-actions input {
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 8px !important;
+    font-size: 13px !important;
+}
+body.page-cheaterbox .cheaterbox-danger,
+body.page-cheaterbox input.cheaterbox-danger {
+    background: #ef4444 !important;
+    color: #fff !important;
+}
