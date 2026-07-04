@@ -7,66 +7,62 @@ stderr("Sorry", "Access denied.");
 stdhead("Mass PM", false);
 $classes = array_chunk(\App\Models\User::$classes, 4, true);
 ?>
-<table class=main width=737 border=0 cellspacing=0 cellpadding=0><tr><td class=embedded>
-<div align=center>
-<h1>Mass PM to all Staff members and users:</a></h1>
-<form method=post action=takestaffmess.php>
+<table class="main staffmess-shell" width=737 border=0 cellspacing=0 cellpadding=0><tr><td class=embedded>
+<div align=center class="staffmess-wrap">
+<h1>Mass PM to all Staff members and users:</h1>
+<form method=post action=takestaffmess.php class="staffmess-form">
 <?php
 
-if ($_GET["returnto"] || $_SERVER["HTTP_REFERER"])
+if (isset($_GET["returnto"]) || !empty($_SERVER["HTTP_REFERER"]))
 {
+$returnTo = isset($_GET["returnto"]) && $_GET["returnto"] !== '' ? $_GET["returnto"] : ($_SERVER["HTTP_REFERER"] ?? '');
 ?>
-<input type=hidden name=returnto value="<?php echo htmlspecialchars($_GET["returnto"]) ? htmlspecialchars($_GET["returnto"]) : htmlspecialchars($_SERVER["HTTP_REFERER"])?>">
+<input type=hidden name=returnto value="<?php echo htmlspecialchars($returnTo) ?>">
 <?php
 }
 ?>
-<table cellspacing=0 cellpadding=5>
+<table cellspacing=0 cellpadding=5 class="staffmess-table">
 <?php
-if ($_GET["sent"] == 1) {
+if (isset($_GET["sent"]) && $_GET["sent"] == 1) {
 ?>
-<tr><td colspan=2><font color=red><b>The message has ben sent.</b></font></td></tr>
+<tr><td colspan=2 class="staffmess-alert"><font color=red><b>The message has ben sent.</b></font></td></tr>
 <?php
 }
 ?>
 <tr>
-    <td><b>Send to class:</b></td>
-    <td>
-        <table style="border: 0" width="100%" cellpadding="0" cellspacing="0">
+    <td class="rowhead" valign="top"><b>Send to class:</b></td>
+    <td class="rowfollow">
+        <div class="staffmess-class-grid">
             <?php
             foreach ($classes as $chunk) {
-                printf('<tr>');
                 foreach ($chunk as $class => $info) {
-                    printf('<td style="border: 0"><label><input type="checkbox" name="classes[]" value="%s" />%s</label></td>', $class, $info['text']);
+                    printf('<label class="staffmess-choice"><input type="checkbox" name="classes[]" value="%s" /><span>%s</span></label>', $class, $info['text']);
                 }
-                printf('</tr>');
             }
             ?>
-        </table>
+        </div>
     </td>
 </tr>
 <?php do_action('form_role_filter', 'Send to Role:') ?>
 <tr>
     <td class="rowhead">Subject</td>
-    <td> <input type=text name=subject size=75></td>
+    <td class="rowfollow"><input type=text name=subject size=75></td>
 </tr>
 <tr>
     <td class="rowhead">Message</td>
-    <td><textarea name=msg cols=80 rows=15><?php echo $body?></textarea></td>
+    <td class="rowfollow"><textarea name=msg cols=80 rows=15><?php echo $body ?? ''?></textarea></td>
 </tr>
 <tr>
-<td colspan=2><div align="center"><b>Sender:&nbsp;&nbsp;</b>
-<?php echo $CURUSER['username']?>
-<input name="sender" type="radio" value="self" checked>
-&nbsp; System
-<input name="sender" type="radio" value="system">
+<td colspan=2 class="rowfollow staffmess-sender"><div align="center" class="staffmess-sender-box"><b>Sender:</b>
+<label><input name="sender" type="radio" value="self" checked><?php echo $CURUSER['username']?></label>
+<label><input name="sender" type="radio" value="system">System</label>
 </div></td></tr>
-<tr><td colspan=2 align=center><input type=submit value="Send!" class=btn></td></tr>
+<tr><td colspan=2 align=center class="rowfollow staffmess-submit"><input type=submit value="Send!" class=btn></td></tr>
 </table>
-<input type=hidden name=receiver value=<?php echo $receiver?>>
+<input type=hidden name=receiver value=<?php echo $receiver ?? ''?>>
 </form>
 
  </div></td></tr></table>
-<br />
-NOTE: Do not user BB codes. (NO HTML)
+<p class="staffmess-note">NOTE: Do not user BB codes. (NO HTML)</p>
 <?php
 stdfoot();

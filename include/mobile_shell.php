@@ -671,7 +671,7 @@ function mobile_std_head(string $title = '', string $active = '', string $pageCl
         if ($active === '') { $active = mobile_std_active(); }
         if ($pageClass === '') { $pageClass = 'page-' . preg_replace('/[^a-z0-9]+/', '-', $s ?: 'std'); }
         mobile_shell_page_head(trim(strip_tags($title)), $active, 'page-std ' . $pageClass);
-        echo '<link rel="stylesheet" type="text/css" href="/styles/mobile-content.css?v=20260704p">';
+        echo '<link rel="stylesheet" type="text/css" href="/styles/mobile-content.css?v=20260704q">';
         do_action('nexus_header');
         if (class_exists('\\Nexus\\Nexus')) {
             foreach (\Nexus\Nexus::getAppendHeaders() as $value) {
