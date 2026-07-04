@@ -2333,3 +2333,256 @@ body.page-bans .bans-form-table input[type="submit"] {
     min-width: 0 !important;
     margin: 0 !important;
 }
+
+/* 最大登录失败次数 */
+body.page-maxlogin .m-main,
+body.page-maxlogin .m-main * {
+    box-sizing: border-box;
+}
+body.page-maxlogin .m-main {
+    padding: 12px;
+}
+body.page-maxlogin .m-main h1,
+body.page-maxlogin .m-main h2 {
+    margin: 4px 0 12px;
+    color: var(--mh-text);
+    font-size: 18px;
+    line-height: 1.25;
+    text-align: center;
+}
+body.page-maxlogin .m-main h3 {
+    margin: 0 0 10px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(34,197,94,.12);
+    color: #16a34a;
+    font-size: 14px;
+    line-height: 1.35;
+    text-align: center;
+}
+body.page-maxlogin .maxlogin-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    max-width: 100%;
+}
+body.page-maxlogin .maxlogin-card,
+body.page-maxlogin .maxlogin-empty,
+body.page-maxlogin .maxlogin-search-form,
+body.page-maxlogin .maxlogin-edit-table {
+    width: 100%;
+    max-width: 100%;
+    border: 1px solid rgba(20,40,90,.08);
+    border-radius: 12px;
+    background: var(--mh-surface);
+    box-shadow: 0 1px 0 rgba(255,255,255,.35) inset;
+}
+body.page-maxlogin .maxlogin-card {
+    min-width: 0;
+    padding: 12px;
+}
+body.page-maxlogin .maxlogin-card.is-banned {
+    border-color: rgba(239,68,68,.2);
+}
+body.page-maxlogin .maxlogin-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 9px;
+}
+body.page-maxlogin .maxlogin-card-head span,
+body.page-maxlogin .maxlogin-ip span,
+body.page-maxlogin .maxlogin-meta span {
+    color: #6f7f99;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1.35;
+}
+body.page-maxlogin .maxlogin-card-head b {
+    flex: 0 0 auto;
+    min-height: 26px;
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: rgba(34,197,94,.14);
+    color: #16a34a;
+    font-size: 12px;
+    line-height: 1.35;
+}
+body.page-maxlogin .maxlogin-card.is-banned .maxlogin-card-head b {
+    background: rgba(239,68,68,.14);
+    color: #dc2626;
+}
+body.page-maxlogin .maxlogin-ip {
+    display: grid;
+    grid-template-columns: 76px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 9px 10px;
+    border-radius: 10px;
+    background: rgba(255,255,255,.35);
+    border: 1px solid rgba(20,40,90,.06);
+}
+body.page-maxlogin .maxlogin-ip b {
+    min-width: 0;
+    color: var(--mh-text);
+    font-size: 14px;
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+body.page-maxlogin .maxlogin-ip em {
+    grid-column: 2;
+    min-width: 0;
+    margin-top: -3px;
+    color: var(--mh-text);
+    font-size: 13px;
+    font-style: normal;
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+body.page-maxlogin .maxlogin-user-color {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: bottom;
+    font-weight: 900;
+}
+body.page-maxlogin .maxlogin-ip img {
+    display: none !important;
+}
+body.page-maxlogin .maxlogin-meta {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 7px;
+    margin-top: 9px;
+}
+body.page-maxlogin .maxlogin-meta div {
+    display: grid;
+    grid-template-columns: 86px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+body.page-maxlogin .maxlogin-meta b {
+    min-width: 0;
+    color: var(--mh-text);
+    font-size: 13px;
+    line-height: 1.35;
+    overflow: hidden;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+body.page-maxlogin .maxlogin-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+}
+body.page-maxlogin .maxlogin-actions a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+    padding: 0 8px;
+    border-radius: 9px;
+    background: var(--mh-primary);
+    color: #fff !important;
+    font-size: 13px;
+    font-weight: 900;
+    text-decoration: none !important;
+}
+body.page-maxlogin .maxlogin-actions a.maxlogin-action-good {
+    background: #16a34a;
+}
+body.page-maxlogin .maxlogin-actions a.maxlogin-action-warn,
+body.page-maxlogin .maxlogin-actions a.maxlogin-danger {
+    background: #ef4444;
+}
+body.page-maxlogin .maxlogin-empty {
+    padding: 16px;
+    color: var(--mh-text);
+    text-align: center;
+}
+body.page-maxlogin .maxlogin-search-form {
+    margin-top: 12px;
+    padding: 12px;
+}
+body.page-maxlogin .maxlogin-search-box {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    color: #6f7f99 !important;
+    font-size: 13px;
+    font-weight: 900;
+    line-height: 1.35;
+}
+body.page-maxlogin .maxlogin-search-form input[type="text"],
+body.page-maxlogin .maxlogin-edit-table input[type="text"],
+body.page-maxlogin .maxlogin-edit-table select {
+    display: block;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    min-height: 38px;
+    padding: 8px 10px !important;
+    border: 1px solid rgba(20,40,90,.12) !important;
+    border-radius: 10px;
+    background: rgba(255,255,255,.36) !important;
+    color: var(--mh-text) !important;
+    font-size: 14px !important;
+    line-height: 1.4;
+}
+body.page-maxlogin .maxlogin-search-form input[type="submit"],
+body.page-maxlogin .maxlogin-edit-table input[type="submit"] {
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+}
+body.page-maxlogin .maxlogin-edit-table {
+    padding: 12px;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+}
+body.page-maxlogin .maxlogin-edit-table,
+body.page-maxlogin .maxlogin-edit-table tbody,
+body.page-maxlogin .maxlogin-edit-table tr,
+body.page-maxlogin .maxlogin-edit-table td {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+body.page-maxlogin .maxlogin-edit-table tr {
+    margin: 0 0 12px;
+}
+body.page-maxlogin .maxlogin-edit-table tr:last-child {
+    margin-bottom: 0;
+}
+body.page-maxlogin .maxlogin-edit-table td {
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    color: var(--mh-text);
+    font-size: 13px;
+    line-height: 1.45;
+}
+body.page-maxlogin .maxlogin-edit-table p {
+    margin: 0 0 6px;
+    overflow-wrap: anywhere;
+}
+body.page-maxlogin .maxlogin-edit-table input,
+body.page-maxlogin .maxlogin-edit-table select {
+    margin-top: 6px;
+}
