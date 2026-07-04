@@ -9,6 +9,7 @@ if (get_user_class() < UC_SYSOP) {
 $config = nexus_config('nexus.mysql');
 mysql_connect($config['host'],$config['username'],$config['password'], $config['database'], $config['port']);
 stdhead("Manage Locations");
+$isMobileLocation = function_exists('mobile_is') && mobile_is();
 begin_main_frame("",false,100);
 begin_frame("Manage Locations",true,10,"100%","center");
 
@@ -83,8 +84,8 @@ if($editid > 0) {
 	$theory_downspeed = $row['theory_downspeed'];
 	$practical_downspeed = $row['practical_downspeed'];
 
-	echo("<form name='form1' method='get' action='" . $_SERVER['REQUEST_URI'] . "'>");
-	echo("<input type='hidden' name='id' value='$editid'><table class=main cellspacing=0 cellpadding=5 width=50%>");
+	echo("<form name='form1' method='get' action='" . $_SERVER['REQUEST_URI'] . "' class='location-form'>");
+	echo("<input type='hidden' name='id' value='$editid'><table class='main location-form-table location-edit-table' cellspacing=0 cellpadding=5 width=50%>");
 	echo("<tr><td class=colhead align=center colspan=2>Editing Locations</td><input type='hidden' name='edited' value='1'></tr>");
 	echo("<tr><td class=rowhead>Name:</td><td class=rowfollow align=left><input type='text' size=10 name='name' value='$name'></td></tr>");
 	echo("<tr><td class=rowhead><nobr>Main Location:</nobr></td><td class=rowfollow align=left><input type='text' size=50 name='location_main' value='$location_main'></td></tr>");
@@ -137,8 +138,8 @@ if($add == 'true') {
 
 }
 
-echo("<form name='form1' method='get' action='" . $_SERVER['REQUEST_URI'] . "'>");
-echo("<table class=main cellspacing=0 cellpadding=5 width=48% align= left>");
+echo("<form name='form1' method='get' action='" . $_SERVER['REQUEST_URI'] . "' class='location-form location-add-form'>");
+echo("<table class='main location-form-table' cellspacing=0 cellpadding=5 width=48% align= left>");
 echo("<tr><td class=colhead align=center colspan=2>Add New Locations</td></tr>");
 echo("<tr><td class=rowhead>Name:</td><td class=rowfollow align=left><input type='text' size=10 name='name'></td></tr>");
 echo("<tr><td class=rowhead><nobr>Main Location:</nobr></td><td class=rowfollow align=left><input type='text' size=50 name='location_main'></td></tr>");
@@ -157,8 +158,8 @@ echo("</form>");
 $range_start_ip = $_GET['range_start_ip'] ?? '';
 $range_end_ip = $_GET['range_end_ip'] ?? '';
 
-echo("<form name='form2' method='get' action='" . $_SERVER['REQUEST_URI'] . "'>");
-echo("<table class=main cellspacing=0 cellpadding=5 width=48% align=right>");
+echo("<form name='form2' method='get' action='" . $_SERVER['REQUEST_URI'] . "' class='location-form location-check-form'>");
+echo("<table class='main location-form-table location-check-table' cellspacing=0 cellpadding=5 width=48% align=right>");
 echo("<tr><td class=colhead align=center colspan=2>Check IP Range</td></tr>");
 echo("<tr><td class=rowhead><nobr>Start IP:</nobr></td><td class=rowfollow align=left><input type='text' size=30 name='range_start_ip' value='" . $range_start_ip . "'></td></tr>");
 echo("<tr><td class=rowhead><nobr>End IP:</nobr></td><td class=rowfollow align=left><input type='text' size=30 name='range_end_ip' value='" . $range_end_ip . "'><input type='hidden' name='check_range' value='true'></td></tr>");
@@ -167,7 +168,9 @@ echo("</table>");
 echo("</form>");
 ///////////////////// E X I S T I N G C A T E G O R I E S \\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
-print("<br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br />");
+if (!$isMobileLocation) {
+	print("<br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br /><br />");
+}
 
 
 unset($wherea);
@@ -193,8 +196,12 @@ else
 {
 	echo("<p><strong>" .  ($success == true ? "(Updated!)" : "") . "Existing Locations:</strong></p>");
 }
-echo("<table class=main cellspacing=0 cellpadding=5>");
-echo("<td class=colhead align=center><b>ID</b></td> <td class=colhead align=left><b>Name</b></td> <td class=colhead align=center><b>Pic</b></td> <td class=colhead align=center><b><nobr>Main Location</nobr></b></td> <td class=colhead align=center><b><nobr>Sub Location</nobr></b></td> <td class=colhead align=center><b>Start IP</b></td> <td class=colhead align=center><b>End IP</b></td> <td class=colhead align=center><b>T.U</b></td> <td class=colhead align=center><b>P.U</b></td>  <td class=colhead align=center><b>T.D</b></td> <td class=colhead align=center><b>P.D</b></td> <td class=colhead align=center><b>Edit</b></td><td class=colhead align=center><b>Delete</b></td>");
+if ($isMobileLocation) {
+	echo("<div class='location-list'>");
+} else {
+	echo("<table class=main cellspacing=0 cellpadding=5>");
+	echo("<td class=colhead align=center><b>ID</b></td> <td class=colhead align=left><b>Name</b></td> <td class=colhead align=center><b>Pic</b></td> <td class=colhead align=center><b><nobr>Main Location</nobr></b></td> <td class=colhead align=center><b><nobr>Sub Location</nobr></b></td> <td class=colhead align=center><b>Start IP</b></td> <td class=colhead align=center><b>End IP</b></td> <td class=colhead align=center><b>T.U</b></td> <td class=colhead align=center><b>P.U</b></td>  <td class=colhead align=center><b>T.D</b></td> <td class=colhead align=center><b>P.D</b></td> <td class=colhead align=center><b>Edit</b></td><td class=colhead align=center><b>Delete</b></td>");
+}
 
 $res = sql_query("SELECT COUNT(*) FROM locations ".$wherea);
 $row = mysql_fetch_array($res);
@@ -222,22 +229,33 @@ while ($row = mysql_fetch_array($sql)) {
 	if($count_location_sub > $maxlen_sub_location)
 		$location_sub=substr($location_sub, 0, $maxlen_sub_location) . "..";
 
-	echo("<tr><td class=rowfollow align=center><strong>$id</strong></td>" .
-	"<td class=rowfollow align=left><strong>$name</strong></td>" .
-	"<td class=rowfollow align=center>" . ($flagpic != "" ? "<img src='" . get_protocol_prefix() . "$BASEURL/pic/location/$flagpic' border='0' />" : "-") . "</td>" .
-	"<td class=rowfollow align=left>$location_main</td>" .
-	"<td class=rowfollow align=left>$location_sub</td>" .
-	"<td class=rowfollow align=left>" . $start_ip . "</td>" .
-	"<td class=rowfollow align=left>" . $end_ip . "</td>" .
-	"<td class=rowfollow align=left>$theory_upspeed</td>" .
-	"<td class=rowfollow align=left>$practical_upspeed</td>" .
-	"<td class=rowfollow align=left>$theory_downspeed</td>" .
-	"<td class=rowfollow align=left>$practical_downspeed</td>" .
-	"<td class=rowfollow align=center><a href='" . $_SERVER['REQUEST_URI'] . "?editid=$id'>Edit</a></td>".
-	"<td class=rowfollow align=center><a href='" . $_SERVER['REQUEST_URI'] . "?delid=$id'>Remove</a></td>" .
-	"</tr>");
+	if ($isMobileLocation) {
+		$flagHtml = $flagpic != "" ? "<img src='" . get_protocol_prefix() . "$BASEURL/pic/location/".htmlspecialchars($flagpic)."' border='0' />" : "";
+		echo("<article class='location-card'>");
+		echo("<div class='location-card-head'><div class='location-title'>".$flagHtml."<span>#".(int)$id."</span><b>".htmlspecialchars($name)."</b></div><div class='location-actions'><a href='" . $_SERVER['REQUEST_URI'] . "?editid=$id'>Edit</a><a class='location-danger' href='" . $_SERVER['REQUEST_URI'] . "?delid=$id'>Remove</a></div></div>");
+		echo("<div class='location-main'><span>Main</span><b>".htmlspecialchars($location_main)."</b></div>");
+		echo("<div class='location-main'><span>Sub</span><b>".htmlspecialchars($location_sub)."</b></div>");
+		echo("<div class='location-ip-range'><b>".htmlspecialchars($start_ip)."</b><span>to</span><b>".htmlspecialchars($end_ip)."</b></div>");
+		echo("<div class='location-speed-grid'><div><span>T.U</span><b>".htmlspecialchars($theory_upspeed)."</b></div><div><span>P.U</span><b>".htmlspecialchars($practical_upspeed)."</b></div><div><span>T.D</span><b>".htmlspecialchars($theory_downspeed)."</b></div><div><span>P.D</span><b>".htmlspecialchars($practical_downspeed)."</b></div></div>");
+		echo("</article>");
+	} else {
+		echo("<tr><td class=rowfollow align=center><strong>$id</strong></td>" .
+		"<td class=rowfollow align=left><strong>$name</strong></td>" .
+		"<td class=rowfollow align=center>" . ($flagpic != "" ? "<img src='" . get_protocol_prefix() . "$BASEURL/pic/location/$flagpic' border='0' />" : "-") . "</td>" .
+		"<td class=rowfollow align=left>$location_main</td>" .
+		"<td class=rowfollow align=left>$location_sub</td>" .
+		"<td class=rowfollow align=left>" . $start_ip . "</td>" .
+		"<td class=rowfollow align=left>" . $end_ip . "</td>" .
+		"<td class=rowfollow align=left>$theory_upspeed</td>" .
+		"<td class=rowfollow align=left>$practical_upspeed</td>" .
+		"<td class=rowfollow align=left>$theory_downspeed</td>" .
+		"<td class=rowfollow align=left>$practical_downspeed</td>" .
+		"<td class=rowfollow align=center><a href='" . $_SERVER['REQUEST_URI'] . "?editid=$id'>Edit</a></td>".
+		"<td class=rowfollow align=center><a href='" . $_SERVER['REQUEST_URI'] . "?delid=$id'>Remove</a></td>" .
+		"</tr>");
+	}
 }
-print("</table>");
+print($isMobileLocation ? "</div>" : "</table>");
 echo $pagerbottom;
 
 end_frame();
