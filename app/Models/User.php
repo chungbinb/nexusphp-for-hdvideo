@@ -573,6 +573,8 @@ class User extends Authenticatable implements FilamentUser, HasName
         if ($value) {
             if (substr($value, 0, 4) == 'http') {
                 return $value;
+            } elseif (str_starts_with($value, '/bitbucket/') || str_starts_with($value, '/pic/')) {
+                return $value;
             } else {
                 do_log("user: {$this->id} avatar: $value is not valid url.");
             }

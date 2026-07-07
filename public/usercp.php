@@ -60,26 +60,23 @@ function usercp_avatar_error(string $message): void {
 	bark($message);
 }
 function usercp_default_avatar_url(): string {
-	global $BASEURL;
-	return get_protocol_prefix() . $BASEURL . "/pic/default_avatar.png";
+	return "/pic/default_avatar.png";
 }
 function usercp_owned_avatar_url(string $url): bool {
-	global $CURUSER, $BASEURL;
+	global $CURUSER;
 	$url = trim($url);
 	if ($url === '') {
 		return false;
 	}
-	$currentHost = parse_url(get_protocol_prefix() . $BASEURL, PHP_URL_HOST);
-	$avatarHost = parse_url($url, PHP_URL_HOST);
-	$avatarPath = parse_url($url, PHP_URL_PATH);
-	if (!$avatarPath || $avatarHost !== $currentHost || !preg_match('#^/bitbucket/([^/?#]+)$#', $avatarPath, $matches)) {
+	$avatarPath = str_starts_with($url, '/') ? $url : parse_url($url, PHP_URL_PATH);
+	if (!$avatarPath || !preg_match('#^/bitbucket/([^/?#]+)$#', $avatarPath, $matches)) {
 		return false;
 	}
 	$filename = rawurldecode($matches[1]);
 	return get_row_count('bitbucket', 'WHERE owner = ' . sqlesc((int)$CURUSER['id']) . ' AND name = ' . sqlesc($filename)) > 0;
 }
 function usercp_save_avatar_upload(array $file): string {
-	global $CURUSER, $BASEURL, $bitbucket, $enablebitbucket_main;
+	global $CURUSER, $bitbucket, $enablebitbucket_main;
 	if ($file['error'] === UPLOAD_ERR_NO_FILE) {
 		return '';
 	}
@@ -123,7 +120,14 @@ function usercp_save_avatar_upload(array $file): string {
 	}
 	imagecopyresampled($thumb, $source, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
 	$filename = sprintf('avatar_%d_%s_%s.%s', (int)$CURUSER['id'], date('YmdHis'), random_str(8), $extension);
-	$targetFile = getFullDirectory("$bitbucket/$filename");
+	$avatarDir = ROOT_PATH . 'public/' . trim($bitbucket, '/');
+	if (!is_dir($avatarDir) && !mkdir($avatarDir, 0775, true) && !is_dir($avatarDir)) {
+		usercp_avatar_error(usercp_lang('std_avatar_upload_failed', 'Avatar upload failed.'));
+	}
+	if (!is_writable($avatarDir)) {
+		usercp_avatar_error(usercp_lang('std_avatar_upload_failed', 'Avatar upload failed.'));
+	}
+	$targetFile = $avatarDir . '/' . $filename;
 	if ($type == 1) {
 		$saved = imagegif($thumb, $targetFile);
 	} elseif ($type == 2) {
@@ -137,7 +141,7 @@ function usercp_save_avatar_upload(array $file): string {
 		usercp_avatar_error(usercp_lang('std_avatar_upload_failed', 'Avatar upload failed.'));
 	}
 	sql_query("INSERT INTO bitbucket (owner, name, added, public) VALUES (" . (int)$CURUSER['id'] . ", " . sqlesc($filename) . ", " . sqlesc(date("Y-m-d H:i:s")) . ", '0')") or sqlerr(__FILE__, __LINE__);
-	return str_replace(" ", "%20", htmlspecialchars(get_protocol_prefix() . "$BASEURL/bitbucket/$filename"));
+	return '/bitbucket/' . rawurlencode($filename);
 }
 function usercpmenu ($selected = "home") {
 	global $lang_usercp;
