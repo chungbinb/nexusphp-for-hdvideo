@@ -61,7 +61,7 @@ body.page-usercp.m-shell input[type="email"],
 body.page-usercp.m-shell select,
 body.page-usercp.m-shell textarea {
     width: 100% !important; max-width: 100% !important; box-sizing: border-box; font-size: 16px; padding: 10px 11px;
-    border: 1px solid rgba(20,40,90,.18); border-radius: 8px; background: #fff;
+    border: 1px solid rgba(20,40,90,.18); border-radius: 8px; background: var(--mh-surface, var(--bili-surface, #fff)); color: var(--mh-text, var(--bili-text, #18191c));
 }
 body.page-usercp.m-shell textarea { min-height: 120px; }
 body.page-usercp.m-shell input[type="checkbox"],
@@ -69,6 +69,87 @@ body.page-usercp.m-shell input[type="radio"] { width: 18px; height: 18px; vertic
 body.page-usercp.m-shell .password, body.page-usercp.m-shell .passagain { width: 100% !important; }
 body.page-usercp.m-shell input[type="submit"],
 body.page-usercp.m-shell input[type="button"] { min-height: 42px; padding: 0 22px; font-size: 15px; border-radius: 10px; }
+
+/* Desktop usercp: make legacy table forms follow the personalized palette too. */
+html[data-site-theme] body.page-usercp:not(.m-shell) table.main,
+html[data-site-theme] body.page-usercp:not(.m-shell) table.mainouter,
+html[data-site-theme] body.page-usercp:not(.m-shell) td.embedded,
+html[data-site-theme] body.page-usercp:not(.m-shell) td.rowhead,
+html[data-site-theme] body.page-usercp:not(.m-shell) td.rowfollow,
+html[data-site-theme] body.page-usercp:not(.m-shell) td.colhead,
+html[data-site-theme] body.page-usercp:not(.m-shell) td.toolbox {
+    background: var(--theme-panel-bg, var(--bili-surface, #fff)) !important;
+    background-image: none !important;
+    color: var(--theme-page-text, var(--bili-text, #18191c)) !important;
+    border-color: var(--theme-panel-border, var(--bili-border, #e6e9ef)) !important;
+}
+html[data-site-theme] body.page-usercp:not(.m-shell) table.main {
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    border: 1px solid var(--theme-panel-border, var(--bili-border, #e6e9ef)) !important;
+    border-radius: 10px !important;
+    overflow: hidden !important;
+    box-shadow: var(--bili-shadow-sm, 0 2px 10px rgba(24, 25, 28, .04)) !important;
+}
+html[data-site-theme] body.page-usercp:not(.m-shell) td.rowhead,
+html[data-site-theme] body.page-usercp:not(.m-shell) td.rowfollow,
+html[data-site-theme] body.page-usercp:not(.m-shell) td.toolbox {
+    border-width: 0 0 1px 0 !important;
+    border-style: solid !important;
+}
+html[data-site-theme] body.page-usercp:not(.m-shell) tr:last-child > td.rowhead,
+html[data-site-theme] body.page-usercp:not(.m-shell) tr:last-child > td.rowfollow,
+html[data-site-theme] body.page-usercp:not(.m-shell) tr:last-child > td.toolbox {
+    border-bottom: 0 !important;
+}
+html[data-site-theme] body.page-usercp:not(.m-shell) td.rowhead {
+    background: color-mix(in srgb, var(--theme-panel-bg, var(--bili-surface, #fff)) 88%, var(--bili-primary, #00aeec)) !important;
+    font-weight: 700 !important;
+}
+html[data-site-theme] body.page-usercp:not(.m-shell) input[type="text"],
+html[data-site-theme] body.page-usercp:not(.m-shell) input[type="password"],
+html[data-site-theme] body.page-usercp:not(.m-shell) input[type="number"],
+html[data-site-theme] body.page-usercp:not(.m-shell) input[type="email"],
+html[data-site-theme] body.page-usercp:not(.m-shell) input[type="url"],
+html[data-site-theme] body.page-usercp:not(.m-shell) input:not([type]),
+html[data-site-theme] body.page-usercp:not(.m-shell) select,
+html[data-site-theme] body.page-usercp:not(.m-shell) textarea {
+    background: var(--theme-panel-bg, var(--bili-surface, #fff)) !important;
+    background-image: none !important;
+    color: var(--theme-page-text, var(--bili-text, #18191c)) !important;
+    border: 1px solid var(--theme-panel-border, var(--bili-border, #e6e9ef)) !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+}
+html[data-site-theme] body.page-usercp:not(.m-shell) textarea {
+    min-height: 96px;
+}
+html[data-site-theme] body.page-usercp:not(.m-shell) input[type="text"]:focus,
+html[data-site-theme] body.page-usercp:not(.m-shell) input[type="password"]:focus,
+html[data-site-theme] body.page-usercp:not(.m-shell) input[type="number"]:focus,
+html[data-site-theme] body.page-usercp:not(.m-shell) input[type="email"]:focus,
+html[data-site-theme] body.page-usercp:not(.m-shell) input[type="url"]:focus,
+html[data-site-theme] body.page-usercp:not(.m-shell) input:not([type]):focus,
+html[data-site-theme] body.page-usercp:not(.m-shell) select:focus,
+html[data-site-theme] body.page-usercp:not(.m-shell) textarea:focus {
+    border-color: var(--bili-primary, #00aeec) !important;
+    box-shadow: var(--bili-focus, 0 0 0 2px rgba(0, 174, 236, .22)) !important;
+    outline: none !important;
+}
+html[data-site-theme] body.page-usercp:not(.m-shell) input[type="checkbox"],
+html[data-site-theme] body.page-usercp:not(.m-shell) input[type="radio"] {
+    accent-color: var(--bili-primary, #00aeec);
+}
+html[data-site-theme] body.page-usercp:not(.m-shell) .m-subnav a {
+    background: var(--theme-panel-bg, var(--bili-surface, #fff)) !important;
+    color: var(--theme-page-text, var(--bili-text, #18191c)) !important;
+    border-color: var(--theme-panel-border, var(--bili-border, #e6e9ef)) !important;
+}
+html[data-site-theme] body.page-usercp:not(.m-shell) .m-subnav a.on {
+    background: var(--bili-primary, #00aeec) !important;
+    color: #fff !important;
+    border-color: var(--bili-primary, #00aeec) !important;
+}
 
 .ucp-avatar-uploader {
     display: flex;
@@ -78,7 +159,7 @@ body.page-usercp.m-shell input[type="button"] { min-height: 42px; padding: 0 22p
     padding: 14px;
     border: 1px solid rgba(37, 99, 235, .16);
     border-radius: 8px;
-    background: linear-gradient(135deg, rgba(248, 250, 252, .96), rgba(255, 255, 255, .9));
+    background: var(--theme-panel-bg, var(--bili-surface, #fff));
     box-shadow: 0 8px 24px rgba(15, 23, 42, .06);
 }
 .ucp-avatar-preview {
@@ -86,8 +167,8 @@ body.page-usercp.m-shell input[type="button"] { min-height: 42px; padding: 0 22p
     height: 104px;
     flex: 0 0 104px;
     border-radius: 8px;
-    background: #e2e8f0;
-    border: 1px solid rgba(15, 23, 42, .1);
+    background: color-mix(in srgb, var(--theme-panel-bg, var(--bili-surface, #fff)) 82%, var(--bili-primary, #00aeec));
+    border: 1px solid var(--theme-panel-border, var(--bili-border, rgba(15, 23, 42, .1)));
     overflow: hidden;
 }
 .ucp-avatar-preview img {
@@ -122,12 +203,12 @@ body.page-usercp.m-shell input[type="button"] { min-height: 42px; padding: 0 22p
     align-items: center;
     justify-content: center;
     padding: 0 16px;
-    background: #2563eb;
+    background: var(--bili-primary, #2563eb);
     color: #fff;
 }
 .ucp-avatar-file:hover {
-    background: #1d4ed8;
-    border-color: #1d4ed8;
+    background: var(--bili-primary-hover, #1d4ed8);
+    border-color: var(--bili-primary-hover, #1d4ed8);
     box-shadow: 0 8px 18px rgba(37, 99, 235, .22);
 }
 .ucp-avatar-file input {
@@ -148,17 +229,17 @@ body.page-usercp.m-shell input[type="button"] { min-height: 42px; padding: 0 22p
 }
 .ucp-avatar-reset {
     padding: 0 14px;
-    background: #fff;
-    color: #1e293b;
+    background: var(--theme-panel-bg, var(--bili-surface, #fff));
+    color: var(--theme-page-text, var(--bili-text, #1e293b));
 }
 .ucp-avatar-reset:hover {
-    border-color: rgba(249, 115, 22, .55);
-    color: #c2410c;
-    background: #fff7ed;
+    border-color: var(--bili-accent, rgba(249, 115, 22, .55));
+    color: var(--bili-accent, #c2410c);
+    background: color-mix(in srgb, var(--bili-accent, #fb7299) 10%, var(--theme-panel-bg, var(--bili-surface, #fff)));
 }
 .ucp-avatar-note {
     margin-top: 9px;
-    color: #475569;
+    color: var(--bili-text-secondary, #475569);
     font-size: 12px;
     line-height: 1.5;
 }
@@ -168,12 +249,12 @@ body.page-usercp.m-shell input[type="button"] { min-height: 42px; padding: 0 22p
 .ucp-avatar-status {
     min-height: 18px;
     margin-top: 7px;
-    color: #475569;
+    color: var(--bili-text-secondary, #475569);
     font-size: 12px;
     line-height: 1.5;
 }
 .ucp-avatar-status.is-loading {
-    color: #1d4ed8;
+    color: var(--bili-primary, #1d4ed8);
 }
 .ucp-avatar-status.is-success {
     color: #047857;
