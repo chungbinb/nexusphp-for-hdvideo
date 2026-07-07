@@ -141,6 +141,11 @@ body.page-usercp.m-shell input[type="button"] { min-height: 42px; padding: 0 22p
     cursor: not-allowed;
     opacity: .55;
 }
+.ucp-avatar-uploader.is-uploading .ucp-avatar-file,
+.ucp-avatar-uploader.is-uploading .ucp-avatar-reset {
+    cursor: wait;
+    opacity: .7;
+}
 .ucp-avatar-reset {
     padding: 0 14px;
     background: #fff;
@@ -159,6 +164,22 @@ body.page-usercp.m-shell input[type="button"] { min-height: 42px; padding: 0 22p
 }
 .ucp-avatar-note-alert {
     color: #b45309;
+}
+.ucp-avatar-status {
+    min-height: 18px;
+    margin-top: 7px;
+    color: #475569;
+    font-size: 12px;
+    line-height: 1.5;
+}
+.ucp-avatar-status.is-loading {
+    color: #1d4ed8;
+}
+.ucp-avatar-status.is-success {
+    color: #047857;
+}
+.ucp-avatar-status.is-error {
+    color: #b91c1c;
 }
 body.page-usercp.m-shell .ucp-avatar-uploader {
     flex-direction: column;
