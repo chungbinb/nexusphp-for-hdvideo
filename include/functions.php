@@ -1991,6 +1991,9 @@ function get_ip_location($ip)
     if (!$arr) {
         $arr = get_ip_location_from_locations_table($ip);
     }
+    if (!$arr) {
+        $arr = get_ip_location_from_ipwhois($ip);
+    }
 
 	$locationName = $arr['name'] ?? '';
 	if ($locationName === '') {
@@ -2023,6 +2026,108 @@ function get_ip_location_from_locations_table($ip): bool|array
         $row['name'] = trim(implode(' ', array_filter([$row['location_main'] ?? '', $row['location_sub'] ?? ''])));
     }
     return $row;
+}
+
+function get_ip_location_from_ipwhois($ip): bool|array
+{
+    if (!filter_var($ip, FILTER_VALIDATE_IP)) {
+        return false;
+    }
+
+    $lang = get_langfolder_cookie();
+    $langMap = [
+        'chs' => 'zh-CN',
+        'cht' => 'zh-CN',
+        'en' => 'en',
+    ];
+    $locale = $langMap[$lang] ?? $lang;
+    $cacheKey = "ipwhois_location_{$locale}_{$ip}";
+    $cached = \Nexus\Database\NexusDB::cache_get($cacheKey);
+    if (is_array($cached)) {
+        return !empty($cached['success']) ? $cached['data'] : false;
+    }
+
+    $location = false;
+    try {
+        $url = 'https://ipwho.is/' . rawurlencode($ip) . '?lang=' . rawurlencode($locale);
+        $body = get_ip_location_api_response($url);
+        if ($body === '') {
+            throw new \RuntimeException("empty ipwhois response");
+        }
+        $data = json_decode($body, true);
+        if (!is_array($data) || empty($data['success'])) {
+            $message = is_array($data) ? ($data['message'] ?? nexus_json_encode($data)) : 'invalid json';
+            throw new \RuntimeException("ipwhois failed: " . $message);
+        }
+
+        $country = trim((string)($data['country'] ?? ''));
+        $city = trim((string)($data['city'] ?? ''));
+        if ($country === '' && $city === '') {
+            throw new \RuntimeException("ipwhois has no country/city for ip: $ip");
+        }
+        $version = isIPV4($ip) ? 4 : (isIPV6($ip) ? 6 : '');
+        $displayName = ($city !== '' && $city !== $country) ? ($city . "·" . $country) : ($city ?: $country);
+        if ($version !== '') {
+            $displayName .= "[v{$version}]";
+        }
+
+        $location = [
+            'name' => $displayName,
+            'location_main' => trim((string)($data['region'] ?? '')),
+            'location_sub' => trim((string)($data['connection']['isp'] ?? $data['connection']['org'] ?? '')),
+            'flagpic' => '',
+            'start_ip' => $ip,
+            'end_ip' => $ip,
+            'ip_version' => $version,
+            'country_en' => $country,
+            'city_en' => $city,
+            'continent_en' => trim((string)($data['continent'] ?? '')),
+        ];
+    } catch (\Throwable $throwable) {
+        do_log($throwable->getMessage(), 'error');
+    }
+
+    if ($location) {
+        \Nexus\Database\NexusDB::cache_put($cacheKey, ['success' => true, 'data' => $location], 86400 * 7);
+        return $location;
+    }
+    \Nexus\Database\NexusDB::cache_put($cacheKey, ['success' => false], 3600);
+    return false;
+}
+
+function get_ip_location_api_response(string $url): string
+{
+    if (function_exists('curl_init')) {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 2,
+            CURLOPT_TIMEOUT => 3,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_USERAGENT => 'HDvideo-IPLocation/1.0',
+        ]);
+        $body = curl_exec($ch);
+        $errno = curl_errno($ch);
+        $error = curl_error($ch);
+        $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if ($errno !== 0) {
+            throw new \RuntimeException("ip location api curl error: $error");
+        }
+        if ($code < 200 || $code >= 300) {
+            throw new \RuntimeException("ip location api http code: $code");
+        }
+        return (string)$body;
+    }
+
+    $context = stream_context_create([
+        'http' => [
+            'timeout' => 3,
+            'header' => "User-Agent: HDvideo-IPLocation/1.0\r\n",
+        ],
+    ]);
+    $body = @file_get_contents($url, false, $context);
+    return $body === false ? '' : (string)$body;
 }
 
 function get_ip_location_title($ip, array $location): string
