@@ -3389,12 +3389,31 @@ else {
 
 <!-- QD floating side tools: 返回旧版 / 个性化 (injected site-wide via stdhead) -->
 <?php
-$showShopSideButton = false;
-try {
-	$showShopSideButton = isset($CURUSER['id']) && \App\Models\ShopSetting::canEnter($CURUSER);
-} catch (\Throwable $e) {
-	$showShopSideButton = false;
+if (!function_exists('hdvideo_shop_can_enter_for_nav')) {
+	function hdvideo_shop_can_enter_for_nav(): bool {
+		if (!isset($GLOBALS['CURUSER']['id'])) {
+			return false;
+		}
+		$defaultMinClass = defined('UC_ADMINISTRATOR') ? UC_ADMINISTRATOR : 14;
+		$userClass = function_exists('get_user_class') ? get_user_class() : (int)($GLOBALS['CURUSER']['class'] ?? 0);
+		try {
+			$res = @sql_query("SHOW TABLES LIKE 'hdvideo_shop_settings'");
+			if (!$res || mysql_num_rows($res) === 0) {
+				return $userClass >= $defaultMinClass;
+			}
+			$settingRes = @sql_query("SELECT enabled, min_class FROM hdvideo_shop_settings WHERE id = 1 LIMIT 1");
+			$setting = $settingRes ? mysql_fetch_assoc($settingRes) : null;
+			if (!$setting) {
+				return $userClass >= $defaultMinClass;
+			}
+			return (int)$setting['enabled'] === 1 && $userClass >= (int)$setting['min_class'];
+		} catch (\Throwable $e) {
+			return $userClass >= $defaultMinClass;
+		}
+	}
 }
+$showShopSideButton = false;
+$showShopSideButton = hdvideo_shop_can_enter_for_nav();
 ?>
 <style>
 .qd-side-tools{position:fixed;right:14px;top:50%;transform:translateY(-50%);z-index:9990;display:flex;flex-direction:column;gap:0;border-radius:14px;overflow:hidden;box-shadow:var(--bili-shadow-md,0 8px 24px rgba(24,25,28,.14));}

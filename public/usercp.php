@@ -147,7 +147,9 @@ function usercpmenu ($selected = "home") {
 	global $lang_usercp;
 	$showShopOrders = false;
 	try {
-		$showShopOrders = isset($GLOBALS['CURUSER']['id']) && \App\Models\ShopSetting::canEnter($GLOBALS['CURUSER']);
+		$showShopOrders = function_exists('hdvideo_shop_can_enter_for_nav')
+			? hdvideo_shop_can_enter_for_nav()
+			: (isset($GLOBALS['CURUSER']['class']) && (int)$GLOBALS['CURUSER']['class'] >= UC_ADMINISTRATOR);
 	} catch (\Throwable $e) {
 		$showShopOrders = false;
 	}
