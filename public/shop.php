@@ -184,9 +184,10 @@ stdhead("商城");
 .shop-desc{font-size:12px;line-height:1.55;color:var(--bili-text-secondary,#61666d);min-height:38px;}
 .shop-medal-spec{display:flex;gap:6px;flex-wrap:wrap;font-size:11px;color:var(--bili-text-secondary,#61666d);}
 .shop-medal-spec span{padding:3px 7px;border-radius:999px;background:var(--bili-surface-soft,#f2f3f5);}
-.shop-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto;}
+.shop-meta{display:flex;flex-direction:column;align-items:stretch;gap:8px;margin-top:auto;}
 .shop-price{font-size:18px;font-weight:900;color:var(--bili-primary,#00aeec);}
 .shop-price span{font-size:11px;font-weight:600;color:var(--bili-text-muted,#9499a0);}
+.shop-meta form{display:flex;justify-content:flex-end;}
 .shop-buy{border:none;border-radius:8px;background:var(--bili-primary,#00aeec);color:#fff;padding:8px 13px;font-weight:800;cursor:pointer;}
 .shop-buy:hover{background:var(--bili-primary-hover,#38bff2);}
 .shop-buy:disabled{background:var(--bili-surface-soft,#f2f3f5);color:var(--bili-text-muted,#9499a0);cursor:not-allowed;}
@@ -251,7 +252,7 @@ html[data-site-theme="night"] .shop-desc,html[data-site-theme="night"] .shop-wal
 					<span>加成 <?php echo shop_h((string)(($medal->bonus_addition_factor ?? 0) * 100)) ?>%</span>
 				</div>
 				<div class="shop-meta">
-					<div class="shop-price"><?php echo number_format((float)$medal->price, 1) ?> <span>电影票</span></div>
+					<div class="shop-price">售价：<?php echo number_format((float)$medal->price, 1) ?> <span>电影票</span></div>
 					<form method="post" action="shop.php?cat=medal">
 						<input type="hidden" name="action" value="buy_medal">
 						<input type="hidden" name="medal_id" value="<?php echo (int)$medal->id ?>">
@@ -274,7 +275,7 @@ html[data-site-theme="night"] .shop-desc,html[data-site-theme="night"] .shop-wal
 				</div>
 				<div class="shop-desc"><?php echo nl2br(shop_h($product->description ?: '暂无说明')) ?></div>
 				<div class="shop-meta">
-					<div class="shop-price"><?php echo number_format((float)$product->price, 1) ?> <span>电影票</span></div>
+					<div class="shop-price">售价：<?php echo number_format((float)$product->price, 1) ?> <span>电影票</span></div>
 					<form method="post" action="shop.php?cat=<?php echo urlencode($activeCategory) ?>">
 						<input type="hidden" name="action" value="buy">
 						<input type="hidden" name="product_id" value="<?php echo (int)$product->id ?>">
