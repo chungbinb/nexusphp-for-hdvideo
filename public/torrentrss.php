@@ -4,7 +4,7 @@ $passkey = $_GET['passkey'] ?? $CURUSER['passkey'] ?? '';
 if (!$passkey) {
     die("require passkey");
 }
-$exactParams = ['inclbookmarked', 'paid', 'rows', 'icat', 'ismalldescr', 'isize', 'iuplder', 'search', 'search_mode', 'sticky', 'linktype'];
+$exactParams = ['inclbookmarked', 'incldead', 'spstate', 'requireseed', 'tag_id', 'style', 'region', 'paid', 'rows', 'icat', 'ismalldescr', 'isize', 'iuplder', 'search', 'search_mode', 'sticky', 'linktype'];
 $prefixedParams = ['cat', 'sou', 'med', 'cod', 'sta', 'pro', 'tea', 'aud'];
 foreach ($_GET as $key => $value) {
     if (in_array($key, $exactParams, true)) {
@@ -41,12 +41,13 @@ if ($passkey){
 	elseif (isset($_GET['linktype']) && $_GET['linktype'] == 'dl')
 		$dllink = true;
 	$inclbookmarked=intval($_GET['inclbookmarked'] ?? 0);
-	if($inclbookmarked == 1)
-	{
+	if (in_array($inclbookmarked, [1, 2], true)) {
 		$bookmarkarray = return_torrent_bookmark_array($user['id']);
-		if ($bookmarkarray){
+		if ($bookmarkarray) {
 			$whereidin = implode(",", $bookmarkarray);
-			$where .= ($where ? " AND " : "") . "torrents.id IN(" . $whereidin . ")";
+			$where .= ($where ? " AND " : "") . "torrents.id " . ($inclbookmarked == 1 ? "IN" : "NOT IN") . "(" . $whereidin . ")";
+		} elseif ($inclbookmarked == 1) {
+			$where .= ($where ? " AND " : "") . "torrents.id = 0";
 		}
 	}
 }
@@ -108,8 +109,20 @@ if ($onlyBrowseSection) {
     $allBrowseCategoryId = \App\Models\SearchBox::listCategoryId($browseMode);
     $where .= ($where ? " AND " : "") . sprintf("torrents.category in (%s)", implode(",", $allBrowseCategoryId));
 }
-//visible
-$where .= ($where ? " AND " : "") . "torrents.visible = 'yes'";
+//visible / require seed section
+$requireSeedMode = !empty($_GET['requireseed']);
+$incldead = intval($_GET['incldead'] ?? 1);
+if (!in_array($incldead, [0, 1, 2], true)) {
+    $incldead = 1;
+}
+if ($requireSeedMode) {
+    $where .= ($where ? " AND " : "") . "torrents.visible = 'yes'";
+    $where .= ($where ? " AND " : "") . "torrents.seeders <= 1";
+} elseif ($incldead == 1) {
+    $where .= ($where ? " AND " : "") . "torrents.visible = 'yes'";
+} elseif ($incldead == 2) {
+    $where .= ($where ? " AND " : "") . "torrents.visible = 'no'";
+}
 //check price
 if (isset($_GET['paid']) && in_array($_GET['paid'], ['0', '1', '2'], true)) {
     $paidFilter = $_GET['paid'];
@@ -120,6 +133,27 @@ if ($paidFilter === '0') {
     $where .= ($where ? " AND " : "") . "torrents.price = 0";
 } elseif ($paidFilter === '1') {
     $where .= ($where ? " AND " : "") . "torrents.price > 0";
+}
+
+$specialState = intval($_GET['spstate'] ?? 0);
+if (in_array($specialState, [1, 2, 3, 4, 5, 6, 7], true)) {
+    $where .= ($where ? " AND " : "") . get_promotion_filter_where_clause($specialState);
+}
+
+$tagFilter = "";
+$tagId = intval($_GET['tag_id'] ?? 0);
+if ($tagId > 0) {
+    $tagFilter = " INNER JOIN torrent_tags ON torrents.id = torrent_tags.torrent_id AND torrent_tags.tag_id = $tagId ";
+}
+
+$regionId = intval($_GET['region'] ?? 0);
+if ($regionId > 0) {
+    $where .= ($where ? " AND " : "") . "torrents.region = $regionId";
+}
+
+$styleId = intval($_GET['style'] ?? 0);
+if ($styleId > 0) {
+    $where .= ($where ? " AND " : "") . "EXISTS (SELECT 1 FROM torrent_style_torrent tst WHERE tst.torrent_id = torrents.id AND tst.style_id = $styleId)";
 }
 
 function get_where($tablename = "sources", $itemname = "source", $getname = "sou")
@@ -183,17 +217,20 @@ if ($where) {
         $normalWhere .= " and $stickyWhere";
     }
 }
-$sort = "id desc";
+$sort = $requireSeedMode
+    ? "CASE WHEN torrents.seeders = 0 AND torrents.leechers > 0 THEN 0 WHEN torrents.seeders = 0 THEN 1 ELSE 2 END, torrents.leechers DESC, torrents.id DESC"
+    : "id desc";
 $fieldStr = "torrents.id, torrents.category, torrents.name, torrents.small_descr, torrent_extras.descr, torrents.info_hash, torrents.size, torrents.added, torrents.anonymous, torrents.owner, categories.name AS category_name";
 if (!$noNormalResults) {
-    $query = "SELECT $fieldStr FROM torrents LEFT JOIN categories ON torrents.category = categories.id left join torrent_extras on torrent_extras.torrent_id = torrents.id $normalWhere ORDER BY $sort LIMIT $limit";
+    $query = "SELECT $fieldStr FROM torrents $tagFilter LEFT JOIN categories ON torrents.category = categories.id left join torrent_extras on torrent_extras.torrent_id = torrents.id $normalWhere ORDER BY $sort LIMIT $limit";
     $normalRows = \Nexus\Database\NexusDB::remember(sprintf("nexus_rss:normal:%s", md5($query)), 300, function () use ($query) {
         return \Nexus\Database\NexusDB::select($query);
     });
 }
 if (!empty($prependIdArr)) {
     $prependIdStr = implode(',', $prependIdArr);
-    $query = "SELECT $fieldStr FROM torrents LEFT JOIN categories ON torrents.category = categories.id left join torrent_extras on torrent_extras.torrent_id = torrents.id where torrents.id in ($prependIdStr) and $where ORDER BY field(torrents.id, $prependIdStr)";
+    $prependWhere = "torrents.id in ($prependIdStr)" . ($where ? " and $where" : "");
+    $query = "SELECT $fieldStr FROM torrents $tagFilter LEFT JOIN categories ON torrents.category = categories.id left join torrent_extras on torrent_extras.torrent_id = torrents.id where $prependWhere ORDER BY field(torrents.id, $prependIdStr)";
     $prependRows = \Nexus\Database\NexusDB::remember(sprintf("nexus_rss:prepend:%s", md5($query)), 300, function () use ($query) {
         return \Nexus\Database\NexusDB::select($query);
     });
