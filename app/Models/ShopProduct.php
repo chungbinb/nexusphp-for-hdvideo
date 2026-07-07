@@ -54,6 +54,38 @@ class ShopProduct extends NexusModel
 
     public static function ensureSchema(): void
     {
+        if (defined('IN_NEXUS') && IN_NEXUS) {
+            ShopSetting::ensureSchema();
+            ShopOrder::ensureSchemaOnly();
+            sql_query("CREATE TABLE IF NOT EXISTS `hdvideo_shop_products` (
+                `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                `type` VARCHAR(40) NOT NULL DEFAULT '" . self::TYPE_MEMBER_BENEFIT . "',
+                `name` VARCHAR(100) NOT NULL DEFAULT '',
+                `description` TEXT NULL,
+                `price` DECIMAL(16,2) NOT NULL DEFAULT 0.00,
+                `stock` INT NULL DEFAULT NULL,
+                `enabled` TINYINT(1) NOT NULL DEFAULT 1,
+                `sort` INT NOT NULL DEFAULT 0,
+                `metadata` TEXT NULL,
+                `created_at` DATETIME NULL DEFAULT NULL,
+                `updated_at` DATETIME NULL DEFAULT NULL,
+                PRIMARY KEY (`id`),
+                KEY `hdvideo_shop_products_type_index` (`type`),
+                KEY `hdvideo_shop_products_enabled_index` (`enabled`),
+                KEY `hdvideo_shop_products_sort_index` (`sort`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci") or sqlerr(__FILE__, __LINE__);
+            if (get_row_count('hdvideo_shop_products') == 0) {
+                $now = sqlesc(date('Y-m-d H:i:s'));
+                foreach (static::seedDefaults() as $item) {
+                    $stock = $item['stock'] === null ? 'NULL' : (string)(int)$item['stock'];
+                    sql_query("INSERT INTO `hdvideo_shop_products`
+                        (`type`, `name`, `description`, `price`, `stock`, `enabled`, `sort`, `metadata`, `created_at`, `updated_at`)
+                        VALUES (" . sqlesc($item['type']) . ", " . sqlesc($item['name']) . ", " . sqlesc($item['description']) . ", " . sqlesc((float)$item['price']) . ", $stock, " . (int)$item['enabled'] . ", " . (int)$item['sort'] . ", NULL, $now, $now)") or sqlerr(__FILE__, __LINE__);
+                }
+            }
+            return;
+        }
+
         ShopSetting::ensureSchema();
         ShopOrder::ensureSchemaOnly();
         $schema = Schema::connection((new static)->getConnectionName());

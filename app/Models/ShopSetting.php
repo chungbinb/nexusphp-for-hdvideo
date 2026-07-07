@@ -42,6 +42,22 @@ class ShopSetting extends NexusModel
 
     public static function ensureSchema(): void
     {
+        if (defined('IN_NEXUS') && IN_NEXUS) {
+            sql_query("CREATE TABLE IF NOT EXISTS `hdvideo_shop_settings` (
+                `id` INT UNSIGNED NOT NULL,
+                `enabled` TINYINT(1) NOT NULL DEFAULT 1,
+                `min_class` INT NOT NULL DEFAULT 14,
+                `updated_at` DATETIME NULL DEFAULT NULL,
+                PRIMARY KEY (`id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci") or sqlerr(__FILE__, __LINE__);
+            $exists = get_row_count('hdvideo_shop_settings', 'WHERE id = 1');
+            if (!$exists) {
+                $minClass = defined('UC_ADMINISTRATOR') ? UC_ADMINISTRATOR : 14;
+                sql_query("INSERT INTO `hdvideo_shop_settings` (`id`, `enabled`, `min_class`, `updated_at`) VALUES (1, 1, " . (int)$minClass . ", " . sqlesc(date('Y-m-d H:i:s')) . ")") or sqlerr(__FILE__, __LINE__);
+            }
+            return;
+        }
+
         $conn = (new static)->getConnectionName();
         $schema = Schema::connection($conn);
         if (! $schema->hasTable('hdvideo_shop_settings')) {

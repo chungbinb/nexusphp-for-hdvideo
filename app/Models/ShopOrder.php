@@ -43,6 +43,29 @@ class ShopOrder extends NexusModel
 
     public static function ensureSchemaOnly(): void
     {
+        if (defined('IN_NEXUS') && IN_NEXUS) {
+            sql_query("CREATE TABLE IF NOT EXISTS `hdvideo_shop_orders` (
+                `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                `order_no` VARCHAR(32) NOT NULL,
+                `uid` INT UNSIGNED NOT NULL,
+                `product_id` INT UNSIGNED NULL DEFAULT NULL,
+                `product_snapshot` TEXT NULL,
+                `quantity` INT NOT NULL DEFAULT 1,
+                `unit_price` DECIMAL(16,2) NOT NULL DEFAULT 0.00,
+                `total_price` DECIMAL(16,2) NOT NULL DEFAULT 0.00,
+                `status` VARCHAR(30) NOT NULL DEFAULT '" . self::STATUS_PENDING_DELIVERY . "',
+                `note` TEXT NULL,
+                `created_at` DATETIME NULL DEFAULT NULL,
+                `updated_at` DATETIME NULL DEFAULT NULL,
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `hdvideo_shop_orders_order_no_unique` (`order_no`),
+                KEY `hdvideo_shop_orders_uid_index` (`uid`),
+                KEY `hdvideo_shop_orders_product_id_index` (`product_id`),
+                KEY `hdvideo_shop_orders_status_index` (`status`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci") or sqlerr(__FILE__, __LINE__);
+            return;
+        }
+
         $schema = Schema::connection((new static)->getConnectionName());
         if (! $schema->hasTable('hdvideo_shop_orders')) {
             $schema->create('hdvideo_shop_orders', function (Blueprint $table) {

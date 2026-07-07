@@ -1,7 +1,6 @@
 <?php
 require "../include/bittorrent.php";
 dbconn();
-require_once(get_langfile_path());
 loggedinorreturn();
 
 \App\Models\ShopOrder::ensureSchema();
