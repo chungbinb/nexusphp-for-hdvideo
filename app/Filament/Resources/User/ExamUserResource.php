@@ -12,6 +12,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Actions\ViewAction;
 use Filament\Actions\BulkAction;
+use Filament\Actions\Action;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Textarea;
 use Filament\Schemas\Components\Grid;
@@ -118,6 +119,20 @@ class ExamUserResource extends Resource
             ])
             ->recordActions([
                 ViewAction::make(),
+                Action::make('Avoid')
+                    ->requiresConfirmation()
+                    ->visible(fn (ExamUser $record) => $record->status == ExamUser::STATUS_NORMAL)
+                    ->action(function (ExamUser $record) {
+                        $rep = new ExamRepository();
+                        try {
+                            $rep->avoidExamUser($record->id);
+                            send_admin_success_notification();
+                        } catch (\Throwable $throwable) {
+                            send_admin_fail_notification($throwable->getMessage());
+                        }
+                    })
+                    ->label(__('admin.resources.exam_user.action_avoid'))
+                    ->icon('heroicon-o-x-mark'),
             ])
             ->groupedBulkActions([
                 BulkAction::make('Avoid')->action(function (Collection $records) {

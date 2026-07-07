@@ -10,6 +10,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Actions\DeleteAction;
 use App\Filament\Resources\User\ExamUserResource;
 use App\Models\Exam;
+use App\Models\ExamUser;
 use App\Repositories\ExamRepository;
 use Carbon\Carbon;
 use Filament\Pages\Actions;
@@ -83,6 +84,7 @@ class ViewExamUser extends ViewRecord
         return [
             Action::make('Avoid')
                 ->requiresConfirmation()
+                ->visible(fn () => $this->record->status == ExamUser::STATUS_NORMAL)
                 ->action(function () {
                     $examRep = new ExamRepository();
                     try {

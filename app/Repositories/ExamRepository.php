@@ -1144,11 +1144,13 @@ class ExamRepository extends BaseRepository
         if (!$ignoreTimeRange) {
             $whenThens = [];
             $params = [];
+            $examUserEndColumn = NexusDB::isMysql() ? "$examUserTable.`end`" : "$examUserTable.\"end\"";
+            $examEndColumn = NexusDB::isMysql() ? "$examTable.`end`" : "$examTable.\"end\"";
 
-            $whenThens[] = "WHEN $examUserTable.\"end\" IS NOT NULL THEN $examUserTable.\"end\" < ?";
+            $whenThens[] = "WHEN $examUserEndColumn IS NOT NULL THEN $examUserEndColumn < ?";
             $params[] = $now;
 
-            $whenThens[] = "WHEN $examTable.\"end\" IS NOT NULL THEN $examTable.\"end\" < ?";
+            $whenThens[] = "WHEN $examEndColumn IS NOT NULL THEN $examEndColumn < ?";
             $params[] = $now;
 
             if (NexusDB::isMysql()) {
@@ -1158,7 +1160,10 @@ class ExamRepository extends BaseRepository
             }
             $params[] = $now;
 
-            $baseQuery->whereRaw(sprintf("CASE %s ELSE false END", implode(" ", $whenThens)), $params);
+            $baseQuery->where(function (Builder $query) use ($examUserTable, $whenThens, $params) {
+                $query->where("$examUserTable.is_done", ExamUser::IS_DONE_YES)
+                    ->orWhereRaw(sprintf("CASE %s ELSE false END", implode(" ", $whenThens)), $params);
+            });
         }
 
         $size = 1000;
@@ -1334,12 +1339,12 @@ class ExamRepository extends BaseRepository
         $query = ExamUser::query()
             ->where('status', ExamUser::STATUS_NORMAL)
             ->where('is_done', ExamUser::IS_DONE_NO);
-        $page = 1;
         $size = 1000;
+        $minId = 0;
         $total = $success = 0;
         while (true) {
-            $logPrefix = "[UPDATE_EXAM_PROGRESS], page: $page, size: $size";
-            $rows = $query->forPage($page, $size)->get();
+            $logPrefix = "[UPDATE_EXAM_PROGRESS], minId: $minId, size: $size";
+            $rows = (clone $query)->where('id', '>', $minId)->orderBy('id', 'asc')->limit($size)->get();
             $count = $rows->count();
             $total += $count;
             do_log("$logPrefix, " . last_query() . ", count: $count");
@@ -1348,13 +1353,13 @@ class ExamRepository extends BaseRepository
                 break;
             }
             foreach ($rows as $row) {
+                $minId = $row->id;
                 $result = $this->updateProgress($row);
                 do_log("$logPrefix, examUser: " . $row->toJson() . ", result type: " . gettype($result));
                 if ($result) {
                     $success += 1;
                 }
             }
-            $page++;
         }
         $result = compact('total', 'success');
         do_log("$logPrefix, result: " . json_encode($result));
