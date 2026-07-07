@@ -1977,53 +1977,69 @@ function show_image_code () {
 function get_ip_location($ip)
 {
 	global $lang_functions;
-	global $Cache;
 
 	static $locations;
+	$ip = trim((string)$ip, " \t\n\r\0\x0B,");
 	if (isset($locations[$ip])) {
 	    return $locations[$ip];
     }
-    /**
-     * @since 1.7.4
-     */
-	$arr = get_ip_location_from_geoip($ip);
-	$result = [];
-	if ($arr) {
-	    $result[] = $arr['name'];
-    } else {
-	    $result[] = $lang_functions['text_unknown'];
+	if ($ip === '') {
+        return $locations[$ip] = [$lang_functions['text_unknown'], ''];
     }
-	$result[] = $lang_functions['text_user_ip'] . ":&nbsp;" . trim($ip, ',');
-	return $locations[$ip] = $result;
 
-	$cacheKey = "location_$ip";
-	if (!$ret = $Cache->get_value($cacheKey)){
-		$ret = array();
+    $arr = get_ip_location_from_geoip($ip);
+    if (!$arr) {
+        $arr = get_ip_location_from_locations_table($ip);
+    }
 
-//		$res = sql_query("SELECT * FROM locations") or sqlerr(__FILE__, __LINE__);
-//		while ($row = mysql_fetch_array($res))
-//			$ret[] = $row;
+	$locationName = $arr['name'] ?? '';
+	if ($locationName === '') {
+	    $locationName = $lang_functions['text_unknown'];
+    }
+	return $locations[$ip] = [$locationName, get_ip_location_title($ip, $arr ?: [])];
+}
 
-        //get from geoip2
-        $row = get_ip_location_from_geoip($ip);
-        if ($row) {
-            $ret[] = $row;
-        }
-		$Cache->cache_value($cacheKey, $ret, 152800);
-	}
-	$location = array($lang_functions['text_unknown'],"");
+function get_ip_location_from_locations_table($ip): bool|array
+{
+    if (!isIPV4($ip)) {
+        return false;
+    }
 
-	foreach($ret AS $arr)
-	{
-        $location = array($arr["name"], $lang_functions['text_user_ip'] . ":&nbsp;" . $ip);
-        break;
-//		if(in_ip_range(false, $ip, $arr["start_ip"], $arr["end_ip"]))
-//		{
-//			$location = array($arr["name"], $lang_functions['text_user_ip'].":&nbsp;" . $ip . ($arr["location_main"] != "" ? "&nbsp;".$lang_functions['text_location_main'].":&nbsp;" . $arr["location_main"] : ""). ($arr["location_sub"] != "" ? "&nbsp;".$lang_functions['text_location_sub'].":&nbsp;" . $arr["location_sub"] : "") . "&nbsp;".$lang_functions['text_ip_range'].":&nbsp;" . $arr["start_ip"] . "&nbsp;~&nbsp;". $arr["end_ip"]);
-//			break;
-//		}
-	}
-	return $location;
+    $escapedIp = sqlesc($ip);
+    $res = sql_query("
+        SELECT *
+        FROM locations
+        WHERE INET_ATON(start_ip) <= INET_ATON($escapedIp)
+            AND INET_ATON(end_ip) >= INET_ATON($escapedIp)
+        ORDER BY (INET_ATON(end_ip) - INET_ATON(start_ip)) ASC
+        LIMIT 1
+    ");
+    if (!$res || mysql_num_rows($res) === 0) {
+        return false;
+    }
+
+    $row = mysql_fetch_assoc($res);
+    if (empty($row['name'])) {
+        $row['name'] = trim(implode(' ', array_filter([$row['location_main'] ?? '', $row['location_sub'] ?? ''])));
+    }
+    return $row;
+}
+
+function get_ip_location_title($ip, array $location): string
+{
+    global $lang_functions;
+
+    $title = $lang_functions['text_user_ip'] . ":&nbsp;" . $ip;
+    if (!empty($location['location_main'])) {
+        $title .= "&nbsp;" . $lang_functions['text_location_main'] . ":&nbsp;" . $location['location_main'];
+    }
+    if (!empty($location['location_sub'])) {
+        $title .= "&nbsp;" . $lang_functions['text_location_sub'] . ":&nbsp;" . $location['location_sub'];
+    }
+    if (!empty($location['start_ip']) && !empty($location['end_ip'])) {
+        $title .= "&nbsp;" . $lang_functions['text_ip_range'] . ":&nbsp;" . $location['start_ip'] . "&nbsp;~&nbsp;" . $location['end_ip'];
+    }
+    return $title;
 }
 
 function in_ip_range($long, $targetip, $ip_one, $ip_two=false)
@@ -7876,6 +7892,9 @@ function get_ip_location_from_geoip($ip): bool|array
     });
     do_log("ip: $ip, result: " . nexus_json_encode($locationInfo));
     if ($locationInfo === false) {
+        return false;
+    }
+    if (empty($locationInfo['country']) && empty($locationInfo['city'])) {
         return false;
     }
     $name = sprintf('%s[v%s]', $locationInfo['city'] ? ($locationInfo['city'] . "·" . $locationInfo['country']) : $locationInfo['country'], $locationInfo['version']);
