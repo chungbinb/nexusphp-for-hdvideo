@@ -24,7 +24,7 @@ class ShopProductResource extends Resource
 
     protected static string | \UnitEnum | null $navigationGroup = 'System';
 
-    protected static ?int $navigationSort = 26;
+    protected static ?int $navigationSort = 27;
 
     public static function getNavigationLabel(): string
     {
@@ -43,6 +43,7 @@ class ShopProductResource extends Resource
                 Select::make('type')
                     ->label('商品类型')
                     ->options(ShopProduct::typeOptions())
+                    ->helperText('商品类型在“商城商品类型管理”中维护。')
                     ->required()
                     ->native(false),
                 TextInput::make('name')

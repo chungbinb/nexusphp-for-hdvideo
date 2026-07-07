@@ -22,7 +22,7 @@ class ShopOrderResource extends Resource
 
     protected static string | \UnitEnum | null $navigationGroup = 'System';
 
-    protected static ?int $navigationSort = 27;
+    protected static ?int $navigationSort = 28;
 
     public static function getNavigationLabel(): string
     {

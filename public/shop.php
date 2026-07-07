@@ -102,58 +102,28 @@ $products = \App\Models\ShopProduct::query()
     ->orderBy('id')
     ->get()
     ->groupBy('type');
-$shopCategories = [
-    'props' => [
-        'label' => '道具',
-        'types' => [
-            \App\Models\ShopProduct::TYPE_RENAME_CARD,
-            \App\Models\ShopProduct::TYPE_INVITE,
-        ],
-    ],
-    'medal' => [
-        'label' => '勋章',
-        'types' => [\App\Models\ShopProduct::TYPE_MEDAL],
-    ],
-    'traffic' => [
-        'label' => '流量包',
-        'types' => [\App\Models\ShopProduct::TYPE_TRAFFIC],
-    ],
-    'member_benefit' => [
-        'label' => '会员权益',
-        'types' => [\App\Models\ShopProduct::TYPE_MEMBER_BENEFIT],
-    ],
-];
-$shopMenuCategories = [];
-foreach ($shopCategories as $categoryKey => $category) {
-    foreach ($category['types'] as $type) {
-        $typeProducts = $products->get($type);
-        if ($typeProducts && !$typeProducts->isEmpty()) {
-            $shopMenuCategories[$categoryKey] = $category;
-            break;
-        }
-    }
-}
+$shopCategories = \App\Models\ShopCategory::query()
+    ->where('enabled', 1)
+    ->orderBy('sort')
+    ->orderBy('id')
+    ->get()
+    ->keyBy('code');
+$shopMenuCategories = $shopCategories->all();
 $activeCategory = (string)($_GET['cat'] ?? '');
 $requestedType = (string)($_GET['type'] ?? '');
 if (($activeCategory === '' || !isset($shopMenuCategories[$activeCategory])) && $requestedType !== '') {
-    foreach ($shopMenuCategories as $categoryKey => $category) {
-        if (in_array($requestedType, $category['types'], true)) {
-            $activeCategory = $categoryKey;
-            break;
-        }
-    }
+    $legacyTypeMap = \App\Models\ShopCategory::legacyTypeMap();
+    $activeCategory = $legacyTypeMap[$requestedType] ?? $requestedType;
 }
 if ($activeCategory === '' || !isset($shopMenuCategories[$activeCategory])) {
     $activeCategory = array_key_first($shopMenuCategories) ?: '';
 }
 $activeItems = [];
 if ($activeCategory !== '') {
-    foreach ($shopMenuCategories[$activeCategory]['types'] as $type) {
-        $typeProducts = $products->get($type);
-        if ($typeProducts && !$typeProducts->isEmpty()) {
-            foreach ($typeProducts as $product) {
-                $activeItems[] = $product;
-            }
+    $typeProducts = $products->get($activeCategory);
+    if ($typeProducts && !$typeProducts->isEmpty()) {
+        foreach ($typeProducts as $product) {
+            $activeItems[] = $product;
         }
     }
 }
@@ -199,15 +169,18 @@ html[data-site-theme="night"] .shop-desc,html[data-site-theme="night"] .shop-wal
 		</div>
 		<div class="shop-actions"><a href="shop_orders.php">我的订单</a></div>
 	</div>
-<?php if ($products->isEmpty()) { ?>
+<?php if (!$shopMenuCategories) { ?>
 	<div class="shop-empty">暂无上架商品。</div>
 <?php } else { ?>
 	<div class="shop-category-menu" role="tablist" aria-label="商城分类">
-<?php foreach ($shopMenuCategories as $categoryKey => $category) { ?>
-		<a class="shop-category-tab<?php echo $categoryKey === $activeCategory ? ' on' : '' ?>" href="shop.php?cat=<?php echo urlencode($categoryKey) ?>" role="tab" aria-selected="<?php echo $categoryKey === $activeCategory ? 'true' : 'false' ?>"><?php echo shop_h($category['label']) ?></a>
+<?php foreach ($shopMenuCategories as $categoryCode => $category) { ?>
+		<a class="shop-category-tab<?php echo $categoryCode === $activeCategory ? ' on' : '' ?>" href="shop.php?cat=<?php echo urlencode($categoryCode) ?>" role="tab" aria-selected="<?php echo $categoryCode === $activeCategory ? 'true' : 'false' ?>"><?php echo shop_h($category->name) ?></a>
 <?php } ?>
 	</div>
 	<div class="shop-section">
+<?php if (!$activeItems) { ?>
+		<div class="shop-empty">当前分类暂无上架商品。</div>
+<?php } else { ?>
 		<div class="shop-grid">
 <?php foreach ($activeItems as $product) { ?>
 			<div class="shop-card">
@@ -227,6 +200,7 @@ html[data-site-theme="night"] .shop-desc,html[data-site-theme="night"] .shop-wal
 			</div>
 <?php } ?>
 		</div>
+<?php } ?>
 	</div>
 <?php } ?>
 </div>

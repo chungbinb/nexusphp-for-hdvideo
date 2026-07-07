@@ -122,6 +122,6 @@ class ShopOrder extends NexusModel
     {
         $snapshot = $this->product_snapshot ?: [];
         $type = (string)($snapshot['type'] ?? ($this->product->type ?? ''));
-        return ShopProduct::typeOptions()[$type] ?? $type;
+        return ShopCategory::labelForCode($type);
     }
 }

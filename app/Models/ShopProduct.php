@@ -32,20 +32,14 @@ class ShopProduct extends NexusModel
 
     public static function typeOptions(): array
     {
-        return [
-            self::TYPE_RENAME_CARD => '改名卡',
-            self::TYPE_INVITE => '邀请名额',
-            self::TYPE_MEDAL => '勋章',
-            self::TYPE_TRAFFIC => '流量包',
-            self::TYPE_MEMBER_BENEFIT => '会员权益',
-        ];
+        return ShopCategory::options(false);
     }
 
     public static function seedDefaults(): array
     {
         return [
-            ['type' => self::TYPE_RENAME_CARD, 'name' => '改名卡', 'description' => '购买后生成待处理订单，由管理组确认后发放改名权益。', 'price' => 100000, 'stock' => null, 'enabled' => 1, 'sort' => 10],
-            ['type' => self::TYPE_INVITE, 'name' => '邀请名额', 'description' => '购买后生成待处理订单，由管理组确认后增加邀请名额。', 'price' => 500, 'stock' => null, 'enabled' => 1, 'sort' => 20],
+            ['type' => 'props', 'name' => '改名卡', 'description' => '购买后生成待处理订单，由管理组确认后发放改名权益。', 'price' => 100000, 'stock' => null, 'enabled' => 1, 'sort' => 10],
+            ['type' => 'props', 'name' => '邀请名额', 'description' => '购买后生成待处理订单，由管理组确认后增加邀请名额。', 'price' => 500, 'stock' => null, 'enabled' => 1, 'sort' => 20],
             ['type' => self::TYPE_MEDAL, 'name' => '勋章', 'description' => '购买后生成待处理订单，由管理组按商品备注发放指定勋章。', 'price' => 10000, 'stock' => null, 'enabled' => 1, 'sort' => 30],
             ['type' => self::TYPE_TRAFFIC, 'name' => '流量包', 'description' => '购买后生成待处理订单，由管理组按商品备注发放上传量或下载减免。', 'price' => 2000, 'stock' => null, 'enabled' => 1, 'sort' => 40],
             ['type' => self::TYPE_MEMBER_BENEFIT, 'name' => '会员权益', 'description' => '购买后生成待处理订单，由管理组按商品备注开通对应权益。', 'price' => 20000, 'stock' => null, 'enabled' => 1, 'sort' => 50],
@@ -56,6 +50,7 @@ class ShopProduct extends NexusModel
     {
         if (defined('IN_NEXUS') && IN_NEXUS) {
             ShopSetting::ensureSchema();
+            ShopCategory::ensureSchema();
             ShopOrder::ensureSchemaOnly();
             sql_query("CREATE TABLE IF NOT EXISTS `hdvideo_shop_products` (
                 `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -83,10 +78,14 @@ class ShopProduct extends NexusModel
                         VALUES (" . sqlesc($item['type']) . ", " . sqlesc($item['name']) . ", " . sqlesc($item['description']) . ", " . sqlesc((float)$item['price']) . ", $stock, " . (int)$item['enabled'] . ", " . (int)$item['sort'] . ", NULL, $now, $now)") or sqlerr(__FILE__, __LINE__);
                 }
             }
+            foreach (ShopCategory::legacyTypeMap() as $legacyType => $categoryCode) {
+                sql_query("UPDATE `hdvideo_shop_products` SET `type` = " . sqlesc($categoryCode) . " WHERE `type` = " . sqlesc($legacyType)) or sqlerr(__FILE__, __LINE__);
+            }
             return;
         }
 
         ShopSetting::ensureSchema();
+        ShopCategory::ensureSchema();
         ShopOrder::ensureSchemaOnly();
         $schema = Schema::connection((new static)->getConnectionName());
         if (! $schema->hasTable('hdvideo_shop_products')) {
@@ -110,6 +109,9 @@ class ShopProduct extends NexusModel
                 static::query()->create($item + ['created_at' => $now, 'updated_at' => $now]);
             }
         }
+        foreach (ShopCategory::legacyTypeMap() as $legacyType => $categoryCode) {
+            static::query()->where('type', $legacyType)->update(['type' => $categoryCode]);
+        }
     }
 
     public function orders(): HasMany
@@ -119,7 +121,7 @@ class ShopProduct extends NexusModel
 
     public function getTypeTextAttribute(): string
     {
-        return self::typeOptions()[$this->type] ?? $this->type;
+        return ShopCategory::labelForCode((string)$this->type);
     }
 
     public function getStockTextAttribute(): string
