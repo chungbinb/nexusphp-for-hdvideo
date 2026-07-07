@@ -4847,7 +4847,7 @@ $goupJsUrl = htmlspecialchars(nexus_static_asset_url('vendor/jquery-goup-1.1.3/j
 <script type="application/javascript" src="{$goupJsUrl}"></script>
 <script>
 jQuery(document).ready(function(){
-    if (jQuery.goup) {
+    if (jQuery.goup && !(document.body && document.body.classList.contains('page-torrents'))) {
         jQuery.goup()
     }
     if (typeof mediumZoom === 'function') {
