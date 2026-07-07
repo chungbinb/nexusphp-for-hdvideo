@@ -7,7 +7,7 @@ $userInfo = \App\Models\User::query()->findOrFail($CURUSER["id"]);
 $siteName = \App\Models\Setting::getSiteName();
 // 手机端：套用与首页一致的手机外壳；?pc=1 强制电脑版
 $GLOBALS['UCP_MOBILE'] = empty($_GET['pc']) && preg_match('/Mobile|Android|iPhone|iPod|Windows Phone|BlackBerry|webOS|HarmonyOS/i', (string)($_SERVER['HTTP_USER_AGENT'] ?? ''));
-\Nexus\Nexus::css('styles/usercp-mobile.css?v=20260630b', 'header', true);
+\Nexus\Nexus::css(nexus_static_asset_url('styles/usercp-mobile.css'), 'header', true);
 if ($GLOBALS['UCP_MOBILE']) {
     \Nexus\Nexus::css('styles/mobile-shell.css?v=20260630', 'header', true);
     require_once ROOT_PATH . 'include/mobile_shell.php';
@@ -17,7 +17,7 @@ function ucp_mhead($title = '', $sel = '', $stdarg = true) {
     if (!empty($GLOBALS['UCP_MOBILE']) && function_exists('mobile_shell_page_head')) {
         $titles = ['personal' => '个人设定', 'tracker' => '网站设定', 'forum' => '论坛设定', 'security' => '安全设定'];
         mobile_shell_page_head($titles[$sel] ?? '个人中心', 'me', 'page-usercp');
-        echo '<link rel="stylesheet" type="text/css" href="styles/usercp-mobile.css?v=20260630b">';
+        echo '<link rel="stylesheet" type="text/css" href="' . htmlspecialchars(nexus_static_asset_url('styles/usercp-mobile.css')) . '">';
         echo '<script type="text/javascript" src="js/jquery-1.12.4.min.js"></script>';
         echo '<script>jQuery.noConflict();window.nexusLayerOptions={confirm:{btnAlign:"c",title:"Confirm",btn:["OK","Cancel"]},alert:{btnAlign:"c",title:"Info",btn:["OK","Cancel"]}};</script>';
         echo '<script type="text/javascript" src="vendor/layer-v3.5.1/layer/layer.js"></script>';
@@ -43,6 +43,105 @@ function bark($msg) {
 	stdmsg($lang_usercp['std_sorry'], $msg);
 	stdfoot();
 	exit;
+}
+function usercp_lang(string $key, string $fallback): string {
+	global $lang_usercp;
+	return $lang_usercp[$key] ?? $fallback;
+}
+function usercp_avatar_json_response(array $payload): void {
+	header('Content-Type: application/json; charset=utf-8');
+	echo json_encode($payload, JSON_UNESCAPED_UNICODE);
+	exit;
+}
+function usercp_avatar_error(string $message): void {
+	if (!empty($GLOBALS['USERCP_AVATAR_JSON'])) {
+		usercp_avatar_json_response(['ret' => 1, 'msg' => $message]);
+	}
+	bark($message);
+}
+function usercp_default_avatar_url(): string {
+	return "/pic/default_avatar.png";
+}
+function usercp_owned_avatar_url(string $url): bool {
+	global $CURUSER;
+	$url = trim($url);
+	if ($url === '') {
+		return false;
+	}
+	$avatarPath = str_starts_with($url, '/') ? $url : parse_url($url, PHP_URL_PATH);
+	if (!$avatarPath || !preg_match('#^/bitbucket/([^/?#]+)$#', $avatarPath, $matches)) {
+		return false;
+	}
+	$filename = rawurldecode($matches[1]);
+	return get_row_count('bitbucket', 'WHERE owner = ' . sqlesc((int)$CURUSER['id']) . ' AND name = ' . sqlesc($filename)) > 0;
+}
+function usercp_save_avatar_upload(array $file): string {
+	global $CURUSER, $bitbucket, $enablebitbucket_main;
+	if ($file['error'] === UPLOAD_ERR_NO_FILE) {
+		return '';
+	}
+	if ($enablebitbucket_main != 'yes') {
+		usercp_avatar_error(usercp_lang('std_avatar_upload_disabled', 'Avatar upload is disabled.'));
+	}
+	if ($file['error'] !== UPLOAD_ERR_OK || empty($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
+		usercp_avatar_error(usercp_lang('std_avatar_upload_failed', 'Avatar upload failed.'));
+	}
+	$maxFileSize = 256 * 1024;
+	if ((int)$file['size'] < 1 || (int)$file['size'] > $maxFileSize) {
+		usercp_avatar_error(usercp_lang('std_avatar_file_too_large', 'Avatar file must be 256 KB or smaller.'));
+	}
+	$imageInfo = @getimagesize($file['tmp_name']);
+	$imageTypes = [1 => 'gif', 2 => 'jpg', 3 => 'png'];
+	if (!$imageInfo || empty($imageTypes[$imageInfo[2]])) {
+		usercp_avatar_error(usercp_lang('std_avatar_invalid_image', 'Please upload a GIF, JPG, or PNG image.'));
+	}
+	[$width, $height, $type] = $imageInfo;
+	$extension = $imageTypes[$type];
+	$targetWidth = 150;
+	$targetHeight = 200;
+	$scale = max($width / $targetWidth, $height / $targetHeight, 1);
+	$newWidth = max(1, (int)floor($width / $scale));
+	$newHeight = max(1, (int)floor($height / $scale));
+	if ($type == 1) {
+		$source = @imagecreatefromgif($file['tmp_name']);
+	} elseif ($type == 2) {
+		$source = @imagecreatefromjpeg($file['tmp_name']);
+	} else {
+		$source = @imagecreatefrompng($file['tmp_name']);
+	}
+	if (!$source) {
+		usercp_avatar_error(usercp_lang('std_avatar_processing_failed', 'Avatar image processing failed.'));
+	}
+	$thumb = imagecreatetruecolor($newWidth, $newHeight);
+	if ($type == 1 || $type == 3) {
+		imagecolortransparent($thumb, imagecolorallocatealpha($thumb, 0, 0, 0, 127));
+		imagealphablending($thumb, false);
+		imagesavealpha($thumb, true);
+	}
+	imagecopyresampled($thumb, $source, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+	$filename = sprintf('avatar_%d_%s_%s.%s', (int)$CURUSER['id'], date('YmdHis'), random_str(8), $extension);
+	$avatarDir = ROOT_PATH . 'public/' . trim($bitbucket, '/');
+	if (!is_dir($avatarDir) && !mkdir($avatarDir, 0775, true) && !is_dir($avatarDir)) {
+		usercp_avatar_error(usercp_lang('std_avatar_upload_failed', 'Avatar upload failed.'));
+	}
+	if (!is_writable($avatarDir)) {
+		usercp_avatar_error(usercp_lang('std_avatar_upload_failed', 'Avatar upload failed.'));
+	}
+	$targetFile = $avatarDir . '/' . $filename;
+	if ($type == 1) {
+		$saved = imagegif($thumb, $targetFile);
+	} elseif ($type == 2) {
+		$saved = imagejpeg($thumb, $targetFile, 90);
+	} else {
+		$saved = imagepng($thumb, $targetFile);
+	}
+	imagedestroy($source);
+	imagedestroy($thumb);
+	if (!$saved) {
+		usercp_avatar_error(usercp_lang('std_avatar_upload_failed', 'Avatar upload failed.'));
+	}
+	sql_query("INSERT INTO bitbucket (owner, name, added, public) VALUES (" . (int)$CURUSER['id'] . ", " . sqlesc($filename) . ", " . sqlesc(date("Y-m-d H:i:s")) . ", '0')") or sqlerr(__FILE__, __LINE__);
+	return '/bitbucket/' . rawurlencode($filename);
 }
 function usercpmenu ($selected = "home") {
 	global $lang_usercp;
@@ -90,11 +189,12 @@ function getimageheight ($imagewidth, $imageheight)
 	}
 	return $imageheight;
 }
-function form($name, $type = "save", $id = "") {
+function form($name, $type = "save", $id = "", $multipart = false) {
     if ($id == "") {
         $id = "form" . random_str();
     }
-	return print("<form method=post action=usercp.php id=\"".$id."\"><input type=hidden name=action value=".htmlspecialchars($name)."><input type=hidden name=type value={$type}>");
+	$encoding = $multipart ? " enctype=\"multipart/form-data\"" : "";
+	return print("<form method=post action=usercp.php id=\"".$id."\"".$encoding."><input type=hidden name=action value=".htmlspecialchars($name)."><input type=hidden name=type value={$type}>");
 }
 function submit($type = "submit") {
 	global $lang_usercp;
@@ -123,6 +223,15 @@ function goback ($where = "-1") {
 $action = isset($_POST['action']) ? htmlspecialchars($_POST['action']) : (isset($_GET['action']) ? htmlspecialchars($_GET['action']) : '');
 $type = isset($_POST['type']) ? htmlspecialchars($_POST['type']) : (isset($_GET['type']) ? htmlspecialchars($_GET['type']) : '');
 
+if ($_SERVER["REQUEST_METHOD"] == "POST" && ($_POST['action'] ?? '') === 'uploadAvatar') {
+	$GLOBALS['USERCP_AVATAR_JSON'] = true;
+	$avatarUrl = usercp_save_avatar_upload($_FILES["avatar_file"] ?? ['error' => UPLOAD_ERR_NO_FILE]);
+	if ($avatarUrl === '') {
+		usercp_avatar_error(usercp_lang('std_avatar_upload_failed', 'Avatar upload failed.'));
+	}
+	usercp_avatar_json_response(['ret' => 0, 'url' => $avatarUrl]);
+}
+
 $allowed_actions = array("personal","tracker","forum","security");
 if ($action){
 	if (!in_array($action, $allowed_actions))
@@ -149,14 +258,12 @@ if ($action){
 				$upload = $_POST["upload"];
 				$isp = $_POST["isp"];
 				//	$tzoffset = $_POST["tzoffset"];
-				if ( $_POST["avatar"] == '' )
-				$avatar=$_POST["savatar"];
-				else
-				$avatar = $_POST["avatar"];
-
-				if(preg_match("/^https?:\/\/[^\s'\"<>]+\.(jpg|gif|png|jpeg)$/i", $avatar) && !preg_match("/\.php/i",$avatar) && !preg_match("/\.js/i",$avatar) && !preg_match("/\.cgi/i",$avatar)) {
-					$avatar = htmlspecialchars( trim( $avatar ) );
-					$updateset[] = "avatar = " . sqlesc($avatar);
+				$avatarAction = $_POST["avatar_action"] ?? "keep";
+				$avatarServerUrl = trim($_POST["avatar_server_url"] ?? "");
+				if ($avatarAction === "default") {
+					$updateset[] = "avatar = " . sqlesc(usercp_default_avatar_url());
+				} elseif ($avatarAction === "server" && $avatarServerUrl !== '') {
+					$updateset[] = "avatar = " . sqlesc(htmlspecialchars($avatarServerUrl));
 				}
 				$info = htmlspecialchars(trim($_POST["info"]));
 
@@ -240,16 +347,41 @@ if ($action){
 			$us_a = sql_query("SELECT id,name FROM uploadspeed ORDER BY id") or die;
 			while ($us_b = mysql_fetch_array($us_a))
 			$uploadspeed .= "<option value=".htmlspecialchars($us_b['id'])."" . (htmlspecialchars($CURUSER["upload"]) == htmlspecialchars($us_b['id']) ? " selected" : "") . ">".htmlspecialchars($us_b['name'])."</option>\n";
-			$ra=sql_query("SELECT * FROM bitbucket WHERE public = '1'");
-			$options='';
-			$text = '';
-			while ($sor=mysql_fetch_array($ra))
-			{
-				$text.='<option value="'. get_protocol_prefix() . $BASEURL .'/bitbucket/'.$sor["name"].'">'.$sor["name"].'</option>';
+			$currentAvatar = htmlspecialchars($CURUSER["avatar"] ?: usercp_default_avatar_url());
+			$defaultAvatar = htmlspecialchars(usercp_default_avatar_url());
+			$avatarTitle = htmlspecialchars(usercp_lang('text_avatar_current', 'Current avatar'));
+			$avatarChoose = htmlspecialchars(usercp_lang('button_avatar_choose_file', 'Choose image'));
+			$avatarReset = htmlspecialchars(usercp_lang('button_avatar_reset_default', 'Use default'));
+			$avatarNote = htmlspecialchars(usercp_lang('text_avatar_upload_note', 'GIF, JPG, or PNG. Max 256 KB. The image is resized for avatar display.'));
+			$avatarUploadDisabled = $enablebitbucket_main != 'yes';
+			$avatarDisabledText = htmlspecialchars(usercp_lang('text_avatar_upload_disabled', 'Avatar upload is disabled.'));
+			$avatarDisabledAttr = $avatarUploadDisabled ? ' disabled' : '';
+			$avatarDisabledClass = $avatarUploadDisabled ? ' is-disabled' : '';
+			$avatarUploadHtml = <<<HTML
+<div class="ucp-avatar-uploader" data-avatar-uploader data-default-avatar="{$defaultAvatar}" data-current-avatar="{$currentAvatar}">
+  <div class="ucp-avatar-preview">
+    <img src="{$currentAvatar}" alt="{$avatarTitle}" data-avatar-preview>
+  </div>
+  <div class="ucp-avatar-panel">
+    <input type="hidden" name="avatar_action" value="keep" data-avatar-action>
+    <input type="hidden" name="avatar_server_url" value="" data-avatar-server-url>
+    <div class="ucp-avatar-actions">
+      <label class="ucp-avatar-file{$avatarDisabledClass}">
+        <input type="file" name="avatar_file" accept="image/gif,image/jpeg,image/png" data-avatar-input{$avatarDisabledAttr}>
+        <span>{$avatarChoose}</span>
+      </label>
+      <button type="button" class="ucp-avatar-reset" data-avatar-reset>{$avatarReset}</button>
+    </div>
+    <div class="ucp-avatar-note">{$avatarNote}</div>
+    <div class="ucp-avatar-status" data-avatar-status></div>
+HTML;
+			if ($avatarUploadDisabled) {
+				$avatarUploadHtml .= "<div class=\"ucp-avatar-note ucp-avatar-note-alert\">{$avatarDisabledText}</div>";
 			}
+			$avatarUploadHtml .= "</div></div>";
 
 			usercpmenu ("personal");
-            form ("personal");
+            form ("personal", "save", "", true);
 			print ("<table border=0 cellspacing=0 cellpadding=5 width=".CONTENT_WIDTH.">");
 			if ($type == 'saved')
 				print("<tr><td colspan=2 class=\"heading\" valign=\"top\" align=\"center\"><font color=red>".$lang_usercp['text_saved']."</font></td></tr>\n");
@@ -281,16 +413,143 @@ $schools .= "<option value={$sc_a['id']}" . ($sc_a['id'] == $CURUSER['school'] ?
 tr($lang_usercp['row_school'], "<select name=school>$schools</select>", 1);
 }
 			tr_small($lang_usercp['row_network_bandwidth'], "<b>".$lang_usercp['text_downstream_rate']. "</b>: <select name=download>".$downloadspeed."</select>&nbsp;&nbsp;<b>".$lang_usercp['text_upstream_rate']."</b>: <select name=upload>".$uploadspeed."</select>&nbsp;&nbsp;<b>".$lang_usercp['text_isp']."</b>: <select name=isp>".$isplist."</select>",1);
-			tr_small($lang_usercp['row_avatar_url'], "<img src=".($CURUSER["avatar"] ? "'$CURUSER[avatar]'" : "'" . get_protocol_prefix() . $BASEURL . "/pic/default_avatar.png'")." name='avatarimg'><br />
-  <select name=savatar OnChange=\"document.forms[0].avatarimg.src=this.value;this.form.avatar.value=this.value;\">
-  <option value='$CURUSER[avatar]'>".$lang_usercp['select_choose_avatar']."</option>
-  <option value='" . get_protocol_prefix() . $BASEURL . "/pic/default_avatar.png'>".$lang_usercp['select_nothing']."</option>
-  $text
-  </select><input type=text name=avatar style=\"width: 400px\" value=\"" . htmlspecialchars($CURUSER["avatar"] ?? '') .
-  "\"><br />\n".$lang_usercp['text_avatar_note'].($enablebitbucket_main == 'yes' ? $lang_usercp['text_bitbucket_note'] : ""),1);
+			tr_small(usercp_lang('row_avatar_upload', 'Avatar'), $avatarUploadHtml, 1);
   tr($lang_usercp['row_info'], "<textarea name=\"info\" style=\"width:700px\" rows=\"10\" >" . htmlspecialchars($CURUSER["info"]) . "</textarea><br />".$lang_usercp['text_info_note'], 1);
   submit();
   print("</table></form>");
+			$avatarInvalidType = addslashes(usercp_lang('std_avatar_invalid_image', 'Please upload a GIF, JPG, or PNG image.'));
+			$avatarTooLarge = addslashes(usercp_lang('std_avatar_file_too_large', 'Avatar file must be 256 KB or smaller.'));
+			$avatarUploading = addslashes(usercp_lang('text_avatar_uploading', 'Uploading avatar...'));
+			$avatarUploaded = addslashes(usercp_lang('text_avatar_uploaded', 'Avatar uploaded. Save settings to use it.'));
+			$avatarUploadFailed = addslashes(usercp_lang('std_avatar_upload_failed', 'Avatar upload failed. Please choose another image.'));
+			$avatarWaitUpload = addslashes(usercp_lang('std_avatar_wait_upload', 'Please wait until the avatar upload finishes.'));
+			$avatarJs = <<<JS
+(function () {
+    var uploader = document.querySelector('[data-avatar-uploader]');
+    if (!uploader) {
+        return;
+    }
+    var input = uploader.querySelector('[data-avatar-input]');
+    var preview = uploader.querySelector('[data-avatar-preview]');
+    var reset = uploader.querySelector('[data-avatar-reset]');
+    var action = uploader.querySelector('[data-avatar-action]');
+    var serverUrl = uploader.querySelector('[data-avatar-server-url]');
+    var status = uploader.querySelector('[data-avatar-status]');
+    var form = uploader.closest('form');
+    var defaultAvatar = uploader.getAttribute('data-default-avatar');
+    var currentAvatar = uploader.getAttribute('data-current-avatar');
+    var uploading = false;
+    function setStatus(message, state) {
+        if (!status) {
+            return;
+        }
+        status.textContent = message || '';
+        status.className = 'ucp-avatar-status' + (state ? ' is-' + state : '');
+    }
+    function setUploading(isUploading) {
+        uploading = isUploading;
+        uploader.classList.toggle('is-uploading', isUploading);
+        if (input) {
+            input.disabled = isUploading;
+        }
+        if (reset) {
+            reset.disabled = isUploading;
+        }
+    }
+    function setPreview(url) {
+        preview.src = url;
+    }
+    function failUpload(message) {
+        input.value = '';
+        serverUrl.value = '';
+        action.value = 'keep';
+        setPreview(currentAvatar);
+        setStatus(message || '{$avatarUploadFailed}', 'error');
+        setUploading(false);
+    }
+    if (form) {
+        form.addEventListener('submit', function (event) {
+            if (uploading) {
+                event.preventDefault();
+                alert('{$avatarWaitUpload}');
+            }
+        });
+    }
+    if (input) {
+        input.addEventListener('change', function () {
+            var file = input.files && input.files[0];
+            if (!file) {
+                setPreview(currentAvatar);
+                serverUrl.value = '';
+                action.value = 'keep';
+                setStatus('', '');
+                return;
+            }
+            if (!/^image\\/(gif|jpeg|png)$/.test(file.type)) {
+                alert('{$avatarInvalidType}');
+                input.value = '';
+                setPreview(currentAvatar);
+                serverUrl.value = '';
+                action.value = 'keep';
+                setStatus('', '');
+                return;
+            }
+            if (file.size > 256 * 1024) {
+                alert('{$avatarTooLarge}');
+                input.value = '';
+                setPreview(currentAvatar);
+                serverUrl.value = '';
+                action.value = 'keep';
+                setStatus('', '');
+                return;
+            }
+            var formData = new FormData();
+            var xhr = new XMLHttpRequest();
+            formData.append('action', 'uploadAvatar');
+            formData.append('avatar_file', file);
+            setUploading(true);
+            setStatus('{$avatarUploading}', 'loading');
+            xhr.open('POST', 'usercp.php', true);
+            xhr.onload = function () {
+                var response;
+                try {
+                    response = JSON.parse(xhr.responseText || '{}');
+                } catch (e) {
+                    failUpload('{$avatarUploadFailed}');
+                    return;
+                }
+                if (xhr.status < 200 || xhr.status >= 300 || response.ret !== 0 || !response.url) {
+                    failUpload(response.msg || '{$avatarUploadFailed}');
+                    return;
+                }
+                input.value = '';
+                serverUrl.value = response.url;
+                currentAvatar = response.url;
+                action.value = 'server';
+                setPreview(response.url);
+                setStatus('{$avatarUploaded}', 'success');
+                setUploading(false);
+            };
+            xhr.onerror = function () {
+                failUpload('{$avatarUploadFailed}');
+            };
+            xhr.send(formData);
+        });
+    }
+    if (reset) {
+        reset.addEventListener('click', function () {
+            if (input) {
+                input.value = '';
+            }
+            serverUrl.value = '';
+            setPreview(defaultAvatar);
+            action.value = 'default';
+            setStatus('', '');
+        });
+    }
+})();
+JS;
+			\Nexus\Nexus::js($avatarJs, 'footer', false);
 			ucp_mfoot();
   die;
   break;
