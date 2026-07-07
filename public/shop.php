@@ -177,7 +177,7 @@ stdhead("商城");
 .shop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;}
 .shop-card{border:1px solid var(--bili-border,#e6e9ef);border-radius:8px;background:var(--bili-surface,#fff);padding:14px;min-height:154px;display:flex;flex-direction:column;gap:10px;}
 .shop-medal-card{min-height:246px;}
-.shop-medal-image{height:82px;display:flex;align-items:center;justify-content:center;background:var(--bili-surface-soft,#f2f3f5);border-radius:8px;overflow:hidden;}
+.shop-medal-image{height:82px;display:flex;align-items:center;justify-content:center;background:transparent;border-radius:8px;overflow:hidden;}
 .shop-medal-image img{max-width:74px;max-height:74px;display:block;}
 .shop-card-title{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;font-size:16px;font-weight:800;color:var(--bili-text,#18191c);}
 .shop-badge{font-size:11px;font-weight:700;border-radius:999px;padding:3px 7px;background:var(--bili-surface-soft,#f2f3f5);color:var(--bili-primary,#00aeec);white-space:nowrap;}
@@ -192,7 +192,7 @@ stdhead("商城");
 .shop-buy:disabled{background:var(--bili-surface-soft,#f2f3f5);color:var(--bili-text-muted,#9499a0);cursor:not-allowed;}
 .shop-empty{padding:22px;border:1px dashed var(--bili-border,#e6e9ef);border-radius:8px;text-align:center;color:var(--bili-text-secondary,#61666d);background:var(--bili-surface,#fff);}
 html[data-site-theme="night"] .shop-card,html[data-site-theme="night"] .shop-empty{background:#0e1728;border-color:rgba(116,145,196,.28);}
-html[data-site-theme="night"] .shop-medal-image,html[data-site-theme="night"] .shop-medal-spec span{background:rgba(116,145,196,.16);}
+html[data-site-theme="night"] .shop-medal-spec span{background:rgba(116,145,196,.16);}
 html[data-site-theme="night"] .shop-category-menu{background:#0e1728;border-color:rgba(116,145,196,.28);}
 html[data-site-theme="night"] .shop-category-tab{color:#9fb0c8;}
 html[data-site-theme="night"] .shop-category-tab:hover{background:rgba(116,145,196,.16);color:#eaf1ff;}
