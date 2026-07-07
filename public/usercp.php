@@ -145,6 +145,12 @@ function usercp_save_avatar_upload(array $file): string {
 }
 function usercpmenu ($selected = "home") {
 	global $lang_usercp;
+	$showShopOrders = false;
+	try {
+		$showShopOrders = isset($GLOBALS['CURUSER']['id']) && \App\Models\ShopSetting::canEnter($GLOBALS['CURUSER']);
+	} catch (\Throwable $e) {
+		$showShopOrders = false;
+	}
 	if (!empty($GLOBALS['UCP_MOBILE'])) {
 		$tabs = [
 			['usercp.php', $lang_usercp['text_user_cp_home'], 'home'],
@@ -153,6 +159,9 @@ function usercpmenu ($selected = "home") {
 			['?action=forum', $lang_usercp['text_forum_settings'], 'forum'],
 			['?action=security', $lang_usercp['text_security_settings'], 'security'],
 		];
+		if ($showShopOrders) {
+			array_splice($tabs, 1, 0, [['shop_orders.php', '商城订单', 'shop_orders']]);
+		}
 		echo '<div class="m-subnav">';
 		foreach ($tabs as $t) {
 			$label = trim(preg_replace('/\s+/u', '', html_entity_decode((string)$t[1], ENT_QUOTES | ENT_HTML5, 'UTF-8')));
@@ -164,6 +173,9 @@ function usercpmenu ($selected = "home") {
 	begin_main_frame();
 	print ("<div id=\"usercpnav\"><ul id=\"usercpmenu\" class=\"menu\">");
 	print ("<li" . ($selected == "home" ? " class=selected" : "") . "><a href=\"usercp.php\">".$lang_usercp['text_user_cp_home']."</a></li>");
+	if ($showShopOrders) {
+		print ("<li><a href=\"shop_orders.php\">商城订单</a></li>");
+	}
 	print ("<li" . ($selected == "personal" ? " class=selected" : "") . "><a href=\"?action=personal\">".$lang_usercp['text_personal_settings']."</a></li>");
 	print ("<li" . ($selected == "tracker" ? " class=selected" : "") . "><a href=\"?action=tracker\">".$lang_usercp['text_tracker_settings']."</a></li>");
 	print ("<li" . ($selected == "forum" ? " class=selected" : "") . "><a href=\"?action=forum\">".$lang_usercp['text_forum_settings']."</a></li>");
