@@ -102,6 +102,19 @@ $products = \App\Models\ShopProduct::query()
     ->orderBy('id')
     ->get()
     ->groupBy('type');
+$typeOptions = \App\Models\ShopProduct::typeOptions();
+$shopMenuTypes = [];
+foreach ($typeOptions as $type => $typeText) {
+    $typeProducts = $products->get($type);
+    if ($typeProducts && !$typeProducts->isEmpty()) {
+        $shopMenuTypes[$type] = $typeText;
+    }
+}
+$activeType = (string)($_GET['type'] ?? '');
+if ($activeType === '' || !isset($shopMenuTypes[$activeType])) {
+    $activeType = array_key_first($shopMenuTypes) ?: '';
+}
+$activeItems = $activeType !== '' ? $products->get($activeType) : null;
 
 stdhead("商城");
 ?>
@@ -112,8 +125,11 @@ stdhead("商城");
 .shop-wallet{font-size:13px;color:var(--bili-text-secondary,#61666d);}
 .shop-wallet b{color:var(--bili-primary,#00aeec);font-size:17px;}
 .shop-actions a{display:inline-flex;align-items:center;justify-content:center;padding:8px 13px;border-radius:8px;background:var(--bili-primary,#00aeec);color:#fff;text-decoration:none;font-weight:700;}
+.shop-category-menu{display:flex;gap:8px;align-items:center;margin:0 0 16px;padding:8px;border:1px solid var(--bili-border,#e6e9ef);border-radius:8px;background:var(--bili-surface,#fff);overflow-x:auto;scrollbar-width:thin;}
+.shop-category-tab{display:inline-flex;align-items:center;justify-content:center;min-width:96px;height:38px;padding:0 15px;border-radius:7px;color:var(--bili-text-secondary,#61666d);font-weight:800;text-decoration:none;white-space:nowrap;transition:background .15s ease,color .15s ease,box-shadow .15s ease;}
+.shop-category-tab:hover{background:var(--bili-surface-soft,#f2f3f5);color:var(--bili-primary,#00aeec);text-decoration:none;}
+.shop-category-tab.on{background:var(--bili-primary,#00aeec);color:#fff;box-shadow:0 6px 16px rgba(0,174,236,.22);}
 .shop-section{margin:0 0 22px;}
-.shop-section h2{font-size:17px;margin:0 0 10px;color:var(--bili-text,#18191c);}
 .shop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;}
 .shop-card{border:1px solid var(--bili-border,#e6e9ef);border-radius:8px;background:var(--bili-surface,#fff);padding:14px;min-height:154px;display:flex;flex-direction:column;gap:10px;}
 .shop-card-title{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;font-size:16px;font-weight:800;color:var(--bili-text,#18191c);}
@@ -126,9 +142,12 @@ stdhead("商城");
 .shop-buy:hover{background:var(--bili-primary-hover,#38bff2);}
 .shop-empty{padding:22px;border:1px dashed var(--bili-border,#e6e9ef);border-radius:8px;text-align:center;color:var(--bili-text-secondary,#61666d);background:var(--bili-surface,#fff);}
 html[data-site-theme="night"] .shop-card,html[data-site-theme="night"] .shop-empty{background:#0e1728;border-color:rgba(116,145,196,.28);}
-html[data-site-theme="night"] .shop-title,html[data-site-theme="night"] .shop-section h2,html[data-site-theme="night"] .shop-card-title{color:#eaf1ff;}
+html[data-site-theme="night"] .shop-category-menu{background:#0e1728;border-color:rgba(116,145,196,.28);}
+html[data-site-theme="night"] .shop-category-tab{color:#9fb0c8;}
+html[data-site-theme="night"] .shop-category-tab:hover{background:rgba(116,145,196,.16);color:#eaf1ff;}
+html[data-site-theme="night"] .shop-title,html[data-site-theme="night"] .shop-card-title{color:#eaf1ff;}
 html[data-site-theme="night"] .shop-desc,html[data-site-theme="night"] .shop-wallet{color:#9fb0c8;}
-@media (max-width:700px){.shop-head{align-items:flex-start;flex-direction:column}.shop-grid{grid-template-columns:1fr}.shop-page{padding:0 10px 70px;}}
+@media (max-width:700px){.shop-head{align-items:flex-start;flex-direction:column}.shop-category-menu{margin-left:-2px;margin-right:-2px;padding:7px}.shop-category-tab{min-width:auto;height:36px;padding:0 13px}.shop-grid{grid-template-columns:1fr}.shop-page{padding:0 10px 70px;}}
 </style>
 <div class="shop-page">
 	<div class="shop-head">
@@ -140,17 +159,15 @@ html[data-site-theme="night"] .shop-desc,html[data-site-theme="night"] .shop-wal
 	</div>
 <?php if ($products->isEmpty()) { ?>
 	<div class="shop-empty">暂无上架商品。</div>
+<?php } else { ?>
+	<div class="shop-category-menu" role="tablist" aria-label="商城分类">
+<?php foreach ($shopMenuTypes as $type => $typeText) { ?>
+		<a class="shop-category-tab<?php echo $type === $activeType ? ' on' : '' ?>" href="shop.php?type=<?php echo urlencode($type) ?>" role="tab" aria-selected="<?php echo $type === $activeType ? 'true' : 'false' ?>"><?php echo shop_h($typeText) ?></a>
 <?php } ?>
-<?php foreach (\App\Models\ShopProduct::typeOptions() as $type => $typeText) {
-    $items = $products->get($type);
-    if (!$items || $items->isEmpty()) {
-        continue;
-    }
-?>
+	</div>
 	<div class="shop-section">
-		<h2><?php echo shop_h($typeText) ?></h2>
 		<div class="shop-grid">
-<?php foreach ($items as $product) { ?>
+<?php foreach ($activeItems ?: [] as $product) { ?>
 			<div class="shop-card">
 				<div class="shop-card-title">
 					<span><?php echo shop_h($product->name) ?></span>
@@ -159,7 +176,7 @@ html[data-site-theme="night"] .shop-desc,html[data-site-theme="night"] .shop-wal
 				<div class="shop-desc"><?php echo nl2br(shop_h($product->description ?: '暂无说明')) ?></div>
 				<div class="shop-meta">
 					<div class="shop-price"><?php echo number_format((float)$product->price, 1) ?> <span>电影票</span></div>
-					<form method="post" action="shop.php">
+					<form method="post" action="shop.php?type=<?php echo urlencode($activeType) ?>">
 						<input type="hidden" name="action" value="buy">
 						<input type="hidden" name="product_id" value="<?php echo (int)$product->id ?>">
 						<button class="shop-buy" type="submit">购买</button>
