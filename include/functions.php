@@ -5,6 +5,17 @@ use App\Models\TorrentExtra;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 
+function nexus_static_asset_url(string $path): string
+{
+    $path = ltrim($path, '/');
+    $rootPath = defined('ROOT_PATH') ? ROOT_PATH : dirname(__DIR__) . '/';
+    $file = $rootPath . 'public/' . $path;
+    if (is_file($file)) {
+        return $path . '?v=' . filemtime($file);
+    }
+    return $path;
+}
+
 function get_langfolder_cookie($transToLocale = false)
 {
     $deflang = \App\Models\Setting::getDefaultLang();
@@ -2894,6 +2905,8 @@ if ($metadescription_tweak){
 print(get_style_addicode());
 $css_uri = get_css_uri();
 $cssupdatedate=($cssupdatedate ? "?".htmlspecialchars($cssupdatedate) : "");
+$jqueryJsUrl = htmlspecialchars(nexus_static_asset_url('js/jquery-1.12.4.min.js'));
+$layerJsUrl = htmlspecialchars(nexus_static_asset_url('vendor/layer-v3.5.1/layer/layer.js'));
 ?>
 <title><?php echo $title?></title>
 <?php if (!empty($GLOBALS['nexus_base_href'])) { ?><base href="<?php echo htmlspecialchars($GLOBALS['nexus_base_href']) ?>" /><?php } ?>
@@ -2980,7 +2993,7 @@ foreach (\Nexus\Nexus::getAppendHeaders() as $value) {
     print($value);
 }
 ?>
-<script type="text/javascript" src="js/jquery-1.12.4.min.js<?php echo $cssupdatedate?>"></script>
+<script type="text/javascript" src="<?php echo $jqueryJsUrl ?>"></script>
 <script type="text/javascript">
     jQuery.noConflict();
     window.nexusLayerOptions = {
@@ -2988,7 +3001,7 @@ foreach (\Nexus\Nexus::getAppendHeaders() as $value) {
         alert: {btnAlign: 'c', title: 'Info', btn: ['OK', 'Cancel']}
     }
 </script>
-<script type="text/javascript" src="vendor/layer-v3.5.1/layer/layer.js<?php echo $cssupdatedate?>"></script>
+<script type="text/javascript" src="<?php echo $layerJsUrl ?>"></script>
 </head>
 <?php
 $pageClass = preg_replace('/[^a-z0-9_-]+/i', '-', nexus()->getScript());
@@ -4825,14 +4838,21 @@ function stdfoot() {
 	foreach (\Nexus\Nexus::getAppendFooters() as $value) {
 	    print($value);
     }
+$nexusJsUrl = htmlspecialchars(nexus_static_asset_url('js/nexus.js'));
+$mediumZoomJsUrl = htmlspecialchars(nexus_static_asset_url('js/medium-zoom.min.js'));
+$goupJsUrl = htmlspecialchars(nexus_static_asset_url('vendor/jquery-goup-1.1.3/jquery.goup.min.js'));
 	$js = <<<JS
-<script type="application/javascript" src="js/nexus.js"></script>
-<script type="application/javascript" src="js/medium-zoom.min.js"></script>
-<script type="application/javascript" src="vendor/jquery-goup-1.1.3/jquery.goup.min.js"></script>
+<script type="application/javascript" src="{$nexusJsUrl}"></script>
+<script type="application/javascript" src="{$mediumZoomJsUrl}"></script>
+<script type="application/javascript" src="{$goupJsUrl}"></script>
 <script>
 jQuery(document).ready(function(){
-    jQuery.goup()
-    mediumZoom('[data-zoomable]')
+    if (jQuery.goup) {
+        jQuery.goup()
+    }
+    if (typeof mediumZoom === 'function') {
+        mediumZoom('[data-zoomable]')
+    }
 });
 </script>
 JS;

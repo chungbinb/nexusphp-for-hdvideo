@@ -110,7 +110,7 @@ jQuery('.claim').on('click', function (e) {
     })
 })
 JS;
-\Nexus\Nexus::js('vendor/jquery-loading/jquery.loading.min.js', 'footer', true);
+\Nexus\Nexus::js(nexus_static_asset_url('vendor/jquery-loading/jquery.loading.min.js'), 'footer', true);
 \Nexus\Nexus::js($js, 'footer', false);
 stdfoot();
 
