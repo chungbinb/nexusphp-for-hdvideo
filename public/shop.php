@@ -102,19 +102,61 @@ $products = \App\Models\ShopProduct::query()
     ->orderBy('id')
     ->get()
     ->groupBy('type');
-$typeOptions = \App\Models\ShopProduct::typeOptions();
-$shopMenuTypes = [];
-foreach ($typeOptions as $type => $typeText) {
-    $typeProducts = $products->get($type);
-    if ($typeProducts && !$typeProducts->isEmpty()) {
-        $shopMenuTypes[$type] = $typeText;
+$shopCategories = [
+    'props' => [
+        'label' => '道具',
+        'types' => [
+            \App\Models\ShopProduct::TYPE_RENAME_CARD,
+            \App\Models\ShopProduct::TYPE_INVITE,
+        ],
+    ],
+    'medal' => [
+        'label' => '勋章',
+        'types' => [\App\Models\ShopProduct::TYPE_MEDAL],
+    ],
+    'traffic' => [
+        'label' => '流量包',
+        'types' => [\App\Models\ShopProduct::TYPE_TRAFFIC],
+    ],
+    'member_benefit' => [
+        'label' => '会员权益',
+        'types' => [\App\Models\ShopProduct::TYPE_MEMBER_BENEFIT],
+    ],
+];
+$shopMenuCategories = [];
+foreach ($shopCategories as $categoryKey => $category) {
+    foreach ($category['types'] as $type) {
+        $typeProducts = $products->get($type);
+        if ($typeProducts && !$typeProducts->isEmpty()) {
+            $shopMenuCategories[$categoryKey] = $category;
+            break;
+        }
     }
 }
-$activeType = (string)($_GET['type'] ?? '');
-if ($activeType === '' || !isset($shopMenuTypes[$activeType])) {
-    $activeType = array_key_first($shopMenuTypes) ?: '';
+$activeCategory = (string)($_GET['cat'] ?? '');
+$requestedType = (string)($_GET['type'] ?? '');
+if (($activeCategory === '' || !isset($shopMenuCategories[$activeCategory])) && $requestedType !== '') {
+    foreach ($shopMenuCategories as $categoryKey => $category) {
+        if (in_array($requestedType, $category['types'], true)) {
+            $activeCategory = $categoryKey;
+            break;
+        }
+    }
 }
-$activeItems = $activeType !== '' ? $products->get($activeType) : null;
+if ($activeCategory === '' || !isset($shopMenuCategories[$activeCategory])) {
+    $activeCategory = array_key_first($shopMenuCategories) ?: '';
+}
+$activeItems = [];
+if ($activeCategory !== '') {
+    foreach ($shopMenuCategories[$activeCategory]['types'] as $type) {
+        $typeProducts = $products->get($type);
+        if ($typeProducts && !$typeProducts->isEmpty()) {
+            foreach ($typeProducts as $product) {
+                $activeItems[] = $product;
+            }
+        }
+    }
+}
 
 stdhead("商城");
 ?>
@@ -161,13 +203,13 @@ html[data-site-theme="night"] .shop-desc,html[data-site-theme="night"] .shop-wal
 	<div class="shop-empty">暂无上架商品。</div>
 <?php } else { ?>
 	<div class="shop-category-menu" role="tablist" aria-label="商城分类">
-<?php foreach ($shopMenuTypes as $type => $typeText) { ?>
-		<a class="shop-category-tab<?php echo $type === $activeType ? ' on' : '' ?>" href="shop.php?type=<?php echo urlencode($type) ?>" role="tab" aria-selected="<?php echo $type === $activeType ? 'true' : 'false' ?>"><?php echo shop_h($typeText) ?></a>
+<?php foreach ($shopMenuCategories as $categoryKey => $category) { ?>
+		<a class="shop-category-tab<?php echo $categoryKey === $activeCategory ? ' on' : '' ?>" href="shop.php?cat=<?php echo urlencode($categoryKey) ?>" role="tab" aria-selected="<?php echo $categoryKey === $activeCategory ? 'true' : 'false' ?>"><?php echo shop_h($category['label']) ?></a>
 <?php } ?>
 	</div>
 	<div class="shop-section">
 		<div class="shop-grid">
-<?php foreach ($activeItems ?: [] as $product) { ?>
+<?php foreach ($activeItems as $product) { ?>
 			<div class="shop-card">
 				<div class="shop-card-title">
 					<span><?php echo shop_h($product->name) ?></span>
@@ -176,7 +218,7 @@ html[data-site-theme="night"] .shop-desc,html[data-site-theme="night"] .shop-wal
 				<div class="shop-desc"><?php echo nl2br(shop_h($product->description ?: '暂无说明')) ?></div>
 				<div class="shop-meta">
 					<div class="shop-price"><?php echo number_format((float)$product->price, 1) ?> <span>电影票</span></div>
-					<form method="post" action="shop.php?type=<?php echo urlencode($activeType) ?>">
+					<form method="post" action="shop.php?cat=<?php echo urlencode($activeCategory) ?>">
 						<input type="hidden" name="action" value="buy">
 						<input type="hidden" name="product_id" value="<?php echo (int)$product->id ?>">
 						<button class="shop-buy" type="submit">购买</button>
