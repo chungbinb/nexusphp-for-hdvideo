@@ -2361,12 +2361,9 @@ if ($CURUSER){
 	}
 })();
 </script>
-<?php
-if (!empty($GLOBALS['T_MOBILE'])) {
-?>
 <div class="t-scrollnav" id="tScrollNav">
-	<button type="button" id="tScrollTop" aria-label="回到顶部"><svg viewBox="0 0 24 24"><path d="M12 19V6M6 11l6-5 6 5"/></svg></button>
-	<button type="button" id="tScrollBottom" aria-label="到底部"><svg viewBox="0 0 24 24"><path d="M12 5v13M6 13l6 5 6-5"/></svg></button>
+	<button type="button" id="tScrollTop" aria-label="回到顶部" title="回到顶部"><svg viewBox="0 0 24 24"><path d="M12 19V6M6 11l6-5 6 5"/></svg></button>
+	<button type="button" id="tScrollBottom" aria-label="到底部" title="到底部"><svg viewBox="0 0 24 24"><path d="M12 5v13M6 13l6 5 6-5"/></svg></button>
 </div>
 <script>
 (function () {
@@ -2393,6 +2390,5 @@ if (!empty($GLOBALS['T_MOBILE'])) {
 })();
 </script>
 <?php
-}
 print("</td></tr></table>");
 t_mfoot();
