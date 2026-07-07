@@ -40,8 +40,8 @@ class Kernel extends ConsoleKernel
     {
         $schedule->command('cache:prune-stale-tags')->hourly();
         $schedule->command('exam:assign_cronjob')->everyMinute();
+        $schedule->command('exam:update_progress --bulk=1')->everyFiveMinutes();
         $schedule->command('exam:checkout_cronjob')->everyFiveMinutes();
-        $schedule->command('exam:update_progress --bulk=1')->hourly();
         $schedule->command('backup:cronjob')->everyMinute();
         $schedule->command('hr:update_status')->everyTenMinutes();
         $schedule->command('hr:update_status --ignore_time=1')->hourly();

@@ -32,7 +32,7 @@ jobs:
             --exclude="public/old" \
             --exclude="composer.json" \
             --exclude="composer.lock" \
-            --exclude="vendor/" \
+            --exclude="/vendor/" \
             --exclude="node_modules/" \
             --exclude="storage/" \
             --exclude="attachments/" \
