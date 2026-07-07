@@ -805,12 +805,12 @@ class UserRepository extends BaseRepository
 
     public function saveLoginLog(int $uid, string $ip,  string $client = '', bool $notify = false)
     {
-        $locationInfo = get_ip_location_from_geoip($ip);
+        $locationInfo = get_ip_location_info($ip);
         $loginLog = LoginLog::query()->create([
             'ip' => $ip,
             'uid' => $uid,
-            'country' => $locationInfo['country_en'] ?? '',
-            'city' => $locationInfo['city_en'] ?? '',
+            'country' => $locationInfo['country_en'] ?? ($locationInfo['country'] ?? ''),
+            'city' => $locationInfo['city_en'] ?? ($locationInfo['city'] ?? ''),
             'client' => $client,
         ]);
         if ($notify) {

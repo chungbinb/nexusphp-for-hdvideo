@@ -1998,6 +1998,22 @@ function get_ip_location($ip)
         return $locations[$ip] = [$lang_functions['text_unknown'], ''];
     }
 
+    $arr = get_ip_location_info($ip);
+
+	$locationName = $arr['name'] ?? '';
+	if ($locationName === '') {
+	    $locationName = $lang_functions['text_unknown'];
+    }
+	return $locations[$ip] = [$locationName, get_ip_location_title($ip, $arr ?: [])];
+}
+
+function get_ip_location_info($ip): bool|array
+{
+    $ip = trim((string)$ip, " \t\n\r\0\x0B,");
+    if ($ip === '') {
+        return false;
+    }
+
     $arr = get_ip_location_from_geoip($ip);
     if (!$arr) {
         $arr = get_ip_location_from_locations_table($ip);
@@ -2005,12 +2021,10 @@ function get_ip_location($ip)
     if (!$arr) {
         $arr = get_ip_location_from_ipwhois($ip);
     }
-
-	$locationName = $arr['name'] ?? '';
-	if ($locationName === '') {
-	    $locationName = $lang_functions['text_unknown'];
+    if (!$arr) {
+        $arr = get_ip_location_from_ipapi($ip);
     }
-	return $locations[$ip] = [$locationName, get_ip_location_title($ip, $arr ?: [])];
+    return $arr ?: false;
 }
 
 function get_ip_location_from_locations_table($ip): bool|array
@@ -2052,7 +2066,7 @@ function get_ip_location_from_ipwhois($ip): bool|array
         'en' => 'en',
     ];
     $locale = $langMap[$lang] ?? $lang;
-    $cacheKey = "ipwhois_location_{$locale}_{$ip}";
+    $cacheKey = "ipwhois_location_v2_{$locale}_{$ip}";
     $cached = \Nexus\Database\NexusDB::cache_get($cacheKey);
     if (is_array($cached)) {
         return !empty($cached['success']) ? $cached['data'] : false;
@@ -2103,6 +2117,74 @@ function get_ip_location_from_ipwhois($ip): bool|array
         return $location;
     }
     \Nexus\Database\NexusDB::cache_put($cacheKey, ['success' => false], 3600);
+    return false;
+}
+
+function get_ip_location_from_ipapi($ip): bool|array
+{
+    if (!filter_var($ip, FILTER_VALIDATE_IP)) {
+        return false;
+    }
+    if (!isIPV4($ip)) {
+        return false;
+    }
+
+    $lang = get_langfolder_cookie();
+    $langMap = [
+        'chs' => 'zh-CN',
+        'cht' => 'zh-CN',
+        'en' => 'en',
+    ];
+    $locale = $langMap[$lang] ?? $lang;
+    $cacheKey = "ipapi_location_v1_{$locale}_{$ip}";
+    $cached = \Nexus\Database\NexusDB::cache_get($cacheKey);
+    if (is_array($cached)) {
+        return !empty($cached['success']) ? $cached['data'] : false;
+    }
+
+    $location = false;
+    try {
+        $fields = 'status,message,country,regionName,city,isp,org,query';
+        $url = 'http://ip-api.com/json/' . rawurlencode($ip) . '?lang=' . rawurlencode($locale) . '&fields=' . rawurlencode($fields);
+        $body = get_ip_location_api_response($url);
+        if ($body === '') {
+            throw new \RuntimeException("empty ip-api response");
+        }
+        $data = json_decode($body, true);
+        if (!is_array($data) || ($data['status'] ?? '') !== 'success') {
+            $message = is_array($data) ? ($data['message'] ?? nexus_json_encode($data)) : 'invalid json';
+            throw new \RuntimeException("ip-api failed: " . $message);
+        }
+
+        $country = trim((string)($data['country'] ?? ''));
+        $city = trim((string)($data['city'] ?? ''));
+        if ($country === '' && $city === '') {
+            throw new \RuntimeException("ip-api has no country/city for ip: $ip");
+        }
+        $displayName = ($city !== '' && $city !== $country) ? ($city . "·" . $country) : ($city ?: $country);
+        $displayName .= '[v4]';
+
+        $location = [
+            'name' => $displayName,
+            'location_main' => trim((string)($data['regionName'] ?? '')),
+            'location_sub' => trim((string)($data['isp'] ?? $data['org'] ?? '')),
+            'flagpic' => '',
+            'start_ip' => $ip,
+            'end_ip' => $ip,
+            'ip_version' => 4,
+            'country_en' => $country,
+            'city_en' => $city,
+            'continent_en' => '',
+        ];
+    } catch (\Throwable $throwable) {
+        do_log($throwable->getMessage(), 'error');
+    }
+
+    if ($location) {
+        \Nexus\Database\NexusDB::cache_put($cacheKey, ['success' => true, 'data' => $location], 86400 * 7);
+        return $location;
+    }
+    \Nexus\Database\NexusDB::cache_put($cacheKey, ['success' => false], 1800);
     return false;
 }
 
@@ -8005,7 +8087,7 @@ function can_access_torrent($torrent, $uid)
 
 function get_ip_location_from_geoip($ip): bool|array
 {
-    $locationInfo = \Nexus\Database\NexusDB::remember("locations_{$ip}", 864000, function () use ($ip) {
+    $locationInfo = \Nexus\Database\NexusDB::remember("locations_geoip_v2_{$ip}", 864000, function () use ($ip) {
         $lang = get_langfolder_cookie();
         $langMap = [
             'chs' => 'zh-CN',
@@ -8050,6 +8132,9 @@ function get_ip_location_from_geoip($ip): bool|array
             $info['continent_en'] = $record->continent->names['en'] ?? '';
         } catch (\Exception $exception) {
             do_log($exception->getMessage() . ", trace: " .  $exception->getTraceAsString(), 'error');
+        }
+        if (empty($info['country']) && empty($info['city'])) {
+            return false;
         }
         return $info;
     });
