@@ -81,6 +81,12 @@ function shop_buy_product(int $productId): \App\Models\ShopOrder {
     });
 }
 
+function shop_buy_medal(int $medalId): void {
+    global $CURUSER;
+    $rep = new \App\Repositories\BonusRepository();
+    $rep->consumeToBuyMedal((int)$CURUSER['id'], $medalId);
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'buy') {
     try {
         $order = shop_buy_product((int)($_POST['product_id'] ?? 0));
@@ -91,6 +97,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'buy')
     } catch (Throwable $e) {
         stdhead("商城");
         stdmsg("购买失败", shop_h($e->getMessage()) . "<br><a href=\"shop.php\">返回商城</a>");
+        stdfoot();
+        exit;
+    }
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'buy_medal') {
+    try {
+        shop_buy_medal((int)($_POST['medal_id'] ?? 0));
+        stdhead("商城");
+        stdmsg("购买成功", "勋章已购买并发放到账户。<br><a href=\"shop.php?cat=medal\">继续逛勋章</a> | <a href=\"medal.php\">查看我的勋章</a>");
+        stdfoot();
+        exit;
+    } catch (Throwable $e) {
+        stdhead("商城");
+        stdmsg("购买失败", shop_h($e->getMessage()) . "<br><a href=\"shop.php?cat=medal\">返回勋章</a>");
         stdfoot();
         exit;
     }
@@ -127,6 +147,18 @@ if ($activeCategory !== '') {
         }
     }
 }
+$isMedalCategory = $activeCategory === 'medal';
+$activeMedals = collect();
+$ownedMedalIds = collect();
+if ($isMedalCategory) {
+    $activeMedals = \App\Models\Medal::query()
+        ->where('display_on_medal_page', 1)
+        ->orderBy('priority', 'desc')
+        ->orderBy('id', 'desc')
+        ->get();
+    $user = \App\Models\User::query()->findOrFail((int)$CURUSER['id']);
+    $ownedMedalIds = $user->valid_medals->pluck('id')->flip();
+}
 
 stdhead("商城");
 ?>
@@ -144,16 +176,23 @@ stdhead("商城");
 .shop-section{margin:0 0 22px;}
 .shop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;}
 .shop-card{border:1px solid var(--bili-border,#e6e9ef);border-radius:8px;background:var(--bili-surface,#fff);padding:14px;min-height:154px;display:flex;flex-direction:column;gap:10px;}
+.shop-medal-card{min-height:246px;}
+.shop-medal-image{height:82px;display:flex;align-items:center;justify-content:center;background:var(--bili-surface-soft,#f2f3f5);border-radius:8px;overflow:hidden;}
+.shop-medal-image img{max-width:74px;max-height:74px;display:block;}
 .shop-card-title{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;font-size:16px;font-weight:800;color:var(--bili-text,#18191c);}
 .shop-badge{font-size:11px;font-weight:700;border-radius:999px;padding:3px 7px;background:var(--bili-surface-soft,#f2f3f5);color:var(--bili-primary,#00aeec);white-space:nowrap;}
 .shop-desc{font-size:12px;line-height:1.55;color:var(--bili-text-secondary,#61666d);min-height:38px;}
+.shop-medal-spec{display:flex;gap:6px;flex-wrap:wrap;font-size:11px;color:var(--bili-text-secondary,#61666d);}
+.shop-medal-spec span{padding:3px 7px;border-radius:999px;background:var(--bili-surface-soft,#f2f3f5);}
 .shop-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto;}
 .shop-price{font-size:18px;font-weight:900;color:var(--bili-primary,#00aeec);}
 .shop-price span{font-size:11px;font-weight:600;color:var(--bili-text-muted,#9499a0);}
 .shop-buy{border:none;border-radius:8px;background:var(--bili-primary,#00aeec);color:#fff;padding:8px 13px;font-weight:800;cursor:pointer;}
 .shop-buy:hover{background:var(--bili-primary-hover,#38bff2);}
+.shop-buy:disabled{background:var(--bili-surface-soft,#f2f3f5);color:var(--bili-text-muted,#9499a0);cursor:not-allowed;}
 .shop-empty{padding:22px;border:1px dashed var(--bili-border,#e6e9ef);border-radius:8px;text-align:center;color:var(--bili-text-secondary,#61666d);background:var(--bili-surface,#fff);}
 html[data-site-theme="night"] .shop-card,html[data-site-theme="night"] .shop-empty{background:#0e1728;border-color:rgba(116,145,196,.28);}
+html[data-site-theme="night"] .shop-medal-image,html[data-site-theme="night"] .shop-medal-spec span{background:rgba(116,145,196,.16);}
 html[data-site-theme="night"] .shop-category-menu{background:#0e1728;border-color:rgba(116,145,196,.28);}
 html[data-site-theme="night"] .shop-category-tab{color:#9fb0c8;}
 html[data-site-theme="night"] .shop-category-tab:hover{background:rgba(116,145,196,.16);color:#eaf1ff;}
@@ -178,7 +217,52 @@ html[data-site-theme="night"] .shop-desc,html[data-site-theme="night"] .shop-wal
 <?php } ?>
 	</div>
 	<div class="shop-section">
-<?php if (!$activeItems) { ?>
+<?php if ($isMedalCategory) { ?>
+<?php if ($activeMedals->isEmpty()) { ?>
+		<div class="shop-empty">当前分类暂无上架商品。</div>
+<?php } else { ?>
+		<div class="shop-grid">
+<?php foreach ($activeMedals as $medal) {
+    $buttonText = '购买';
+    $disabled = '';
+    try {
+        $medal->checkCanBeBuy();
+        if ($ownedMedalIds->has($medal->id)) {
+            $buttonText = '已拥有';
+            $disabled = ' disabled';
+        } elseif ((float)$CURUSER['seedbonus'] < (float)$medal->price) {
+            $buttonText = '电影票不足';
+            $disabled = ' disabled';
+        }
+    } catch (Throwable $e) {
+        $buttonText = $e->getMessage();
+        $disabled = ' disabled';
+    }
+?>
+			<div class="shop-card shop-medal-card">
+				<div class="shop-medal-image"><img src="<?php echo shop_h($medal->image_large) ?>" alt="<?php echo shop_h($medal->name) ?>" loading="lazy"></div>
+				<div class="shop-card-title">
+					<span><?php echo shop_h($medal->name) ?></span>
+					<span class="shop-badge"><?php echo shop_h($medal->inventory_text) ?></span>
+				</div>
+				<div class="shop-desc"><?php echo nl2br(shop_h($medal->description ?: '暂无说明')) ?></div>
+				<div class="shop-medal-spec">
+					<span><?php echo shop_h($medal->duration_text) ?></span>
+					<span>加成 <?php echo shop_h((string)(($medal->bonus_addition_factor ?? 0) * 100)) ?>%</span>
+				</div>
+				<div class="shop-meta">
+					<div class="shop-price"><?php echo number_format((float)$medal->price, 1) ?> <span>电影票</span></div>
+					<form method="post" action="shop.php?cat=medal">
+						<input type="hidden" name="action" value="buy_medal">
+						<input type="hidden" name="medal_id" value="<?php echo (int)$medal->id ?>">
+						<button class="shop-buy" type="submit"<?php echo $disabled ?>><?php echo shop_h($buttonText) ?></button>
+					</form>
+				</div>
+			</div>
+<?php } ?>
+		</div>
+<?php } ?>
+<?php } elseif (!$activeItems) { ?>
 		<div class="shop-empty">当前分类暂无上架商品。</div>
 <?php } else { ?>
 		<div class="shop-grid">
