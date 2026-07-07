@@ -6,6 +6,31 @@
  */
 if (!function_exists('mobile_shell_render')) {
 
+if (!function_exists('hdvideo_shop_can_enter_for_nav')) {
+    function hdvideo_shop_can_enter_for_nav(): bool
+    {
+        if (!isset($GLOBALS['CURUSER']['id'])) {
+            return false;
+        }
+        $defaultMinClass = defined('UC_ADMINISTRATOR') ? UC_ADMINISTRATOR : 14;
+        $userClass = function_exists('get_user_class') ? (int)get_user_class() : (int)($GLOBALS['CURUSER']['class'] ?? 0);
+        try {
+            $res = @sql_query("SHOW TABLES LIKE 'hdvideo_shop_settings'");
+            if (!$res || mysql_num_rows($res) === 0) {
+                return $userClass >= $defaultMinClass;
+            }
+            $settingRes = @sql_query("SELECT enabled, min_class FROM hdvideo_shop_settings WHERE id = 1 LIMIT 1");
+            $setting = $settingRes ? mysql_fetch_assoc($settingRes) : null;
+            if (!$setting) {
+                return $userClass >= $defaultMinClass;
+            }
+            return (int)$setting['enabled'] === 1 && $userClass >= (int)$setting['min_class'];
+        } catch (\Throwable $e) {
+            return $userClass >= $defaultMinClass;
+        }
+    }
+}
+
 function mobile_shell_colors(): array
 {
     global $CURUSER;
@@ -279,14 +304,16 @@ function mobile_shell_render(string $active = ''): void
     $navItems[] = ['faq.php', '常见问题', '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.5a2.4 2.4 0 1 1 3.3 2.2c-.8.4-1.4 1-1.4 1.9v.3"/><path d="M12 17h.01"/>'];
     if (function_exists('user_can') && user_can('log')) $navItems[] = ['log.php', '日志', '<path d="M3 12a9 9 0 1 0 3-6.7M3 5v4h4"/><path d="M12 8v4l3 2"/>'];
     $navItems[] = ['user-ban-log.php', '封禁记录', '<circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/>'];
-    $navItems[] = ['index.php', '首页', '<path d="M4 11l8-7 8 7M6 10v9h12v-9"/>'];
+    if (function_exists('hdvideo_shop_can_enter_for_nav') && hdvideo_shop_can_enter_for_nav()) {
+        $navItems[] = ['shop.php', '商城', '<path d="M6 7h12l-1 13H7z"/><path d="M9 7a3 3 0 0 1 6 0"/><path d="M9 11h.01M15 11h.01"/>'];
+    }
 
     $meItems = [
         ['usercp.php', '个人中心', '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>', false],
         ['messages.php', '消息', '<path d="M4 5h16v12H8l-4 4z"/>', true],
         ['attendance.php', '签到', '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 9h18M9 15l2 2 4-4"/>', false],
         ['mybonus.php', '电影票', '<circle cx="12" cy="12" r="8"/><path d="M9.5 12h5"/>', false],
-        ['invite.php', '邀请', '<circle cx="9" cy="8" r="4"/><path d="M3 20c0-3.5 3-5 6-5s6 1.5 6 5M19 8v6M16 11h6"/>', false],
+        ['invite.php?id=' . $uid, '邀请', '<circle cx="9" cy="8" r="4"/><path d="M3 20c0-3.5 3-5 6-5s6 1.5 6 5M19 8v6M16 11h6"/>', false],
         ['medal.php', '勋章', '<circle cx="12" cy="9" r="5"/><path d="M9 13l-2 8 5-3 5 3-2-8"/>', false],
         ['logout.php', '退出登录', '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>', false],
     ];
