@@ -3,6 +3,7 @@ require "../include/bittorrent.php";
 dbconn();
 require_once ROOT_PATH . 'include/mobile_shell.php';
 require_once(get_langfile_path());
+require_once(get_langfile_path('torrents.php'));
 loggedinorreturn();
 
 $brsectiontype = $browsecatmode;
@@ -46,6 +47,41 @@ $stickyTypes = [
     1 => nexus_trans('torrent.pos_state_sticky'),
     2 => nexus_trans('torrent.pos_state_r_sticky')
 ];
+$tagRep = new \App\Repositories\TagRepository();
+$allTags = $tagRep->listAll($brsectiontype);
+
+if (!function_exists('hdvideo_rss_filter_items')) {
+	function hdvideo_rss_filter_items($table) {
+		if (get_setting('torrent_region_style.enabled', 'yes') === 'no') return [];
+		$items = [];
+		$res = @sql_query("SELECT id, name FROM `$table` WHERE enabled = 1 ORDER BY sort_index DESC, id ASC");
+		if ($res) {
+			while ($row = mysql_fetch_assoc($res)) $items[] = $row;
+		}
+		return $items;
+	}
+	function hdvideo_rss_option_list(array $items, $selected = 0) {
+		$html = '';
+		foreach ($items as $item) {
+			$id = (int)($item['id'] ?? 0);
+			$name = trim((string)($item['name'] ?? ''));
+			if ($id <= 0 || $name === '') continue;
+			$html .= sprintf('<option value="%d"%s>%s</option>', $id, (int)$selected === $id ? ' selected' : '', htmlspecialchars($name));
+		}
+		return $html;
+	}
+	function hdvideo_rss_tag_option_list($tags, $selected = 0) {
+		$html = '';
+		foreach ($tags as $tag) {
+			$id = (int)$tag->id;
+			if ($id <= 0) continue;
+			$html .= sprintf('<option value="%d"%s>%s</option>', $id, (int)$selected === $id ? ' selected' : '', htmlspecialchars((string)$tag->name));
+		}
+		return $html;
+	}
+}
+$torrentStyles = hdvideo_rss_filter_items('torrent_styles');
+$torrentRegions = hdvideo_rss_filter_items('torrent_regions');
 $query[] = "passkey=" . $CURUSER['passkey'];
 if ($_SERVER['REQUEST_METHOD'] == "POST") {
 	$link = get_protocol_prefix(). $BASEURL ."/torrentrss.php";
@@ -165,26 +201,43 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 	if (!empty($_POST['sticky']) && is_array($_POST['sticky'])) {
 	    $query[] = "sticky=" . implode(',', $_POST['sticky']);
     }
+	$incldead = intval($_POST['incldead'] ?? 1);
+	if (in_array($incldead, [0, 1, 2], true)) {
+		$query[] = "incldead=" . $incldead;
+	}
+	$spstate = intval($_POST['spstate'] ?? 0);
+	if (in_array($spstate, [0, 1, 2, 3, 4, 5, 6, 7], true)) {
+		$query[] = "spstate=" . $spstate;
+	}
+	if (!empty($_POST['requireseed'])) {
+		$query[] = "requireseed=1";
+	}
+	$tagId = intval($_POST['tag_id'] ?? 0);
+	if ($tagId > 0) {
+		$query[] = "tag_id=" . $tagId;
+	}
+	$styleId = intval($_POST['style'] ?? 0);
+	if ($styleId > 0) {
+		$query[] = "style=" . $styleId;
+	}
+	$regionId = intval($_POST['region'] ?? 0);
+	if ($regionId > 0) {
+		$query[] = "region=" . $regionId;
+	}
     if (isset($_POST['paid'])) {
         $query[] = "paid=" . $_POST['paid'];
     }
 	$inclbookmarked=intval($_POST['inclbookmarked'] ?? 0);
-	if($inclbookmarked)
-	{
-		if (!in_array($inclbookmarked,array(0,1)))
-		{
-			$inclbookmarked = 0;
-		}
-		$addinclbm = "&inclbookmarked=".$inclbookmarked;
+	if (!in_array($inclbookmarked, [0, 1, 2], true)) {
+		$inclbookmarked = 0;
 	}
-	else
-	{
-		$addinclbm="";
+	if ($inclbookmarked) {
+		$query[] = "inclbookmarked=".$inclbookmarked;
 	}
 	$queries = implode("&", $query);
 	if ($queries)
 		$link .= "?".$queries;
-	$msg = $lang_getrss['std_use_following_url'] ."\n".$link."\n\n".$lang_getrss['std_utorrent_feed_url']."\n".$link."&linktype=dl".$addinclbm;
+	$msg = $lang_getrss['std_use_following_url'] ."\n".$link."\n\n".$lang_getrss['std_utorrent_feed_url']."\n".$link."&linktype=dl";
 	stdmsg($lang_getrss['std_done'],format_comment($msg));
 	mp_foot();
 	die();
@@ -323,10 +376,60 @@ if (get_setting('main.spsct') == 'yes') {
 </td>
 </tr>
 <tr>
+<td class="rowhead">保种区</td>
+<td class="rowfollow" align="left">
+<label><input type="checkbox" name="requireseed" value="1" /> 只订阅需要保种的种子</label>
+<div>与种子页“保种区”一致：只看做种数较少、需要补种的资源。</div>
+</td>
+</tr>
+<tr>
+<td class="rowhead"><?php echo $lang_torrents['text_show_dead_active'] ?? '显示断种/活种?'?></td>
+<td class="rowfollow" align="left">
+<select name="incldead">
+	<option value="0"><?php echo $lang_torrents['select_including_dead'] ?? '全部'?></option>
+	<option value="1" selected="selected"><?php echo $lang_torrents['select_active'] ?? '活种'?></option>
+	<option value="2"><?php echo $lang_torrents['select_dead'] ?? '断种'?></option>
+</select>
+</td>
+</tr>
+<tr>
+<td class="rowhead"><?php echo $lang_torrents['text_show_special_torrents'] ?? '显示优惠?'?></td>
+<td class="rowfollow" align="left">
+<select name="spstate">
+	<option value="0"><?php echo $lang_torrents['select_all'] ?? '全部'?></option>
+	<?php echo promotion_selection(0, 0)?>
+</select>
+</td>
+</tr>
+<?php if ($allTags->isNotEmpty()) { ?>
+<tr>
+<td class="rowhead">标签筛选</td>
+<td class="rowfollow" align="left">
+<select name="tag_id">
+	<option value="0"><?php echo $lang_torrents['select_all'] ?? '全部'?></option>
+	<?php echo hdvideo_rss_tag_option_list($allTags)?>
+</select>
+</td>
+</tr>
+<?php } ?>
+<?php if (!empty($torrentStyles) || !empty($torrentRegions)) { ?>
+<tr>
+<td class="rowhead">风格 / 地区</td>
+<td class="rowfollow" align="left">
+<?php if (!empty($torrentStyles)) { ?>
+	<label>风格 <select name="style"><option value="0"><?php echo $lang_torrents['select_all'] ?? '全部'?></option><?php echo hdvideo_rss_option_list($torrentStyles)?></select></label>
+<?php } ?>
+<?php if (!empty($torrentRegions)) { ?>
+	<label>地区 <select name="region"><option value="0"><?php echo $lang_torrents['select_all'] ?? '全部'?></option><?php echo hdvideo_rss_option_list($torrentRegions)?></select></label>
+<?php } ?>
+</td>
+</tr>
+<?php } ?>
+<tr>
 <td class="rowhead"><?php echo $lang_getrss['row_show_bookmarked']?>
 </td>
 <td class="rowfollow" align="left">
-<input type="radio" name="inclbookmarked" id="inclbookmarked0" value="0" checked="checked" /><label for="inclbookmarked0"><?php echo $lang_getrss['text_all']?></label>&nbsp;<input type="radio" name="inclbookmarked" id="inclbookmarked1" value="1" /><label for="inclbookmarked1"><?php echo $lang_getrss['text_only_bookmarked']?></label><div><?php echo $lang_getrss['text_show_bookmarked_note']?></div>
+<input type="radio" name="inclbookmarked" id="inclbookmarked0" value="0" checked="checked" /><label for="inclbookmarked0"><?php echo $lang_getrss['text_all']?></label>&nbsp;<input type="radio" name="inclbookmarked" id="inclbookmarked1" value="1" /><label for="inclbookmarked1"><?php echo $lang_getrss['text_only_bookmarked']?></label>&nbsp;<input type="radio" name="inclbookmarked" id="inclbookmarked2" value="2" /><label for="inclbookmarked2">不含收藏</label><div><?php echo $lang_getrss['text_show_bookmarked_note']?></div>
 </td>
 </tr>
     <tr>
