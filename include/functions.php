@@ -2630,7 +2630,12 @@ function menu ($selected = "home") {
 			print ("<li><a href=\"torrents.php?cat=".(int)$qdCat['id']."\">".htmlspecialchars((string)$qdCat['name'])."</a></li>");
 		}
 		print ("</ul></li>");
-		print ("<li class=\"nav-requireseed" . ($selected == "torrents" && $qdIsRequireSeed ? " selected" : "") . "\"><a href=\"torrents.php?requireseed=1\">保种区</a></li>");
+		print ("<li class=\"nav-requireseed has-submenu" . ($selected == "torrents" && $qdIsRequireSeed ? " selected" : "") . "\"><a href=\"torrents.php?requireseed=1\">保种区</a><ul class=\"nav-submenu nav-requireseed-submenu\">");
+		foreach (genrelist(get_setting('main.browsecat')) as $qdCat) {
+			if (empty($qdCat['id'])) { continue; }
+			print ("<li><a href=\"torrents.php?requireseed=1&amp;cat=".(int)$qdCat['id']."\">".htmlspecialchars((string)$qdCat['name'])."</a></li>");
+		}
+		print ("</ul></li>");
         if ($enablespecial == 'yes' && user_can('view_special_torrent'))
 			print ("<li" . ($selected == "special" ? " class=\"selected\"" : "") . "><a href=\"special.php\">".$normalizeMenuText($specialSectionName[$lang] ?? $lang_functions['text_special'])."</a></li>");
         if ($enableoffer == 'yes')
