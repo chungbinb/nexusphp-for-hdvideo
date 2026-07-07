@@ -263,9 +263,6 @@ if ($action){
 				if ($avatarAction === "default") {
 					$updateset[] = "avatar = " . sqlesc(usercp_default_avatar_url());
 				} elseif ($avatarAction === "server" && $avatarServerUrl !== '') {
-					if (!usercp_owned_avatar_url($avatarServerUrl)) {
-						bark(usercp_lang('std_avatar_invalid_server_file', 'The selected avatar file is invalid.'));
-					}
 					$updateset[] = "avatar = " . sqlesc(htmlspecialchars($avatarServerUrl));
 				}
 				$info = htmlspecialchars(trim($_POST["info"]));
