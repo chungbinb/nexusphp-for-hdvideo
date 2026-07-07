@@ -168,7 +168,8 @@ stdhead("商城");
 .shop-title{font-size:24px;font-weight:800;color:var(--bili-text,#18191c);}
 .shop-wallet{font-size:13px;color:var(--bili-text-secondary,#61666d);}
 .shop-wallet b{color:var(--bili-primary,#00aeec);font-size:17px;}
-.shop-actions a{display:inline-flex;align-items:center;justify-content:center;padding:8px 13px;border-radius:8px;background:var(--bili-primary,#00aeec);color:#fff;text-decoration:none;font-weight:700;}
+.shop-actions a{display:inline-flex;align-items:center;justify-content:center;min-width:92px;height:36px;box-sizing:border-box;padding:0 16px;border:1px solid var(--bili-primary,#00aeec);border-radius:8px;background:var(--bili-surface,#fff);color:var(--bili-primary,#00aeec);text-decoration:none;font-size:13px;font-weight:800;white-space:nowrap;box-shadow:0 4px 12px rgba(0,174,236,.12);}
+.shop-actions a:hover{background:var(--bili-primary,#00aeec);color:#fff;text-decoration:none;}
 .shop-category-menu{display:flex;gap:8px;align-items:center;margin:0 0 16px;padding:8px;border:1px solid var(--bili-border,#e6e9ef);border-radius:8px;background:var(--bili-surface,#fff);overflow-x:auto;scrollbar-width:thin;}
 .shop-category-tab{display:inline-flex;align-items:center;justify-content:center;min-width:96px;height:38px;padding:0 15px;border-radius:7px;color:var(--bili-text-secondary,#61666d);font-weight:800;text-decoration:none;white-space:nowrap;transition:background .15s ease,color .15s ease,box-shadow .15s ease;}
 .shop-category-tab:hover{background:var(--bili-surface-soft,#f2f3f5);color:var(--bili-primary,#00aeec);text-decoration:none;}
@@ -197,9 +198,10 @@ html[data-site-theme="night"] .shop-medal-spec span{background:rgba(116,145,196,
 html[data-site-theme="night"] .shop-category-menu{background:#0e1728;border-color:rgba(116,145,196,.28);}
 html[data-site-theme="night"] .shop-category-tab{color:#9fb0c8;}
 html[data-site-theme="night"] .shop-category-tab:hover{background:rgba(116,145,196,.16);color:#eaf1ff;}
+html[data-site-theme="night"] .shop-actions a{background:#0e1728;}
 html[data-site-theme="night"] .shop-title,html[data-site-theme="night"] .shop-card-title{color:#eaf1ff;}
 html[data-site-theme="night"] .shop-desc,html[data-site-theme="night"] .shop-wallet{color:#9fb0c8;}
-@media (max-width:700px){.shop-head{align-items:flex-start;flex-direction:column}.shop-category-menu{margin-left:-2px;margin-right:-2px;padding:7px}.shop-category-tab{min-width:auto;height:36px;padding:0 13px}.shop-grid{grid-template-columns:1fr}.shop-page{padding:0 10px 70px;}}
+@media (max-width:700px){.shop-head{align-items:flex-start;flex-direction:column}.shop-actions a{min-width:104px;height:38px;padding:0 18px;font-size:13px}.shop-category-menu{margin-left:-2px;margin-right:-2px;padding:7px}.shop-category-tab{min-width:auto;height:36px;padding:0 13px}.shop-grid{grid-template-columns:1fr}.shop-page{padding:0 10px 70px;}}
 </style>
 <div class="shop-page">
 	<div class="shop-head">
