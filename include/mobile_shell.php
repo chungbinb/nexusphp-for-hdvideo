@@ -279,7 +279,9 @@ function mobile_shell_render(string $active = ''): void
     $navItems[] = ['faq.php', '常见问题', '<circle cx="12" cy="12" r="9"/><path d="M9.6 9.5a2.4 2.4 0 1 1 3.3 2.2c-.8.4-1.4 1-1.4 1.9v.3"/><path d="M12 17h.01"/>'];
     if (function_exists('user_can') && user_can('log')) $navItems[] = ['log.php', '日志', '<path d="M3 12a9 9 0 1 0 3-6.7M3 5v4h4"/><path d="M12 8v4l3 2"/>'];
     $navItems[] = ['user-ban-log.php', '封禁记录', '<circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/>'];
-    $navItems[] = ['index.php', '首页', '<path d="M4 11l8-7 8 7M6 10v9h12v-9"/>'];
+    if (function_exists('hdvideo_shop_can_enter_for_nav') && hdvideo_shop_can_enter_for_nav()) {
+        $navItems[] = ['shop.php', '商城', '<path d="M6 7h12l-1 13H7z"/><path d="M9 7a3 3 0 0 1 6 0"/><path d="M9 11h.01M15 11h.01"/>'];
+    }
 
     $meItems = [
         ['usercp.php', '个人中心', '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>', false],
