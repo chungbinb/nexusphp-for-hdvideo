@@ -3358,6 +3358,13 @@ else {
 			$topStaffMessageCount = (int)$topStaffMessageCount;
 		}
 	}
+	$topAvatarClass = 'top-account-avatar' . ($topAvatarUrl !== '' ? ' top-account-avatar--image' : '');
+	if ($topAvatarUrl !== '') {
+		$topAvatarInner = '<span class="' . $topAvatarClass . '"><img src="' . htmlspecialchars($topAvatarUrl) . '" alt="" loading="lazy" onerror="this.remove();this.parentNode.classList.remove(\'top-account-avatar--image\');this.parentNode.textContent=\'' . htmlspecialchars($topAvatar, ENT_QUOTES) . '\';" /></span>';
+	} else {
+		$topAvatarInner = '<span class="' . $topAvatarClass . '">' . htmlspecialchars($topAvatar) . '</span>';
+	}
+	$topAvatarHtml = render_avatar_with_frame($topAvatarInner, (int)$CURUSER['id'], 36, 'top-account-avatar-frame');
 ?>
 
 <div id="top-account-widget">
@@ -3373,7 +3380,7 @@ else {
 	</div>
 	<div class="top-account-entry">
 		<a class="top-account-trigger" href="userdetails.php?id=<?php echo (int)$CURUSER['id'] ?>" title="<?php echo htmlspecialchars($lang_functions['text_user_cp']) ?>">
-			<span class="top-account-avatar<?php echo $topAvatarUrl !== '' ? ' top-account-avatar--image' : '' ?>"><?php if ($topAvatarUrl !== '') { ?><img src="<?php echo htmlspecialchars($topAvatarUrl) ?>" alt="" loading="lazy" onerror="this.remove();this.parentNode.classList.remove('top-account-avatar--image');this.parentNode.textContent='<?php echo htmlspecialchars($topAvatar, ENT_QUOTES) ?>';" /><?php } else { echo htmlspecialchars($topAvatar); } ?></span>
+			<?php echo $topAvatarHtml ?>
 		</a>
 		<div class="top-account-dropdown">
 			<div class="top-account-header">
@@ -5276,7 +5283,7 @@ function commenttable($rows, $type, $parent_id, $review = false)
 		$secs = 900;
 		$dt = sqlesc(date("Y-m-d H:i:s",(TIMENOW - $secs))); // calculate date.
 		print("<tr>\n");
-		print("<td class=\"rowfollow\" width=\"150\" valign=\"top\" style=\"padding: 0px;\">".return_avatar_image($avatar)."</td>\n");
+		print("<td class=\"rowfollow\" width=\"150\" valign=\"top\" style=\"padding: 0px;\">".return_avatar_image($avatar, (int)$userRow['id'])."</td>\n");
 		print("<td class=\"rowfollow word-break-all\" valign=\"top\"><br />".$text.$text_editby."</td>\n");
 		print("</tr>\n");
 		$actionbar = "<a href=\"comment.php?action=add&amp;sub=quote&amp;cid=".$row['id']."&amp;pid=".$parent_id."&amp;type=".$type."\"><img class=\"f_quote\" src=\"pic/trans.gif\" alt=\"Quote\" title=\"".$lang_functions['title_reply_with_quote']."\" /></a>".
@@ -7154,10 +7161,14 @@ function get_ratio($userid, $html = true){
     }
 	$uped = $row['uploaded'];
 	$downed = $row['downloaded'];
+	$avatarShareRatioFactor = \App\Models\AvatarFrame::userBonusFactor((int)$userid, \App\Models\AvatarFrame::BONUS_SHARE_RATIO);
 	if ($html == true){
 		if ($downed > 0)
 		{
 			$ratio = $uped / $downed;
+			if ($avatarShareRatioFactor > 0) {
+				$ratio *= (1 + $avatarShareRatioFactor);
+			}
 			$color = get_ratio_color($ratio);
 			$ratio = number_format($ratio, 3);
 
@@ -7173,6 +7184,9 @@ function get_ratio($userid, $html = true){
 		if ($downed > 0)
 		{
 			$ratio = $uped / $downed;
+			if ($avatarShareRatioFactor > 0) {
+				$ratio *= (1 + $avatarShareRatioFactor);
+			}
 		}
 		else $ratio = 1;
 	}
@@ -7471,10 +7485,53 @@ function valid_class_name($filename)
 	return true;
 }
 
-function return_avatar_image($url)
+function get_wearing_avatar_frame_for_user(int $uid): ?\App\Models\AvatarFrame
+{
+	static $cache = [];
+	if ($uid <= 0) {
+		return null;
+	}
+	if (!array_key_exists($uid, $cache)) {
+		try {
+			$cache[$uid] = \App\Models\AvatarFrame::wearingForUser($uid);
+		} catch (Throwable $e) {
+			$cache[$uid] = null;
+		}
+	}
+	return $cache[$uid];
+}
+
+function avatar_frame_class_name(?\App\Models\AvatarFrame $frame): string
+{
+	if (!$frame) {
+		return '';
+	}
+	$class = (string)($frame->css_class ?: $frame->code);
+	return preg_replace('/[^a-zA-Z0-9_-]/', '', $class);
+}
+
+function render_avatar_with_frame(string $innerHtml, int $uid, int $size = 0, string $extraClass = ''): string
+{
+	$frame = get_wearing_avatar_frame_for_user($uid);
+	if (!$frame) {
+		return $innerHtml;
+	}
+	$frameClass = htmlspecialchars(avatar_frame_class_name($frame), ENT_QUOTES);
+	$class = trim("hdv-avatar-frame hdv-avatar-frame--{$frameClass} {$extraClass}");
+	$style = $size > 0 ? ' style="width:' . (int)$size . 'px;height:' . (int)$size . 'px"' : '';
+	$imageUrl = trim((string)$frame->image_url);
+	$overlay = '';
+	if ($imageUrl !== '') {
+		$overlay = '<span class="hdv-avatar-frame-image" style="background-image:url(\'' . htmlspecialchars($imageUrl, ENT_QUOTES) . '\')"></span>';
+	}
+	return '<span class="' . $class . '"' . $style . '>' . $innerHtml . $overlay . '</span>';
+}
+
+function return_avatar_image($url, int $uid = 0)
 {
 	global $CURLANGDIR;
-	return "<img src=\"".$url."\" alt=\"avatar\" width=\"150px\" onload=\"check_avatar(this, '".$CURLANGDIR."');\" />";
+	$image = "<img src=\"".$url."\" alt=\"avatar\" width=\"150px\" onload=\"check_avatar(this, '".$CURLANGDIR."');\" />";
+	return render_avatar_with_frame($image, $uid, 150, 'hdv-avatar-frame--legacy');
 }
 function return_category_image($categoryid, $link="")
 {
@@ -8327,7 +8384,8 @@ function calculate_seed_bonus($uid, $torrentIdArr = null): array
     }
     $userMedalResult = \Nexus\Database\NexusDB::select("select $factorField as factor from medals where id in (select medal_id from user_medals where uid = $uid and (expire_at is null or expire_at > '$nowStr') and (bonus_addition_expire_at is null or bonus_addition_expire_at > '$nowStr'))");
     $medalAdditionalFactor = floatval($userMedalResult[0]['factor'] ?? 0);
-    do_log("$logPrefix, sql: $sql, count: " . count($torrentResult) . ", officialTag: $officialTag, officialAdditionalFactor: $officialAdditionalFactor, zeroBonusTag: $zeroBonusTag, zeroBonusFactor: $zeroBonusFactor, medalAdditionalFactor: $medalAdditionalFactor");
+    $avatarFrameAdditionalFactor = \App\Models\AvatarFrame::userBonusFactor((int)$uid, \App\Models\AvatarFrame::BONUS_SEED_POINTS);
+    do_log("$logPrefix, sql: $sql, count: " . count($torrentResult) . ", officialTag: $officialTag, officialAdditionalFactor: $officialAdditionalFactor, zeroBonusTag: $zeroBonusTag, zeroBonusFactor: $zeroBonusFactor, medalAdditionalFactor: $medalAdditionalFactor, avatarFrameAdditionalFactor: $avatarFrameAdditionalFactor");
     $last_action = "";
     $ip_arr = [];
     foreach ($torrentResult as $torrent)
@@ -8373,6 +8431,7 @@ function calculate_seed_bonus($uid, $torrentIdArr = null): array
     $result['donor_times'] = $donortimes_bonus;
     $result['official_additional_factor'] = $officialAdditionalFactor;
     $result['medal_additional_factor'] = $medalAdditionalFactor;
+    $result['avatar_frame_additional_factor'] = $avatarFrameAdditionalFactor;
     $result['ip_arr'] = array_keys($ip_arr);
     do_log("$logPrefix, result: " . json_encode($result));
     return $result;
@@ -8603,7 +8662,7 @@ function build_bonus_table(array $user, array $bonusResult = [], array $options 
     $totalBonus = $baseBonus;
 
     $rowSpan = 1;
-    $hasHaremAddition = $hasOfficialAddition = $hasMedalAddition = false;
+    $hasHaremAddition = $hasOfficialAddition = $hasMedalAddition = $hasAvatarFrameAddition = false;
     if ($haremFactor > 0) {
         $rowSpan++;
         $hasHaremAddition = true;
@@ -8618,6 +8677,11 @@ function build_bonus_table(array $user, array $bonusResult = [], array $options 
         $rowSpan++;
         $hasMedalAddition = true;
         $totalBonus += $bonusResult['medal_bonus'] * $bonusResult['medal_additional_factor'];
+    }
+    if (($bonusResult['avatar_frame_additional_factor'] ?? 0) > 0) {
+        $rowSpan++;
+        $hasAvatarFrameAddition = true;
+        $totalBonus += $bonusResult['medal_bonus'] * $bonusResult['avatar_frame_additional_factor'];
     }
 
     // 各列标签(手机端卡片化时用 data-label 显示)
@@ -8667,6 +8731,19 @@ function build_bonus_table(array $user, array $bonusResult = [], array $options 
         );
     }
 
+    if ($hasAvatarFrameAddition) {
+        $table .= sprintf(
+            '<tr><td class="brk-type">%s</td>' . $dc . '</tr>',
+            '头像挂件加成',
+            $bonusResult['torrent_peer_count'],
+            mksize($bonusResult['size']),
+            number_format($bonusResult['A'], 3),
+            number_format($bonusResult['medal_bonus'], 3),
+            number_format($bonusResult['avatar_frame_additional_factor'], 3),
+            number_format($bonusResult['medal_bonus'] * $bonusResult['avatar_frame_additional_factor'], 3)
+        );
+    }
+
     if ($hasOfficialAddition) {
         $table .= sprintf(
             '<tr><td class="brk-type">%s</td>' . $dc . '</tr>',
@@ -8703,6 +8780,8 @@ function build_bonus_table(array $user, array $bonusResult = [], array $options 
         'official_addition_factor' => $officialAdditionalFactor,
         'has_medal_addition' => $hasMedalAddition,
         'medal_addition_factor' => $bonusResult['medal_additional_factor'],
+        'has_avatar_frame_addition' => $hasAvatarFrameAddition,
+        'avatar_frame_addition_factor' => $bonusResult['avatar_frame_additional_factor'] ?? 0,
     ];
 
 }

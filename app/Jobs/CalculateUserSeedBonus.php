@@ -150,6 +150,13 @@ class CalculateUserSeedBonus implements ShouldQueue
                 $this->appendBonusLogInsert($bonusLogInsert, $uid, BonusLogs::BUSINESS_TYPE_SEEDING_MEDAL_ADDITION, $oldValue, $medalAddition);
                 $oldValue += $medalAddition;
             }
+            if (($seedBonusResult['avatar_frame_additional_factor'] ?? 0) > 0) {
+                $avatarFrameAddition = $seedBonusResult['medal_bonus'] * $seedBonusResult['avatar_frame_additional_factor'];
+                $all_bonus += $avatarFrameAddition;
+                $bonusLog .= ", avatarFrameAdditionFactor: {$seedBonusResult['avatar_frame_additional_factor']}, medalBonus: {$seedBonusResult['medal_bonus']}, avatarFrameAddition: $avatarFrameAddition, all_bonus: $all_bonus";
+                $this->appendBonusLogInsert($bonusLogInsert, $uid, BonusLogs::BUSINESS_TYPE_SEEDING_AVATAR_FRAME_ADDITION, $oldValue, $avatarFrameAddition);
+                $oldValue += $avatarFrameAddition;
+            }
             do_log($bonusLog);
             $dividend = 3600 / $autoclean_interval_one;
             $all_bonus = $all_bonus / $dividend;

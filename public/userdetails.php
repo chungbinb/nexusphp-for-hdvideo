@@ -309,7 +309,7 @@ if (($user['donated'] > 0 || $user['donated_cny'] > 0 )&& (user_can('userprofile
 tr_small($lang_userdetails['row_donated'], "$".htmlspecialchars($user['donated'])."&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;".htmlspecialchars($user['donated_cny']), 1);
 
 if ($user["avatar"])
-tr_small($lang_userdetails['row_avatar'], return_avatar_image(htmlspecialchars(trim($user["avatar"]))), 1);
+tr_small($lang_userdetails['row_avatar'], return_avatar_image(htmlspecialchars(trim($user["avatar"])), (int)$id), 1);
 
 $uclass = get_user_class_image($user["class"]);
 $utitle = get_user_class_name($user["class"],false,false,true);

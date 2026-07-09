@@ -53,6 +53,7 @@ return [
         \App\Models\BonusLogs::BUSINESS_TYPE_SEEDING_OFFICIAL_ADDITION => '做种官种加成',
         \App\Models\BonusLogs::BUSINESS_TYPE_SEEDING_HAREM_ADDITION => '做种后宫加成',
         \App\Models\BonusLogs::BUSINESS_TYPE_SEEDING_MEDAL_ADDITION => '做种勋章加成',
+        \App\Models\BonusLogs::BUSINESS_TYPE_SEEDING_AVATAR_FRAME_ADDITION => '做种头像挂件加成',
     ],
     'fields' => [
         'business_type' => '业务类型',

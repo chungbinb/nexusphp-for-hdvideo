@@ -13,7 +13,7 @@ $uname = (string)($CURUSER['username'] ?? '');
 $avatar = trim((string)($CURUSER['avatar'] ?? ''));
 $up = (float)($CURUSER['uploaded'] ?? 0);
 $down = (float)($CURUSER['downloaded'] ?? 0);
-$ratio = $down > 0 ? number_format($up / $down, 2) : ($up > 0 ? '∞' : '---');
+$ratio = $down > 0 ? number_format((float)get_ratio($uid, false), 2) : ($up > 0 ? '∞' : '---');
 $bonus = number_format(floor((float)($CURUSER['seedbonus'] ?? 0)));
 $classText = function_exists('get_user_class_name') ? get_user_class_name((int)($CURUSER['class'] ?? 0)) : '';
 
@@ -61,10 +61,12 @@ if (($showpolls_main ?? '') === 'yes') {
     }
 }
 
-function mh_avatar($avatar, $uname)
+function mh_avatar($avatar, $uname, $uid)
 {
-    if ($avatar !== '') return '<img src="' . htmlspecialchars($avatar) . '" alt="" onerror="this.style.display=\'none\'">';
-    return '<b>' . htmlspecialchars(mb_substr($uname !== '' ? $uname : '?', 0, 1)) . '</b>';
+    $html = $avatar !== ''
+        ? '<img src="' . htmlspecialchars($avatar) . '" alt="" onerror="this.style.display=\'none\'">'
+        : '<b>' . htmlspecialchars(mb_substr($uname !== '' ? $uname : '?', 0, 1)) . '</b>';
+    return function_exists('render_avatar_with_frame') ? render_avatar_with_frame($html, (int)$uid, 44) : $html;
 }
 
 // 输出统一手机外壳头部（DOCTYPE/head/body/.m-main + 顶栏/底部Tab 由 page_foot 输出）
@@ -79,7 +81,7 @@ mobile_shell_page_head('首页', 'home', 'page-home');
 .page-home .m-stat b { display: block; font-size: 15px; font-weight: 800; color: var(--mh-primary); }
 .page-home .m-stat span { font-size: 11px; color: #8a96ad; }
 .page-home .m-stat .uname { grid-column: 1 / -1; text-align: left; padding: 10px 12px 8px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(20,40,90,.06); margin-bottom: 4px; }
-.page-home .m-stat .av { flex: none; width: 44px; height: 44px; border-radius: 50%; overflow: hidden; background: var(--mh-soft); display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 19px; color: var(--mh-primary); box-shadow: 0 0 0 2px var(--mh-soft); }
+.page-home .m-stat .av { flex: none; width: 44px; height: 44px; border-radius: 50%; overflow: visible; background: var(--mh-soft); display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 19px; color: var(--mh-primary); box-shadow: 0 0 0 2px var(--mh-soft); }
 .page-home .m-stat .av img { width: 100%; height: 100%; object-fit: cover; }
 .page-home .m-stat .who { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .page-home .m-stat .who b { font-size: 16px; color: var(--mh-text); }
@@ -127,7 +129,7 @@ mobile_shell_page_head('首页', 'home', 'page-home');
 
 <section class="m-stat">
     <div class="uname">
-        <a class="av" href="usercp.php"><?php echo mh_avatar($avatar, $uname) ?></a>
+        <a class="av" href="usercp.php"><?php echo mh_avatar($avatar, $uname, $uid) ?></a>
         <div class="who"><b><?php echo htmlspecialchars($uname) ?></b><?php if ($classText !== '') { ?><span class="tag"><?php echo strip_tags($classText) ?></span><?php } ?></div>
     </div>
     <div><b>↑<?php echo mksize($up) ?></b><span>上传</span></div>

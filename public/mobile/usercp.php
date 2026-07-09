@@ -13,7 +13,7 @@ $avatar = trim((string)($CURUSER['avatar'] ?? ''));
 $classText = function_exists('get_user_class_name') ? strip_tags(get_user_class_name((int)($CURUSER['class'] ?? 0))) : '';
 $up = (float)($CURUSER['uploaded'] ?? 0);
 $down = (float)($CURUSER['downloaded'] ?? 0);
-$ratio = $down > 0 ? number_format($up / $down, 2) : ($up > 0 ? '∞' : '---');
+$ratio = $down > 0 ? number_format((float)get_ratio($uid, false), 2) : ($up > 0 ? '∞' : '---');
 $bonus = number_format(floor((float)($CURUSER['seedbonus'] ?? 0)));
 $invites = (int)($CURUSER['invites'] ?? 0);
 $join = (string)($CURUSER['added'] ?? '');
@@ -21,10 +21,12 @@ $email = (string)($CURUSER['email'] ?? '');
 $ip = (string)($CURUSER['ip'] ?? '');
 $passkey = (string)($CURUSER['passkey'] ?? '');
 
-function mu_avatar($avatar, $uname)
+function mu_avatar($avatar, $uname, $uid)
 {
-    if ($avatar !== '') return '<img src="' . htmlspecialchars($avatar) . '" alt="" onerror="this.style.display=\'none\'">';
-    return '<b>' . htmlspecialchars(mb_substr($uname !== '' ? $uname : '?', 0, 1)) . '</b>';
+    $html = $avatar !== ''
+        ? '<img src="' . htmlspecialchars($avatar) . '" alt="" onerror="this.style.display=\'none\'">'
+        : '<b>' . htmlspecialchars(mb_substr($uname !== '' ? $uname : '?', 0, 1)) . '</b>';
+    return function_exists('render_avatar_with_frame') ? render_avatar_with_frame($html, (int)$uid, 58) : $html;
 }
 
 $settingLinks = [
@@ -37,7 +39,7 @@ $settingLinks = [
 mobile_shell_page_head('个人中心', 'me', 'page-usercp');
 ?>
 <div class="m-prof">
-    <span class="av"><?php echo mu_avatar($avatar, $uname) ?></span>
+    <span class="av"><?php echo mu_avatar($avatar, $uname, $uid) ?></span>
     <div>
         <div class="nm"><?php echo htmlspecialchars($uname) ?></div>
         <?php if ($classText !== '') { ?><span class="tag"><?php echo htmlspecialchars($classText) ?></span><?php } ?>

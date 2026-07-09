@@ -156,8 +156,19 @@ body.m-page img { max-width: 100%; height: auto; }
 .m-card h3::before { content: ""; width: 4px; height: 15px; border-radius: 2px; background: var(--mh-primary); margin-right: 8px; }
 
 .m-prof { display: flex; align-items: center; gap: 12px; margin: 12px; padding: 16px 14px; background: var(--mh-surface); border: 1px solid rgba(20,40,90,.06); border-radius: 16px; box-shadow: 0 4px 14px rgba(20,40,90,.08); }
-.m-prof .av { width: 62px; height: 62px; border-radius: 50%; overflow: hidden; flex: none; background: var(--mh-soft); display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 26px; color: var(--mh-primary); box-shadow: 0 0 0 2px var(--mh-soft); }
+.m-prof .av { width: 62px; height: 62px; border-radius: 50%; overflow: visible; flex: none; background: var(--mh-soft); display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 26px; color: var(--mh-primary); box-shadow: 0 0 0 2px var(--mh-soft); }
 .m-prof .av img { width: 100%; height: 100%; object-fit: cover; }
+.hdv-avatar-frame { position: relative; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; line-height: 0; overflow: visible; vertical-align: middle; flex: none; }
+.hdv-avatar-frame > img { width: 100% !important; height: 100% !important; object-fit: cover; border-radius: 50%; display: block; }
+.hdv-avatar-frame:before { content: ""; position: absolute; inset: -6%; border-radius: 50%; pointer-events: none; z-index: 2; }
+.hdv-avatar-frame:after { content: ""; position: absolute; right: 1%; bottom: 4%; width: 23%; height: 23%; border-radius: 50%; background: var(--mh-primary); box-shadow: 0 0 0 3px var(--mh-surface); z-index: 3; pointer-events: none; }
+.hdv-avatar-frame--fresh_leaf:before { border: max(3px, 4%) solid #8fca62; box-shadow: 0 0 0 2px rgba(255,255,255,.9), 0 6px 14px rgba(93,141,50,.2); }
+.hdv-avatar-frame--fresh_leaf:after { background: #8fca62; }
+.hdv-avatar-frame--sky_badge:before { border: max(3px, 4%) solid #38a6ff; box-shadow: 0 0 0 2px rgba(255,255,255,.9), 0 6px 16px rgba(56,166,255,.24); }
+.hdv-avatar-frame--sky_badge:after { background: #38a6ff; }
+.hdv-avatar-frame--starlight_boost:before { border: max(3px, 4%) solid #f3b83f; box-shadow: 0 0 0 2px rgba(255,255,255,.92), 0 0 18px rgba(243,184,63,.45); }
+.hdv-avatar-frame--starlight_boost:after { background: #f3b83f; }
+.hdv-avatar-frame-image { position: absolute; inset: -14%; background-position: center; background-repeat: no-repeat; background-size: contain; z-index: 4; pointer-events: none; }
 .m-prof .nm { font-size: 19px; font-weight: 800; }
 .m-prof .tag { display: inline-block; margin-top: 5px; font-size: 11px; font-weight: 700; background: var(--mh-soft); color: var(--mh-primary); padding: 2px 9px; border-radius: 999px; }
 

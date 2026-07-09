@@ -53,6 +53,7 @@ return [
         \App\Models\BonusLogs::BUSINESS_TYPE_SEEDING_OFFICIAL_ADDITION => 'Seeding official addition',
         \App\Models\BonusLogs::BUSINESS_TYPE_SEEDING_HAREM_ADDITION => 'Seeding harem addition',
         \App\Models\BonusLogs::BUSINESS_TYPE_SEEDING_MEDAL_ADDITION => 'Seeding medal addition',
+        \App\Models\BonusLogs::BUSINESS_TYPE_SEEDING_AVATAR_FRAME_ADDITION => 'Seeding avatar frame addition',
     ],
     'fields' => [
         'business_type' => 'Business type',

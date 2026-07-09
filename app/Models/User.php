@@ -513,6 +513,16 @@ class User extends Authenticatable implements FilamentUser, HasName
         return $this->valid_medals()->where('user_medals.status', UserMedal::STATUS_WEARING);
     }
 
+    public function avatarFrames(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(UserAvatarFrame::class, 'uid');
+    }
+
+    public function wearingAvatarFrame(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(UserAvatarFrame::class, 'uid')->where('status', UserAvatarFrame::STATUS_WEARING);
+    }
+
     public function reward_torrent_logs(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(Reward::class, 'userid');
