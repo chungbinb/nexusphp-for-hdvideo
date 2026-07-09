@@ -7519,7 +7519,7 @@ function render_avatar_with_frame(string $innerHtml, int $uid, int $size = 0, st
 	$frameClass = htmlspecialchars(avatar_frame_class_name($frame), ENT_QUOTES);
 	$class = trim("hdv-avatar-frame hdv-avatar-frame--{$frameClass} {$extraClass}");
 	$style = $size > 0 ? ' style="width:' . (int)$size . 'px;height:' . (int)$size . 'px"' : '';
-	$imageUrl = trim((string)$frame->image_url);
+	$imageUrl = trim((string)$frame->display_image_url);
 	$overlay = '';
 	if ($imageUrl !== '') {
 		$overlay = '<span class="hdv-avatar-frame-image" style="background-image:url(\'' . htmlspecialchars($imageUrl, ENT_QUOTES) . '\')"></span>';

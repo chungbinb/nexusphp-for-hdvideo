@@ -7,6 +7,7 @@ use App\Models\AvatarFrame;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -14,6 +15,7 @@ use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
@@ -52,10 +54,16 @@ class AvatarFrameResource extends Resource
                     ->label('名称')
                     ->required()
                     ->maxLength(100),
-                TextInput::make('image_url')
-                    ->label('挂件图片 URL')
-                    ->helperText('可留空，留空时使用内置 CSS 挂件样式。')
-                    ->maxLength(255),
+                FileUpload::make('image_url')
+                    ->label('挂件透明图片')
+                    ->helperText('支持 PNG、GIF、WebP、AVIF、SVG 等透明图片；不允许 JPG、BMP。可留空，留空时使用内置 CSS 挂件样式。')
+                    ->disk('public')
+                    ->directory('avatar-frames')
+                    ->visibility('public')
+                    ->acceptedFileTypes(AvatarFrame::transparentImageMimeTypes())
+                    ->maxSize(2048)
+                    ->openable()
+                    ->downloadable(),
                 TextInput::make('css_class')
                     ->label('内置样式')
                     ->helperText('可选：fresh_leaf、sky_badge、starlight_boost。也可留空。')
@@ -102,6 +110,7 @@ class AvatarFrameResource extends Resource
             ->defaultSort('sort')
             ->columns([
                 TextColumn::make('id')->sortable(),
+                ImageColumn::make('display_image_url')->label('图片')->height(48)->width(48)->circular(),
                 TextColumn::make('name')->label('挂件')->searchable(),
                 TextColumn::make('code')->label('代码')->searchable(),
                 TextColumn::make('price')->label('价格')->formatStateUsing(fn ($state) => number_format((float)$state, 1) . ' 电影票'),

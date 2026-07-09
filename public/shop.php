@@ -389,7 +389,7 @@ html[data-site-theme="night"] .shop-desc,html[data-site-theme="night"] .shop-wal
         $disabled = ' disabled';
     }
     $frameClass = preg_replace('/[^a-zA-Z0-9_-]/', '', (string)($frame->css_class ?: $frame->code));
-    $frameImage = trim((string)$frame->image_url);
+    $frameImage = trim((string)$frame->display_image_url);
 ?>
 			<div class="shop-card shop-avatar-card">
 				<div class="shop-avatar-preview">

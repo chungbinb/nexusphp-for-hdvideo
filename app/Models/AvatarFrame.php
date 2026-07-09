@@ -32,6 +32,33 @@ class AvatarFrame extends NexusModel
     const BONUS_SHARE_RATIO = 'share_ratio';
     const BONUS_SEED_POINTS = 'seed_points';
 
+    public static function transparentImageMimeTypes(): array
+    {
+        return [
+            'image/png',
+            'image/gif',
+            'image/webp',
+            'image/avif',
+            'image/svg+xml',
+        ];
+    }
+
+    public static function normalizeImageUrl(?string $url): string
+    {
+        $url = trim((string)$url);
+        if ($url === '') {
+            return '';
+        }
+        if (preg_match('/^(https?:)?\/\//i', $url) || str_starts_with($url, '/') || str_starts_with($url, 'data:image/')) {
+            return $url;
+        }
+        $path = ltrim($url, '/');
+        if (str_starts_with($path, 'storage/')) {
+            return '/' . $path;
+        }
+        return '/storage/' . $path;
+    }
+
     public static function bonusTypeOptions(): array
     {
         return [
@@ -193,6 +220,11 @@ class AvatarFrame extends NexusModel
         }
         $label = self::bonusTypeOptions()[$this->bonus_type] ?? $this->bonus_type;
         return $label . ' +' . rtrim(rtrim(number_format((float)$this->bonus_value * 100, 2), '0'), '.') . '%';
+    }
+
+    public function getDisplayImageUrlAttribute(): string
+    {
+        return static::normalizeImageUrl($this->image_url);
     }
 
     protected static function seedMissingDefaultsForLegacy(): void
