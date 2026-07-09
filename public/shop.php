@@ -4,6 +4,7 @@ dbconn();
 loggedinorreturn();
 
 \App\Models\ShopProduct::ensureSchema();
+\App\Models\AvatarFrame::ensureSchema();
 $shopSetting = \App\Models\ShopSetting::current();
 if (!\App\Models\ShopSetting::canEnter($CURUSER)) {
     stdhead("商城");
@@ -87,6 +88,61 @@ function shop_buy_medal(int $medalId): void {
     $rep->consumeToBuyMedal((int)$CURUSER['id'], $medalId);
 }
 
+function shop_avatar_frame_action(int $frameId, string $mode): void {
+    global $CURUSER;
+    \Nexus\Database\NexusDB::transaction(function () use ($frameId, $mode, $CURUSER) {
+        $frame = \App\Models\AvatarFrame::query()
+            ->where('enabled', 1)
+            ->where('id', $frameId)
+            ->lockForUpdate()
+            ->first();
+        if (!$frame) {
+            throw new RuntimeException("头像挂件不存在或已下架。");
+        }
+        $uid = (int)$CURUSER['id'];
+        $owned = \App\Models\UserAvatarFrame::query()
+            ->where('uid', $uid)
+            ->where('frame_id', (int)$frame->id)
+            ->first();
+        if ($mode === 'wear') {
+            if (!$owned) {
+                throw new RuntimeException("你还没有拥有这个头像挂件。");
+            }
+            \App\Models\UserAvatarFrame::wear($uid, (int)$frame->id);
+            return;
+        }
+        if ($owned) {
+            \App\Models\UserAvatarFrame::wear($uid, (int)$frame->id);
+            return;
+        }
+        $isFree = (bool)$frame->is_free || (float)$frame->price <= 0;
+        if ($mode === 'claim' && !$isFree) {
+            throw new RuntimeException("这个头像挂件需要购买。");
+        }
+        $total = $isFree ? 0.0 : round((float)$frame->price, 2);
+        if ($total > 0) {
+            $user = \App\Models\User::query()->where('id', $uid)->lockForUpdate()->firstOrFail();
+            $oldBonus = (float)$user->seedbonus;
+            if ($oldBonus < $total) {
+                throw new RuntimeException("电影票不足，无法购买。");
+            }
+            $newBonus = round($oldBonus - $total, 2);
+            $user->seedbonus = $newBonus;
+            $user->save();
+            \App\Models\BonusLogs::add(
+                $uid,
+                $oldBonus,
+                -$total,
+                $newBonus,
+                "商城购买头像挂件：{$frame->name}",
+                \App\Models\BonusLogs::BUSINESS_TYPE_SHOP
+            );
+        }
+        \App\Models\UserAvatarFrame::grant($uid, (int)$frame->id, $isFree ? \App\Models\UserAvatarFrame::SOURCE_FREE : \App\Models\UserAvatarFrame::SOURCE_SHOP);
+        \App\Models\UserAvatarFrame::wear($uid, (int)$frame->id);
+    });
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'buy') {
     try {
         $order = shop_buy_product((int)($_POST['product_id'] ?? 0));
@@ -111,6 +167,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'buy_m
     } catch (Throwable $e) {
         stdhead("商城");
         stdmsg("购买失败", shop_h($e->getMessage()) . "<br><a href=\"shop.php?cat=medal\">返回勋章</a>");
+        stdfoot();
+        exit;
+    }
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'avatar_frame') {
+    try {
+        $mode = (string)($_POST['mode'] ?? 'buy');
+        shop_avatar_frame_action((int)($_POST['frame_id'] ?? 0), $mode);
+        stdhead("商城");
+        stdmsg("操作成功", "头像挂件已生效。<br><a href=\"shop.php?cat=avatar_frame\">继续逛头像挂件</a> | <a href=\"usercp.php?action=personal\">查看个人设置</a>");
+        stdfoot();
+        exit;
+    } catch (Throwable $e) {
+        stdhead("商城");
+        stdmsg("操作失败", shop_h($e->getMessage()) . "<br><a href=\"shop.php?cat=avatar_frame\">返回头像挂件</a>");
         stdfoot();
         exit;
     }
@@ -148,6 +219,7 @@ if ($activeCategory !== '') {
     }
 }
 $isMedalCategory = $activeCategory === 'medal';
+$isAvatarFrameCategory = $activeCategory === 'avatar_frame';
 $activeMedals = collect();
 $ownedMedalIds = collect();
 if ($isMedalCategory) {
@@ -158,6 +230,21 @@ if ($isMedalCategory) {
         ->get();
     $user = \App\Models\User::query()->findOrFail((int)$CURUSER['id']);
     $ownedMedalIds = $user->valid_medals->pluck('id')->flip();
+}
+$activeAvatarFrames = collect();
+$ownedAvatarFrameIds = collect();
+$wearingAvatarFrameId = 0;
+if ($isAvatarFrameCategory) {
+    $activeAvatarFrames = \App\Models\AvatarFrame::query()
+        ->where('enabled', 1)
+        ->orderBy('sort')
+        ->orderBy('id')
+        ->get();
+    $ownedFrames = \App\Models\UserAvatarFrame::query()
+        ->where('uid', (int)$CURUSER['id'])
+        ->get();
+    $ownedAvatarFrameIds = $ownedFrames->pluck('frame_id')->flip();
+    $wearingAvatarFrameId = (int)($ownedFrames->firstWhere('status', \App\Models\UserAvatarFrame::STATUS_WEARING)->frame_id ?? 0);
 }
 
 stdhead("商城");
@@ -180,6 +267,19 @@ stdhead("商城");
 .shop-medal-card{min-height:246px;}
 .shop-medal-image{height:82px;display:flex;align-items:center;justify-content:center;background:transparent;border-radius:8px;overflow:hidden;}
 .shop-medal-image img{max-width:74px;max-height:74px;display:block;}
+.shop-avatar-card{min-height:246px;}
+.shop-avatar-preview{height:92px;display:flex;align-items:center;justify-content:center;}
+.shop-avatar-face{position:relative;width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#edf7ff,#f6ffe9);color:var(--bili-primary,#00aeec);font-size:30px;font-weight:900;box-shadow:inset 0 0 0 1px rgba(120,150,190,.18);}
+.shop-avatar-face::before{content:"";position:absolute;inset:-7px;border-radius:50%;pointer-events:none;z-index:2;}
+.shop-avatar-face::after{content:"";position:absolute;right:-2px;bottom:1px;width:20px;height:20px;border-radius:50%;background:var(--bili-primary,#00aeec);box-shadow:0 0 0 3px var(--bili-surface,#fff);z-index:3;}
+.shop-avatar-face--fresh_leaf::before{border:4px solid #8fca62;box-shadow:0 0 0 2px rgba(255,255,255,.9),0 6px 14px rgba(93,141,50,.2);}
+.shop-avatar-face--fresh_leaf::after{background:#8fca62;}
+.shop-avatar-face--sky_badge::before{border:4px solid #38a6ff;box-shadow:0 0 0 2px rgba(255,255,255,.9),0 6px 16px rgba(56,166,255,.24);}
+.shop-avatar-face--sky_badge::after{background:#38a6ff;}
+.shop-avatar-face--starlight_boost::before{border:4px solid #f3b83f;box-shadow:0 0 0 2px rgba(255,255,255,.92),0 0 18px rgba(243,184,63,.45);}
+.shop-avatar-face--starlight_boost::after{background:#f3b83f;}
+.shop-avatar-face img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;}
+.shop-avatar-frame-image{position:absolute;inset:-12px;background:center/contain no-repeat;z-index:4;pointer-events:none;}
 .shop-card-title{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;font-size:16px;font-weight:800;color:var(--bili-text,#18191c);}
 .shop-badge{font-size:11px;font-weight:700;border-radius:999px;padding:3px 7px;background:var(--bili-surface-soft,#f2f3f5);color:var(--bili-primary,#00aeec);white-space:nowrap;}
 .shop-desc{font-size:12px;line-height:1.55;color:var(--bili-text-secondary,#61666d);min-height:38px;}
@@ -258,6 +358,60 @@ html[data-site-theme="night"] .shop-desc,html[data-site-theme="night"] .shop-wal
 					<form method="post" action="shop.php?cat=medal">
 						<input type="hidden" name="action" value="buy_medal">
 						<input type="hidden" name="medal_id" value="<?php echo (int)$medal->id ?>">
+						<button class="shop-buy" type="submit"<?php echo $disabled ?>><?php echo shop_h($buttonText) ?></button>
+					</form>
+				</div>
+			</div>
+<?php } ?>
+		</div>
+<?php } ?>
+<?php } elseif ($isAvatarFrameCategory) { ?>
+<?php if ($activeAvatarFrames->isEmpty()) { ?>
+		<div class="shop-empty">当前分类暂无上架商品。</div>
+<?php } else { ?>
+		<div class="shop-grid">
+<?php foreach ($activeAvatarFrames as $frame) {
+    $owned = $ownedAvatarFrameIds->has($frame->id);
+    $wearing = $wearingAvatarFrameId === (int)$frame->id;
+    $isFreeFrame = (bool)$frame->is_free || (float)$frame->price <= 0;
+    $buttonText = $isFreeFrame ? '免费领取并佩戴' : '购买并佩戴';
+    $mode = $isFreeFrame ? 'claim' : 'buy';
+    $disabled = '';
+    if ($wearing) {
+        $buttonText = '佩戴中';
+        $mode = 'wear';
+        $disabled = ' disabled';
+    } elseif ($owned) {
+        $buttonText = '佩戴';
+        $mode = 'wear';
+    } elseif (!$isFreeFrame && (float)$CURUSER['seedbonus'] < (float)$frame->price) {
+        $buttonText = '电影票不足';
+        $disabled = ' disabled';
+    }
+    $frameClass = preg_replace('/[^a-zA-Z0-9_-]/', '', (string)($frame->css_class ?: $frame->code));
+    $frameImage = trim((string)$frame->display_image_url);
+?>
+			<div class="shop-card shop-avatar-card">
+				<div class="shop-avatar-preview">
+					<div class="shop-avatar-face shop-avatar-face--<?php echo shop_h($frameClass) ?>">
+						<?php echo shop_h(mb_substr((string)$CURUSER['username'], 0, 1)) ?>
+						<?php if ($frameImage !== '') { ?><span class="shop-avatar-frame-image" style="background-image:url('<?php echo shop_h($frameImage) ?>')"></span><?php } ?>
+					</div>
+				</div>
+				<div class="shop-card-title">
+					<span><?php echo shop_h($frame->name) ?></span>
+					<span class="shop-badge"><?php echo $isFreeFrame ? '免费' : '付费' ?></span>
+				</div>
+				<div class="shop-desc"><?php echo nl2br(shop_h($frame->description ?: '暂无说明')) ?></div>
+				<div class="shop-medal-spec">
+					<span><?php echo shop_h($frame->bonus_text) ?></span>
+				</div>
+				<div class="shop-meta">
+					<div class="shop-price">售价：<?php echo number_format((float)$frame->price, 1) ?> <span>电影票</span></div>
+					<form method="post" action="shop.php?cat=avatar_frame">
+						<input type="hidden" name="action" value="avatar_frame">
+						<input type="hidden" name="mode" value="<?php echo shop_h($mode) ?>">
+						<input type="hidden" name="frame_id" value="<?php echo (int)$frame->id ?>">
 						<button class="shop-buy" type="submit"<?php echo $disabled ?>><?php echo shop_h($buttonText) ?></button>
 					</form>
 				</div>

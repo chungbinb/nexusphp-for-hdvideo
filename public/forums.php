@@ -1087,7 +1087,7 @@ function forumCancelInlineReply(postId) {
 			if (!$replyAvatar) {
 				$replyAvatar = "pic/default_avatar.png";
 			}
-			$replyUserPanel = return_avatar_image($replyAvatar);
+			$replyUserPanel = return_avatar_image($replyAvatar, $isAnonymousHidden ? 0 : $replyPosterId);
 			if (!$isAnonymousHidden) {
 				$replyPosts = get_row_count("posts", "WHERE userid=" . $replyPosterId);
 				$replyUploaded = mksize($replyUser["uploaded"]);
@@ -1259,7 +1259,7 @@ function forumCancelInlineReply(postId) {
 		}
 		$userMedals = $isAnonymousPost ? "" : forum_render_user_medals($userInfo);
 		print("<tr><td class=\"rowfollow\" width=\"150\" valign=\"top\" align=\"left\" style='padding: 0px'>" .
-		return_avatar_image($avatar). ($isAnonymousHidden ? "" : "<br /><br /><br />&nbsp;&nbsp;<img alt=\"".get_user_class_name($arr2["class"],false,false,true)."\" title=\"".get_user_class_name($arr2["class"],false,false,true)."\" src=\"".$uclass."\" />".$stats.$userMedals)."</td><td class=\"rowfollow\" valign=\"top\"><br />".$body."</td></tr>\n");
+		return_avatar_image($avatar, $isAnonymousHidden ? 0 : (int)$arr2['id']). ($isAnonymousHidden ? "" : "<br /><br /><br />&nbsp;&nbsp;<img alt=\"".get_user_class_name($arr2["class"],false,false,true)."\" title=\"".get_user_class_name($arr2["class"],false,false,true)."\" src=\"".$uclass."\" />".$stats.$userMedals)."</td><td class=\"rowfollow\" valign=\"top\"><br />".$body."</td></tr>\n");
 		$secs = 900;
 		$dt = sqlesc(date("Y-m-d H:i:s",(TIMENOW - $secs))); // calculate date.
 		$posterTools = "";

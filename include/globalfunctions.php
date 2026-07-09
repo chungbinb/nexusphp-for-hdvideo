@@ -1196,6 +1196,11 @@ function getDataTraffic(array $torrent, array $queries, array $user, $peer, $sna
         $log .= ", [PEER_NOT_EXISTS], realUploaded: $realUploaded, realDownloaded: $realDownloaded, upRatio: $upRatio, downRatio: $downRatio";
     }
     $uploadedIncrementForUser = $realUploaded * $upRatio;
+    $avatarUploadFactor = \App\Models\AvatarFrame::userBonusFactor((int)$user['id'], \App\Models\AvatarFrame::BONUS_UPLOAD);
+    if ($avatarUploadFactor > 0 && $uploadedIncrementForUser > 0) {
+        $uploadedIncrementForUser = $uploadedIncrementForUser * (1 + $avatarUploadFactor);
+        $log .= ", avatarUploadFactor: $avatarUploadFactor";
+    }
     $downloadedIncrementForUser = $realDownloaded * $downRatio;
     $log .= ", uploadedIncrementForUser: $uploadedIncrementForUser, downloadedIncrementForUser: $downloadedIncrementForUser";
 

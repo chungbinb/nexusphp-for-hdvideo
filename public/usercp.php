@@ -279,6 +279,16 @@ if ($action){
 				} elseif ($avatarAction === "server" && $avatarServerUrl !== '') {
 					$updateset[] = "avatar = " . sqlesc(htmlspecialchars($avatarServerUrl));
 				}
+				$avatarFrameId = (int)($_POST["avatar_frame_id"] ?? -1);
+				if ($avatarFrameId === 0) {
+					\App\Models\UserAvatarFrame::clearWearing((int)$CURUSER['id']);
+				} elseif ($avatarFrameId > 0) {
+					try {
+						\App\Models\UserAvatarFrame::wear((int)$CURUSER['id'], $avatarFrameId);
+					} catch (Throwable $e) {
+						stderr($lang_usercp['std_error'], htmlspecialchars($e->getMessage()));
+					}
+				}
 				$info = htmlspecialchars(trim($_POST["info"]));
 
 				$updateset[] = "parked = " . sqlesc($parked);
@@ -361,6 +371,29 @@ if ($action){
 			$us_a = sql_query("SELECT id,name FROM uploadspeed ORDER BY id") or die;
 			while ($us_b = mysql_fetch_array($us_a))
 			$uploadspeed .= "<option value=".htmlspecialchars($us_b['id'])."" . (htmlspecialchars($CURUSER["upload"]) == htmlspecialchars($us_b['id']) ? " selected" : "") . ">".htmlspecialchars($us_b['name'])."</option>\n";
+			\App\Models\AvatarFrame::ensureSchema();
+			$ownedAvatarFrames = \App\Models\UserAvatarFrame::query()
+				->with('frame')
+				->where('uid', (int)$CURUSER['id'])
+				->orderByDesc('status')
+				->orderBy('id')
+				->get()
+				->filter(fn ($owned) => $owned->frame && $owned->frame->enabled);
+			$wearingAvatarFrameId = (int)($ownedAvatarFrames->firstWhere('status', \App\Models\UserAvatarFrame::STATUS_WEARING)->frame_id ?? 0);
+			$avatarFrameHtml = '<div class="ucp-avatar-frames"><label class="ucp-avatar-frame-option ucp-avatar-frame-option-none"><input type="radio" name="avatar_frame_id" value="0"' . ($wearingAvatarFrameId === 0 ? ' checked' : '') . '><span>不佩戴挂件</span></label>';
+			if ($ownedAvatarFrames->isEmpty()) {
+				$avatarFrameHtml .= '<div class="ucp-avatar-frame-empty">你还没有头像挂件，<a href="shop.php?cat=avatar_frame">去商城领取</a>。</div>';
+			} else {
+				foreach ($ownedAvatarFrames as $ownedFrame) {
+					$frame = $ownedFrame->frame;
+					$frameClass = htmlspecialchars(preg_replace('/[^a-zA-Z0-9_-]/', '', (string)($frame->css_class ?: $frame->code)));
+					$checked = $wearingAvatarFrameId === (int)$frame->id ? ' checked' : '';
+					$bonusText = htmlspecialchars($frame->bonus_text);
+					$frameName = htmlspecialchars($frame->name);
+					$avatarFrameHtml .= '<label class="ucp-avatar-frame-option"><input type="radio" name="avatar_frame_id" value="' . (int)$frame->id . '"' . $checked . '><span class="ucp-frame-preview ucp-frame-preview--' . $frameClass . '"><b>' . htmlspecialchars(mb_substr((string)$CURUSER['username'], 0, 1)) . '</b></span><span class="ucp-frame-text"><strong>' . $frameName . '</strong><em>' . $bonusText . '</em></span></label>';
+				}
+			}
+			$avatarFrameHtml .= '</div><style>.ucp-avatar-frames{display:grid;gap:8px;max-width:640px}.ucp-avatar-frame-option{display:flex;align-items:center;gap:10px;border:1px solid var(--bili-border,#e6e9ef);border-radius:8px;background:var(--bili-surface,#fff);padding:9px 11px;cursor:pointer}.ucp-avatar-frame-option input{flex:none}.ucp-avatar-frame-option-none span{font-weight:700}.ucp-frame-preview{position:relative;width:42px;height:42px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:var(--bili-surface-soft,#f2f3f5);color:var(--bili-primary,#00aeec);font-weight:900;flex:none}.ucp-frame-preview:before{content:"";position:absolute;inset:-5px;border-radius:50%;pointer-events:none}.ucp-frame-preview--fresh_leaf:before{border:3px solid #8fca62}.ucp-frame-preview--sky_badge:before{border:3px solid #38a6ff}.ucp-frame-preview--starlight_boost:before{border:3px solid #f3b83f;box-shadow:0 0 14px rgba(243,184,63,.38)}.ucp-frame-text{display:flex;flex-direction:column;gap:2px}.ucp-frame-text strong{color:var(--bili-text,#18191c)}.ucp-frame-text em{font-style:normal;font-size:12px;color:var(--bili-text-secondary,#61666d)}.ucp-avatar-frame-empty{padding:10px 12px;border:1px dashed var(--bili-border,#e6e9ef);border-radius:8px;color:var(--bili-text-secondary,#61666d)}html[data-site-theme="night"] .ucp-avatar-frame-option{background:#0e1728;border-color:rgba(116,145,196,.28)}html[data-site-theme="night"] .ucp-frame-text strong{color:#eaf1ff}</style>';
 			$currentAvatar = htmlspecialchars($CURUSER["avatar"] ?: usercp_default_avatar_url());
 			$defaultAvatar = htmlspecialchars(usercp_default_avatar_url());
 			$avatarTitle = htmlspecialchars(usercp_lang('text_avatar_current', 'Current avatar'));
@@ -428,6 +461,7 @@ tr($lang_usercp['row_school'], "<select name=school>$schools</select>", 1);
 }
 			tr_small($lang_usercp['row_network_bandwidth'], "<b>".$lang_usercp['text_downstream_rate']. "</b>: <select name=download>".$downloadspeed."</select>&nbsp;&nbsp;<b>".$lang_usercp['text_upstream_rate']."</b>: <select name=upload>".$uploadspeed."</select>&nbsp;&nbsp;<b>".$lang_usercp['text_isp']."</b>: <select name=isp>".$isplist."</select>",1);
 			tr_small(usercp_lang('row_avatar_upload', 'Avatar'), $avatarUploadHtml, 1);
+			tr_small('头像挂件', $avatarFrameHtml, 1);
   tr($lang_usercp['row_info'], "<textarea name=\"info\" style=\"width:700px\" rows=\"10\" >" . htmlspecialchars($CURUSER["info"]) . "</textarea><br />".$lang_usercp['text_info_note'], 1);
   submit();
   print("</table></form>");

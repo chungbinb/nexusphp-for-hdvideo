@@ -26,6 +26,7 @@ class ShopCategory extends NexusModel
         return [
             ['code' => 'props', 'name' => '道具', 'enabled' => 1, 'sort' => 10],
             ['code' => 'medal', 'name' => '勋章', 'enabled' => 1, 'sort' => 20],
+            ['code' => 'avatar_frame', 'name' => '头像挂件', 'enabled' => 1, 'sort' => 25],
             ['code' => 'traffic', 'name' => '流量包', 'enabled' => 1, 'sort' => 30],
             ['code' => 'member_benefit', 'name' => '会员权益', 'enabled' => 1, 'sort' => 40],
         ];
