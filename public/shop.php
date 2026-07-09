@@ -269,7 +269,7 @@ stdhead("商城");
 .shop-medal-image img{max-width:74px;max-height:74px;display:block;}
 .shop-avatar-card{min-height:246px;}
 .shop-avatar-preview{height:92px;display:flex;align-items:center;justify-content:center;}
-.shop-avatar-face{position:relative;width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#edf7ff,#f6ffe9);color:var(--bili-primary,#00aeec);font-size:30px;font-weight:900;box-shadow:inset 0 0 0 1px rgba(120,150,190,.18);}
+.shop-avatar-face{position:relative;width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:transparent;color:transparent;font-size:0;font-weight:900;box-shadow:none;}
 .shop-avatar-face::before{content:"";position:absolute;inset:-7px;border-radius:50%;pointer-events:none;z-index:2;}
 .shop-avatar-face::after{content:"";position:absolute;right:-2px;bottom:1px;width:20px;height:20px;border-radius:50%;background:var(--bili-primary,#00aeec);box-shadow:0 0 0 3px var(--bili-surface,#fff);z-index:3;}
 .shop-avatar-face--fresh_leaf::before{border:4px solid #8fca62;box-shadow:0 0 0 2px rgba(255,255,255,.9),0 6px 14px rgba(93,141,50,.2);}
@@ -394,7 +394,6 @@ html[data-site-theme="night"] .shop-desc,html[data-site-theme="night"] .shop-wal
 			<div class="shop-card shop-avatar-card">
 				<div class="shop-avatar-preview">
 					<div class="shop-avatar-face shop-avatar-face--<?php echo shop_h($frameClass) ?>">
-						<?php echo shop_h(mb_substr((string)$CURUSER['username'], 0, 1)) ?>
 						<?php if ($frameImage !== '') { ?><span class="shop-avatar-frame-image" style="background-image:url('<?php echo shop_h($frameImage) ?>')"></span><?php } ?>
 					</div>
 				</div>
