@@ -51,4 +51,19 @@ class StockEngineTest extends TestCase
         $this->assertSame(1204.98, $quotes['SH600519']['price']);
         $this->assertSame('2026-07-10 16:14:45', $quotes['SH600519']['quote_time']);
     }
+
+    public function testParsesKlineAndCalculatesMovingAverages(): void
+    {
+        $rows = [];
+        for ($i = 1; $i <= 20; $i++) {
+            $rows[] = [sprintf('2026-06-%02d', $i), (string)$i, (string)($i + 0.5), (string)($i + 1), (string)($i - 0.5), (string)($i * 1000)];
+        }
+        $payload = json_encode(['data' => ['sh600519' => ['qfqday' => $rows]]]);
+        $items = hdv_stock_parse_kline($payload, 'SH600519', 'day');
+        $this->assertCount(20, $items);
+        $this->assertNull($items[3]['ma5']);
+        $this->assertSame(18.5, $items[19]['ma5']);
+        $this->assertSame(16.0, $items[19]['ma10']);
+        $this->assertSame(11.0, $items[19]['ma20']);
+    }
 }

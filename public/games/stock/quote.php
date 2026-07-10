@@ -147,3 +147,85 @@ function hdv_stock_fetch_quotes(array $symbols, bool $force = false): array
     foreach ($symbols as $symbol) $ordered[$symbol] = $result[$symbol];
     return $ordered;
 }
+
+function hdv_stock_kline_period(string $raw): ?string
+{
+    $period = strtolower(trim($raw));
+    return in_array($period, ['day', 'week', 'month'], true) ? $period : null;
+}
+
+function hdv_stock_parse_kline(string $body, string $symbol, string $period): array
+{
+    $period = hdv_stock_kline_period($period);
+    if ($period === null) return [];
+    $symbol = hdv_stock_normalize_symbol($symbol);
+    if ($symbol === null) return [];
+    $decoded = json_decode($body, true);
+    $provider = hdv_stock_provider_symbol($symbol);
+    $node = is_array($decoded) ? ($decoded['data'][$provider] ?? null) : null;
+    if (!is_array($node)) return [];
+    $rows = $node['qfq' . $period] ?? $node[$period] ?? null;
+    if (!is_array($rows)) return [];
+    $items = [];
+    $closeWindow = [];
+    foreach ($rows as $row) {
+        if (!is_array($row) || count($row) < 6 || !preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$row[0])) continue;
+        $open = (float)$row[1]; $close = (float)$row[2]; $high = (float)$row[3]; $low = (float)$row[4];
+        if ($open <= 0 || $close <= 0 || $high <= 0 || $low <= 0) continue;
+        $closeWindow[] = $close;
+        $count = count($closeWindow);
+        $average = function (int $size) use (&$closeWindow, $count): ?float {
+            if ($count < $size) return null;
+            return round(array_sum(array_slice($closeWindow, -$size)) / $size, 4);
+        };
+        $items[] = [
+            'date' => (string)$row[0], 'open' => $open, 'close' => $close, 'high' => $high, 'low' => $low,
+            'volume' => (float)$row[5], 'ma5' => $average(5), 'ma10' => $average(10), 'ma20' => $average(20),
+        ];
+    }
+    return $items;
+}
+
+function hdv_stock_fetch_kline(string $symbol, string $period = 'day', int $limit = 120, bool $force = false): array
+{
+    $symbol = hdv_stock_normalize_symbol($symbol);
+    $period = hdv_stock_kline_period($period);
+    $limit = max(30, min(240, $limit));
+    if ($symbol === null || $period === null) return ['items' => [], 'stale' => true];
+    $redis = hdv_stock_redis();
+    $cacheKey = 'game:stock:kline:' . $symbol . ':' . $period . ':' . $limit;
+    if (!$force && $redis) {
+        try {
+            $cached = $redis->get($cacheKey);
+            $decoded = is_string($cached) ? json_decode($cached, true) : null;
+            if (is_array($decoded) && !empty($decoded['items'])) return $decoded;
+        } catch (Throwable $e) {}
+    }
+    $provider = hdv_stock_provider_symbol($symbol);
+    $url = 'https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=' . rawurlencode($provider . ',' . $period . ',,,' . $limit . ',qfq');
+    $body = hdv_stock_http_get($url);
+    $items = is_string($body) ? hdv_stock_parse_kline($body, $symbol, $period) : [];
+    if ($items) {
+        $result = ['symbol' => $symbol, 'period' => $period, 'items' => $items, 'stale' => false, 'fetched_at' => time(), 'source' => '腾讯证券行情'];
+        if ($redis) {
+            try {
+                $json = json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                $ttl = $period === 'day' ? 60 : 1800;
+                $redis->setex($cacheKey, $ttl, $json);
+                $redis->setex($cacheKey . ':last', 86400 * 7, $json);
+            } catch (Throwable $e) {}
+        }
+        return $result;
+    }
+    if ($redis) {
+        try {
+            $last = $redis->get($cacheKey . ':last');
+            $fallback = is_string($last) ? json_decode($last, true) : null;
+            if (is_array($fallback) && !empty($fallback['items'])) {
+                $fallback['stale'] = true;
+                return $fallback;
+            }
+        } catch (Throwable $e) {}
+    }
+    return ['symbol' => $symbol, 'period' => $period, 'items' => [], 'stale' => true, 'source' => '腾讯证券行情'];
+}
