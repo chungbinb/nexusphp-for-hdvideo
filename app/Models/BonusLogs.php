@@ -52,6 +52,8 @@ class BonusLogs extends NexusModel
     // HDV 自定义：银行 + 各游戏（用于精确区分/筛选）
     const BUSINESS_TYPE_BANK = 51;
     const BUSINESS_TYPE_SHOP = 52;
+    const BUSINESS_TYPE_FREELEECH_POOL = 53;
+    const BUSINESS_TYPE_FORUM_PENALTY = 54;
     const BUSINESS_TYPE_GAME_BIG_SMALL = 101;
     const BUSINESS_TYPE_GAME_SPORTS = 102;
     const BUSINESS_TYPE_GAME_DDZ = 103;
@@ -109,6 +111,8 @@ class BonusLogs extends NexusModel
 
         self::BUSINESS_TYPE_BANK => ['text' => 'HDV Bank'],
         self::BUSINESS_TYPE_SHOP => ['text' => 'HDV Shop'],
+        self::BUSINESS_TYPE_FREELEECH_POOL => ['text' => 'Freeleech pool contribution'],
+        self::BUSINESS_TYPE_FORUM_PENALTY => ['text' => 'Forum penalty'],
         self::BUSINESS_TYPE_GAME_BIG_SMALL => ['text' => 'Game: Big-Small'],
         self::BUSINESS_TYPE_GAME_SPORTS => ['text' => 'Game: Sports'],
         self::BUSINESS_TYPE_GAME_DDZ => ['text' => 'Game: Dou Dizhu'],

@@ -3580,6 +3580,10 @@ $showShopSideButton = hdvideo_shop_can_enter_for_nav();
 		<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6.35 7.9H4.75M5.55 7.1V8.7M13.05 7.9H13.06M15.25 9.55H15.26"></path><path d="M6.05 5.1H13.95C15.3 5.1 16.45 6.08 16.67 7.41L17.25 10.9C17.55 12.69 16.17 14.32 14.35 14.32C13.47 14.32 12.64 13.93 12.08 13.25L11.53 12.58H8.47L7.92 13.25C7.36 13.93 6.53 14.32 5.65 14.32C3.83 14.32 2.45 12.69 2.75 10.9L3.33 7.41C3.55 6.08 4.7 5.1 6.05 5.1Z"></path></svg>
 		<span class="qd-side-text">游戏大厅</span>
 	</a>
+	<a class="qd-side-btn" href="/freeleech_pool.php" title="站免池">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h16v10H4z"></path><path d="M7 9V6h10v3"></path><path d="M9 14h6"></path><path d="M12 11v6"></path></svg>
+		<span class="qd-side-text">站免池</span>
+	</a>
 </div>
 <style>
 .qd-bank-bal{display:flex;gap:10px;margin:6px 0 12px;}
@@ -4719,6 +4723,11 @@ print '<br/>';
 	}
 if ($msgalert)
 {
+    $poolActiveUntil = \App\Services\FreeleechPoolService::activeUntil();
+    if ($poolActiveUntil > TIMENOW) {
+        $poolEnd = date('Y-m-d H:i:s', $poolActiveUntil);
+        msgalert('freeleech_pool.php', '站免池已达标：全站 [Free] 生效中！<br/>截止时间：' . htmlspecialchars($poolEnd), 'green');
+    }
     $timeline = \App\Models\TorrentState::resolveTimeline();
     $currentPromotion = $timeline['current'] ?? null;
     $upcomingPromotion = $timeline['upcoming'] ?? null;

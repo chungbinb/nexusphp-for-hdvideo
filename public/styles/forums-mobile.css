@@ -85,6 +85,10 @@ body.page-forums.m-shell { overflow-x: hidden !important; max-width: 100vw; }
 .page-forums .ft-posts { display: block; }
 .page-forums .ft-post { background: var(--mh-surface); margin: 0 8px 10px; padding: 12px 14px; border-radius: 12px; box-shadow: 0 2px 8px rgba(20,40,90,.05); }
 .page-forums .ft-post-head { display: flex; align-items: center; gap: 10px; }
+.page-forums .ft-post-tools { display:flex; justify-content:flex-end; padding:0 14px 12px; }
+.page-forums .forum-penalty-link { display:inline-block; width:62px; height:25px; line-height:0; text-decoration:none!important; }
+.page-forums .forum-penalty-link .f_penalty,
+.page-forums .forum-penalty-link .f_reward { display:block; width:62px; height:25px; max-width:none; }
 .page-forums .ft-pmeta { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .page-forums .ft-pname { font-size: 14px; font-weight: 600; color: var(--mh-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .page-forums .f-topic-author a, .page-forums .f-topic-author .nowrap, .page-forums .ft-pname a, .page-forums .ft-pname .nowrap { white-space: nowrap; }

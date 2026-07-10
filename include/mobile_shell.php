@@ -307,6 +307,7 @@ function mobile_shell_render(string $active = ''): void
     if (function_exists('hdvideo_shop_can_enter_for_nav') && hdvideo_shop_can_enter_for_nav()) {
         $navItems[] = ['shop.php', '商城', '<path d="M6 7h12l-1 13H7z"/><path d="M9 7a3 3 0 0 1 6 0"/><path d="M9 11h.01M15 11h.01"/>'];
     }
+    $navItems[] = ['freeleech_pool.php', '站免池', '<path d="M4 9h16v10H4z"/><path d="M7 9V6h10v3"/><path d="M9 14h6M12 11v6"/>'];
 
     $meItems = [
         ['usercp.php', '个人中心', '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>', false],

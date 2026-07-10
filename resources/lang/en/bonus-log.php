@@ -28,6 +28,7 @@ return [
         \App\Models\BonusLogs::BUSINESS_TYPE_SELF_ENABLE => 'Self enable',
 
         \App\Models\BonusLogs::BUSINESS_TYPE_BANK => 'HDV Bank',
+        \App\Models\BonusLogs::BUSINESS_TYPE_FORUM_PENALTY => 'Forum penalty',
         \App\Models\BonusLogs::BUSINESS_TYPE_GAME_BIG_SMALL => 'Game: Big-Small',
         \App\Models\BonusLogs::BUSINESS_TYPE_GAME_SPORTS => 'Game: Sports',
         \App\Models\BonusLogs::BUSINESS_TYPE_GAME_DDZ => 'Game: Dou Dizhu',

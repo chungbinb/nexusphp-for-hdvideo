@@ -4,6 +4,9 @@ function get_global_sp_state()
 {
 	static $global_promotion_state;
 	if (is_null($global_promotion_state)) {
+        if (\App\Services\FreeleechPoolService::isActive()) {
+            return $global_promotion_state = \App\Models\Torrent::PROMOTION_FREE;
+        }
         $timeline = \App\Models\TorrentState::resolveTimeline();
         $current = $timeline['current'] ?? null;
 
@@ -25,6 +28,10 @@ function get_official_sp_state()
 {
     static $official_promotion_state;
     if (is_null($official_promotion_state)) {
+        // 站免池达标后覆盖官组促销，确保真正“全站 Free”。
+        if (\App\Services\FreeleechPoolService::isActive()) {
+            return $official_promotion_state = \App\Models\Torrent::PROMOTION_FREE;
+        }
         $timeline = \App\Models\TorrentState::resolveTimeline();
         $current = $timeline['current'] ?? null;
         if (is_array($current) && isset($current['official_sp_state'])) {

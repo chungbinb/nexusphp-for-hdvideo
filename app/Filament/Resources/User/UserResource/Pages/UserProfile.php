@@ -134,6 +134,7 @@ class UserProfile extends ViewRecord implements HasActions
                     'downloaded' => __('label.user.downloaded'),
                     'invites' => __('label.user.invites'),
                     'seedbonus' => __('label.user.seedbonus'),
+                    'seed_points' => __('label.user.seed_points'),
                     'attendance_card' => __('label.user.attendance_card'),
                     'tmp_invites' => __('label.user.tmp_invites'),
                 ])
@@ -163,6 +164,7 @@ class UserProfile extends ViewRecord implements HasActions
 
                 TextInput::make('reason')
                     ->label(__('admin.resources.user.actions.change_bonus_etc_reason_label'))
+                    ->required(fn (Get $get) => $get('field') === 'seed_points')
                 ,
             ])
             ->action(function ($data) {

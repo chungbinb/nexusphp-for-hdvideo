@@ -46,6 +46,18 @@ $games = [
         'shots' => ['dice-a', 'dice-b', 'dice-c'],
     ],
     [
+        'title' => '德州扑克',
+        'badge' => '内测中 v0.1',
+        'subtitle' => '四人固定限注德州，完整翻牌/转牌/河牌流程，与三位智能对手较量牌技。',
+        'date' => '已开放',
+        'price' => '立即入座',
+        'href' => '/games/poker/',
+        'status' => '可玩',
+        'tags' => ['德州扑克', '智能对手', '电影票', '牌型竞技'],
+        'theme' => 'poker',
+        'shots' => ['poker-a', 'poker-b', 'poker-c'],
+    ],
+    [
         'title' => '刮刮乐',
         'badge' => '内测中 v0.7',
         'subtitle' => '花电影票刮一张即时开奖，刮中倍数 × 面额返还，适合快速试手气。',
@@ -280,6 +292,7 @@ body.page-games-php:not(.inframe) {
 .theme-dice { --game-a: #1e88e5; --game-b: #07182d; }
 .theme-sports { --game-a: #2ecc71; --game-b: #0b3d1f; }
 .theme-ddz { --game-a: #e74c3c; --game-b: #2c1a0c; }
+.theme-poker { --game-a: #16865c; --game-b: #071b2c; }
 
 .steam-capsule.has-icon {
     background-color: #0b1728;
@@ -431,6 +444,9 @@ body.page-games-php:not(.inframe) {
 .shot-chest-a { --game-a: #ff9d62; --game-b: #441923; }
 .shot-chest-b { --game-a: #ffc371; --game-b: #31264d; }
 .shot-chest-c { --game-a: #ff6f61; --game-b: #14212f; }
+.shot-poker-a { --game-a: #15986a; --game-b: #071a2b; }
+.shot-poker-b { --game-a: #d0a84f; --game-b: #143c32; }
+.shot-poker-c { --game-a: #a93e48; --game-b: #081a2b; }
 
 .steam-more {
     display: flex;

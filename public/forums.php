@@ -310,6 +310,14 @@ function forum_inline_reply_link($postId, $title): string
 	return "<a href=\"" . htmlspecialchars("?action=quotepost&postid=" . $postId) . "\" onclick=\"return forumToggleInlineReply(" . $postId . ");\"><img class=\"f_quote\" src=\"pic/trans.gif\" alt=\"Quote\" title=\"" . $title . "\" /></a>";
 }
 
+function forum_penalty_link($postId): string
+{
+	$postId = (int)$postId;
+	$url = htmlspecialchars('?action=penalizepost&postid=' . $postId);
+	return '<a class="forum-penalty-link" data-forum-penalty-post="' . $postId . '" data-penalty-default-adjustment="add" href="' . $url . '" title="增加魔力或做种积分"><img class="f_reward" src="pic/forum_pic/chs/reward.svg" alt="加分" /></a>'
+		. '<a class="forum-penalty-link" data-forum-penalty-post="' . $postId . '" data-penalty-default-adjustment="deduct" href="' . $url . '" title="扣除魔力或做种积分"><img class="f_penalty" src="pic/forum_pic/chs/penalty.svg" alt="扣分" /></a>';
+}
+
 //-------- Inserts a compose frame
 function insert_compose_frame($id, $type = 'new')
 {
@@ -404,7 +412,7 @@ if ($GLOBALS['F_MOBILE']) { require_once ROOT_PATH . 'include/mobile_shell.php';
 function f_mhead($title = '') {
     if (!empty($GLOBALS['F_MOBILE']) && function_exists('mobile_shell_page_head')) {
         mobile_shell_page_head(trim(strip_tags((string)$title)) ?: '论坛', 'forums', 'page-forums');
-        echo '<link rel="stylesheet" type="text/css" href="styles/forums-mobile.css?v=20260701i">';
+        echo '<link rel="stylesheet" type="text/css" href="styles/forums-mobile.css?v=20260710a">';
         echo '<script type="text/javascript" src="js/jquery-1.12.4.min.js"></script>';
         echo '<script>jQuery.noConflict();window.nexusLayerOptions={confirm:{btnAlign:"c",title:"Confirm",btn:["OK","Cancel"]},alert:{btnAlign:"c",title:"Info",btn:["OK","Cancel"]}};</script>';
         echo '<script type="text/javascript" src="vendor/layer-v3.5.1/layer/layer.js"></script>';
@@ -429,6 +437,319 @@ function f_author_html($uid, $anon, $post) {
     if (!$arr) { return '<span class="User_Name">' . htmlspecialchars((string)($post['username'] ?? '')) . '</span>'; }
     $cls = get_user_class_name($arr['class'], true, false, false) . '_Name';
     return '<span class="' . $cls . '"><b>' . htmlspecialchars($arr['username']) . '</b></span>';
+}
+
+function forum_penalty_h($value): string
+{
+    return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
+}
+
+function forum_penalty_json_response(array $payload, int $status = 200): void
+{
+    http_response_code($status);
+    header('Content-Type: application/json; charset=UTF-8');
+    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+function forum_adjustment_field_configs(): array
+{
+    static $configs = [
+        'seedbonus' => ['label' => '魔力', 'unit' => '', 'factor' => 1, 'decimals' => 1, 'integer' => false],
+        'seed_points' => ['label' => '做种积分', 'unit' => '', 'factor' => 1, 'decimals' => 1, 'integer' => false],
+        'uploaded' => ['label' => '上传量', 'unit' => 'GB', 'factor' => 1073741824, 'decimals' => 1, 'integer' => true],
+        'downloaded' => ['label' => '下载量', 'unit' => 'GB', 'factor' => 1073741824, 'decimals' => 1, 'integer' => true],
+        'invites' => ['label' => '邀请名额', 'unit' => '', 'factor' => 1, 'decimals' => 0, 'integer' => true],
+        'attendance_card' => ['label' => '补签卡', 'unit' => '', 'factor' => 1, 'decimals' => 0, 'integer' => true],
+    ];
+    return $configs;
+}
+
+function forum_adjustment_field_config(string $field): ?array
+{
+    $configs = forum_adjustment_field_configs();
+    return $configs[$field] ?? null;
+}
+
+function forum_adjustment_field_from_label(string $label): ?string
+{
+    foreach (forum_adjustment_field_configs() as $field => $config) {
+        if ($config['label'] === $label) {
+            return $field;
+        }
+    }
+    return null;
+}
+
+function forum_adjustment_amount_text(float $amount, array $config): string
+{
+    $text = number_format($amount, (int)$config['decimals']);
+    if ($config['unit'] !== '') {
+        $text .= ' ' . $config['unit'];
+    }
+    return $text . ' ' . $config['label'];
+}
+
+function forum_adjustment_amount_atomic(float $amount, array $config): int|float
+{
+    $atomic = $amount * (float)$config['factor'];
+    return $config['integer'] ? (int)round($atomic) : round($atomic, 1);
+}
+
+function forum_adjustment_storage_value(string $field, $value): int|float
+{
+    $config = forum_adjustment_field_config($field);
+    return $config && $config['integer'] ? (int)$value : round((float)$value, 1);
+}
+
+function forum_adjustment_audit_value(string $field, $value): string
+{
+    $config = forum_adjustment_field_config($field);
+    return number_format((float)$value, $config && !$config['integer'] ? 1 : 0, '.', '');
+}
+
+function forum_adjustment_balance_text(string $field, $value): string
+{
+    if (in_array($field, ['uploaded', 'downloaded'], true)) {
+        return mksize((int)$value);
+    }
+    $config = forum_adjustment_field_config($field);
+    return number_format((float)$value, $config ? (int)$config['decimals'] : 1);
+}
+
+function forum_penalty_record_from_log($log): ?array
+{
+    $content = (string)$log->content;
+    $labels = implode('|', array_map(fn($config) => preg_quote($config['label'], '/'), forum_adjustment_field_configs()));
+    $pattern = '/^论坛处罚：管理员 (.+?) 对帖子 #(\d+)（主题：.*?）的作者(扣除|增加) ([\d,]+(?:\.\d+)?)(?: (GB))? (' . $labels . ')，(?:' . $labels . ') 从 ([\d,]+(?:\.\d+)?) 变为 ([\d,]+(?:\.\d+)?)。原因：(.*)$/us';
+    if (!preg_match($pattern, $content, $matches)) {
+        return null;
+    }
+    $field = forum_adjustment_field_from_label($matches[6]);
+    $config = $field ? forum_adjustment_field_config($field) : null;
+    if (!$field || !$config || $config['unit'] !== ($matches[5] ?? '')) {
+        return null;
+    }
+    $amount = (float)str_replace(',', '', $matches[4]);
+    return [
+        'id' => (int)$log->id,
+        'post_id' => (int)$matches[2],
+        'user_id' => (int)$log->user_id,
+        'operator' => trim($matches[1]),
+        'action' => $matches[3] === '增加' ? 'add' : 'deduct',
+        'amount' => $amount,
+        'amount_atomic' => forum_adjustment_amount_atomic($amount, $config),
+        'amount_unit' => $config['unit'],
+        'amount_text' => forum_adjustment_amount_text($amount, $config),
+        'field_label' => $config['label'],
+        'field' => $field,
+        'old_value' => forum_adjustment_storage_value($field, str_replace(',', '', $matches[7])),
+        'new_value' => forum_adjustment_storage_value($field, str_replace(',', '', $matches[8])),
+        'reason' => trim($matches[9]),
+        'created_at' => $log->created_at ? $log->created_at->format('Y-m-d H:i:s') : '',
+        'cancellation' => null,
+    ];
+}
+
+function forum_penalty_cancellation_from_log($log): ?array
+{
+    $content = (string)$log->content;
+    $labels = implode('|', array_map(fn($config) => preg_quote($config['label'], '/'), forum_adjustment_field_configs()));
+    $pattern = '/^论坛处罚取消：管理员 (.+?) 取消帖子 #(\d+) 的扣分记录 #(\d+)，返还 ([\d,]+(?:\.\d+)?)(?: (GB))? (' . $labels . ')，(?:' . $labels . ') 从 ([\d,]+(?:\.\d+)?) 变为 ([\d,]+(?:\.\d+)?)。取消原因：(.*)$/us';
+    if (!preg_match($pattern, $content, $matches)) {
+        return null;
+    }
+    $field = forum_adjustment_field_from_label($matches[6]);
+    $config = $field ? forum_adjustment_field_config($field) : null;
+    if (!$field || !$config || $config['unit'] !== ($matches[5] ?? '')) {
+        return null;
+    }
+    $amount = (float)str_replace(',', '', $matches[4]);
+    return [
+        'id' => (int)$log->id,
+        'penalty_id' => (int)$matches[3],
+        'post_id' => (int)$matches[2],
+        'user_id' => (int)$log->user_id,
+        'operator' => trim($matches[1]),
+        'amount' => $amount,
+        'amount_text' => forum_adjustment_amount_text($amount, $config),
+        'field_label' => $config['label'],
+        'reason' => trim($matches[9]),
+        'created_at' => $log->created_at ? $log->created_at->format('Y-m-d H:i:s') : '',
+    ];
+}
+
+function forum_penalty_records_for_posts(array $posts): array
+{
+    $postOwners = [];
+    foreach ($posts as $post) {
+        $postId = (int)($post['id'] ?? 0);
+        $userId = (int)($post['userid'] ?? 0);
+        if ($postId > 0 && $userId > 0) {
+            $postOwners[$postId] = $userId;
+        }
+    }
+    if (!$postOwners) {
+        return [];
+    }
+    $postIds = array_keys($postOwners);
+    $logs = \App\Models\UserModifyLog::query()
+        ->whereIn('user_id', array_values(array_unique($postOwners)))
+        ->where('content', 'like', '论坛处罚%')
+        ->where(function ($query) use ($postIds) {
+            foreach ($postIds as $postId) {
+                $query->orWhere('content', 'like', '%帖子 #' . $postId . '%');
+            }
+        })
+        ->orderByDesc('id')
+        ->get(['id', 'user_id', 'content', 'created_at']);
+    $records = [];
+    $cancellations = [];
+    foreach ($logs as $log) {
+        $cancellation = forum_penalty_cancellation_from_log($log);
+        if ($cancellation && isset($postOwners[$cancellation['post_id']]) && $postOwners[$cancellation['post_id']] === $cancellation['user_id']) {
+            $cancellations[$cancellation['penalty_id']] = $cancellation;
+            continue;
+        }
+        $record = forum_penalty_record_from_log($log);
+        if (!$record || !isset($postOwners[$record['post_id']]) || $postOwners[$record['post_id']] !== $record['user_id']) {
+            continue;
+        }
+        $records[$record['post_id']][] = $record;
+    }
+    foreach ($records as &$postRecords) {
+        foreach ($postRecords as &$record) {
+            if ($record['action'] === 'deduct' && isset($cancellations[$record['id']])) {
+                $record['cancellation'] = $cancellations[$record['id']];
+            }
+        }
+        unset($record);
+    }
+    unset($postRecords);
+    return $records;
+}
+
+function forum_render_penalty_notices(int $postId, array $records): string
+{
+    $canCancel = user_can('postmanage') || is_forum_moderator($postId, 'post');
+    $html = '<div class="forum-post-penalties" id="forum-penalties-' . $postId . '" aria-live="polite">';
+    foreach ($records[$postId] ?? [] as $record) {
+        $isAddition = $record['action'] === 'add';
+        $cancellation = $record['cancellation'] ?? null;
+        $cancelButton = (!$isAddition && !$cancellation && $canCancel)
+            ? '<button type="button" class="forum-post-penalty-cancel" data-penalty-cancel data-penalty-cancel-url="forums.php?action=penalizepost&amp;format=json&amp;operation=cancel&amp;postid=' . $postId . '&amp;penalty_log_id=' . (int)$record['id'] . '">取消扣分</button>'
+            : '';
+        $cancellationHtml = $cancellation
+            ? '<span class="forum-post-penalty-cancellation"><span>取消原因：' . forum_penalty_h($cancellation['reason']) . '</span><small>取消操作人：' . forum_penalty_h($cancellation['operator']) . ($cancellation['created_at'] !== '' ? ' · ' . forum_penalty_h($cancellation['created_at']) : '') . '</small></span>'
+            : '';
+        $cancelledLabel = $cancellation ? '<span class="forum-post-penalty-cancelled-label">(已被取消扣除)</span>' : '';
+        $html .= '<article class="forum-post-penalty' . ($isAddition ? ' is-addition' : '') . ($cancellation ? ' is-cancelled' : '') . '" data-penalty-id="' . (int)$record['id'] . '">'
+            . '<span class="forum-post-penalty-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 3.8 6.4v5.1c0 5.1 3.5 8.5 8.2 9.5 4.7-1 8.2-4.4 8.2-9.5V6.4L12 3Z"/><path d="M8 12h8"/>' . ($isAddition ? '<path d="M12 8v8"/>' : '') . '</svg></span>'
+            . '<span class="forum-post-penalty-content"><span class="forum-post-penalty-heading"><strong>该帖已被' . ($isAddition ? '增加 ' : '扣除 ') . forum_penalty_h($record['amount_text']) . $cancelledLabel . '</strong>' . $cancelButton . '</span>'
+            . '<span class="forum-post-penalty-reason">原因：' . forum_penalty_h($record['reason']) . '</span>'
+            . '<small>操作人：' . forum_penalty_h($record['operator']) . ($record['created_at'] !== '' ? ' · ' . forum_penalty_h($record['created_at']) : '') . '</small>' . $cancellationHtml . '</span></article>';
+    }
+    return $html . '</div>';
+}
+
+function forum_render_penalty_modal(): string
+{
+    $scriptVersion = @filemtime(__DIR__ . '/scripts/forum-penalty-modal.js') ?: TIMENOW;
+    $fieldOptions = '';
+    foreach (forum_adjustment_field_configs() as $field => $config) {
+        $fieldOptions .= '<label><input type="radio" name="penalty_field" value="' . forum_penalty_h($field) . '" data-unit="' . forum_penalty_h($config['unit']) . '" data-decimals="' . (int)$config['decimals'] . '" ' . ($field === 'seedbonus' ? 'checked ' : '') . 'required><span>' . forum_penalty_h($config['label']) . '</span></label>';
+    }
+    return '<div class="forum-penalty-modal" id="forumPenaltyModal" hidden aria-hidden="true">'
+        . '<div class="forum-penalty-backdrop" data-penalty-close></div>'
+        . '<section class="forum-penalty-dialog" role="dialog" aria-modal="true" aria-labelledby="forumPenaltyTitle" tabindex="-1">'
+        . '<button class="forum-penalty-close" type="button" data-penalty-close aria-label="关闭积分调整窗口"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>'
+        . '<h2 id="forumPenaltyTitle">论坛积分调整</h2><p class="forum-penalty-modal-note" data-penalty-note>增加或扣除的结果和原因会公开显示在对应帖子下方，并通知该用户。</p>'
+        . '<div class="forum-penalty-modal-summary"><div><span>用户</span><b data-penalty-user>—</b></div><div><span>帖子</span><b data-penalty-post>—</b></div><div><span>当前魔力</span><b data-penalty-bonus>—</b></div><div><span>当前做种积分</span><b data-penalty-points>—</b></div><div><span>当前上传量</span><b data-penalty-uploaded>—</b></div><div><span>当前下载量</span><b data-penalty-downloaded>—</b></div><div><span>当前邀请名额</span><b data-penalty-invites>—</b></div><div><span>当前补签卡</span><b data-penalty-attendance-card>—</b></div></div>'
+        . '<div class="forum-penalty-modal-alert" data-penalty-alert role="status" hidden></div>'
+        . '<form id="forumPenaltyForm" action="forums.php?action=penalizepost&amp;format=json" method="post">'
+        . '<input type="hidden" name="postid"><input type="hidden" name="token"><input type="hidden" name="operation" value="adjust"><input type="hidden" name="penalty_log_id">'
+        . '<div data-penalty-adjust-fields>'
+        . '<fieldset class="forum-penalty-modal-field"><legend>调整方式</legend><div class="forum-penalty-modal-options"><label><input type="radio" name="adjustment" value="deduct" checked required><span>扣除</span></label><label><input type="radio" name="adjustment" value="add" required><span>增加</span></label></div></fieldset>'
+        . '<fieldset class="forum-penalty-modal-field"><legend>积分类型</legend><div class="forum-penalty-modal-options forum-penalty-field-options">' . $fieldOptions . '</div></fieldset>'
+        . '<div class="forum-penalty-modal-field"><label for="forumPenaltyModalAmount" data-penalty-amount-label>扣除数量</label><input id="forumPenaltyModalAmount" name="amount" type="number" min="0.1" step="0.1" required></div>'
+        . '<div class="forum-penalty-modal-field"><label for="forumPenaltyModalReason" data-penalty-reason-label>扣分原因</label><textarea id="forumPenaltyModalReason" name="reason" maxlength="500" required></textarea></div></div>'
+        . '<div data-penalty-cancel-fields hidden><div class="forum-penalty-cancel-preview"><strong data-penalty-original>—</strong><span data-penalty-original-reason>—</span></div><div class="forum-penalty-modal-field"><label for="forumPenaltyCancelReason">取消原因</label><textarea id="forumPenaltyCancelReason" name="cancel_reason" maxlength="500"></textarea></div></div>'
+        . '<div class="forum-penalty-modal-actions"><button type="button" class="forum-penalty-modal-cancel" data-penalty-close>关闭</button><button type="submit" class="forum-penalty-modal-submit">确认扣除</button></div>'
+        . '</form></section></div><script src="scripts/forum-penalty-modal.js?v=' . (int)$scriptVersion . '"></script>';
+}
+
+function forum_penalty_record_by_id(int $postId, int $logId, bool $lock = false): array
+{
+    $query = \App\Models\UserModifyLog::query()->where('id', $logId);
+    if ($lock) {
+        $query->lockForUpdate();
+    }
+    $log = $query->first(['id', 'user_id', 'content', 'created_at']);
+    $record = $log ? forum_penalty_record_from_log($log) : null;
+    if (!$record || $record['post_id'] !== $postId || $record['action'] !== 'deduct') {
+        throw new RuntimeException('原扣分记录不存在或不能取消。');
+    }
+    return $record;
+}
+
+function forum_penalty_cancellation_by_penalty_id(int $penaltyId, bool $lock = false): ?array
+{
+    $query = \App\Models\UserModifyLog::query()
+        ->where('content', 'like', '论坛处罚取消：管理员 %扣分记录 #' . $penaltyId . '，%');
+    if ($lock) {
+        $query->lockForUpdate();
+    }
+    $log = $query->orderByDesc('id')->first(['id', 'user_id', 'content', 'created_at']);
+    return $log ? forum_penalty_cancellation_from_log($log) : null;
+}
+
+function forum_penalty_csrf_token(int $uid): string
+{
+    $redis = \Nexus\Database\NexusDB::redis();
+    $key = 'forum:penalty:csrf:' . $uid;
+    $token = (string)$redis->get($key);
+    if ($token === '') {
+        $token = bin2hex(random_bytes(24));
+        $redis->setex($key, 3600, $token);
+    }
+    return $token;
+}
+
+function forum_penalty_post(int $postId): array
+{
+    $res = sql_query(
+        "SELECT p.id, p.userid, p.topicid, t.subject, u.username, u.class, u.seedbonus, u.seed_points, u.uploaded, u.downloaded, u.invites, u.attendance_card " .
+        "FROM posts p INNER JOIN topics t ON t.id = p.topicid LEFT JOIN users u ON u.id = p.userid " .
+        "WHERE p.id = " . sqlesc($postId) . " LIMIT 1"
+    ) or sqlerr(__FILE__, __LINE__);
+    $row = mysql_fetch_assoc($res);
+    if (!$row) {
+        throw new RuntimeException('帖子不存在或已被删除。');
+    }
+    if ((int)$row['userid'] <= 0 || trim((string)$row['username']) === '') {
+        throw new RuntimeException('该帖作者账号已不存在，无法扣分。');
+    }
+    return $row;
+}
+
+function forum_require_penalty_manage_permission(array $post): void
+{
+    $postId = (int)$post['id'];
+    if (!user_can('postmanage') && !is_forum_moderator($postId, 'post')) {
+        permissiondenied();
+    }
+}
+
+function forum_require_penalty_permission(array $post): void
+{
+    global $CURUSER;
+    forum_require_penalty_manage_permission($post);
+    if ((int)$post['userid'] === (int)$CURUSER['id']) {
+        throw new RuntimeException('不能对自己执行论坛积分调整。');
+    }
+    if ((int)$post['class'] >= get_user_class()) {
+        throw new RuntimeException('不能调整同级或更高等级用户的积分。');
+    }
 }
 
 //-------- Action: New topic
@@ -496,6 +817,342 @@ if ($action == "editpost")
 	end_main_frame();
 	f_mfoot();
 	die;
+}
+
+//-------- Action: Penalize post author
+
+if ($action == "penalizepost")
+{
+    $isJsonRequest = (string)($_GET['format'] ?? $_POST['format'] ?? '') === 'json';
+    $requestOperation = (string)($_POST['operation'] ?? $_GET['operation'] ?? 'adjust');
+    if (!in_array($requestOperation, ['adjust', 'cancel'], true)) {
+        $requestOperation = 'adjust';
+    }
+    $postid = intval($_POST['postid'] ?? $_GET['postid'] ?? 0);
+    if (!is_valid_id($postid)) {
+        if ($isJsonRequest) {
+            forum_penalty_json_response(['ok' => false, 'message' => '无效的帖子 ID。'], 422);
+        }
+        stderr('论坛扣分', '无效的帖子 ID。');
+    }
+
+    $error = '';
+    $success = '';
+    try {
+        $penaltyPost = forum_penalty_post($postid);
+        if ($requestOperation === 'cancel') {
+            forum_require_penalty_manage_permission($penaltyPost);
+        } else {
+            forum_require_penalty_permission($penaltyPost);
+        }
+    } catch (Throwable $e) {
+        if ($isJsonRequest) {
+            forum_penalty_json_response(['ok' => false, 'message' => $e->getMessage()], 403);
+        }
+        stderr('论坛扣分', forum_penalty_h($e->getMessage()));
+    }
+
+    $backUrl = 'forums.php?action=viewtopic&topicid=' . (int)$penaltyPost['topicid'] . '&page=p' . $postid . '#pid' . $postid;
+    $csrfToken = forum_penalty_csrf_token((int)$CURUSER['id']);
+
+    if ($isJsonRequest && $_SERVER['REQUEST_METHOD'] !== 'POST') {
+        $responseData = [
+            'mode' => $requestOperation,
+            'post_id' => $postid,
+            'username' => (string)$penaltyPost['username'],
+            'user_id' => (int)$penaltyPost['userid'],
+            'subject' => (string)$penaltyPost['subject'],
+            'seedbonus' => (float)$penaltyPost['seedbonus'],
+            'seed_points' => (float)$penaltyPost['seed_points'],
+            'uploaded' => (int)$penaltyPost['uploaded'],
+            'uploaded_human' => mksize((int)$penaltyPost['uploaded']),
+            'downloaded' => (int)$penaltyPost['downloaded'],
+            'downloaded_human' => mksize((int)$penaltyPost['downloaded']),
+            'invites' => (int)$penaltyPost['invites'],
+            'attendance_card' => (int)$penaltyPost['attendance_card'],
+            'token' => $csrfToken,
+        ];
+        if ($requestOperation === 'cancel') {
+            try {
+                $penaltyLogId = intval($_GET['penalty_log_id'] ?? 0);
+                if (!is_valid_id($penaltyLogId)) {
+                    throw new RuntimeException('无效的扣分记录。');
+                }
+                $record = forum_penalty_record_by_id($postid, $penaltyLogId);
+                if ($record['user_id'] !== (int)$penaltyPost['userid']) {
+                    throw new RuntimeException('原扣分记录与帖子作者不匹配。');
+                }
+                if (forum_penalty_cancellation_by_penalty_id($penaltyLogId)) {
+                    throw new RuntimeException('该扣分记录已经取消，不能重复操作。');
+                }
+                $responseData['penalty'] = $record;
+            } catch (Throwable $e) {
+                forum_penalty_json_response(['ok' => false, 'message' => $e->getMessage()], 422);
+            }
+        }
+        forum_penalty_json_response([
+            'ok' => true,
+            'data' => $responseData,
+        ]);
+    }
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        try {
+            if (!hash_equals($csrfToken, (string)($_POST['token'] ?? ''))) {
+                throw new RuntimeException('页面凭证已失效，请刷新后重试。');
+            }
+            $penaltyPost = forum_penalty_post($postid);
+            if ($requestOperation === 'cancel') {
+                forum_require_penalty_manage_permission($penaltyPost);
+                $penaltyLogId = intval($_POST['penalty_log_id'] ?? 0);
+                $reason = preg_replace('/\s+/u', ' ', trim(strip_tags((string)($_POST['cancel_reason'] ?? ''))));
+                if (!is_valid_id($penaltyLogId)) {
+                    throw new RuntimeException('无效的扣分记录。');
+                }
+                if ($reason === '') {
+                    throw new RuntimeException('请填写取消原因。');
+                }
+                if (mb_strlen($reason) > 500) {
+                    throw new RuntimeException('取消原因不能超过 500 个字符。');
+                }
+                $result = \Nexus\Database\NexusDB::transaction(function () use ($penaltyPost, $postid, $penaltyLogId, $reason, $CURUSER) {
+                    $record = forum_penalty_record_by_id($postid, $penaltyLogId, true);
+                    if ($record['user_id'] !== (int)$penaltyPost['userid']) {
+                        throw new RuntimeException('原扣分记录与帖子作者不匹配。');
+                    }
+                    if (forum_penalty_cancellation_by_penalty_id($penaltyLogId, true)) {
+                        throw new RuntimeException('该扣分记录已经取消，不能重复操作。');
+                    }
+                    $target = \App\Models\User::query()
+                        ->where('id', $record['user_id'])
+                        ->lockForUpdate()
+                        ->firstOrFail(['id', 'username', 'passkey', 'seedbonus', 'seed_points', 'uploaded', 'downloaded', 'invites', 'attendance_card']);
+                    $field = $record['field'];
+                    $fieldConfig = forum_adjustment_field_config($field);
+                    if (!$fieldConfig) {
+                        throw new RuntimeException('原扣分记录的积分类型已不受支持。');
+                    }
+                    $fieldLabel = $record['field_label'];
+                    $displayAmount = (float)$record['amount'];
+                    $amount = $record['amount_atomic'];
+                    $amountText = $record['amount_text'];
+                    $auditAmount = number_format($displayAmount, (int)$fieldConfig['decimals'], '.', '') . ($fieldConfig['unit'] !== '' ? ' ' . $fieldConfig['unit'] : '');
+                    $old = forum_adjustment_storage_value($field, $target->{$field});
+                    $new = forum_adjustment_storage_value($field, $old + $amount);
+                    $affected = \App\Models\User::query()
+                        ->where('id', $target->id)
+                        ->where($field, $target->{$field})
+                        ->update([$field => $new]);
+                    if ($affected !== 1) {
+                        throw new RuntimeException('用户余额刚刚发生变化，请刷新后重试。');
+                    }
+                    $audit = sprintf(
+                        '论坛处罚取消：管理员 %s 取消帖子 #%d 的扣分记录 #%d，返还 %s %s，%s 从 %s 变为 %s。取消原因：%s',
+                        $CURUSER['username'], $postid, $penaltyLogId, $auditAmount, $fieldLabel,
+                        $fieldLabel, forum_adjustment_audit_value($field, $old), forum_adjustment_audit_value($field, $new), $reason
+                    );
+                    $auditLog = \App\Models\UserModifyLog::query()->create(['user_id' => $target->id, 'content' => $audit]);
+                    if ($field === 'seedbonus') {
+                        \App\Models\BonusLogs::add(
+                            $target->id, $old, $amount, $new,
+                            sprintf('取消帖子 #%d 的扣分记录 #%d，操作人：%s，原因：%s', $postid, $penaltyLogId, $CURUSER['username'], $reason),
+                            \App\Models\BonusLogs::BUSINESS_TYPE_FORUM_PENALTY
+                        );
+                    }
+                    \App\Models\Message::add([
+                        'sender' => 0,
+                        'receiver' => $target->id,
+                        'subject' => '论坛扣分取消通知',
+                        'msg' => sprintf(
+                            "你在主题《%s》的帖子 #%d 的 %s 扣分已被取消并返还。\n取消前：%s\n取消后：%s\n操作人：%s\n取消原因：%s",
+                            trim((string)$penaltyPost['subject']), $postid, $amountText,
+                            forum_adjustment_balance_text($field, $old), forum_adjustment_balance_text($field, $new), $CURUSER['username'], $reason
+                        ),
+                        'added' => now(),
+                    ]);
+                    return [
+                        'uid' => $target->id,
+                        'passkey' => $target->passkey,
+                        'cancellation' => [
+                            'id' => (int)$auditLog->id,
+                            'penalty_id' => $penaltyLogId,
+                            'post_id' => $postid,
+                            'amount' => $displayAmount,
+                            'amount_text' => $amountText,
+                            'field_label' => $fieldLabel,
+                            'operator' => (string)$CURUSER['username'],
+                            'reason' => $reason,
+                            'created_at' => $auditLog->created_at ? $auditLog->created_at->format('Y-m-d H:i:s') : date('Y-m-d H:i:s'),
+                        ],
+                    ];
+                });
+                $success = sprintf('已取消该笔 %s 扣分并返还用户。', $result['cancellation']['amount_text']);
+                do_log(sprintf('[FORUM_PENALTY_CANCEL] operator=%d post=%d uid=%d penalty_log=%d reason=%s', (int)$CURUSER['id'], $postid, (int)$result['uid'], $penaltyLogId, $reason), 'alert');
+            } else {
+                forum_require_penalty_permission($penaltyPost);
+                $adjustment = (string)($_POST['adjustment'] ?? 'deduct');
+                if (!in_array($adjustment, ['deduct', 'add'], true)) {
+                    throw new RuntimeException('请选择增加或扣除。');
+                }
+                $field = (string)($_POST['penalty_field'] ?? '');
+                $fieldConfig = forum_adjustment_field_config($field);
+                if (!$fieldConfig) {
+                    throw new RuntimeException('请选择有效的积分类型。');
+                }
+                $amount = round((float)($_POST['amount'] ?? 0), (int)$fieldConfig['decimals']);
+                if (!is_finite($amount) || $amount <= 0) {
+                    throw new RuntimeException('请输入大于 0 的调整数量。');
+                }
+                if ((int)$fieldConfig['decimals'] === 0 && abs((float)($_POST['amount'] ?? 0) - $amount) > 0.000001) {
+                    throw new RuntimeException($fieldConfig['label'] . '只能输入整数。');
+                }
+                $reason = preg_replace('/\s+/u', ' ', trim(strip_tags((string)($_POST['reason'] ?? ''))));
+                if ($reason === '') {
+                    throw new RuntimeException('请填写调整原因。');
+                }
+                if (mb_strlen($reason) > 500) {
+                    throw new RuntimeException('调整原因不能超过 500 个字符。');
+                }
+                $fieldLabel = $fieldConfig['label'];
+                $amountAtomic = forum_adjustment_amount_atomic($amount, $fieldConfig);
+                $amountText = forum_adjustment_amount_text($amount, $fieldConfig);
+                $auditAmount = number_format($amount, (int)$fieldConfig['decimals'], '.', '') . ($fieldConfig['unit'] !== '' ? ' ' . $fieldConfig['unit'] : '');
+                $operationLabel = $adjustment === 'add' ? '增加' : '扣除';
+                $delta = $adjustment === 'add' ? $amountAtomic : -$amountAtomic;
+                $result = \Nexus\Database\NexusDB::transaction(function () use ($penaltyPost, $postid, $field, $fieldConfig, $fieldLabel, $adjustment, $operationLabel, $delta, $amount, $amountAtomic, $amountText, $auditAmount, $reason, $CURUSER) {
+                    $target = \App\Models\User::query()
+                        ->where('id', (int)$penaltyPost['userid'])
+                        ->lockForUpdate()
+                        ->firstOrFail(['id', 'username', 'class', 'passkey', 'seedbonus', 'seed_points', 'uploaded', 'downloaded', 'invites', 'attendance_card']);
+                    if ((int)$target->class >= (int)$CURUSER['class']) {
+                        throw new RuntimeException('用户等级已发生变化，不能继续调整。');
+                    }
+                    $old = forum_adjustment_storage_value($field, $target->{$field});
+                    if ($adjustment === 'deduct' && $old < $amountAtomic) {
+                        throw new RuntimeException($fieldLabel . '余额不足，当前仅有 ' . forum_adjustment_balance_text($field, $old) . '。');
+                    }
+                    $new = forum_adjustment_storage_value($field, $old + $delta);
+                    $affected = \App\Models\User::query()
+                        ->where('id', $target->id)
+                        ->where($field, $target->{$field})
+                        ->update([$field => $new]);
+                    if ($affected !== 1) {
+                        throw new RuntimeException('用户余额刚刚发生变化，请刷新后重试。');
+                    }
+                    $topic = trim((string)$penaltyPost['subject']);
+                    $audit = sprintf(
+                        '论坛处罚：管理员 %s 对帖子 #%d（主题：%s）的作者%s %s %s，%s 从 %s 变为 %s。原因：%s',
+                        $CURUSER['username'], $postid, $topic, $operationLabel, $auditAmount, $fieldLabel,
+                        $fieldLabel, forum_adjustment_audit_value($field, $old), forum_adjustment_audit_value($field, $new), $reason
+                    );
+                    $auditLog = \App\Models\UserModifyLog::query()->create(['user_id' => $target->id, 'content' => $audit]);
+                    if ($field === 'seedbonus') {
+                        \App\Models\BonusLogs::add(
+                            $target->id, $old, $delta, $new,
+                            sprintf('帖子 #%d，%s，操作人：%s，原因：%s', $postid, $operationLabel, $CURUSER['username'], $reason),
+                            \App\Models\BonusLogs::BUSINESS_TYPE_FORUM_PENALTY
+                        );
+                    }
+                    \App\Models\Message::add([
+                        'sender' => 0,
+                        'receiver' => $target->id,
+                        'subject' => $adjustment === 'add' ? '论坛积分增加通知' : '论坛违规扣分通知',
+                        'msg' => sprintf(
+                            "你在主题《%s》的帖子 #%d 被%s %s。\n调整前：%s\n调整后：%s\n操作人：%s\n原因：%s",
+                            $topic, $postid, $operationLabel, $amountText,
+                            forum_adjustment_balance_text($field, $old), forum_adjustment_balance_text($field, $new), $CURUSER['username'], $reason
+                        ),
+                        'added' => now(),
+                    ]);
+                    return [
+                        'uid' => $target->id,
+                        'passkey' => $target->passkey,
+                        'penalty' => [
+                            'id' => (int)$auditLog->id,
+                            'post_id' => $postid,
+                            'operator' => (string)$CURUSER['username'],
+                            'action' => $adjustment,
+                            'amount' => $amount,
+                            'amount_text' => $amountText,
+                            'field_label' => $fieldLabel,
+                            'reason' => $reason,
+                            'created_at' => $auditLog->created_at ? $auditLog->created_at->format('Y-m-d H:i:s') : date('Y-m-d H:i:s'),
+                        ],
+                    ];
+                });
+                $success = sprintf('已成功为用户 %s%s %s。', $penaltyPost['username'], $operationLabel, $amountText);
+                do_log(sprintf('[FORUM_PENALTY] operator=%d post=%d uid=%d operation=%s field=%s amount=%.1f reason=%s', (int)$CURUSER['id'], $postid, (int)$result['uid'], $adjustment, $field, $amount, $reason), 'alert');
+            }
+            \Nexus\Database\NexusDB::redis()->del('forum:penalty:csrf:' . (int)$CURUSER['id']);
+            clear_user_cache((int)$result['uid'], (string)$result['passkey']);
+            $penaltyPost = forum_penalty_post($postid);
+        } catch (Throwable $e) {
+            $error = $e->getMessage();
+        }
+        if ($isJsonRequest) {
+            if ($error !== '') {
+                forum_penalty_json_response(['ok' => false, 'message' => $error], 422);
+            }
+            if ($requestOperation === 'cancel') {
+                forum_penalty_json_response(['ok' => true, 'message' => $success, 'cancellation' => $result['cancellation']]);
+            }
+            forum_penalty_json_response(['ok' => true, 'message' => $success, 'penalty' => $result['penalty']]);
+        }
+    }
+
+    f_mhead('论坛积分调整');
+    ?>
+    <style>
+    .forum-penalty-page{width:min(720px,calc(100% - 24px));margin:22px auto;padding:22px;box-sizing:border-box;border:1px solid var(--bili-border,#dfe5ee);border-radius:16px;background:var(--bili-surface,#fff);color:var(--bili-text,#18191c);box-shadow:0 16px 40px rgba(31,45,72,.12)}
+    .forum-penalty-page h1{margin:0 0 8px!important;padding:0!important;border:0!important;background:transparent!important;color:var(--bili-text,#18191c)!important;font-size:24px}.forum-penalty-note{margin:0 0 18px;color:var(--bili-text-secondary,#61666d);line-height:1.7}
+    .forum-penalty-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:18px}.forum-penalty-summary div{padding:12px;border:1px solid color-mix(in srgb,var(--bili-primary,#00aeec) 18%,var(--bili-border,#dfe5ee));border-radius:10px;background:color-mix(in srgb,var(--bili-primary,#00aeec) 6%,var(--bili-surface,#fff))}.forum-penalty-summary span{display:block;color:var(--bili-text-secondary,#61666d);font-size:12px}.forum-penalty-summary b{display:block;margin-top:4px;color:var(--bili-text,#18191c);font-size:16px;word-break:break-word}
+    .forum-penalty-alert{margin-bottom:16px;padding:12px 14px;border-radius:10px;line-height:1.6}.forum-penalty-alert.error{border:1px solid rgba(200,63,77,.35);background:rgba(200,63,77,.1);color:#a92130}.forum-penalty-alert.success{border:1px solid rgba(21,137,92,.35);background:rgba(21,137,92,.1);color:#0b7249}
+    .forum-penalty-field{margin-top:16px}.forum-penalty-field>label,.forum-penalty-field>span{display:block;margin-bottom:7px;color:var(--bili-text,#18191c);font-weight:800}.forum-penalty-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.forum-penalty-option{display:flex;align-items:center;gap:9px;padding:12px;border:1px solid var(--bili-border,#dfe5ee);border-radius:10px;background:var(--bili-surface-soft,#f6f7fb);cursor:pointer}.forum-penalty-option:has(input:checked){border-color:var(--bili-primary,#00aeec);box-shadow:0 0 0 2px color-mix(in srgb,var(--bili-primary,#00aeec) 18%,transparent)}
+    .forum-penalty-input,.forum-penalty-textarea{width:100%;box-sizing:border-box;border:1px solid var(--bili-border,#dfe5ee)!important;border-radius:9px!important;background:var(--bili-surface,#fff)!important;color:var(--bili-text,#18191c)!important}.forum-penalty-input{min-height:44px;padding:0 12px!important}.forum-penalty-textarea{min-height:100px;padding:10px 12px!important;resize:vertical}.forum-penalty-input:focus-visible,.forum-penalty-textarea:focus-visible{outline:3px solid color-mix(in srgb,var(--bili-primary,#00aeec) 45%,transparent);outline-offset:1px}
+    .forum-penalty-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}.forum-penalty-actions a,.forum-penalty-actions button{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:0 18px;border-radius:9px;text-decoration:none!important;font-weight:800;cursor:pointer}.forum-penalty-cancel{border:1px solid var(--bili-border,#dfe5ee);background:var(--bili-surface-soft,#f6f7fb);color:var(--bili-text,#18191c)!important}.forum-penalty-submit{border:0;background:#c83f4d;color:#fff}.forum-penalty-submit:hover{background:#a92d39}
+    :root[data-site-theme="night"] .forum-penalty-alert.error{color:#ff9da6}:root[data-site-theme="night"] .forum-penalty-alert.success{color:#70e0ac}
+    @media(max-width:560px){.forum-penalty-page{width:calc(100% - 16px);margin:10px auto;padding:16px}.forum-penalty-summary,.forum-penalty-options{grid-template-columns:1fr}.forum-penalty-actions{flex-direction:column-reverse}.forum-penalty-actions a,.forum-penalty-actions button{width:100%;box-sizing:border-box}}
+    </style>
+    <main class="forum-penalty-page">
+        <h1>论坛积分调整</h1>
+        <p class="forum-penalty-note">请选择增加或扣除、积分类型并填写原因。操作完成后会通知用户，同时写入公开记录与用户修改记录。</p>
+        <div class="forum-penalty-summary">
+            <div><span>用户</span><b><?php echo forum_penalty_h($penaltyPost['username']) ?>（UID <?php echo (int)$penaltyPost['userid'] ?>）</b></div>
+            <div><span>帖子</span><b>#<?php echo $postid ?> · <?php echo forum_penalty_h($penaltyPost['subject']) ?></b></div>
+            <div><span>当前魔力</span><b><?php echo number_format((float)$penaltyPost['seedbonus'], 1) ?></b></div>
+            <div><span>当前做种积分</span><b><?php echo number_format((float)$penaltyPost['seed_points'], 1) ?></b></div>
+            <div><span>当前上传量</span><b><?php echo mksize((int)$penaltyPost['uploaded']) ?></b></div>
+            <div><span>当前下载量</span><b><?php echo mksize((int)$penaltyPost['downloaded']) ?></b></div>
+            <div><span>当前邀请名额</span><b><?php echo number_format((int)$penaltyPost['invites']) ?></b></div>
+            <div><span>当前补签卡</span><b><?php echo number_format((int)$penaltyPost['attendance_card']) ?></b></div>
+        </div>
+        <?php if ($error !== '') { ?><div class="forum-penalty-alert error" role="alert"><?php echo forum_penalty_h($error) ?></div><?php } ?>
+        <?php if ($success !== '') { ?>
+            <div class="forum-penalty-alert success" role="status"><?php echo forum_penalty_h($success) ?></div>
+            <div class="forum-penalty-actions"><a class="forum-penalty-cancel" href="<?php echo forum_penalty_h($backUrl) ?>">返回帖子</a></div>
+        <?php } else { ?>
+            <form method="post" action="forums.php?action=penalizepost" onsubmit="return confirm('确认执行本次论坛积分调整吗？此操作会立即修改用户余额。');">
+                <input type="hidden" name="postid" value="<?php echo $postid ?>">
+                <input type="hidden" name="token" value="<?php echo forum_penalty_h($csrfToken) ?>">
+                <input type="hidden" name="operation" value="adjust">
+                <div class="forum-penalty-field"><span id="adjustmentTypeLabel">调整方式</span><div class="forum-penalty-options" role="radiogroup" aria-labelledby="adjustmentTypeLabel">
+                    <label class="forum-penalty-option"><input type="radio" name="adjustment" value="deduct" required <?php echo (($_POST['adjustment'] ?? 'deduct') === 'deduct') ? 'checked' : '' ?>> 扣除</label>
+                    <label class="forum-penalty-option"><input type="radio" name="adjustment" value="add" required <?php echo (($_POST['adjustment'] ?? '') === 'add') ? 'checked' : '' ?>> 增加</label>
+                </div></div>
+                <div class="forum-penalty-field"><span id="penaltyTypeLabel">积分类型</span><div class="forum-penalty-options" role="radiogroup" aria-labelledby="penaltyTypeLabel">
+                    <?php foreach (forum_adjustment_field_configs() as $fieldKey => $fieldConfig) { ?>
+                    <label class="forum-penalty-option"><input type="radio" name="penalty_field" value="<?php echo forum_penalty_h($fieldKey) ?>" required <?php echo (($_POST['penalty_field'] ?? 'seedbonus') === $fieldKey) ? 'checked' : '' ?>> <?php echo forum_penalty_h($fieldConfig['label']) ?></label>
+                    <?php } ?>
+                </div></div>
+                <div class="forum-penalty-field"><label for="forumPenaltyAmount">调整数量（上传量、下载量单位为 GB；邀请名额、补签卡须为整数）</label><input class="forum-penalty-input" id="forumPenaltyAmount" name="amount" type="number" min="0.1" step="0.1" value="<?php echo forum_penalty_h($_POST['amount'] ?? '') ?>" required></div>
+                <div class="forum-penalty-field"><label for="forumPenaltyReason">调整原因</label><textarea class="forum-penalty-textarea" id="forumPenaltyReason" name="reason" maxlength="500" required><?php echo forum_penalty_h($_POST['reason'] ?? '') ?></textarea></div>
+                <div class="forum-penalty-actions"><a class="forum-penalty-cancel" href="<?php echo forum_penalty_h($backUrl) ?>">取消</a><button class="forum-penalty-submit" type="submit">确认调整</button></div>
+            </form>
+        <?php } ?>
+    </main>
+    <?php
+    f_mfoot();
+    die;
 }
 
 //-------- Action: Post
@@ -921,6 +1578,7 @@ if ($action == "viewtopic")
 		}
 		$mUids = array_keys($mUids);
 		$mUserInfo = $mUids ? \App\Models\User::query()->find($mUids, ['id','class','avatar','username','donor','title'])->keyBy('id') : collect();
+		$mPenaltyRecords = forum_penalty_records_for_posts($mPosts);
 		// 楼层号 = 该帖在主题“主楼层”(非楼中楼)中按发帖先后的序号；楼中楼不计楼层、不显示
 		$floorMap = [];
 		$fres = sql_query("SELECT id FROM posts WHERE topicid=" . sqlesc($topicid) . " AND (reply_to_post_id = 0 OR reply_to_post_id IS NULL) ORDER BY id ASC");
@@ -950,14 +1608,19 @@ if ($action == "viewtopic")
 			elseif ($isNested) { $floorLabel = ''; }
 			else { $floorLabel = (($floorMap[(int)$p['id']] ?? '') !== '' ? $floorMap[(int)$p['id']] . '楼' : ''); }
 			$body = format_comment($p['body'], 0);
+			$penaltyTool = '';
+			if ((user_can('postmanage') || $is_forummod) && $puid !== (int)$CURUSER['id'] && $u && (int)$u->class < (int)$CURUSER['class']) {
+				$penaltyTool = '<div class="ft-post-tools">' . forum_penalty_link((int)$p['id']) . '</div>';
+			}
 			echo '<div class="ft-post' . ($isNested ? ' ft-nested' : '') . '"><div class="ft-post-head"><span class="f-ava">' . $pav . '</span>'
 				. '<span class="ft-pmeta"><span class="ft-pname">' . $pnameHtml . '</span><span class="ft-pdate">' . $pdate . '</span></span>'
 				. ($floorLabel !== '' ? '<span class="ft-floor">' . $floorLabel . '</span>' : '') . '</div>'
-				. '<div class="ft-body">' . $body . '</div></div>';
+				. '<div class="ft-body">' . $body . '</div>' . forum_render_penalty_notices((int)$p['id'], $mPenaltyRecords) . $penaltyTool . '</div>';
 		}
 		echo '</div>';
 		if (trim((string)($pagerstr ?? '')) !== '') echo '<div class="ft-pager">' . $pagerstr . '</div>';
 		if ($maypost) echo '<div class="ft-replybar"><a href="' . htmlspecialchars("?action=reply&topicid=" . $topicid) . '">我也要说两句…</a></div>';
+		if (user_can('postmanage') || $is_forummod) echo forum_render_penalty_modal();
 		f_mfoot();
 		die;
 	}
@@ -1028,6 +1691,7 @@ if ($action == "viewtopic")
 	foreach ($allPosts as $visiblePost) {
 		$lastVisiblePostId = max($lastVisiblePostId, (int)$visiblePost['id']);
 	}
+	$forumPenaltyRecords = forum_penalty_records_for_posts($allPosts);
 	$pn = 0;
 	$lpr = get_last_read_post_id($topicid);
 	if ($Advertisement->enable_ad())
@@ -1068,7 +1732,7 @@ function forumCancelInlineReply(postId) {
 }
 </script>\n");
 
-	$renderNestedReplies = function ($parentPostId, $depth = 1) use (&$renderNestedReplies, &$nestedReplyChildren, $userInfoArr, $topicid, $highlight, $allPosts, $lang_forums, $maypost, $locked, $is_forummod, $CURUSER, $userid) {
+	$renderNestedReplies = function ($parentPostId, $depth = 1) use (&$renderNestedReplies, &$nestedReplyChildren, $userInfoArr, $topicid, $highlight, $allPosts, $lang_forums, $maypost, $locked, $is_forummod, $CURUSER, $userid, $forumPenaltyRecords) {
 		$parentPostId = (int)$parentPostId;
 		if (empty($nestedReplyChildren[$parentPostId])) {
 			return;
@@ -1120,6 +1784,9 @@ function forumCancelInlineReply(postId) {
 			if ($maypost && $canViewProtected) {
 				$replyTools .= forum_inline_reply_link($replyPostId, $lang_forums['title_reply_with_quote']);
 			}
+			if ((user_can('postmanage') || $is_forummod) && $replyPosterId !== (int)$CURUSER['id'] && (int)$replyUser['class'] < (int)$CURUSER['class']) {
+				$replyTools .= forum_penalty_link($replyPostId);
+			}
 			if (user_can('postmanage') || $is_forummod) {
 				$replyTools .= "<a href=\"" . htmlspecialchars("?action=deletepost&postid=" . $replyPostId) . "\"><img class=\"f_delete\" src=\"pic/trans.gif\" alt=\"Delete\" title=\"" . $lang_forums['title_delete_post'] . "\" /></a>";
 			}
@@ -1138,7 +1805,7 @@ function forumCancelInlineReply(postId) {
 			print("<div class=\"forum-nested-reply-wrap\">");
 			print("<div class=\"forum-nested-reply-head\"><a id=\"pid" . $replyPostId . "\" href=\"" . htmlspecialchars("forums.php?action=viewtopic&topicid=" . $topicid . "&page=p" . $replyPostId . "#pid" . $replyPostId) . "\">#" . $replyPostId . "</a>&nbsp;&nbsp;<font color=\"gray\">" . $lang_forums['text_by'] . "</font>" . $replyAuthor . "&nbsp;&nbsp;<font color=\"gray\">" . $lang_forums['text_at'] . "</font>" . $replyAdded . "</div>");
 			print("<table class=\"main forum-nested-reply\" width=\"100%\" border=\"1\" cellspacing=\"0\" cellpadding=\"5\">");
-			print("<tr><td class=\"rowfollow forum-nested-user\" width=\"150\" valign=\"top\" align=\"left\">" . ($isAnonymousHidden ? return_avatar_image("pic/default_avatar.png") : $replyUserPanel) . "</td><td class=\"rowfollow\" valign=\"top\"><div id=\"pid" . $replyPostId . "body\" class=\"forum-nested-reply-body\">" . $replyBodyContent . "</div></td></tr>");
+			print("<tr><td class=\"rowfollow forum-nested-user\" width=\"150\" valign=\"top\" align=\"left\">" . ($isAnonymousHidden ? return_avatar_image("pic/default_avatar.png") : $replyUserPanel) . "</td><td class=\"rowfollow\" valign=\"top\"><div id=\"pid" . $replyPostId . "body\" class=\"forum-nested-reply-body\">" . $replyBodyContent . "</div>" . forum_render_penalty_notices($replyPostId, $forumPenaltyRecords) . "</td></tr>");
 			print("<tr><td class=\"rowfollow\" align=\"center\" valign=\"middle\">" . $replyPosterTools . "</td><td class=\"toolbox forum-nested-reply-tools\" align=\"right\">" . $replyTools . "</td></tr>");
 			print("</table>");
 			if ($maypost && $canViewProtected) {
@@ -1253,6 +1920,7 @@ function forumCancelInlineReply(postId) {
 		$body .= $bodyContent . "</div>";
 		if ($signature)
 		$body .= "<p style='vertical-align:bottom'><br />____________________<br />" . format_comment($signature,false,false,false,true,500,true,false, 1,200) . "</p>";
+		$body .= forum_render_penalty_notices((int)$postid, $forumPenaltyRecords);
 
 		if (!$isAnonymousHidden) {
 			$stats = "<br />"."&nbsp;&nbsp;".$lang_forums['text_posts']."$forumposts<br />"."&nbsp;&nbsp;".$lang_forums['text_ul']."$uploaded <br />"."&nbsp;&nbsp;".$lang_forums['text_dl']."$downloaded<br />"."&nbsp;&nbsp;".$lang_forums['text_ratio']."$ratio";
@@ -1276,6 +1944,9 @@ function forumCancelInlineReply(postId) {
 
 		if ($maypost && $canViewProtected)
 		print(forum_inline_reply_link($postid, $lang_forums['title_reply_with_quote']));
+
+		if ((user_can('postmanage') || $is_forummod) && $posterid !== (int)$CURUSER['id'] && (int)$arr2['class'] < (int)$CURUSER['class'])
+		print(forum_penalty_link($postid));
 
 		if (user_can('postmanage') || $is_forummod)
 		print("<a href=\"".htmlspecialchars("?action=deletepost&postid=".$postid)."\"><img class=\"f_delete\" src=\"pic/trans.gif\" alt=\"Delete\" title=\"".$lang_forums['title_delete_post']."\" /></a>");
@@ -1383,6 +2054,7 @@ function forumCancelInlineReply(postId) {
 	else print($lang_forums['text_unpermitted_posting_here']);
 
 	print(key_shortcut($page,$pages-1));
+	if (user_can('postmanage') || $is_forummod) print(forum_render_penalty_modal());
 	f_mfoot();
 	die;
 }
