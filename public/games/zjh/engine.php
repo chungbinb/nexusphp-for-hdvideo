@@ -70,6 +70,15 @@ function zjh_requires_showdown($stack, $currentBet, $seen)
     return (int)$stack < zjh_action_cost($currentBet, $seen);
 }
 
+function zjh_unrevealed_active_seats(array $players)
+{
+    $seats = [];
+    foreach ($players as $seat => $player) {
+        if (($player['status'] ?? '') === 'active' && empty($player['revealed'])) $seats[] = (int)$seat;
+    }
+    return $seats;
+}
+
 function zjh_card_view($card)
 {
     $ranks = [2=>'2',3=>'3',4=>'4',5=>'5',6=>'6',7=>'7',8=>'8',9=>'9',10=>'10',11=>'J',12=>'Q',13=>'K',14=>'A'];

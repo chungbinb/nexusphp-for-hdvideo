@@ -75,4 +75,15 @@ class ZjhEngineTest extends TestCase
         $this->assertFalse(zjh_requires_showdown(10000, 5000, true));
         $this->assertTrue(zjh_requires_showdown(9999, 5000, true));
     }
+
+    public function test_only_active_unrevealed_players_wait_for_showdown()
+    {
+        $players = [
+            ['status' => 'active', 'revealed' => true],
+            ['status' => 'active', 'revealed' => false],
+            ['status' => 'folded', 'revealed' => false],
+            ['status' => 'active'],
+        ];
+        $this->assertSame([1, 3], zjh_unrevealed_active_seats($players));
+    }
 }
