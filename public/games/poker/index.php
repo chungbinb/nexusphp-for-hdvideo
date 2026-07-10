@@ -629,12 +629,18 @@ body.page-games-poker-index-php:not(.inframe), body.game-page:not(.inframe) { ba
 .pk-start-card { width: min(560px,92%); padding: 27px; border: 1px solid rgba(241,197,102,.28); border-radius: 20px; background: linear-gradient(145deg,rgba(21,38,50,.97),rgba(9,21,31,.98)); box-shadow: 0 24px 70px rgba(0,0,0,.42); }
 .pk-start-card h2 { margin: 0; color: #fff; font-size: 25px; }
 .pk-start-card > p { margin: 9px 0 20px; color: var(--pk-muted); line-height: 1.6; }
-.pk-stakes { display: grid; grid-template-columns: repeat(4,1fr); gap: 9px; }
-.pk-stake { min-height: 70px; padding: 8px; border: 1px solid var(--pk-line); border-radius: 12px; background: #122330; color: var(--pk-text); cursor: pointer; transition: border-color .2s, background .2s; }
-.pk-stake:hover, .pk-stake.is-active { border-color: var(--pk-gold); background: #263321; }
+.pk-stakes { position: relative; display: grid; grid-template-columns: repeat(4,1fr); gap: 9px; }
+.pk-stake-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.pk-stake { position: relative; display: grid; place-content: center; min-height: 70px; padding: 8px; border: 1px solid var(--pk-line); border-radius: 12px; background: #122330; color: var(--pk-text); text-align: center; cursor: pointer; transition: border-color .2s, background .2s, box-shadow .2s; }
+.pk-stake:hover { border-color: rgba(241,197,102,.62); background: #1d2d31; }
+.pk-stake-input:checked + .pk-stake { border-color: var(--pk-gold); background: #263321; box-shadow: inset 0 0 0 2px rgba(241,197,102,.2), 0 0 0 2px rgba(241,197,102,.12); }
+.pk-stake-input:focus-visible + .pk-stake { outline: 3px solid #83d7ff; outline-offset: 2px; }
+.pk-stake-input:checked + .pk-stake::after { content: ""; position: absolute; right: 9px; top: 8px; width: 9px; height: 5px; border-left: 2px solid var(--pk-gold); border-bottom: 2px solid var(--pk-gold); transform: rotate(-45deg); }
 .pk-stake b, .pk-stake small { display: block; }
 .pk-stake b { color: var(--pk-gold); font-size: 18px; }
 .pk-stake small { margin-top: 4px; color: var(--pk-muted); }
+.pk-stake-choice { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; padding: 9px 11px; border: 1px solid rgba(241,197,102,.2); border-radius: 10px; background: rgba(241,197,102,.07); color: var(--pk-muted); font-size: 12px; }
+.pk-stake-choice b { color: var(--pk-gold); font-size: 14px; }
 .pk-primary { width: 100%; min-height: 48px; margin-top: 14px; border: 0; border-radius: 12px; background: linear-gradient(135deg,#d5a94e,#f1d07f); color: #1b170d; font-size: 16px; font-weight: 900; cursor: pointer; box-shadow: 0 8px 24px rgba(211,167,73,.23); }
 .pk-actions { display: flex; align-items: stretch; justify-content: center; gap: 9px; min-height: 52px; margin-top: 12px; }
 .pk-action { min-width: 116px; min-height: 48px; padding: 9px 16px; border: 1px solid var(--pk-line); border-radius: 12px; background: var(--pk-panel-2); color: #fff; font-size: 15px; font-weight: 850; cursor: pointer; transition: background .2s,border-color .2s; }
@@ -730,12 +736,14 @@ body.page-games-poker-index-php:not(.inframe), body.game-page:not(.inframe) { ba
                     <div class="pk-start-card">
                         <h2>选择牌桌底注</h2>
                         <p>每人托管带入 20 倍底注的桌面筹码，结算时自动退回剩余筹码与赢得底池。未完牌局保存 7 天，刷新或临时离开后可继续。</p>
-                        <div class="pk-stakes" id="pkStakes">
+                        <div class="pk-stakes" id="pkStakes" role="radiogroup" aria-label="牌桌底注">
                             <?php foreach (POKER_BASE_OPTIONS as $i => $base) { ?>
-                            <button type="button" class="pk-stake <?php echo $i === 0 ? 'is-active' : '' ?>" data-base="<?php echo $base ?>"><b><?php echo number_format($base) ?></b><small>需 <?php echo number_format($base * POKER_STACK_FACTOR) ?> 票</small></button>
+                            <input class="pk-stake-input" type="radio" name="poker_base" id="pkBase<?php echo $base ?>" value="<?php echo $base ?>" data-buyin="<?php echo $base * POKER_STACK_FACTOR ?>" <?php echo $i === 0 ? 'checked' : '' ?>>
+                            <label class="pk-stake" for="pkBase<?php echo $base ?>"><b><?php echo number_format($base) ?></b><small>需 <?php echo number_format($base * POKER_STACK_FACTOR) ?> 票</small></label>
                             <?php } ?>
                         </div>
-                        <button type="button" class="pk-primary" id="pkStartBtn">坐下开局</button>
+                        <div class="pk-stake-choice" aria-live="polite"><span>已选择底注 <b id="pkSelectedBase"><?php echo number_format(POKER_BASE_OPTIONS[0]) ?></b></span><span>带入 <b id="pkSelectedBuyin"><?php echo number_format(POKER_BASE_OPTIONS[0] * POKER_STACK_FACTOR) ?></b> 票</span></div>
+                        <button type="button" class="pk-primary" id="pkStartBtn">以 <?php echo number_format(POKER_BASE_OPTIONS[0]) ?> 底注坐下开局</button>
                     </div>
                 </div>
             </div>
@@ -849,8 +857,9 @@ body.page-games-poker-index-php:not(.inframe), body.game-page:not(.inframe) { ba
         renderSeats();renderCommunity();renderActions();renderLog();renderResult();renderClock();
     }
     function poll(){fetch('/games/poker/?ajax=poll',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(data){if(data.ok)renderResponse(data);}).catch(function(){});}
-    $('pkStakes').querySelectorAll('.pk-stake').forEach(function(btn){btn.addEventListener('click',function(){$('pkStakes').querySelectorAll('.pk-stake').forEach(function(b){b.classList.remove('is-active');});btn.classList.add('is-active');selectedBase=Number(btn.getAttribute('data-base'));});});
-    $('pkStartBtn').addEventListener('click',function(){post('start','&base='+selectedBase);});
+    function updateStakeChoice(){var checked=document.querySelector('input[name="poker_base"]:checked');if(!checked)return;selectedBase=Number(checked.value);$('pkSelectedBase').textContent=number(selectedBase);$('pkSelectedBuyin').textContent=number(checked.getAttribute('data-buyin'));$('pkStartBtn').textContent='以 '+number(selectedBase)+' 底注坐下开局';}
+    $('pkStakes').addEventListener('change',function(e){if(e.target&&e.target.name==='poker_base')updateStakeChoice();});
+    $('pkStartBtn').addEventListener('click',function(){updateStakeChoice();post('start','&base='+selectedBase);});
     $('pkResultExit').addEventListener('click',function(){location.href='/games/';});
     $('pkAgain').addEventListener('click',function(){$('pkResult').classList.remove('show');post('start','&base='+(state?state.base:selectedBase));});
     document.addEventListener('keydown',function(e){if(!state||state.status!=='playing'||state.turn!==0||e.ctrlKey||e.metaKey||e.altKey)return;var k=e.key.toLowerCase();if(k==='f')post('fold');else if(k==='c')post(state.toCall>0?'call':'check');else if(k==='r'&&state.canRaise)post('raise');});
