@@ -1,13 +1,16 @@
 <?php
-require "../../../include/bittorrent.php";
-dbconn();
-loggedinorreturn();
-parked();
-$GLOBALS['nexus_base_href'] = get_protocol_prefix() . $BASEURL . '/';
-$GLOBALS['nexus_hide_top_banner'] = true;
-require_once "../../../include/game_control.php";
+$zjhRuntimeOnly = defined('ZJH_RUNTIME_ONLY') && ZJH_RUNTIME_ONLY;
+require dirname(__DIR__, 3) . '/include/bittorrent.php';
+dbconn(false, !$zjhRuntimeOnly);
+if (!$zjhRuntimeOnly) {
+    loggedinorreturn();
+    parked();
+    $GLOBALS['nexus_base_href'] = get_protocol_prefix() . $BASEURL . '/';
+    $GLOBALS['nexus_hide_top_banner'] = true;
+}
+require_once dirname(__DIR__, 3) . '/include/game_control.php';
 require_once __DIR__ . '/engine.php';
-game_guard('zjh');
+if (!$zjhRuntimeOnly) game_guard('zjh');
 
 const ZJH_MIN_SEATS = 3;
 const ZJH_MAX_SEATS = 10;
@@ -20,8 +23,10 @@ const ZJH_MAX_ACTIONS = 100;
 const ZJH_ROOM_TTL = 604800;
 const ZJH_BUSINESS_TYPE = 113;
 const ZJH_ESCROW_BUSINESS_TYPE = 114;
+const ZJH_DEADLINE_KEY = 'zjh:room-deadlines';
 
 function zjh_redis() { return \Nexus\Database\NexusDB::redis(); }
+function zjh_now() { return time(); }
 function zjh_room_key($id) { return 'zjh:room:' . (int)$id; }
 function zjh_user_key($uid) { return 'zjh:user-room:' . (int)$uid; }
 function zjh_lock_key($id) { return 'zjh:lock:' . (int)$id; }
@@ -57,6 +62,14 @@ function zjh_room_put($room)
 {
     $redis = zjh_redis();
     $redis->setex(zjh_room_key($room['id']), ZJH_ROOM_TTL, json_encode($room, JSON_UNESCAPED_UNICODE));
+    if (($room['status'] ?? '') === 'playing') {
+        $turn = (int)($room['turn'] ?? -1);
+        $player = $room['players'][$turn] ?? [];
+        $due = !empty($player['bot']) ? (int)($room['bot_ready_at'] ?? $room['deadline'] ?? 0) : (int)($room['deadline'] ?? 0);
+        if ($due > 0) $redis->zAdd(ZJH_DEADLINE_KEY, $due, (string)$room['id']);
+    } else {
+        $redis->zRem(ZJH_DEADLINE_KEY, (string)$room['id']);
+    }
     foreach (($room['players'] ?? []) as $player) {
         if ($player && empty($player['bot']) && empty($player['departed'])) $redis->setex(zjh_user_key($player['uid']), ZJH_ROOM_TTL, (int)$room['id']);
     }
@@ -163,7 +176,7 @@ function zjh_new_room($base, $mode, $seats)
         'id'=>$id, 'invite'=>strtoupper(substr(bin2hex(random_bytes(4)), 0, 6)), 'mode'=>$mode,
         'owner'=>(int)$CURUSER['id'], 'base'=>$base, 'seat_count'=>$seats, 'status'=>'waiting',
         'players'=>array_replace(array_fill(0, $seats, null), [0=>zjh_player_from_current()]),
-        'created_at'=>TIMENOW, 'logs'=>[], 'token'=>bin2hex(random_bytes(16)), 'ready'=>[],
+        'created_at'=>zjh_now(), 'logs'=>[], 'token'=>bin2hex(random_bytes(16)), 'ready'=>[],
         'bot_difficulty'=>zjh_bot_difficulty()
     ];
     zjh_log($room, $CURUSER['username'] . ' 已入座，等待玩家或补机器人');
@@ -286,11 +299,11 @@ function zjh_set_turn(&$room, $seat)
 {
     $room['turn'] = (int)$seat;
     if ($seat >= 0 && !empty($room['players'][$seat]['bot'])) {
-        $room['bot_ready_at'] = TIMENOW + ZJH_BOT_THINK_SECONDS;
-        $room['deadline'] = TIMENOW + ZJH_BOT_THINK_SECONDS + 3;
+        $room['bot_ready_at'] = zjh_now() + ZJH_BOT_THINK_SECONDS;
+        $room['deadline'] = zjh_now() + ZJH_BOT_THINK_SECONDS + 3;
     } else {
         unset($room['bot_ready_at']);
-        $room['deadline'] = TIMENOW + ZJH_TURN_SECONDS;
+        $room['deadline'] = zjh_now() + ZJH_TURN_SECONDS;
     }
 }
 
@@ -343,7 +356,7 @@ function zjh_settle(&$room, $winner, $reason)
         sql_query('COMMIT') or sqlerr(__FILE__, __LINE__);
         foreach (array_keys($uids) as $uid) clear_user_cache($uid);
     } catch (Throwable $e) { sql_query('ROLLBACK'); throw $e; }
-    $room['status'] = 'finished'; $room['turn'] = -1; $room['finished_at'] = TIMENOW; $room['ready'] = [];
+    $room['status'] = 'finished'; $room['turn'] = -1; $room['finished_at'] = zjh_now(); $room['ready'] = [];
     zjh_log($room, $room['players'][$winner]['username'] . ' 获胜：' . $reason);
 }
 
@@ -454,7 +467,7 @@ function zjh_drive_bot(&$room)
 {
     if (($room['status'] ?? '') !== 'playing') return;
     $seat = (int)$room['turn'];
-    if ($seat < 0 || empty($room['players'][$seat]['bot']) || TIMENOW < (int)($room['bot_ready_at'] ?? 0)) return;
+    if ($seat < 0 || empty($room['players'][$seat]['bot']) || zjh_now() < (int)($room['bot_ready_at'] ?? 0)) return;
     $action = zjh_bot_action($room, $seat);
     $error = zjh_apply($room, $seat, $action);
     if ($error !== '' && ($room['status'] ?? '') === 'playing') {
@@ -566,7 +579,7 @@ function zjh_public($room, $uid)
         'roomId'=>(int)$room['id'], 'invite'=>$room['invite'], 'inviteUrl'=>$inviteUrl, 'mode'=>$room['mode'], 'base'=>(int)$room['base'],
         'status'=>$room['status'], 'seatCount'=>$seatCount, 'playerCount'=>count(array_filter($room['players'])), 'players'=>$players, 'pot'=>(int)($room['pot'] ?? 0),
         'tableCap'=>(int)$room['base'] * ZJH_STACK_FACTOR * $seatCount,
-        'turn'=>$turnView, 'timeLeft'=>$room['status']==='playing' ? max(0, (int)$room['deadline']-TIMENOW) : 0,
+        'turn'=>$turnView, 'timeLeft'=>$room['status']==='playing' ? max(0, (int)$room['deadline']-zjh_now()) : 0,
         'currentBet'=>(int)($room['current_bet'] ?? $room['base']), 'callCost'=>$unit, 'raiseCount'=>(int)($room['raise_count'] ?? 0),
         'canAct'=>$room['status']==='playing' && $turn===$viewer && ($me['status'] ?? '')==='active',
         'canPeek'=>$room['status']==='playing' && ($me['status'] ?? '')==='active' && empty($me['seen']), 'token'=>$room['token'],
@@ -579,10 +592,55 @@ function zjh_public($room, $uid)
 
 function zjh_timeout(&$room)
 {
-    if (($room['status'] ?? '') !== 'playing' || TIMENOW < (int)$room['deadline']) return;
+    if (($room['status'] ?? '') !== 'playing' || zjh_now() < (int)$room['deadline']) return;
     $seat = (int)$room['turn']; $name = $room['players'][$seat]['username'];
     zjh_apply($room, $seat, 'fold'); zjh_log($room, $name . ' 读秒结束，系统自动弃牌');
 }
+
+function zjh_rebuild_deadlines()
+{
+    $redis = zjh_redis();
+    $redis->del(ZJH_DEADLINE_KEY);
+    $count = 0;
+    foreach ((array)$redis->keys('zjh:room:*') as $key) {
+        $raw = $redis->get($key);
+        $room = $raw ? json_decode($raw, true) : null;
+        if (!$room || ($room['status'] ?? '') !== 'playing') continue;
+        zjh_room_put($room);
+        $count++;
+    }
+    return $count;
+}
+
+function zjh_process_due_rooms($limit = 100)
+{
+    $redis = zjh_redis();
+    $ids = array_slice((array)$redis->zRangeByScore(ZJH_DEADLINE_KEY, '-inf', (string)zjh_now()), 0, max(1, (int)$limit));
+    $processed = 0;
+    foreach ($ids as $rawId) {
+        $id = (int)$rawId;
+        if ($id <= 0) { $redis->zRem(ZJH_DEADLINE_KEY, (string)$rawId); continue; }
+        $token = zjh_lock($id);
+        if (!$token) continue;
+        try {
+            $room = zjh_room_get($id);
+            if (!$room) { $redis->zRem(ZJH_DEADLINE_KEY, (string)$id); continue; }
+            zjh_force_capped_showdown($room);
+            zjh_drive_bot($room);
+            zjh_timeout($room);
+            zjh_room_put($room);
+            $processed++;
+        } catch (Throwable $e) {
+            error_log('[ZJH_WORKER] room ' . $id . ': ' . $e->getMessage());
+            $redis->zAdd(ZJH_DEADLINE_KEY, zjh_now() + 1, (string)$id);
+        } finally {
+            zjh_unlock($id, $token);
+        }
+    }
+    return $processed;
+}
+
+if ($zjhRuntimeOnly) return;
 
 function zjh_stats($uid)
 {

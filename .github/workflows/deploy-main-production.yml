@@ -81,6 +81,11 @@ jobs:
           sudo chown -R www:www /www/wwwroot/hdvideo.top || true
           sudo chmod -R ug+rwX storage bootstrap/cache
 
+      - name: Restart Zha Jin Hua room worker
+        run: |
+          set -euo pipefail
+          sudo -u www bash /www/wwwroot/hdvideo.top/scripts/restart-zjh-worker.sh /www/wwwroot/hdvideo.top
+
       - name: Health check
         run: |
           set -euo pipefail
