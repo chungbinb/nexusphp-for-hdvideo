@@ -44,7 +44,8 @@ if ($isMobile) {
 .ghr a { color: inherit !important; }
 .ghr-tabs { display: flex; flex-wrap: wrap; gap: 28px; margin: 2px 0 22px; color: var(--ghr-text-secondary); font-size: 18px; }
 .ghr-tab { position: relative; padding-bottom: 8px; color: inherit !important; text-decoration: none !important; }
-.ghr-tab.is-active { color: var(--ghr-primary) !important; font-weight: 800; }
+.ghr .ghr-tab:link, .ghr .ghr-tab:visited { color: inherit !important; }
+.ghr .ghr-tab.is-active:link, .ghr .ghr-tab.is-active:visited { color: var(--ghr-primary) !important; font-weight: 800; }
 .ghr-tab.is-active::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; border-radius: 3px; background: var(--ghr-primary); }
 .ghr-hero { position: relative; overflow: hidden; padding: 30px; border: 1px solid var(--ghr-border); border-radius: 16px; background: linear-gradient(135deg, var(--ghr-surface-strong), var(--ghr-surface) 58%, var(--ghr-surface-soft)); box-shadow: 0 18px 45px color-mix(in srgb, var(--ghr-primary) 12%, transparent); }
 .ghr-hero::after { content: ""; position: absolute; width: 260px; height: 260px; top: -150px; right: -70px; border: 38px solid color-mix(in srgb, var(--ghr-primary) 10%, transparent); border-radius: 50%; }
@@ -54,7 +55,8 @@ if ($isMobile) {
 .ghr-lead { position: relative; z-index: 1; max-width: 780px; margin: 0; color: var(--ghr-text-secondary); font-size: 15px; line-height: 1.8; }
 .ghr-toc { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 9px; margin: 16px 0 0; }
 .ghr-toc a { display: flex; align-items: center; min-height: 42px; padding: 0 12px; border: 1px solid var(--ghr-border); border-radius: 8px; background: var(--ghr-surface); color: var(--ghr-text) !important; text-decoration: none !important; transition: border-color .18s ease, background .18s ease, color .18s ease; }
-.ghr-toc a:hover { border-color: var(--ghr-primary); background: var(--ghr-surface-soft); color: var(--ghr-primary) !important; }
+.ghr .ghr-toc a:link, .ghr .ghr-toc a:visited { color: var(--ghr-text) !important; }
+.ghr .ghr-toc a:hover { border-color: var(--ghr-primary); background: var(--ghr-surface-soft); color: var(--ghr-primary) !important; }
 .ghr-toc a:focus-visible, .ghr-tab:focus-visible, .ghr-back:focus-visible { outline: 3px solid color-mix(in srgb, var(--ghr-primary) 45%, transparent); outline-offset: 2px; }
 .ghr-chapter { scroll-margin-top: 18px; margin-top: 18px; padding: 22px 24px; border: 1px solid var(--ghr-border); border-radius: 14px; background: var(--ghr-surface); box-shadow: 0 8px 24px color-mix(in srgb, var(--ghr-primary) 6%, transparent); }
 .ghr-chapter > h2 { margin: 0 0 4px !important; padding: 12px 16px; border-radius: 10px; background: var(--ghr-surface-strong); color: var(--ghr-primary) !important; font-size: 23px; }
@@ -77,6 +79,7 @@ if ($isMobile) {
 .ghr-table th { width: 32%; color: var(--ghr-text); }
 .ghr-back-row { display: flex; justify-content: center; margin-top: 22px; }
 .ghr-back { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 22px; border-radius: 8px; background: var(--ghr-primary); color: #fff !important; font-weight: 800; text-decoration: none !important; }
+.ghr .ghr-back:link, .ghr .ghr-back:visited { color: #fff !important; }
 @media (max-width: 760px) {
     .ghr { padding: 8px 12px 28px; }
     .ghr-tabs { gap: 20px; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; font-size: 16px; scrollbar-width: none; }
