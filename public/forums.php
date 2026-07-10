@@ -452,25 +452,100 @@ function forum_penalty_json_response(array $payload, int $status = 200): void
     exit;
 }
 
+function forum_adjustment_field_configs(): array
+{
+    static $configs = [
+        'seedbonus' => ['label' => '魔力', 'unit' => '', 'factor' => 1, 'decimals' => 1, 'integer' => false],
+        'seed_points' => ['label' => '做种积分', 'unit' => '', 'factor' => 1, 'decimals' => 1, 'integer' => false],
+        'uploaded' => ['label' => '上传量', 'unit' => 'GB', 'factor' => 1073741824, 'decimals' => 1, 'integer' => true],
+        'downloaded' => ['label' => '下载量', 'unit' => 'GB', 'factor' => 1073741824, 'decimals' => 1, 'integer' => true],
+        'invites' => ['label' => '邀请名额', 'unit' => '', 'factor' => 1, 'decimals' => 0, 'integer' => true],
+        'attendance_card' => ['label' => '补签卡', 'unit' => '', 'factor' => 1, 'decimals' => 0, 'integer' => true],
+    ];
+    return $configs;
+}
+
+function forum_adjustment_field_config(string $field): ?array
+{
+    $configs = forum_adjustment_field_configs();
+    return $configs[$field] ?? null;
+}
+
+function forum_adjustment_field_from_label(string $label): ?string
+{
+    foreach (forum_adjustment_field_configs() as $field => $config) {
+        if ($config['label'] === $label) {
+            return $field;
+        }
+    }
+    return null;
+}
+
+function forum_adjustment_amount_text(float $amount, array $config): string
+{
+    $text = number_format($amount, (int)$config['decimals']);
+    if ($config['unit'] !== '') {
+        $text .= ' ' . $config['unit'];
+    }
+    return $text . ' ' . $config['label'];
+}
+
+function forum_adjustment_amount_atomic(float $amount, array $config): int|float
+{
+    $atomic = $amount * (float)$config['factor'];
+    return $config['integer'] ? (int)round($atomic) : round($atomic, 1);
+}
+
+function forum_adjustment_storage_value(string $field, $value): int|float
+{
+    $config = forum_adjustment_field_config($field);
+    return $config && $config['integer'] ? (int)$value : round((float)$value, 1);
+}
+
+function forum_adjustment_audit_value(string $field, $value): string
+{
+    $config = forum_adjustment_field_config($field);
+    return number_format((float)$value, $config && !$config['integer'] ? 1 : 0, '.', '');
+}
+
+function forum_adjustment_balance_text(string $field, $value): string
+{
+    if (in_array($field, ['uploaded', 'downloaded'], true)) {
+        return mksize((int)$value);
+    }
+    $config = forum_adjustment_field_config($field);
+    return number_format((float)$value, $config ? (int)$config['decimals'] : 1);
+}
+
 function forum_penalty_record_from_log($log): ?array
 {
     $content = (string)$log->content;
-    $pattern = '/^论坛处罚：管理员 (.+?) 对帖子 #(\d+)（主题：.*?）的作者(扣除|增加) ([\d,]+(?:\.\d+)?) (魔力|做种积分)，(?:魔力|做种积分) 从 ([\d,]+(?:\.\d+)?) 变为 ([\d,]+(?:\.\d+)?)。原因：(.*)$/us';
+    $labels = implode('|', array_map(fn($config) => preg_quote($config['label'], '/'), forum_adjustment_field_configs()));
+    $pattern = '/^论坛处罚：管理员 (.+?) 对帖子 #(\d+)（主题：.*?）的作者(扣除|增加) ([\d,]+(?:\.\d+)?)(?: (GB))? (' . $labels . ')，(?:' . $labels . ') 从 ([\d,]+(?:\.\d+)?) 变为 ([\d,]+(?:\.\d+)?)。原因：(.*)$/us';
     if (!preg_match($pattern, $content, $matches)) {
         return null;
     }
+    $field = forum_adjustment_field_from_label($matches[6]);
+    $config = $field ? forum_adjustment_field_config($field) : null;
+    if (!$field || !$config || $config['unit'] !== ($matches[5] ?? '')) {
+        return null;
+    }
+    $amount = (float)str_replace(',', '', $matches[4]);
     return [
         'id' => (int)$log->id,
         'post_id' => (int)$matches[2],
         'user_id' => (int)$log->user_id,
         'operator' => trim($matches[1]),
         'action' => $matches[3] === '增加' ? 'add' : 'deduct',
-        'amount' => (float)str_replace(',', '', $matches[4]),
-        'field_label' => $matches[5],
-        'field' => $matches[5] === '魔力' ? 'seedbonus' : 'seed_points',
-        'old_value' => (float)str_replace(',', '', $matches[6]),
-        'new_value' => (float)str_replace(',', '', $matches[7]),
-        'reason' => trim($matches[8]),
+        'amount' => $amount,
+        'amount_atomic' => forum_adjustment_amount_atomic($amount, $config),
+        'amount_unit' => $config['unit'],
+        'amount_text' => forum_adjustment_amount_text($amount, $config),
+        'field_label' => $config['label'],
+        'field' => $field,
+        'old_value' => forum_adjustment_storage_value($field, str_replace(',', '', $matches[7])),
+        'new_value' => forum_adjustment_storage_value($field, str_replace(',', '', $matches[8])),
+        'reason' => trim($matches[9]),
         'created_at' => $log->created_at ? $log->created_at->format('Y-m-d H:i:s') : '',
         'cancellation' => null,
     ];
@@ -479,19 +554,27 @@ function forum_penalty_record_from_log($log): ?array
 function forum_penalty_cancellation_from_log($log): ?array
 {
     $content = (string)$log->content;
-    $pattern = '/^论坛处罚取消：管理员 (.+?) 取消帖子 #(\d+) 的扣分记录 #(\d+)，返还 ([\d,]+(?:\.\d+)?) (魔力|做种积分)，(?:魔力|做种积分) 从 ([\d,]+(?:\.\d+)?) 变为 ([\d,]+(?:\.\d+)?)。取消原因：(.*)$/us';
+    $labels = implode('|', array_map(fn($config) => preg_quote($config['label'], '/'), forum_adjustment_field_configs()));
+    $pattern = '/^论坛处罚取消：管理员 (.+?) 取消帖子 #(\d+) 的扣分记录 #(\d+)，返还 ([\d,]+(?:\.\d+)?)(?: (GB))? (' . $labels . ')，(?:' . $labels . ') 从 ([\d,]+(?:\.\d+)?) 变为 ([\d,]+(?:\.\d+)?)。取消原因：(.*)$/us';
     if (!preg_match($pattern, $content, $matches)) {
         return null;
     }
+    $field = forum_adjustment_field_from_label($matches[6]);
+    $config = $field ? forum_adjustment_field_config($field) : null;
+    if (!$field || !$config || $config['unit'] !== ($matches[5] ?? '')) {
+        return null;
+    }
+    $amount = (float)str_replace(',', '', $matches[4]);
     return [
         'id' => (int)$log->id,
         'penalty_id' => (int)$matches[3],
         'post_id' => (int)$matches[2],
         'user_id' => (int)$log->user_id,
         'operator' => trim($matches[1]),
-        'amount' => (float)str_replace(',', '', $matches[4]),
-        'field_label' => $matches[5],
-        'reason' => trim($matches[8]),
+        'amount' => $amount,
+        'amount_text' => forum_adjustment_amount_text($amount, $config),
+        'field_label' => $config['label'],
+        'reason' => trim($matches[9]),
         'created_at' => $log->created_at ? $log->created_at->format('Y-m-d H:i:s') : '',
     ];
 }
@@ -562,7 +645,7 @@ function forum_render_penalty_notices(int $postId, array $records): string
         $cancelledLabel = $cancellation ? '<span class="forum-post-penalty-cancelled-label">(已被取消扣除)</span>' : '';
         $html .= '<article class="forum-post-penalty' . ($isAddition ? ' is-addition' : '') . ($cancellation ? ' is-cancelled' : '') . '" data-penalty-id="' . (int)$record['id'] . '">'
             . '<span class="forum-post-penalty-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 3.8 6.4v5.1c0 5.1 3.5 8.5 8.2 9.5 4.7-1 8.2-4.4 8.2-9.5V6.4L12 3Z"/><path d="M8 12h8"/>' . ($isAddition ? '<path d="M12 8v8"/>' : '') . '</svg></span>'
-            . '<span class="forum-post-penalty-content"><span class="forum-post-penalty-heading"><strong>该帖已被' . ($isAddition ? '增加 ' : '扣除 ') . number_format((float)$record['amount'], 1) . ' ' . forum_penalty_h($record['field_label']) . $cancelledLabel . '</strong>' . $cancelButton . '</span>'
+            . '<span class="forum-post-penalty-content"><span class="forum-post-penalty-heading"><strong>该帖已被' . ($isAddition ? '增加 ' : '扣除 ') . forum_penalty_h($record['amount_text']) . $cancelledLabel . '</strong>' . $cancelButton . '</span>'
             . '<span class="forum-post-penalty-reason">原因：' . forum_penalty_h($record['reason']) . '</span>'
             . '<small>操作人：' . forum_penalty_h($record['operator']) . ($record['created_at'] !== '' ? ' · ' . forum_penalty_h($record['created_at']) : '') . '</small>' . $cancellationHtml . '</span></article>';
     }
@@ -572,18 +655,22 @@ function forum_render_penalty_notices(int $postId, array $records): string
 function forum_render_penalty_modal(): string
 {
     $scriptVersion = @filemtime(__DIR__ . '/scripts/forum-penalty-modal.js') ?: TIMENOW;
+    $fieldOptions = '';
+    foreach (forum_adjustment_field_configs() as $field => $config) {
+        $fieldOptions .= '<label><input type="radio" name="penalty_field" value="' . forum_penalty_h($field) . '" data-unit="' . forum_penalty_h($config['unit']) . '" data-decimals="' . (int)$config['decimals'] . '" ' . ($field === 'seedbonus' ? 'checked ' : '') . 'required><span>' . forum_penalty_h($config['label']) . '</span></label>';
+    }
     return '<div class="forum-penalty-modal" id="forumPenaltyModal" hidden aria-hidden="true">'
         . '<div class="forum-penalty-backdrop" data-penalty-close></div>'
         . '<section class="forum-penalty-dialog" role="dialog" aria-modal="true" aria-labelledby="forumPenaltyTitle" tabindex="-1">'
         . '<button class="forum-penalty-close" type="button" data-penalty-close aria-label="关闭积分调整窗口"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>'
         . '<h2 id="forumPenaltyTitle">论坛积分调整</h2><p class="forum-penalty-modal-note" data-penalty-note>增加或扣除的结果和原因会公开显示在对应帖子下方，并通知该用户。</p>'
-        . '<div class="forum-penalty-modal-summary"><div><span>用户</span><b data-penalty-user>—</b></div><div><span>帖子</span><b data-penalty-post>—</b></div><div><span>当前魔力</span><b data-penalty-bonus>—</b></div><div><span>当前做种积分</span><b data-penalty-points>—</b></div></div>'
+        . '<div class="forum-penalty-modal-summary"><div><span>用户</span><b data-penalty-user>—</b></div><div><span>帖子</span><b data-penalty-post>—</b></div><div><span>当前魔力</span><b data-penalty-bonus>—</b></div><div><span>当前做种积分</span><b data-penalty-points>—</b></div><div><span>当前上传量</span><b data-penalty-uploaded>—</b></div><div><span>当前下载量</span><b data-penalty-downloaded>—</b></div><div><span>当前邀请名额</span><b data-penalty-invites>—</b></div><div><span>当前补签卡</span><b data-penalty-attendance-card>—</b></div></div>'
         . '<div class="forum-penalty-modal-alert" data-penalty-alert role="status" hidden></div>'
         . '<form id="forumPenaltyForm" action="forums.php?action=penalizepost&amp;format=json" method="post">'
         . '<input type="hidden" name="postid"><input type="hidden" name="token"><input type="hidden" name="operation" value="adjust"><input type="hidden" name="penalty_log_id">'
         . '<div data-penalty-adjust-fields>'
         . '<fieldset class="forum-penalty-modal-field"><legend>调整方式</legend><div class="forum-penalty-modal-options"><label><input type="radio" name="adjustment" value="deduct" checked required><span>扣除</span></label><label><input type="radio" name="adjustment" value="add" required><span>增加</span></label></div></fieldset>'
-        . '<fieldset class="forum-penalty-modal-field"><legend>积分类型</legend><div class="forum-penalty-modal-options"><label><input type="radio" name="penalty_field" value="seedbonus" checked required><span>魔力</span></label><label><input type="radio" name="penalty_field" value="seed_points" required><span>做种积分</span></label></div></fieldset>'
+        . '<fieldset class="forum-penalty-modal-field"><legend>积分类型</legend><div class="forum-penalty-modal-options forum-penalty-field-options">' . $fieldOptions . '</div></fieldset>'
         . '<div class="forum-penalty-modal-field"><label for="forumPenaltyModalAmount" data-penalty-amount-label>扣除数量</label><input id="forumPenaltyModalAmount" name="amount" type="number" min="0.1" step="0.1" required></div>'
         . '<div class="forum-penalty-modal-field"><label for="forumPenaltyModalReason" data-penalty-reason-label>扣分原因</label><textarea id="forumPenaltyModalReason" name="reason" maxlength="500" required></textarea></div></div>'
         . '<div data-penalty-cancel-fields hidden><div class="forum-penalty-cancel-preview"><strong data-penalty-original>—</strong><span data-penalty-original-reason>—</span></div><div class="forum-penalty-modal-field"><label for="forumPenaltyCancelReason">取消原因</label><textarea id="forumPenaltyCancelReason" name="cancel_reason" maxlength="500"></textarea></div></div>'
@@ -631,7 +718,7 @@ function forum_penalty_csrf_token(int $uid): string
 function forum_penalty_post(int $postId): array
 {
     $res = sql_query(
-        "SELECT p.id, p.userid, p.topicid, t.subject, u.username, u.class, u.seedbonus, u.seed_points " .
+        "SELECT p.id, p.userid, p.topicid, t.subject, u.username, u.class, u.seedbonus, u.seed_points, u.uploaded, u.downloaded, u.invites, u.attendance_card " .
         "FROM posts p INNER JOIN topics t ON t.id = p.topicid LEFT JOIN users u ON u.id = p.userid " .
         "WHERE p.id = " . sqlesc($postId) . " LIMIT 1"
     ) or sqlerr(__FILE__, __LINE__);
@@ -777,6 +864,12 @@ if ($action == "penalizepost")
             'subject' => (string)$penaltyPost['subject'],
             'seedbonus' => (float)$penaltyPost['seedbonus'],
             'seed_points' => (float)$penaltyPost['seed_points'],
+            'uploaded' => (int)$penaltyPost['uploaded'],
+            'uploaded_human' => mksize((int)$penaltyPost['uploaded']),
+            'downloaded' => (int)$penaltyPost['downloaded'],
+            'downloaded_human' => mksize((int)$penaltyPost['downloaded']),
+            'invites' => (int)$penaltyPost['invites'],
+            'attendance_card' => (int)$penaltyPost['attendance_card'],
             'token' => $csrfToken,
         ];
         if ($requestOperation === 'cancel') {
@@ -833,12 +926,19 @@ if ($action == "penalizepost")
                     $target = \App\Models\User::query()
                         ->where('id', $record['user_id'])
                         ->lockForUpdate()
-                        ->firstOrFail(['id', 'username', 'passkey', 'seedbonus', 'seed_points']);
+                        ->firstOrFail(['id', 'username', 'passkey', 'seedbonus', 'seed_points', 'uploaded', 'downloaded', 'invites', 'attendance_card']);
                     $field = $record['field'];
+                    $fieldConfig = forum_adjustment_field_config($field);
+                    if (!$fieldConfig) {
+                        throw new RuntimeException('原扣分记录的积分类型已不受支持。');
+                    }
                     $fieldLabel = $record['field_label'];
-                    $amount = round((float)$record['amount'], 1);
-                    $old = round((float)$target->{$field}, 1);
-                    $new = round($old + $amount, 1);
+                    $displayAmount = (float)$record['amount'];
+                    $amount = $record['amount_atomic'];
+                    $amountText = $record['amount_text'];
+                    $auditAmount = number_format($displayAmount, (int)$fieldConfig['decimals'], '.', '') . ($fieldConfig['unit'] !== '' ? ' ' . $fieldConfig['unit'] : '');
+                    $old = forum_adjustment_storage_value($field, $target->{$field});
+                    $new = forum_adjustment_storage_value($field, $old + $amount);
                     $affected = \App\Models\User::query()
                         ->where('id', $target->id)
                         ->where($field, $target->{$field})
@@ -848,8 +948,8 @@ if ($action == "penalizepost")
                     }
                     $audit = sprintf(
                         '论坛处罚取消：管理员 %s 取消帖子 #%d 的扣分记录 #%d，返还 %s %s，%s 从 %s 变为 %s。取消原因：%s',
-                        $CURUSER['username'], $postid, $penaltyLogId, number_format($amount, 1), $fieldLabel,
-                        $fieldLabel, number_format($old, 1), number_format($new, 1), $reason
+                        $CURUSER['username'], $postid, $penaltyLogId, $auditAmount, $fieldLabel,
+                        $fieldLabel, forum_adjustment_audit_value($field, $old), forum_adjustment_audit_value($field, $new), $reason
                     );
                     $auditLog = \App\Models\UserModifyLog::query()->create(['user_id' => $target->id, 'content' => $audit]);
                     if ($field === 'seedbonus') {
@@ -864,9 +964,9 @@ if ($action == "penalizepost")
                         'receiver' => $target->id,
                         'subject' => '论坛扣分取消通知',
                         'msg' => sprintf(
-                            "你在主题《%s》的帖子 #%d 的 %s %s 扣分已被取消并返还。\n取消前：%s\n取消后：%s\n操作人：%s\n取消原因：%s",
-                            trim((string)$penaltyPost['subject']), $postid, number_format($amount, 1), $fieldLabel,
-                            number_format($old, 1), number_format($new, 1), $CURUSER['username'], $reason
+                            "你在主题《%s》的帖子 #%d 的 %s 扣分已被取消并返还。\n取消前：%s\n取消后：%s\n操作人：%s\n取消原因：%s",
+                            trim((string)$penaltyPost['subject']), $postid, $amountText,
+                            forum_adjustment_balance_text($field, $old), forum_adjustment_balance_text($field, $new), $CURUSER['username'], $reason
                         ),
                         'added' => now(),
                     ]);
@@ -877,7 +977,8 @@ if ($action == "penalizepost")
                             'id' => (int)$auditLog->id,
                             'penalty_id' => $penaltyLogId,
                             'post_id' => $postid,
-                            'amount' => $amount,
+                            'amount' => $displayAmount,
+                            'amount_text' => $amountText,
                             'field_label' => $fieldLabel,
                             'operator' => (string)$CURUSER['username'],
                             'reason' => $reason,
@@ -885,7 +986,7 @@ if ($action == "penalizepost")
                         ],
                     ];
                 });
-                $success = sprintf('已取消该笔 %s %s 扣分并返还用户。', number_format((float)$result['cancellation']['amount'], 1), $result['cancellation']['field_label']);
+                $success = sprintf('已取消该笔 %s 扣分并返还用户。', $result['cancellation']['amount_text']);
                 do_log(sprintf('[FORUM_PENALTY_CANCEL] operator=%d post=%d uid=%d penalty_log=%d reason=%s', (int)$CURUSER['id'], $postid, (int)$result['uid'], $penaltyLogId, $reason), 'alert');
             } else {
                 forum_require_penalty_permission($penaltyPost);
@@ -894,12 +995,16 @@ if ($action == "penalizepost")
                     throw new RuntimeException('请选择增加或扣除。');
                 }
                 $field = (string)($_POST['penalty_field'] ?? '');
-                if (!in_array($field, ['seedbonus', 'seed_points'], true)) {
-                    throw new RuntimeException('请选择魔力或做种积分。');
+                $fieldConfig = forum_adjustment_field_config($field);
+                if (!$fieldConfig) {
+                    throw new RuntimeException('请选择有效的积分类型。');
                 }
-                $amount = round((float)($_POST['amount'] ?? 0), 1);
+                $amount = round((float)($_POST['amount'] ?? 0), (int)$fieldConfig['decimals']);
                 if (!is_finite($amount) || $amount <= 0) {
                     throw new RuntimeException('请输入大于 0 的调整数量。');
+                }
+                if ((int)$fieldConfig['decimals'] === 0 && abs((float)($_POST['amount'] ?? 0) - $amount) > 0.000001) {
+                    throw new RuntimeException($fieldConfig['label'] . '只能输入整数。');
                 }
                 $reason = preg_replace('/\s+/u', ' ', trim(strip_tags((string)($_POST['reason'] ?? ''))));
                 if ($reason === '') {
@@ -908,22 +1013,25 @@ if ($action == "penalizepost")
                 if (mb_strlen($reason) > 500) {
                     throw new RuntimeException('调整原因不能超过 500 个字符。');
                 }
-                $fieldLabel = $field === 'seedbonus' ? '魔力' : '做种积分';
+                $fieldLabel = $fieldConfig['label'];
+                $amountAtomic = forum_adjustment_amount_atomic($amount, $fieldConfig);
+                $amountText = forum_adjustment_amount_text($amount, $fieldConfig);
+                $auditAmount = number_format($amount, (int)$fieldConfig['decimals'], '.', '') . ($fieldConfig['unit'] !== '' ? ' ' . $fieldConfig['unit'] : '');
                 $operationLabel = $adjustment === 'add' ? '增加' : '扣除';
-                $delta = $adjustment === 'add' ? $amount : -$amount;
-                $result = \Nexus\Database\NexusDB::transaction(function () use ($penaltyPost, $postid, $field, $fieldLabel, $adjustment, $operationLabel, $delta, $amount, $reason, $CURUSER) {
+                $delta = $adjustment === 'add' ? $amountAtomic : -$amountAtomic;
+                $result = \Nexus\Database\NexusDB::transaction(function () use ($penaltyPost, $postid, $field, $fieldConfig, $fieldLabel, $adjustment, $operationLabel, $delta, $amount, $amountAtomic, $amountText, $auditAmount, $reason, $CURUSER) {
                     $target = \App\Models\User::query()
                         ->where('id', (int)$penaltyPost['userid'])
                         ->lockForUpdate()
-                        ->firstOrFail(['id', 'username', 'class', 'passkey', 'seedbonus', 'seed_points']);
+                        ->firstOrFail(['id', 'username', 'class', 'passkey', 'seedbonus', 'seed_points', 'uploaded', 'downloaded', 'invites', 'attendance_card']);
                     if ((int)$target->class >= (int)$CURUSER['class']) {
                         throw new RuntimeException('用户等级已发生变化，不能继续调整。');
                     }
-                    $old = round((float)$target->{$field}, 1);
-                    if ($adjustment === 'deduct' && $old < $amount) {
-                        throw new RuntimeException($fieldLabel . '余额不足，当前仅有 ' . number_format($old, 1) . '。');
+                    $old = forum_adjustment_storage_value($field, $target->{$field});
+                    if ($adjustment === 'deduct' && $old < $amountAtomic) {
+                        throw new RuntimeException($fieldLabel . '余额不足，当前仅有 ' . forum_adjustment_balance_text($field, $old) . '。');
                     }
-                    $new = round($old + $delta, 1);
+                    $new = forum_adjustment_storage_value($field, $old + $delta);
                     $affected = \App\Models\User::query()
                         ->where('id', $target->id)
                         ->where($field, $target->{$field})
@@ -934,8 +1042,8 @@ if ($action == "penalizepost")
                     $topic = trim((string)$penaltyPost['subject']);
                     $audit = sprintf(
                         '论坛处罚：管理员 %s 对帖子 #%d（主题：%s）的作者%s %s %s，%s 从 %s 变为 %s。原因：%s',
-                        $CURUSER['username'], $postid, $topic, $operationLabel, number_format($amount, 1), $fieldLabel,
-                        $fieldLabel, number_format($old, 1), number_format($new, 1), $reason
+                        $CURUSER['username'], $postid, $topic, $operationLabel, $auditAmount, $fieldLabel,
+                        $fieldLabel, forum_adjustment_audit_value($field, $old), forum_adjustment_audit_value($field, $new), $reason
                     );
                     $auditLog = \App\Models\UserModifyLog::query()->create(['user_id' => $target->id, 'content' => $audit]);
                     if ($field === 'seedbonus') {
@@ -950,9 +1058,9 @@ if ($action == "penalizepost")
                         'receiver' => $target->id,
                         'subject' => $adjustment === 'add' ? '论坛积分增加通知' : '论坛违规扣分通知',
                         'msg' => sprintf(
-                            "你在主题《%s》的帖子 #%d 被%s %s %s。\n调整前：%s\n调整后：%s\n操作人：%s\n原因：%s",
-                            $topic, $postid, $operationLabel, number_format($amount, 1), $fieldLabel,
-                            number_format($old, 1), number_format($new, 1), $CURUSER['username'], $reason
+                            "你在主题《%s》的帖子 #%d 被%s %s。\n调整前：%s\n调整后：%s\n操作人：%s\n原因：%s",
+                            $topic, $postid, $operationLabel, $amountText,
+                            forum_adjustment_balance_text($field, $old), forum_adjustment_balance_text($field, $new), $CURUSER['username'], $reason
                         ),
                         'added' => now(),
                     ]);
@@ -965,13 +1073,14 @@ if ($action == "penalizepost")
                             'operator' => (string)$CURUSER['username'],
                             'action' => $adjustment,
                             'amount' => $amount,
+                            'amount_text' => $amountText,
                             'field_label' => $fieldLabel,
                             'reason' => $reason,
                             'created_at' => $auditLog->created_at ? $auditLog->created_at->format('Y-m-d H:i:s') : date('Y-m-d H:i:s'),
                         ],
                     ];
                 });
-                $success = sprintf('已成功为用户 %s%s %s %s。', $penaltyPost['username'], $operationLabel, number_format($amount, 1), $fieldLabel);
+                $success = sprintf('已成功为用户 %s%s %s。', $penaltyPost['username'], $operationLabel, $amountText);
                 do_log(sprintf('[FORUM_PENALTY] operator=%d post=%d uid=%d operation=%s field=%s amount=%.1f reason=%s', (int)$CURUSER['id'], $postid, (int)$result['uid'], $adjustment, $field, $amount, $reason), 'alert');
             }
             \Nexus\Database\NexusDB::redis()->del('forum:penalty:csrf:' . (int)$CURUSER['id']);
@@ -1012,6 +1121,10 @@ if ($action == "penalizepost")
             <div><span>帖子</span><b>#<?php echo $postid ?> · <?php echo forum_penalty_h($penaltyPost['subject']) ?></b></div>
             <div><span>当前魔力</span><b><?php echo number_format((float)$penaltyPost['seedbonus'], 1) ?></b></div>
             <div><span>当前做种积分</span><b><?php echo number_format((float)$penaltyPost['seed_points'], 1) ?></b></div>
+            <div><span>当前上传量</span><b><?php echo mksize((int)$penaltyPost['uploaded']) ?></b></div>
+            <div><span>当前下载量</span><b><?php echo mksize((int)$penaltyPost['downloaded']) ?></b></div>
+            <div><span>当前邀请名额</span><b><?php echo number_format((int)$penaltyPost['invites']) ?></b></div>
+            <div><span>当前补签卡</span><b><?php echo number_format((int)$penaltyPost['attendance_card']) ?></b></div>
         </div>
         <?php if ($error !== '') { ?><div class="forum-penalty-alert error" role="alert"><?php echo forum_penalty_h($error) ?></div><?php } ?>
         <?php if ($success !== '') { ?>
@@ -1027,10 +1140,11 @@ if ($action == "penalizepost")
                     <label class="forum-penalty-option"><input type="radio" name="adjustment" value="add" required <?php echo (($_POST['adjustment'] ?? '') === 'add') ? 'checked' : '' ?>> 增加</label>
                 </div></div>
                 <div class="forum-penalty-field"><span id="penaltyTypeLabel">积分类型</span><div class="forum-penalty-options" role="radiogroup" aria-labelledby="penaltyTypeLabel">
-                    <label class="forum-penalty-option"><input type="radio" name="penalty_field" value="seedbonus" required <?php echo (($_POST['penalty_field'] ?? 'seedbonus') === 'seedbonus') ? 'checked' : '' ?>> 魔力</label>
-                    <label class="forum-penalty-option"><input type="radio" name="penalty_field" value="seed_points" required <?php echo (($_POST['penalty_field'] ?? '') === 'seed_points') ? 'checked' : '' ?>> 做种积分</label>
+                    <?php foreach (forum_adjustment_field_configs() as $fieldKey => $fieldConfig) { ?>
+                    <label class="forum-penalty-option"><input type="radio" name="penalty_field" value="<?php echo forum_penalty_h($fieldKey) ?>" required <?php echo (($_POST['penalty_field'] ?? 'seedbonus') === $fieldKey) ? 'checked' : '' ?>> <?php echo forum_penalty_h($fieldConfig['label']) ?></label>
+                    <?php } ?>
                 </div></div>
-                <div class="forum-penalty-field"><label for="forumPenaltyAmount">调整数量</label><input class="forum-penalty-input" id="forumPenaltyAmount" name="amount" type="number" min="0.1" step="0.1" value="<?php echo forum_penalty_h($_POST['amount'] ?? '') ?>" required></div>
+                <div class="forum-penalty-field"><label for="forumPenaltyAmount">调整数量（上传量、下载量单位为 GB；邀请名额、补签卡须为整数）</label><input class="forum-penalty-input" id="forumPenaltyAmount" name="amount" type="number" min="0.1" step="0.1" value="<?php echo forum_penalty_h($_POST['amount'] ?? '') ?>" required></div>
                 <div class="forum-penalty-field"><label for="forumPenaltyReason">调整原因</label><textarea class="forum-penalty-textarea" id="forumPenaltyReason" name="reason" maxlength="500" required><?php echo forum_penalty_h($_POST['reason'] ?? '') ?></textarea></div>
                 <div class="forum-penalty-actions"><a class="forum-penalty-cancel" href="<?php echo forum_penalty_h($backUrl) ?>">取消</a><button class="forum-penalty-submit" type="submit">确认调整</button></div>
             </form>

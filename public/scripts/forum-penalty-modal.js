@@ -37,6 +37,10 @@
         return checked ? checked.value : 'deduct';
     }
 
+    function selectedFieldInput() {
+        return form.querySelector('[name="penalty_field"]:checked');
+    }
+
     function setAlert(message, type) {
         alertBox.textContent = message || '';
         alertBox.className = 'forum-penalty-modal-alert' + (type ? ' is-' + type : '');
@@ -71,7 +75,12 @@
         modal.setAttribute('data-adjustment', isAddition ? 'add' : 'deduct');
         title.textContent = isAddition ? '增加论坛积分' : '论坛违规扣分';
         note.textContent = (isAddition ? '增加' : '扣除') + '结果和原因会公开显示在对应帖子下方，并通知该用户。';
-        amountLabel.textContent = isAddition ? '增加数量' : '扣除数量';
+        var fieldInput = selectedFieldInput();
+        var unit = fieldInput ? fieldInput.getAttribute('data-unit') : '';
+        var decimals = fieldInput ? Number(fieldInput.getAttribute('data-decimals') || 0) : 1;
+        amountLabel.textContent = (isAddition ? '增加数量' : '扣除数量') + (unit ? '（' + unit + '）' : '');
+        amountInput.min = decimals === 0 ? '1' : '0.1';
+        amountInput.step = decimals === 0 ? '1' : '0.1';
         reasonLabel.textContent = isAddition ? '增加原因' : '扣分原因';
         setLoading(false);
     }
@@ -91,7 +100,7 @@
             modal.setAttribute('data-adjustment', 'cancel');
             title.textContent = '取消扣分';
             note.textContent = '取消后会返还原扣除数额；取消原因、操作人和时间会显示在原扣分记录下方。';
-            modal.querySelector('[data-penalty-original]').textContent = '原记录：扣除 ' + formatNumber(data.penalty.amount) + ' ' + data.penalty.field_label;
+            modal.querySelector('[data-penalty-original]').textContent = '原记录：扣除 ' + (data.penalty.amount_text || (formatNumber(data.penalty.amount) + ' ' + data.penalty.field_label));
             modal.querySelector('[data-penalty-original-reason]').textContent = '原扣分原因：' + data.penalty.reason;
         } else {
             syncAdjustmentLabels();
@@ -143,6 +152,10 @@
                 modal.querySelector('[data-penalty-post]').textContent = '#' + data.post_id + ' · ' + data.subject;
                 modal.querySelector('[data-penalty-bonus]').textContent = formatNumber(data.seedbonus);
                 modal.querySelector('[data-penalty-points]').textContent = formatNumber(data.seed_points);
+                modal.querySelector('[data-penalty-uploaded]').textContent = data.uploaded_human;
+                modal.querySelector('[data-penalty-downloaded]').textContent = data.downloaded_human;
+                modal.querySelector('[data-penalty-invites]').textContent = Number(data.invites || 0).toLocaleString('zh-CN');
+                modal.querySelector('[data-penalty-attendance-card]').textContent = Number(data.attendance_card || 0).toLocaleString('zh-CN');
                 setMode(data);
                 setAlert('', '');
                 setLoading(false);
@@ -190,7 +203,7 @@
         var heading = document.createElement('span');
         heading.className = 'forum-post-penalty-heading';
         var headingText = document.createElement('strong');
-        headingText.textContent = '该帖已被' + (isAddition ? '增加 ' : '扣除 ') + formatNumber(record.amount) + ' ' + record.field_label;
+        headingText.textContent = '该帖已被' + (isAddition ? '增加 ' : '扣除 ') + (record.amount_text || (formatNumber(record.amount) + ' ' + record.field_label));
         heading.appendChild(headingText);
         if (!isAddition) {
             heading.appendChild(createCancelButton(record));
@@ -268,6 +281,9 @@
 
     form.addEventListener('change', function (event) {
         if (event.target.name === 'adjustment') {
+            syncAdjustmentLabels();
+        } else if (event.target.name === 'penalty_field') {
+            amountInput.value = '';
             syncAdjustmentLabels();
         }
     });

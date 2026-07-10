@@ -7493,7 +7493,9 @@ body.page-settings table.main td.rowfollow .medium {
 	cursor: pointer;
 }
 .forum-penalty-modal-note { margin: 0 0 17px; color: var(--bili-text-secondary, #61666d); line-height: 1.65; text-align: left; }
-.forum-penalty-modal-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.forum-penalty-modal-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
+.forum-penalty-modal-summary > div:first-child,
+.forum-penalty-modal-summary > div:nth-child(2) { grid-column: span 2; }
 .forum-penalty-modal-summary > div { padding: 10px 12px; border: 1px solid var(--bili-border, #dfe5ee); border-radius: 9px; background: var(--bili-surface-soft, #f6f7fb); }
 .forum-penalty-modal-summary span { display: block; color: var(--bili-text-secondary, #61666d); font-size: 12px; }
 .forum-penalty-modal-summary b { display: block; margin-top: 3px; overflow-wrap: anywhere; color: var(--bili-text, #18191c); font-size: 14px; }
@@ -7542,7 +7544,9 @@ body.page-settings table.main td.rowfollow .medium {
 	.forum-penalty-modal { padding: 10px; align-items: end; }
 	.forum-penalty-dialog { width: 100%; max-height: calc(100vh - 20px); padding: 20px 16px 16px; border-radius: 16px 16px 12px 12px; }
 	.forum-penalty-modal-summary,
-	.forum-penalty-modal-options { grid-template-columns: 1fr; }
+	.forum-penalty-modal-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+	.forum-penalty-modal-summary > div:first-child,
+	.forum-penalty-modal-summary > div:nth-child(2) { grid-column: span 2; }
 	.forum-penalty-modal-actions { flex-direction: column-reverse; }
 	.forum-penalty-modal-actions button { width: 100%; }
 	.forum-post-penalty-heading { align-items: flex-start; flex-wrap: wrap; }
