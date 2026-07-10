@@ -32,6 +32,16 @@ class FreeleechPoolSettingResource extends Resource
         return '站免池设置';
     }
 
+    public static function getModelLabel(): string
+    {
+        return '站免池设置';
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return '站免池设置';
+    }
+
     public static function canCreate(): bool
     {
         return false;
