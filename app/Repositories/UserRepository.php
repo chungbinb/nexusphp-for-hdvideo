@@ -287,6 +287,7 @@ class UserRepository extends BaseRepository
             'uploaded' => 'uploaded',
             'downloaded' => 'downloaded',
             'seedbonus' => 'seedbonus',
+            'seed_points' => 'seed_points',
             'invites' => 'invites',
             'attendance_card' => 'attendance_card',
         ];
