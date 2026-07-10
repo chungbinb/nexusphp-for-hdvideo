@@ -4959,6 +4959,18 @@ function nexus_render_scroll_nav() {
 	<?php
 }
 
+function nexus_render_site_footer_logo(): void
+{
+	global $SITENAME;
+	$logoPath = ROOT_PATH . 'public/pic/logo.png';
+	if (!is_file($logoPath)) {
+		return;
+	}
+	$title = htmlspecialchars((string)$SITENAME, ENT_QUOTES, 'UTF-8');
+	$version = (int)@filemtime($logoPath);
+	print('<div class="site-footer-logo"><a href="/index.php" title="'.$title.'"><img src="/pic/logo.png?v='.$version.'" alt="'.$title.'" loading="lazy" decoding="async" /></a></div>');
+}
+
 function stdfoot() {
 	global $SITENAME,$BASEURL,$Cache,$datefounded,$tstart,$icplicense_main,$add_key_shortcut,$query_name, $USERUPDATESET, $CURUSER, $enablesqldebug_tweak, $sqldebug_tweak, $Advertisement, $analyticscode_tweak;
 	global $hook;
@@ -4973,6 +4985,7 @@ function stdfoot() {
 			echo "<div align=\"center\" style=\"margin-top: 10px\" id=\"\">".$footerad[0]."</div>";
 	}
 	print("<div style=\"margin-top: 10px; margin-bottom: 30px;\" align=\"center\">");
+	nexus_render_site_footer_logo();
 	if ($CURUSER) {
         if (count($USERUPDATESET)) {
             sql_query("UPDATE users SET " . join(",", $USERUPDATESET) . " WHERE id = ".$CURUSER['id']);

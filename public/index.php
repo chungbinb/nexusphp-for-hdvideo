@@ -674,7 +674,6 @@ if ($showtrackerload == "yes") {
 ?>
 <table width="100%" class="main" border="0" cellspacing="0" cellpadding="0"><tr><td class="embedded">
 <div align="center"><br /><font class="medium"><?php echo $lang_index['text_browser_note'] ?></font></div>
-<div align="center"><a href="/index.php" title="<?php echo htmlspecialchars($SITENAME) ?>"><img src="/pic/logo.png" alt="<?php echo htmlspecialchars($SITENAME) ?>" /></a></div>
 </td></tr></table>
 <?php
 // ------------- end: browser, client and code note ------------------//

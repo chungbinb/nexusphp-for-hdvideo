@@ -994,6 +994,26 @@ a:focus-visible {
     color: var(--bili-text-secondary) !important;
 }
 
+.site-footer-logo {
+    display: flex;
+    justify-content: center;
+    margin: 0 auto 14px;
+}
+
+.site-footer-logo a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.site-footer-logo img {
+    display: block;
+    width: auto;
+    max-width: min(100%, 320px);
+    max-height: 72px;
+    object-fit: contain;
+}
+
 img.cheaterbox,
 img.reportbox,
 img.staffbox,
