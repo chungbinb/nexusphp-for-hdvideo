@@ -75,10 +75,10 @@ body.page-games { background: #0c1622 !important; color: #e7eef7 !important; }
 .gm-board { margin-top: 4px; }
 .gm-info { scroll-margin-top: 12px; margin-top: 20px; padding: 14px; border: 1px solid rgba(91,129,166,.24); border-radius: 12px; background: #16222f; }
 .gm-info h2 { margin: 0 0 11px !important; color: #fff !important; font-size: 17px; }
-.gm-rule-list, .gm-coming-list { display: grid; gap: 9px; }
-.gm-rule-item, .gm-coming-item { padding: 11px 12px; border: 1px solid rgba(91,129,166,.2); border-radius: 9px; background: #101d29; }
-.gm-rule-item strong, .gm-coming-item strong { display: block; color: #fff; }
-.gm-rule-item span, .gm-coming-item span { display: block; margin-top: 4px; color: #9fb6cf; line-height: 1.55; }
+.gm-coming-list { display: grid; gap: 9px; }
+.gm-coming-item { padding: 11px 12px; border: 1px solid rgba(91,129,166,.2); border-radius: 9px; background: #101d29; }
+.gm-coming-item strong { display: block; color: #fff; }
+.gm-coming-item span { display: block; margin-top: 4px; color: #9fb6cf; line-height: 1.55; }
 </style>
 
 <div class="gm">
@@ -89,7 +89,7 @@ body.page-games { background: #0c1622 !important; color: #e7eef7 !important; }
 
     <div class="gm-tabs">
         <a class="gm-tab2 on" href="#game-list">游戏列表</a>
-        <a class="gm-tab2" href="#game-rules">游戏规则</a>
+        <a class="gm-tab2" href="/games/rules.php">游戏规则</a>
         <a class="gm-tab2" href="#coming-soon">即将推出</a>
     </div>
 
@@ -134,15 +134,6 @@ body.page-games { background: #0c1622 !important; color: #e7eef7 !important; }
             </a>
         <?php } ?>
     </div>
-
-    <section class="gm-info" id="game-rules" aria-labelledby="gmRulesTitle">
-        <h2 id="gmRulesTitle">游戏规则</h2>
-        <div class="gm-rule-list">
-            <div class="gm-rule-item"><strong>统一结算</strong><span>大厅游戏统一使用电影票参与和结算，详细投入、赔率及奖励以各游戏页面为准。</span></div>
-            <div class="gm-rule-item"><strong>公平记录</strong><span>开奖结果由服务端生成并记录，排行榜与个人战绩按照实际结算数据更新。</span></div>
-            <div class="gm-rule-item"><strong>内测说明</strong><span>内测或公测游戏仍可能调整规则；未开放游戏仅供有权限的管理员预览。</span></div>
-        </div>
-    </section>
 
     <section class="gm-info" id="coming-soon" aria-labelledby="gmComingTitle">
         <h2 id="gmComingTitle">即将推出</h2>

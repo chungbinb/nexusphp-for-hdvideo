@@ -599,10 +599,6 @@ body.page-games-php:not(.inframe) {
     background: #162636;
 }
 .steam-hall-section h2 { margin: 0 0 13px !important; color: #fff !important; font-size: 20px; }
-.steam-rule-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.steam-rule-card { padding: 14px; border: 1px solid rgba(91, 129, 166, .2); background: #1b2b3a; }
-.steam-rule-card strong { display: block; margin-bottom: 6px; color: #fff; }
-.steam-rule-card span { color: #aec0d1; line-height: 1.6; }
 .steam-coming-list { display: grid; gap: 9px; }
 .steam-coming-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px solid rgba(91, 129, 166, .2); background: #1b2b3a; }
 .steam-coming-item strong { color: #fff; }
@@ -627,8 +623,6 @@ body.page-games-php:not(.inframe) {
     .steam-board .glb-grid {
         grid-template-columns: 1fr;
     }
-
-    .steam-rule-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 700px) {
@@ -673,7 +667,7 @@ body.page-games-php:not(.inframe) {
 <div class="steam-games">
     <nav class="steam-tabs" aria-label="游戏分类">
         <a class="steam-tab is-active" href="#game-list">游戏列表</a>
-        <a class="steam-tab" href="#game-rules">游戏规则</a>
+        <a class="steam-tab" href="/games/rules.php">游戏规则</a>
         <a class="steam-tab" href="#coming-soon">即将推出</a>
     </nav>
 
@@ -746,15 +740,6 @@ body.page-games-php:not(.inframe) {
             </div>
         </aside>
     </div>
-
-    <section class="steam-hall-section" id="game-rules" aria-labelledby="gameRulesTitle">
-        <h2 id="gameRulesTitle">游戏规则</h2>
-        <div class="steam-rule-grid">
-            <div class="steam-rule-card"><strong>统一结算</strong><span>大厅游戏统一使用电影票参与和结算，具体投入、赔率及奖励以各游戏页面为准。</span></div>
-            <div class="steam-rule-card"><strong>公平记录</strong><span>开奖结果由服务端生成并记录，排行榜与个人战绩按照实际结算数据更新。</span></div>
-            <div class="steam-rule-card"><strong>内测说明</strong><span>标记为内测或公测的游戏仍可能调整规则；未开放游戏仅供有权限的管理员预览。</span></div>
-        </div>
-    </section>
 
     <section class="steam-hall-section" id="coming-soon" aria-labelledby="comingSoonTitle">
         <h2 id="comingSoonTitle">即将推出</h2>
