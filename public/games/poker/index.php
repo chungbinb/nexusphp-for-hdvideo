@@ -14,6 +14,7 @@ const POKER_BASE_OPTIONS = [100, 500, 1000, 5000];
 const POKER_STACK_FACTOR = 20;
 const POKER_ROOM_TTL = 604800; // 未完牌局保留 7 天，避免刷新或临时离开丢失托管筹码
 const POKER_TURN_SECONDS = 30;
+const POKER_BOT_THINK_SECONDS = 3;
 const POKER_RAISE_CAP = 3;
 const POKER_BUSINESS_TYPE = 104;
 const POKER_ESCROW_BUSINESS_TYPE = 112; // 托管资金流水不进入游戏总榜，最终净结果单独记 104
@@ -134,6 +135,19 @@ function poker_next_active($game, $seat)
     return -1;
 }
 
+function poker_set_turn(&$game, $seat)
+{
+    $seat = (int)$seat;
+    $game['turn'] = $seat;
+    if ($seat >= 0 && !empty($game['players'][$seat]['bot'])) {
+        $game['bot_ready_at'] = TIMENOW + POKER_BOT_THINK_SECONDS - 1;
+        $game['deadline'] = TIMENOW + POKER_BOT_THINK_SECONDS;
+    } else {
+        unset($game['bot_ready_at']);
+        $game['deadline'] = TIMENOW + POKER_TURN_SECONDS;
+    }
+}
+
 function poker_add_log(&$game, $text)
 {
     $game['logs'][] = ['at' => TIMENOW, 'text' => $text];
@@ -192,13 +206,13 @@ function poker_deal_new_game($base)
         'base' => $base, 'status' => 'playing', 'stage' => 'preflop', 'dealer' => $dealer,
         'small_blind' => $smallBlind, 'big_blind' => $bigBlind, 'players' => $players,
         'deck' => $deck, 'community' => [], 'pot' => 0, 'current_bet' => $base,
-        'raise_count' => 0, 'turn' => ($bigBlind + 1) % POKER_SEATS,
-        'deadline' => TIMENOW + POKER_TURN_SECONDS, 'logs' => [], 'created_at' => TIMENOW,
+        'raise_count' => 0, 'turn' => -1, 'deadline' => 0, 'logs' => [], 'created_at' => TIMENOW,
     ];
     poker_commit($game, $smallBlind, intdiv($base, 2));
     poker_commit($game, $bigBlind, $base);
     poker_add_log($game, $game['players'][$smallBlind]['username'] . ' 下小盲注 ' . intdiv($base, 2));
     poker_add_log($game, $game['players'][$bigBlind]['username'] . ' 下大盲注 ' . $base);
+    poker_set_turn($game, ($bigBlind + 1) % POKER_SEATS);
     return [$game, ''];
 }
 
@@ -314,8 +328,7 @@ function poker_advance_stage(&$game)
         $player['acted'] = $player['status'] !== 'active';
     }
     unset($player);
-    $game['turn'] = poker_next_active($game, $game['dealer']);
-    $game['deadline'] = TIMENOW + POKER_TURN_SECONDS;
+    poker_set_turn($game, poker_next_active($game, $game['dealer']));
     poker_add_log($game, '进入' . poker_stage_label($next));
 }
 
@@ -364,8 +377,7 @@ function poker_apply_action(&$game, $seat, $action)
     if (count(poker_active_seats($game)) <= 1) poker_settle($game);
     elseif (poker_betting_complete($game)) poker_advance_stage($game);
     else {
-        $game['turn'] = poker_next_active($game, $seat);
-        $game['deadline'] = TIMENOW + POKER_TURN_SECONDS;
+        poker_set_turn($game, poker_next_active($game, $seat));
     }
     return '';
 }
@@ -402,16 +414,15 @@ function poker_bot_action($game, $seat)
 
 function poker_drive_bots(&$game)
 {
-    $guard = 0;
-    while (($game['status'] ?? '') === 'playing' && $guard++ < 32) {
-        $seat = (int)$game['turn'];
-        if ($seat < 0 || empty($game['players'][$seat]['bot'])) break;
-        $action = poker_bot_action($game, $seat);
-        $error = poker_apply_action($game, $seat, $action);
-        if ($error !== '') {
-            $fallback = max(0, (int)$game['current_bet'] - (int)$game['players'][$seat]['round_bet']) === 0 ? 'check' : 'fold';
-            poker_apply_action($game, $seat, $fallback);
-        }
+    if (($game['status'] ?? '') !== 'playing') return;
+    $seat = (int)$game['turn'];
+    if ($seat < 0 || empty($game['players'][$seat]['bot'])) return;
+    if (TIMENOW < (int)($game['bot_ready_at'] ?? 0)) return;
+    $action = poker_bot_action($game, $seat);
+    $error = poker_apply_action($game, $seat, $action);
+    if ($error !== '') {
+        $fallback = max(0, (int)$game['current_bet'] - (int)$game['players'][$seat]['round_bet']) === 0 ? 'check' : 'fold';
+        poker_apply_action($game, $seat, $fallback);
     }
 }
 
@@ -451,11 +462,11 @@ function poker_public_state($game)
     $toCall = 0;
     $canRaise = false;
     $raiseTo = 0;
-    if (!$finished && (int)$game['turn'] === 0) {
+    if (!$finished && ($game['players'][0]['status'] ?? '') === 'active') {
         $toCall = max(0, (int)$game['current_bet'] - (int)$game['players'][0]['round_bet']);
         $inc = in_array($game['stage'], ['turn', 'river'], true) ? (int)$game['base'] * 2 : (int)$game['base'];
         $raiseTo = (int)$game['current_bet'] + $inc;
-        $canRaise = (int)$game['raise_count'] < POKER_RAISE_CAP
+        $canRaise = (int)$game['turn'] === 0 && (int)$game['raise_count'] < POKER_RAISE_CAP
             && (int)$game['players'][0]['stack'] >= $raiseTo - (int)$game['players'][0]['round_bet'];
     }
     return [
@@ -571,7 +582,7 @@ body.page-games-poker-index-php:not(.inframe), body.game-page:not(.inframe) { ba
 .pk-main { min-width: 0; }
 .pk-board { position: relative; min-height: 690px; overflow: hidden; border: 1px solid rgba(101,153,174,.28); border-radius: 24px; background: radial-gradient(circle at 50% 38%, rgba(25,107,78,.35), transparent 37%), linear-gradient(145deg,#0b1e2a,#071019 68%); box-shadow: 0 28px 80px rgba(0,0,0,.34); }
 .pk-board::before { content: ""; position: absolute; inset: 20px; border: 1px solid rgba(255,255,255,.035); border-radius: 18px; pointer-events: none; }
-.pk-hud { position: absolute; z-index: 5; left: 50%; top: 24px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; }
+.pk-hud { position: absolute; z-index: 5; left: 50%; top: 24px; transform: translateX(-50%); display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; width: min(92%, 680px); }
 .pk-pill { padding: 7px 11px; border: 1px solid var(--pk-line); border-radius: 999px; background: rgba(5,14,21,.76); color: var(--pk-muted); font-size: 12px; backdrop-filter: blur(8px); }
 .pk-pill b { color: #fff; }
 .pk-table { position: absolute; left: 50%; top: 50%; width: min(78%, 790px); aspect-ratio: 1.72; transform: translate(-50%,-51%); border: 18px solid #17212a; border-radius: 50%; background: radial-gradient(ellipse at 50% 43%, #14724f 0,#0d593e 58%,#083c2b 100%); box-shadow: inset 0 0 0 3px #b68b43, inset 0 0 48px rgba(0,0,0,.46), 0 18px 40px rgba(0,0,0,.45), 0 0 0 4px #050a0e; }
@@ -597,8 +608,10 @@ body.page-games-poker-index-php:not(.inframe), body.game-page:not(.inframe) { ba
 .pk-who { min-width: 0; flex: 1; }
 .pk-name { overflow: hidden; color: #fff; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
 .pk-stack { margin-top: 2px; color: var(--pk-gold); font-size: 12px; }
-.pk-timer { display: none; width: 29px; height: 29px; border-radius: 50%; background: #2b2415; color: var(--pk-gold); text-align: center; font-weight: 900; line-height: 29px; }
+.pk-timer { display: none; width: 34px; height: 34px; box-sizing: border-box; border: 2px solid var(--pk-gold); border-radius: 50%; background: #2b2415; color: #ffe4a5; text-align: center; font-size: 13px; font-weight: 950; line-height: 30px; box-shadow: 0 0 0 3px rgba(241,197,102,.1); }
 .pk-seat.is-turn .pk-timer { display: block; }
+.pk-seat.is-turn .pk-name::after { content: " · 行动中"; color: var(--pk-gold); font-size: 10px; }
+.pk-timer.urgent { border-color: #ff6f78; background: #422026; color: #fff; box-shadow: 0 0 0 3px rgba(229,92,101,.14); }
 .pk-hole { position: absolute; display: flex; gap: 4px; }
 .pk-hole .pk-card { width: 39px; border-radius: 6px; }
 .pk-hole .pk-card .rank { left: 4px; top: 3px; font-size: 13px; }
@@ -628,7 +641,10 @@ body.page-games-poker-index-php:not(.inframe), body.game-page:not(.inframe) { ba
 .pk-action:hover { border-color: rgba(255,255,255,.38); background: #20394d; }
 .pk-action.fold { color: #ffabb0; }
 .pk-action.raise { border-color: rgba(241,197,102,.38); background: #3a321e; color: #ffe2a1; }
-.pk-action:disabled { opacity: .42; cursor: not-allowed; }
+.pk-action:disabled { opacity: .38; cursor: not-allowed; filter: saturate(.45); box-shadow: none; }
+.pk-action:disabled:hover { border-color: var(--pk-line); background: var(--pk-panel-2); }
+.pk-action.fold:disabled:hover { color: #ffabb0; }
+.pk-action.raise:disabled:hover { border-color: rgba(241,197,102,.38); background: #3a321e; }
 .pk-wait { display: flex; align-items: center; color: var(--pk-muted); }
 .pk-wait b { margin-left: 5px; color: #fff; }
 .pk-side { display: flex; flex-direction: column; gap: 12px; }
@@ -695,7 +711,7 @@ body.page-games-poker-index-php:not(.inframe), body.game-page:not(.inframe) { ba
     <div class="pk-layout">
         <section class="pk-main" aria-label="德州扑克牌桌">
             <div class="pk-board" id="pkBoard">
-                <div class="pk-hud"><span class="pk-pill" id="pkStage">等待开局</span><span class="pk-pill">底池 <b id="pkPot">0</b></span></div>
+                <div class="pk-hud"><span class="pk-pill" id="pkStage">等待开局</span><span class="pk-pill" id="pkTurn">等待行动</span><span class="pk-pill">底池 <b id="pkPot">0</b></span></div>
                 <div class="pk-table"><div class="pk-community" id="pkCommunity"></div></div>
                 <?php for ($i = 0; $i < POKER_SEATS; $i++) { ?>
                 <article class="pk-seat" data-seat="<?php echo $i ?>" id="pkSeat<?php echo $i ?>">
@@ -757,7 +773,7 @@ body.page-games-poker-index-php:not(.inframe), body.game-page:not(.inframe) { ba
 <script>
 (function () {
     'use strict';
-    var state = null, token = '', selectedBase = <?php echo POKER_BASE_OPTIONS[0] ?>, busy = false;
+    var state = null, token = '', selectedBase = <?php echo POKER_BASE_OPTIONS[0] ?>, busy = false, stateReceivedAt = Date.now(), lastAnnouncedTurn = '';
     var balance = <?php echo json_encode($balance) ?>, settledHand = '';
     var $ = function (id) { return document.getElementById(id); };
     function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -776,19 +792,28 @@ body.page-games-poker-index-php:not(.inframe), body.game-page:not(.inframe) { ba
     function post(action, extra) {
         if (busy) return Promise.resolve(null);
         busy=true;
+        if(state)renderActions();
         var body='action='+encodeURIComponent(action)+'&token='+encodeURIComponent(token)+(extra||'');
         return fetch('/games/poker/',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body})
             .then(function(r){return r.json();}).then(function(data){if(!data.ok){toast(data.error||'操作失败');return null;}renderResponse(data);return data;})
-            .catch(function(){toast('网络开小差了，请重试');return null;}).finally(function(){busy=false;});
+            .catch(function(){toast('网络开小差了，请重试');return null;}).finally(function(){busy=false;if(state)renderActions();});
     }
-    function renderResponse(data) { if(typeof data.wallet==='number'){balance=Number(data.wallet);$('pkBalance').textContent=number(balance);}state=data.game||null;token=state?state.token:'';render(); }
+    function renderResponse(data) { if(typeof data.wallet==='number'){balance=Number(data.wallet);$('pkBalance').textContent=number(balance);}state=data.game||null;token=state?state.token:'';stateReceivedAt=Date.now();render(); }
+    function liveTimeLeft(){return state&&state.status==='playing'?Math.max(0,Number(state.timeLeft||0)-Math.floor((Date.now()-stateReceivedAt)/1000)):0;}
+    function renderClock(){
+        if(!state||state.status!=='playing'){$('pkTurn').textContent=state&&state.status==='finished'?'牌局结束':'等待行动';return;}
+        var left=liveTimeLeft(), actor=state.players[state.turn], name=actor?actor.username:'等待';
+        $('pkTurn').textContent='轮到 '+name+' · '+left+' 秒';
+        var turnKey=state.handId+'-'+state.stage+'-'+state.turn;
+        if(turnKey!==lastAnnouncedTurn){lastAnnouncedTurn=turnKey;$('pkLive').textContent='轮到 '+name+' 行动';}
+        for(var i=0;i<4;i++){var timer=$('pkTimer'+i);timer.textContent=state.turn===i?left:'';timer.classList.toggle('urgent',state.turn===i&&left<=5);timer.setAttribute('aria-label',state.turn===i?name+' 剩余 '+left+' 秒':'');}
+    }
     function renderSeats() {
         for(var i=0;i<4;i++){
             var box=$('pkSeat'+i), p=state.players[i];
             box.classList.toggle('is-turn',state.status==='playing'&&state.turn===i);
             box.classList.toggle('is-folded',p.status==='folded');
             $('pkAvatar'+i).innerHTML=avatar(p);$('pkName'+i).textContent=p.username;$('pkStack'+i).textContent=number(p.stack)+' 筹码';
-            $('pkTimer'+i).textContent=state.turn===i?state.timeLeft:'';
             var badges='';if(state.dealer===i)badges+='<span class="pk-marker" title="庄家按钮">D</span>';if(state.smallBlind===i)badges+='<span class="pk-marker" title="小盲注">SB</span>';if(state.bigBlind===i)badges+='<span class="pk-marker" title="大盲注">BB</span>';$('pkBadges'+i).innerHTML=badges;
             $('pkBet'+i).textContent=p.roundBet>0?'本轮 '+number(p.roundBet):(p.status==='folded'?'已弃牌':'');
             $('pkHandName'+i).textContent=p.handName||'';
@@ -801,11 +826,12 @@ body.page-games-poker-index-php:not(.inframe), body.game-page:not(.inframe) { ba
         var el=$('pkActions');
         if(!state){el.innerHTML='<span class="pk-wait">请选择底注开始牌局</span>';return;}
         if(state.status==='finished'){el.innerHTML='<span class="pk-wait">牌局已结束 · <b>'+esc(state.finishReason)+'</b></span>';return;}
-        if(state.turn!==0){var who=state.players[state.turn]?state.players[state.turn].username:'对手';el.innerHTML='<span class="pk-wait">等待 <b>'+esc(who)+'</b> 行动…</span>';return;}
+        var myTurn=state.turn===0&&state.players[0]&&state.players[0].status==='active'&&!busy;
+        var disabled=myTurn?'':' disabled aria-disabled="true"';
         var callText=state.toCall>0?'跟注 '+number(state.toCall):'看牌';
-        el.innerHTML='<button class="pk-action fold" data-action="fold">弃牌 <small>F</small></button>'+
-            '<button class="pk-action" data-action="'+(state.toCall>0?'call':'check')+'">'+callText+' <small>C</small></button>'+
-            '<button class="pk-action raise" data-action="raise"'+(state.canRaise?'':' disabled')+'>加注至 '+number(state.raiseTo)+' <small>R</small></button>';
+        el.innerHTML='<button class="pk-action fold" data-action="fold"'+disabled+'>弃牌 <small>F</small></button>'+
+            '<button class="pk-action" data-action="'+(state.toCall>0?'call':'check')+'"'+disabled+'>'+callText+' <small>C</small></button>'+
+            '<button class="pk-action raise" data-action="raise"'+(myTurn&&state.canRaise?'':' disabled aria-disabled="true"')+'>加注至 '+number(state.raiseTo)+' <small>R</small></button>';
         el.querySelectorAll('button[data-action]').forEach(function(btn){btn.addEventListener('click',function(){post(btn.getAttribute('data-action'));});});
     }
     function renderLog(){var logs=state.logs||[];$('pkLog').innerHTML=logs.slice().reverse().map(function(row){return '<div class="pk-log-row">'+esc(row.text)+'</div>';}).join('')||'<div class="pk-log-row">牌局开始</div>';}
@@ -818,9 +844,9 @@ body.page-games-poker-index-php:not(.inframe), body.game-page:not(.inframe) { ba
     }
     function render(){
         $('pkStart').style.display=state?'none':'grid';
-        if(!state){$('pkStage').textContent='等待开局';$('pkPot').textContent='0';renderActions();return;}
+        if(!state){$('pkStage').textContent='等待开局';$('pkTurn').textContent='等待行动';$('pkPot').textContent='0';renderActions();return;}
         $('pkStage').textContent=state.stageLabel+' · 加注 '+state.raiseCount+'/'+state.raiseCap;$('pkPot').textContent=number(state.pot);
-        renderSeats();renderCommunity();renderActions();renderLog();renderResult();
+        renderSeats();renderCommunity();renderActions();renderLog();renderResult();renderClock();
     }
     function poll(){fetch('/games/poker/?ajax=poll',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(data){if(data.ok)renderResponse(data);}).catch(function(){});}
     $('pkStakes').querySelectorAll('.pk-stake').forEach(function(btn){btn.addEventListener('click',function(){$('pkStakes').querySelectorAll('.pk-stake').forEach(function(b){b.classList.remove('is-active');});btn.classList.add('is-active');selectedBase=Number(btn.getAttribute('data-base'));});});
@@ -828,7 +854,7 @@ body.page-games-poker-index-php:not(.inframe), body.game-page:not(.inframe) { ba
     $('pkResultExit').addEventListener('click',function(){location.href='/games/';});
     $('pkAgain').addEventListener('click',function(){$('pkResult').classList.remove('show');post('start','&base='+(state?state.base:selectedBase));});
     document.addEventListener('keydown',function(e){if(!state||state.status!=='playing'||state.turn!==0||e.ctrlKey||e.metaKey||e.altKey)return;var k=e.key.toLowerCase();if(k==='f')post('fold');else if(k==='c')post(state.toCall>0?'call':'check');else if(k==='r'&&state.canRaise)post('raise');});
-    poll();setInterval(poll,1200);
+    poll();setInterval(poll,1200);setInterval(renderClock,250);
 })();
 </script>
 <?php stdfoot(); ?>
