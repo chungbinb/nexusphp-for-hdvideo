@@ -8,7 +8,7 @@ use App\Models\Torrent;
 use App\Models\TorrentListSetting;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 use Nexus\Database\NexusDB;
 use RuntimeException;
 
@@ -20,7 +20,8 @@ class TorrentPromotionService
     {
         if (self::$schemaEnsured) return;
         TorrentListSetting::ensureSchema();
-        $schema = Schema::connection((new TorrentListSetting())->getConnectionName());
+        // Works in both Laravel routes and NexusPHP's legacy PHP entry points.
+        $schema = DB::connection((new TorrentListSetting())->getConnectionName())->getSchemaBuilder();
         if (! $schema->hasTable('hdvideo_torrent_bonus_promotions')) {
             $schema->create('hdvideo_torrent_bonus_promotions', function (Blueprint $table) {
                 $table->bigIncrements('id');

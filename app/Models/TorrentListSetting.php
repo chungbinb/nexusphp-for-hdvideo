@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 class TorrentListSetting extends NexusModel
 {
@@ -33,7 +32,8 @@ class TorrentListSetting extends NexusModel
     public static function ensureSchema(): void
     {
         $conn = (new static)->getConnectionName();
-        $schema = Schema::connection($conn);
+        // Legacy PHP entry points bootstrap the database manager but not the Schema facade.
+        $schema = DB::connection($conn)->getSchemaBuilder();
         if (! $schema->hasTable('hdvideo_torrent_settings')) {
             $schema->create('hdvideo_torrent_settings', function (Blueprint $table) {
                 $table->integer('id')->unsigned()->primary();
