@@ -91,7 +91,7 @@ stdhead('全站站免池');
 .fp-status { flex:0 0 auto; padding:9px 13px; border:1px solid rgba(255,255,255,.3); border-radius:999px; background:rgba(10,12,35,.2); color:#fff; font-weight:800; }
 .fp-progress-head { display:flex; justify-content:space-between; gap:12px; margin:25px 0 9px; font-size:13px; color:#e9e6ff; }.fp-progress-head b{font-size:16px;color:#fff;}
 .fp-progress { position:relative; height:19px; overflow:hidden; border:1px solid rgba(255,255,255,.22); border-radius:999px; background:rgba(8,11,36,.32); box-shadow:inset 0 2px 5px rgba(0,0,0,.25); }
-.fp-progress > span { position:absolute; inset:0 auto 0 0; display:block; height:100%; min-width:0; margin:0!important; border-radius:inherit; background:linear-gradient(90deg,color-mix(in srgb,var(--fp-primary) 88%,#fff),color-mix(in srgb,var(--fp-primary-2) 74%,#fff)); transform-origin:left center; transition:width .35s ease; }.fp-progress > b{position:absolute;z-index:2;top:50%;right:6px;margin:0!important;padding:1px 6px;border-radius:999px;background:rgba(8,11,36,.42);color:#fff;font-size:11px;line-height:1.25;text-shadow:0 1px 2px rgba(0,0,0,.75);transform:translateY(-50%);}
+.fp-progress > span { position:absolute; inset:0 auto 0 0; display:block; height:100%; min-width:0; margin:0!important; border-radius:inherit; background:linear-gradient(90deg,color-mix(in srgb,var(--fp-primary) 88%,#fff),color-mix(in srgb,var(--fp-primary-2) 74%,#fff)); transform-origin:left center; transition:width .35s ease; }.fp-progress > b{position:absolute;z-index:2;top:50%;left:clamp(22px,var(--fp-progress),calc(100% - 22px));margin:0!important;padding:1px 6px;border-radius:999px;background:rgba(8,11,36,.42);color:#fff;font-size:11px;line-height:1.25;text-shadow:0 1px 2px rgba(0,0,0,.75);transform:translate(-50%,-50%);transition:left .35s ease;}
 .fp-grid { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(300px,.65fr); gap:16px; margin-top:16px; }
 .fp-card { overflow:hidden; border:1px solid var(--fp-line); border-radius:18px; background:var(--fp-card); box-shadow:var(--fp-shadow); }
 .fp-card h2 { margin:0; padding:16px 18px!important; border:0!important; border-bottom:1px solid var(--fp-line)!important; border-radius:0!important; background:linear-gradient(90deg,var(--fp-soft),color-mix(in srgb,var(--fp-primary-2) 5%,var(--fp-card)))!important; color:var(--fp-text)!important; font-size:17px; }
@@ -134,7 +134,7 @@ stdhead('全站站免池');
                 <span class="fp-status"><?php echo fp_h($statusText) ?></span>
             </div>
             <div class="fp-progress-head"><span>本轮已筹集 <b><?php echo fp_number($status['collected']) ?></b></span><span>目标 <b><?php echo fp_number($status['goal']) ?></b></span></div>
-            <div class="fp-progress" role="progressbar" aria-label="站免池筹集进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?php echo fp_h($status['percent']) ?>"><span style="width:<?php echo fp_h($status['percent']) ?>%"></span><b><?php echo fp_h($status['percent']) ?>%</b></div>
+            <div class="fp-progress" role="progressbar" aria-label="站免池筹集进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?php echo fp_h($status['percent']) ?>" style="--fp-progress:<?php echo fp_h($status['percent']) ?>%"><span style="width:<?php echo fp_h($status['percent']) ?>%"></span><b><?php echo fp_h($status['percent']) ?>%</b></div>
             <?php if ($active) { ?><div class="fp-countdown">全站 Free 剩余时间<b id="fpCountdown" data-until="<?php echo (int)$status['active_until'] ?>">计算中…</b></div><?php } ?>
         </section>
 
