@@ -10,6 +10,20 @@ require_once "../../include/game_leaderboard.php";
 
 $games = [
     [
+        'title' => '炸金花',
+        'released_at' => '2026-07-10',
+        'released_order' => 1783659000,
+        'badge' => '内测中 v0.1',
+        'subtitle' => '三位真人同桌，支持看牌、跟注、加注、弃牌和比牌，使用电影票计分。',
+        'date' => '已开放',
+        'price' => '立即入桌',
+        'href' => '/games/zjh/',
+        'status' => '可玩',
+        'tags' => ['炸金花', '真人对战', '电影票', '三张牌'],
+        'theme' => 'zjh',
+        'shots' => ['poker-a', 'poker-b', 'poker-c'],
+    ],
+    [
         'title' => '压大小',
         'released_at' => '2026-06-23',
         'released_order' => 1782191170,
@@ -193,7 +207,7 @@ $games = [
 ];
 
 $gameKeyByTheme = [
-    'dice' => 'big-small', 'sports' => 'sports', 'ddz' => 'ddz', 'poker' => 'poker',
+    'dice' => 'big-small', 'sports' => 'sports', 'ddz' => 'ddz', 'poker' => 'poker', 'zjh' => 'zjh',
     'scratch' => 'scratch', 'wheel' => 'lucky-draw', 'quiz' => 'quiz', 'chest' => 'chest',
     'blackjack' => 'blackjack', 'slots' => 'slots', 'plinko' => 'plinko', 'hilo' => 'hilo',
     'moviequiz' => 'moviequiz',
@@ -396,6 +410,7 @@ body.page-games-php:not(.inframe) {
 .theme-sports { --game-a: #2ecc71; --game-b: #0b3d1f; }
 .theme-ddz { --game-a: #e74c3c; --game-b: #2c1a0c; }
 .theme-poker { --game-a: #16865c; --game-b: #071b2c; }
+.theme-zjh { --game-a: #d39a35; --game-b: #2b110d; }
 
 .steam-capsule.has-icon {
     background-color: #0b1728;

@@ -21,6 +21,7 @@ function game_control_defaults()
         'hilo'      => ['name' => '猜高低', 'is_open' => 1, 'min_class' => 15, 'sort' => 10],
         'moviequiz' => ['name' => '猜电影', 'is_open' => 0, 'min_class' => 15, 'sort' => 11], // 题库就绪后再开放
         'poker'     => ['name' => '德州扑克', 'is_open' => 1, 'min_class' => 15, 'sort' => 12],
+        'zjh'       => ['name' => '炸金花', 'is_open' => 1, 'min_class' => 15, 'sort' => 13],
     ];
 }
 

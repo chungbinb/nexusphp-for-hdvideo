@@ -41,6 +41,8 @@ return [
         \App\Models\BonusLogs::BUSINESS_TYPE_GAME_PLINKO => 'Game: Plinko',
         \App\Models\BonusLogs::BUSINESS_TYPE_GAME_HILO => 'Game: Hi-Lo',
         \App\Models\BonusLogs::BUSINESS_TYPE_GAME_MOVIEQUIZ => 'Game: Movie quiz',
+        \App\Models\BonusLogs::BUSINESS_TYPE_GAME_ZJH => 'Game: Zha Jin Hua',
+        \App\Models\BonusLogs::BUSINESS_TYPE_GAME_ZJH_ESCROW => 'Game: Zha Jin Hua escrow',
 
         \App\Models\BonusLogs::BUSINESS_TYPE_ROLE_WORK_SALARY => 'Role work salary',
         \App\Models\BonusLogs::BUSINESS_TYPE_TORRENT_BE_DOWNLOADED => 'Torrent be downloaded',
