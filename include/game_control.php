@@ -21,6 +21,7 @@ function game_control_defaults()
         'hilo'      => ['name' => '猜高低', 'is_open' => 1, 'min_class' => 15, 'sort' => 10],
         'moviequiz' => ['name' => '猜电影', 'is_open' => 0, 'min_class' => 15, 'sort' => 11], // 题库就绪后再开放
         'poker'     => ['name' => '德州扑克', 'is_open' => 1, 'min_class' => 15, 'sort' => 12],
+        'zjh'       => ['name' => '炸金花', 'is_open' => 1, 'min_class' => 15, 'sort' => 13, 'bot_difficulty' => 'simple'],
     ];
 }
 
@@ -38,12 +39,17 @@ function game_controls_ensure()
             `is_open` tinyint(1) NOT NULL DEFAULT 1,
             `min_class` int NOT NULL DEFAULT 15,
             `sort` int NOT NULL DEFAULT 0,
+            `bot_difficulty` varchar(16) NOT NULL DEFAULT 'simple',
             `created_at` datetime DEFAULT NULL,
             `updated_at` datetime DEFAULT NULL,
             PRIMARY KEY (`id`),
             UNIQUE KEY `uk_key` (`game_key`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
+    $difficultyColumn = @sql_query("SHOW COLUMNS FROM `game_hall_controls` LIKE 'bot_difficulty'");
+    if ($difficultyColumn && mysql_num_rows($difficultyColumn) === 0) {
+        @sql_query("ALTER TABLE `game_hall_controls` ADD `bot_difficulty` varchar(16) NOT NULL DEFAULT 'simple' AFTER `sort`");
+    }
     $now = date('Y-m-d H:i:s');
     foreach (game_control_defaults() as $k => $d) {
         @sql_query(sprintf(
@@ -62,13 +68,14 @@ function game_controls_all()
     }
     game_controls_ensure();
     $cache = game_control_defaults();
-    $res = @sql_query("SELECT `game_key`,`name`,`is_open`,`min_class` FROM `game_hall_controls`");
+    $res = @sql_query("SELECT `game_key`,`name`,`is_open`,`min_class`,`bot_difficulty` FROM `game_hall_controls`");
     if ($res) {
         while ($row = mysql_fetch_assoc($res)) {
             $cache[$row['game_key']] = [
                 'name' => $row['name'],
                 'is_open' => (int)$row['is_open'],
                 'min_class' => (int)$row['min_class'],
+                'bot_difficulty' => in_array($row['bot_difficulty'], ['simple', 'hard', 'hell'], true) ? $row['bot_difficulty'] : 'simple',
             ];
         }
     }
@@ -78,7 +85,7 @@ function game_controls_all()
 function game_control_get($key)
 {
     $all = game_controls_all();
-    return $all[$key] ?? ['name' => '', 'is_open' => 1, 'min_class' => 15];
+    return $all[$key] ?? ['name' => '', 'is_open' => 1, 'min_class' => 15, 'bot_difficulty' => 'simple'];
 }
 
 function game_is_open($key)
