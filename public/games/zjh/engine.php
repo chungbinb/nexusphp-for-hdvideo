@@ -94,3 +94,13 @@ function zjh_bot_decide($difficulty, $strength, $pressure, $canRaise, $activeCou
     if ($strength < 0.38 && $pressure > 0.28 && $roll <= 76) return 'fold';
     return 'call';
 }
+
+/** 返回首个未被发起者击败的对手下标；全部击败返回 -1。平牌仍判发起者失败。 */
+function zjh_compare_all_outcome(array $challengerCards, array $opponentHands)
+{
+    $challenger = zjh_evaluate($challengerCards);
+    foreach ($opponentHands as $index => $cards) {
+        if (zjh_compare_scores($challenger, zjh_evaluate($cards)) <= 0) return $index;
+    }
+    return -1;
+}

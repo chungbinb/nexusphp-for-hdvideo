@@ -57,4 +57,14 @@ class ZjhEngineTest extends TestCase
         $this->assertSame('fold', zjh_bot_decide('hell', 0.15, 0.4, true, 3, 80, true));
         $this->assertSame('compare', zjh_bot_decide('hell', 0.7, 0.2, true, 2, 90, true));
     }
+
+    public function test_compare_all_requires_challenger_to_beat_every_opponent()
+    {
+        $pairKings = [$this->card(13, 0), $this->card(13, 1), $this->card(8, 2)];
+        $pairQueens = [$this->card(12, 0), $this->card(12, 1), $this->card(14, 2)];
+        $pairAces = [$this->card(14, 0), $this->card(14, 1), $this->card(2, 2)];
+        $this->assertSame(-1, zjh_compare_all_outcome($pairKings, [$pairQueens]));
+        $this->assertSame(1, zjh_compare_all_outcome($pairKings, [$pairQueens, $pairAces]));
+        $this->assertSame(0, zjh_compare_all_outcome($pairKings, [$pairKings]));
+    }
 }
