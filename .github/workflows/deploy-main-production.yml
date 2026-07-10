@@ -84,7 +84,13 @@ jobs:
       - name: Restart Zha Jin Hua room worker
         run: |
           set -euo pipefail
-          sudo runuser -u www -- bash /www/wwwroot/hdvideo.top/scripts/restart-zjh-worker.sh /www/wwwroot/hdvideo.top
+          cd /www/wwwroot/hdvideo.top
+          restore_worker_permissions() {
+            sudo chown -R www:www storage/app storage/logs
+          }
+          trap restore_worker_permissions EXIT
+          sudo chown -R "$(id -u):$(id -g)" storage/app storage/logs
+          bash scripts/restart-zjh-worker.sh /www/wwwroot/hdvideo.top
 
       - name: Health check
         run: |
