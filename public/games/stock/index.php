@@ -19,6 +19,18 @@ function hdv_stock_money($value): float
     return round((float)$value, 1);
 }
 
+function hdv_stock_csrf_token(int $uid): string
+{
+    $redis = \Nexus\Database\NexusDB::redis();
+    $key = 'game:stock:csrf:' . $uid;
+    $token = (string)$redis->get($key);
+    if ($token === '') {
+        $token = bin2hex(random_bytes(24));
+        $redis->setex($key, 3600, $token);
+    }
+    return $token;
+}
+
 function hdv_stock_ensure_schema(): void
 {
     static $done = false;
@@ -265,6 +277,7 @@ $config = hdv_stock_config();
 $holdingSymbols = array_keys(hdv_stock_holdings($uid));
 $watchlistSymbols = array_keys(hdv_stock_watchlist($uid));
 $allSymbols = array_values(array_unique(array_merge($config['symbols'], $holdingSymbols, $watchlistSymbols)));
+$csrfToken = hdv_stock_csrf_token($uid);
 
 if (isset($_GET['ajax'])) {
     $action = (string)$_GET['ajax'];
@@ -294,7 +307,7 @@ if (isset($_GET['ajax'])) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $token = (string)($_POST['token'] ?? '');
-    if (empty($_SESSION['hdv_stock_token']) || !hash_equals((string)$_SESSION['hdv_stock_token'], $token)) hdv_stock_json(['ok' => false, 'message' => '页面校验已过期，请刷新后重试。'], 419);
+    if (!hash_equals($csrfToken, $token)) hdv_stock_json(['ok' => false, 'message' => '页面校验已过期，请刷新后重试。'], 419);
     $lastTrade = (float)($_SESSION['hdv_stock_last_trade'] ?? 0);
     if (microtime(true) - $lastTrade < 1) hdv_stock_json(['ok' => false, 'message' => '操作过快，请稍后再试。'], 429);
     $_SESSION['hdv_stock_last_trade'] = microtime(true);
@@ -312,7 +325,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-if (empty($_SESSION['hdv_stock_token'])) $_SESSION['hdv_stock_token'] = bin2hex(random_bytes(24));
 $quotes = hdv_stock_mark_tradeable(hdv_stock_fetch_quotes($allSymbols));
 $portfolio = hdv_stock_portfolio($uid, $quotes, $config['ticket_rate']);
 $trades = hdv_stock_trades($uid);
@@ -320,7 +332,7 @@ $market = hdv_stock_market_state();
 $initial = [
     'quotes' => array_values($quotes), 'portfolio' => $portfolio, 'trades' => $trades, 'market' => $market,
     'wallet' => (float)$CURUSER['seedbonus'], 'symbols' => $config['symbols'], 'ticketRate' => $config['ticket_rate'],
-    'feeRate' => $config['fee_rate'], 'tradeEnabled' => $config['trade_enabled'], 'token' => $_SESSION['hdv_stock_token'],
+    'feeRate' => $config['fee_rate'], 'tradeEnabled' => $config['trade_enabled'], 'token' => $csrfToken,
     'watchlist' => $watchlistSymbols,
 ];
 
