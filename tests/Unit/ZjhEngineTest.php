@@ -67,4 +67,12 @@ class ZjhEngineTest extends TestCase
         $this->assertSame(1, zjh_compare_all_outcome($pairKings, [$pairQueens, $pairAces]));
         $this->assertSame(0, zjh_compare_all_outcome($pairKings, [$pairKings]));
     }
+
+    public function test_seen_players_pay_double_and_force_showdown_when_stack_is_short()
+    {
+        $this->assertSame(5000, zjh_action_cost(5000, false));
+        $this->assertSame(10000, zjh_action_cost(5000, true));
+        $this->assertFalse(zjh_requires_showdown(10000, 5000, true));
+        $this->assertTrue(zjh_requires_showdown(9999, 5000, true));
+    }
 }

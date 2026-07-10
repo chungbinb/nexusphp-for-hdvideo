@@ -60,6 +60,16 @@ function zjh_score_name(array $score)
     return ['单张', '对子', '顺子', '金花', '同花顺', '豹子'][$score[0] ?? 0] ?? '未知牌型';
 }
 
+function zjh_action_cost($currentBet, $seen)
+{
+    return max(0, (int)$currentBet) * ($seen ? 2 : 1);
+}
+
+function zjh_requires_showdown($stack, $currentBet, $seen)
+{
+    return (int)$stack < zjh_action_cost($currentBet, $seen);
+}
+
 function zjh_card_view($card)
 {
     $ranks = [2=>'2',3=>'3',4=>'4',5=>'5',6=>'6',7=>'7',8=>'8',9=>'9',10=>'10',11=>'J',12=>'Q',13=>'K',14=>'A'];
