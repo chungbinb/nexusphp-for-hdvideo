@@ -60,6 +60,31 @@ function zjh_score_name(array $score)
     return ['单张', '对子', '顺子', '金花', '同花顺', '豹子'][$score[0] ?? 0] ?? '未知牌型';
 }
 
+function zjh_action_cost($currentBet, $seen, $base = 0)
+{
+    $currentBet = max(0, (int)$currentBet);
+    return $seen ? $currentBet * 2 + max(0, (int)$base) : $currentBet;
+}
+
+function zjh_requires_showdown($stack, $currentBet, $seen, $base = 0)
+{
+    return (int)$stack < zjh_action_cost($currentBet, $seen, $base);
+}
+
+function zjh_unrevealed_active_seats(array $players)
+{
+    $seats = [];
+    foreach ($players as $seat => $player) {
+        if (($player['status'] ?? '') === 'active' && empty($player['revealed'])) $seats[] = (int)$seat;
+    }
+    return $seats;
+}
+
+function zjh_may_view_cards($finished, $isViewer, $seen, $revealed)
+{
+    return (bool)$finished || (bool)$revealed || ((bool)$isViewer && (bool)$seen);
+}
+
 function zjh_card_view($card)
 {
     $ranks = [2=>'2',3=>'3',4=>'4',5=>'5',6=>'6',7=>'7',8=>'8',9=>'9',10=>'10',11=>'J',12=>'Q',13=>'K',14=>'A'];
