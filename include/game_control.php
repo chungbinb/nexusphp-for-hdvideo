@@ -22,6 +22,11 @@ function game_control_defaults()
         'moviequiz' => ['name' => '猜电影', 'is_open' => 0, 'min_class' => 15, 'sort' => 11], // 题库就绪后再开放
         'poker'     => ['name' => '德州扑克', 'is_open' => 1, 'min_class' => 15, 'sort' => 12],
         'zjh'       => ['name' => '炸金花', 'is_open' => 1, 'min_class' => 15, 'sort' => 13, 'bot_difficulty' => 'simple'],
+        'stock'     => [
+            'name' => '股票模拟交易', 'is_open' => 1, 'min_class' => 15, 'sort' => 14,
+            'stock_symbols' => 'SH600519,SZ000001,SH601318,SZ300750,SH600036,SH601899,SZ000858,SH600900',
+            'stock_ticket_rate' => 1.0, 'stock_fee_rate' => 0.001, 'stock_trade_enabled' => 1,
+        ],
     ];
 }
 
@@ -40,6 +45,10 @@ function game_controls_ensure()
             `min_class` int NOT NULL DEFAULT 15,
             `sort` int NOT NULL DEFAULT 0,
             `bot_difficulty` varchar(16) NOT NULL DEFAULT 'simple',
+            `stock_symbols` text DEFAULT NULL,
+            `stock_ticket_rate` decimal(12,4) NOT NULL DEFAULT 1.0000,
+            `stock_fee_rate` decimal(8,6) NOT NULL DEFAULT 0.001000,
+            `stock_trade_enabled` tinyint(1) NOT NULL DEFAULT 1,
             `created_at` datetime DEFAULT NULL,
             `updated_at` datetime DEFAULT NULL,
             PRIMARY KEY (`id`),
@@ -50,6 +59,18 @@ function game_controls_ensure()
     if ($difficultyColumn && mysql_num_rows($difficultyColumn) === 0) {
         @sql_query("ALTER TABLE `game_hall_controls` ADD `bot_difficulty` varchar(16) NOT NULL DEFAULT 'simple' AFTER `sort`");
     }
+    $extraColumns = [
+        'stock_symbols' => "text DEFAULT NULL AFTER `bot_difficulty`",
+        'stock_ticket_rate' => "decimal(12,4) NOT NULL DEFAULT 1.0000 AFTER `stock_symbols`",
+        'stock_fee_rate' => "decimal(8,6) NOT NULL DEFAULT 0.001000 AFTER `stock_ticket_rate`",
+        'stock_trade_enabled' => "tinyint(1) NOT NULL DEFAULT 1 AFTER `stock_fee_rate`",
+    ];
+    foreach ($extraColumns as $column => $definition) {
+        $columnResult = @sql_query("SHOW COLUMNS FROM `game_hall_controls` LIKE " . sqlesc($column));
+        if ($columnResult && mysql_num_rows($columnResult) === 0) {
+            @sql_query("ALTER TABLE `game_hall_controls` ADD `{$column}` {$definition}");
+        }
+    }
     $now = date('Y-m-d H:i:s');
     foreach (game_control_defaults() as $k => $d) {
         @sql_query(sprintf(
@@ -57,6 +78,8 @@ function game_controls_ensure()
             sqlesc($k), sqlesc($d['name']), (int)$d['is_open'], (int)$d['min_class'], (int)$d['sort'], sqlesc($now), sqlesc($now)
         ));
     }
+    $stockDefaults = game_control_defaults()['stock'];
+    @sql_query("UPDATE `game_hall_controls` SET `stock_symbols`=" . sqlesc($stockDefaults['stock_symbols']) . " WHERE `game_key`='stock' AND (`stock_symbols` IS NULL OR `stock_symbols`='')");
     $done = true;
 }
 
@@ -68,7 +91,7 @@ function game_controls_all()
     }
     game_controls_ensure();
     $cache = game_control_defaults();
-    $res = @sql_query("SELECT `game_key`,`name`,`is_open`,`min_class`,`bot_difficulty` FROM `game_hall_controls`");
+    $res = @sql_query("SELECT `game_key`,`name`,`is_open`,`min_class`,`bot_difficulty`,`stock_symbols`,`stock_ticket_rate`,`stock_fee_rate`,`stock_trade_enabled` FROM `game_hall_controls`");
     if ($res) {
         while ($row = mysql_fetch_assoc($res)) {
             $cache[$row['game_key']] = [
@@ -76,6 +99,10 @@ function game_controls_all()
                 'is_open' => (int)$row['is_open'],
                 'min_class' => (int)$row['min_class'],
                 'bot_difficulty' => in_array($row['bot_difficulty'], ['simple', 'hard', 'hell'], true) ? $row['bot_difficulty'] : 'simple',
+                'stock_symbols' => trim((string)($row['stock_symbols'] ?? '')),
+                'stock_ticket_rate' => max(0.0001, (float)($row['stock_ticket_rate'] ?? 1)),
+                'stock_fee_rate' => max(0, min(0.1, (float)($row['stock_fee_rate'] ?? 0.001))),
+                'stock_trade_enabled' => (int)($row['stock_trade_enabled'] ?? 1),
             ];
         }
     }
@@ -85,7 +112,7 @@ function game_controls_all()
 function game_control_get($key)
 {
     $all = game_controls_all();
-    return $all[$key] ?? ['name' => '', 'is_open' => 1, 'min_class' => 15, 'bot_difficulty' => 'simple'];
+    return $all[$key] ?? ['name' => '', 'is_open' => 1, 'min_class' => 15, 'bot_difficulty' => 'simple', 'stock_symbols' => '', 'stock_ticket_rate' => 1.0, 'stock_fee_rate' => 0.001, 'stock_trade_enabled' => 1];
 }
 
 function game_is_open($key)
