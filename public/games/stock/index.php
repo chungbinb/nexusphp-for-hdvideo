@@ -357,7 +357,7 @@ body.game-page{background:color-mix(in srgb,var(--bili-bg,#f1f5f9) 88%,#07111f)!
 </style>
 <div class="stk">
  <div class="stk-top">
-  <div class="stk-title"><span class="stk-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9m6 10V5m6 14v-7m4 7H2"/><path d="m3 7 5-4 5 5 7-6"/></svg></span><div><a href="/games/">返回游戏列表</a><h1>股票模拟交易 <small>内测中 v0.2</small></h1><div class="stk-sub">真实 A 股行情定价，使用站内电影票进行虚拟买卖</div></div></div>
+  <div class="stk-title"><span class="stk-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9m6 10V5m6 14v-7m4 7H2"/><path d="m3 7 5-4 5 5 7-6"/></svg></span><div><a href="/games/">返回游戏列表</a><h1>股票模拟交易 <small>内测中 v0.3</small></h1><div class="stk-sub">真实 A 股行情定价，使用站内电影票进行虚拟买卖</div></div></div>
   <div class="stk-wallet">电影票余额 <b id="wallet"></b></div>
  </div>
  <div class="stk-status <?php echo $market['open'] ? 'open' : '' ?>"><div class="stk-status-left"><span class="stk-dot"></span><strong id="marketLabel"></strong><span class="stk-muted" id="marketTime"></span></div><div class="stk-muted">行情源：<span class="stk-source">腾讯证券行情</span> · 约每 15 秒刷新 · 行情仅用于站内娱乐</div></div>
