@@ -761,7 +761,7 @@ stdhead('炸金花');
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 </style>
 <div class="zjh-page">
- <div class="zjh-top"><div><a href="/games/">返回游戏列表</a><h1>炸金花 <small>内测中 v0.1</small></h1></div><div class="zjh-wallet">电影票 <b id="wallet"><?php echo number_format($initial['wallet'],1) ?></b></div></div>
+ <div class="zjh-top"><div><a href="/games/">返回游戏列表</a><h1>炸金花 <small>内测中 v0.2</small></h1></div><div class="zjh-wallet">电影票 <b id="wallet"><?php echo number_format($initial['wallet'],1) ?></b></div></div>
  <main class="zjh-table" id="table">
   <div class="zjh-brand"><strong>炸金花</strong><div class="zjh-pot">底池 <b id="pot">0</b> / <span id="tableCap">0</span> · 当前注 <b id="currentBet">0</b></div></div>
   <div id="seats"></div><div class="z-log" id="logs"></div><div class="z-actions" id="actions"></div><div id="overlay"></div><div id="comparePicker"></div>
