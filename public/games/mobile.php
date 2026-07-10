@@ -61,6 +61,10 @@ body.page-games { background: #0c1622 !important; color: #e7eef7 !important; }
 .gm-sc-ver { position: absolute; top: 11px; right: 11px; font-size: 11px; font-weight: 700; color: #fff; background: rgba(0,0,0,.42); padding: 3px 9px; border-radius: 999px; }
 .gm-sc-foot { display: flex; align-items: center; gap: 10px; padding: 11px 13px; }
 .gm-sc-tags { min-width: 0; flex: 1; font-size: 12px; color: #90a8c0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gm-playing { flex:none; display:inline-flex; align-items:center; gap:5px; color:#b9cee0; font-size:11px; font-weight:700; white-space:nowrap; }
+.gm-playing::before { content:""; width:7px; height:7px; border-radius:50%; background:#22c55e; box-shadow:0 0 7px rgba(34,197,94,.65); }
+.gm-playing.is-empty::before { background:#72869a; box-shadow:none; }
+.gm-playing b { color:#fff; font-size:12px; }
 .gm-sc-go { flex: none; background: #1f6fb0; color: #fff; font-size: 13px; font-weight: 800; padding: 9px 16px; border-radius: 8px; }
 .gm-sc.off { opacity: .6; }
 .gm-sc.off .gm-sc-go { background: #7a2b2b; }
@@ -105,13 +109,14 @@ body.page-games { background: #0c1622 !important; color: #e7eef7 !important; }
 
     <div class="gm-list" id="game-list">
         <?php foreach ($games as $game) {
-            $ctrlKey = preg_match('#^/games/([^/]+)/#', $game['href'], $m) ? $m[1] : null;
+            $ctrlKey = $game['key'] ?? (preg_match('#^/games/([^/]+)/#', $game['href'], $m) ? $m[1] : null);
             $gClosed = $ctrlKey ? !game_is_open($ctrlKey) : false;
             $gCanAccess = $ctrlKey ? game_user_can_access($ctrlKey) : true;
             $gBlocked = $gClosed && !$gCanAccess;
             $disabled = $game['href'] === '#' || $gBlocked;
             $href = $disabled ? '#' : $game['href'];
             $go = $gClosed ? ($gCanAccess ? '预览' : '未开放') : '进入';
+            $playingCount = (int)($gamePlayingCounts[$game['key']] ?? 0);
             $tags = !empty($game['tags']) ? implode(' · ', $game['tags']) : htmlspecialchars($game['subtitle'] ?? '');
             // 海报：/games/posters/<theme>.jpg 或 .png（设计员按规格出图后即自动生效）
             $poster = '';
@@ -129,6 +134,7 @@ body.page-games { background: #0c1622 !important; color: #e7eef7 !important; }
                 </div>
                 <div class="gm-sc-foot">
                     <div class="gm-sc-tags"><?php echo htmlspecialchars($tags) ?></div>
+                    <span class="gm-playing<?php echo $playingCount === 0 ? ' is-empty' : '' ?>" data-game-playing="<?php echo htmlspecialchars($game['key']) ?>" aria-label="<?php echo $playingCount ?> 人正在游玩"><b data-game-playing-value><?php echo number_format($playingCount) ?></b> 人游玩</span>
                     <span class="gm-sc-go"><?php echo htmlspecialchars($go) ?> ›</span>
                 </div>
             </a>
@@ -161,6 +167,7 @@ body.page-games { background: #0c1622 !important; color: #e7eef7 !important; }
         ?>
     </div>
 </div>
+<?php echo game_presence_hall_script(); ?>
 <?php
 // 输出统一手机外壳尾部（顶栏/抽屉/底部Tab/我的/管理/个性化 + 脚本）
 mobile_shell_page_foot('games');

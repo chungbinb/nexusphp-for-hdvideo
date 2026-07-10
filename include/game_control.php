@@ -95,6 +95,94 @@ function game_user_can_access($key)
     return get_user_class() >= (int)$c['min_class'];
 }
 
+/** A player is considered active while the game page keeps this heartbeat fresh. */
+function game_presence_timeout(): int
+{
+    return 120;
+}
+
+function game_presence_allowed_keys(): array
+{
+    return array_values(array_unique(array_merge(array_keys(game_control_defaults()), ['lucky-draw'])));
+}
+
+function game_presence_key(string $key): string
+{
+    return 'game:presence:' . preg_replace('/[^a-z0-9-]+/', '', strtolower($key));
+}
+
+function game_presence_touch(string $key, ?int $uid = null): void
+{
+    if (!in_array($key, game_presence_allowed_keys(), true)) return;
+    if ($uid === null) $uid = (int)($GLOBALS['CURUSER']['id'] ?? 0);
+    if ($uid <= 0) return;
+    try {
+        $redis = \Nexus\Database\NexusDB::redis();
+        $now = defined('TIMENOW') ? (int)TIMENOW : time();
+        $redis->zAdd(game_presence_key($key), $now, (string)$uid);
+        $redis->zRemRangeByScore(game_presence_key($key), 0, $now - game_presence_timeout());
+        $redis->expire(game_presence_key($key), game_presence_timeout() * 3);
+    } catch (Throwable $e) {
+        do_log('[GAME_PRESENCE_TOUCH] ' . $e->getMessage(), 'warning');
+    }
+}
+
+function game_presence_count(string $key): int
+{
+    if (!in_array($key, game_presence_allowed_keys(), true)) return 0;
+    try {
+        $redis = \Nexus\Database\NexusDB::redis();
+        $now = defined('TIMENOW') ? (int)TIMENOW : time();
+        $redis->zRemRangeByScore(game_presence_key($key), 0, $now - game_presence_timeout());
+        return max(0, (int)$redis->zCard(game_presence_key($key)));
+    } catch (Throwable $e) {
+        do_log('[GAME_PRESENCE_COUNT] ' . $e->getMessage(), 'warning');
+        return 0;
+    }
+}
+
+function game_presence_counts(array $keys): array
+{
+    $counts = [];
+    foreach (array_values(array_unique($keys)) as $key) {
+        $counts[$key] = game_presence_count((string)$key);
+    }
+    return $counts;
+}
+
+function game_presence_register_client(string $key): void
+{
+    if (!class_exists('\\Nexus\\Nexus') || !in_array($key, game_presence_allowed_keys(), true)) return;
+    $encoded = json_encode($key, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    \Nexus\Nexus::js("(function(){var game={$encoded},timer=null;function ping(){if(document.visibilityState==='hidden')return;fetch('/games/presence.php',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'game='+encodeURIComponent(game)}).catch(function(){});}ping();timer=setInterval(ping,45000);document.addEventListener('visibilitychange',ping);})();", 'footer', false, 'game-presence-heartbeat');
+}
+
+function game_presence_hall_script(): string
+{
+    return <<<'HTML'
+<script>
+(function(){
+    function refreshGameCounts(){
+        fetch('/games/presence.php?counts=1',{credentials:'same-origin'})
+            .then(function(response){return response.json();})
+            .then(function(data){
+                if(!data.ok||!data.counts)return;
+                document.querySelectorAll('[data-game-playing]').forEach(function(node){
+                    var count=Math.max(0,Number(data.counts[node.getAttribute('data-game-playing')]||0));
+                    var value=node.querySelector('[data-game-playing-value]');
+                    if(value)value.textContent=count.toLocaleString();
+                    node.classList.toggle('is-empty',count===0);
+                    node.setAttribute('aria-label',count+' 人正在游玩');
+                });
+            }).catch(function(){});
+    }
+    refreshGameCounts();
+    setInterval(refreshGameCounts,15000);
+})();
+</script>
+HTML;
+}
+
 /** 「返回游戏大厅」按钮（各游戏页 stdhead 后输出）。 */
 function game_back_link()
 {
@@ -167,6 +255,8 @@ function game_guard($key)
         }
     }
     if (game_user_can_access($key)) {
+        game_presence_touch((string)$key);
+        game_presence_register_client((string)$key);
         return;
     }
     $c = game_control_get($key);

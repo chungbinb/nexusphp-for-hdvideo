@@ -56,12 +56,12 @@ $games = [
         'released_at' => '2026-07-10',
         'released_order' => 1783648102,
         'badge' => '内测中 v0.1',
-        'subtitle' => '四人固定限注德州，完整翻牌/转牌/河牌流程，与三位智能对手较量牌技。',
+        'subtitle' => '四人固定限注德州，完整翻牌/转牌/河牌流程，只匹配真人玩家同桌竞技。',
         'date' => '已开放',
         'price' => '立即入座',
         'href' => '/games/poker/',
         'status' => '可玩',
-        'tags' => ['德州扑克', '智能对手', '电影票', '牌型竞技'],
+        'tags' => ['德州扑克', '真人对战', '电影票', '牌型竞技'],
         'theme' => 'poker',
         'shots' => ['poker-a', 'poker-b', 'poker-c'],
     ],
@@ -86,7 +86,7 @@ $games = [
         'subtitle' => '每日限次抽奖，奖励覆盖电影票、临时道具和活动权益。',
         'date' => '已开放',
         'price' => '立即进入',
-        'href' => '/plugin/lucky-draw',
+        'href' => '/games/enter.php?game=lucky-draw',
         'status' => '可玩',
         'tags' => ['每日', '抽奖', '活动'],
         'theme' => 'wheel',
@@ -191,6 +191,18 @@ $games = [
         'shots' => ['quiz-a', 'quiz-b', 'quiz-c'],
     ],
 ];
+
+$gameKeyByTheme = [
+    'dice' => 'big-small', 'sports' => 'sports', 'ddz' => 'ddz', 'poker' => 'poker',
+    'scratch' => 'scratch', 'wheel' => 'lucky-draw', 'quiz' => 'quiz', 'chest' => 'chest',
+    'blackjack' => 'blackjack', 'slots' => 'slots', 'plinko' => 'plinko', 'hilo' => 'hilo',
+    'moviequiz' => 'moviequiz',
+];
+foreach ($games as &$game) {
+    $game['key'] = $gameKeyByTheme[$game['theme']] ?? $game['theme'];
+}
+unset($game);
+$gamePlayingCounts = game_presence_counts(array_column($games, 'key'));
 
 $gameSortOptions = [
     'newest' => '新到旧',
@@ -448,10 +460,27 @@ body.page-games-php:not(.inframe) {
 
 .steam-game-price {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: flex-end;
+    gap: 8px;
     padding: 0 12px;
 }
+
+.steam-playing-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 90px;
+    color: #b9cee0;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.steam-playing-count::before { content:""; width:8px; height:8px; border-radius:50%; background:#22c55e; box-shadow:0 0 8px rgba(34,197,94,.65); }
+.steam-playing-count.is-empty::before { background:#72869a; box-shadow:none; }
+.steam-playing-count b { color:#fff; font-size:14px; }
 
 .steam-price-pill {
     min-width: 78px;
@@ -655,7 +684,8 @@ body.page-games-php:not(.inframe) {
 
     .steam-game-price {
         grid-column: 2;
-        justify-content: flex-start;
+        flex-direction: row;
+        justify-content: space-between;
         padding: 0 12px 10px;
     }
 
@@ -695,7 +725,7 @@ body.page-games-php:not(.inframe) {
             </div>
             <?php foreach ($games as $index => $game) { ?>
                 <?php
-                $ctrlKey = preg_match('#^/games/([^/]+)/#', $game['href'], $m) ? $m[1] : null;
+                $ctrlKey = $game['key'] ?? (preg_match('#^/games/([^/]+)/#', $game['href'], $m) ? $m[1] : null);
                 $gClosed = $ctrlKey ? !game_is_open($ctrlKey) : false;
                 $gCanAccess = $ctrlKey ? game_user_can_access($ctrlKey) : true;
                 $gBlocked = $gClosed && !$gCanAccess;
@@ -709,6 +739,7 @@ body.page-games-php:not(.inframe) {
                     $dateText = $game['date'];
                 }
                 $hasIcon = is_file(__DIR__ . '/icons/' . $game['theme'] . '.png');
+                $playingCount = (int)($gamePlayingCounts[$game['key']] ?? 0);
                 ?>
                 <a class="steam-game-row theme-<?php echo htmlspecialchars($game['theme']) ?> <?php echo $index === 0 ? 'is-active' : '' ?> <?php echo $disabled ? 'is-disabled' : '' ?>"
                    href="<?php echo htmlspecialchars($rowHref) ?>"
@@ -719,7 +750,10 @@ body.page-games-php:not(.inframe) {
                         <div class="steam-game-subtitle"><?php echo htmlspecialchars($game['subtitle']) ?></div>
                         <div class="steam-game-date"><?php echo htmlspecialchars($dateText) ?> · 加入大厅 <?php echo htmlspecialchars($game['released_at']) ?></div>
                     </div>
-                    <div class="steam-game-price"><span class="steam-price-pill"><?php echo htmlspecialchars($priceText) ?></span></div>
+                    <div class="steam-game-price">
+                        <span class="steam-playing-count<?php echo $playingCount === 0 ? ' is-empty' : '' ?>" data-game-playing="<?php echo htmlspecialchars($game['key']) ?>" aria-label="<?php echo $playingCount ?> 人正在游玩"><b data-game-playing-value><?php echo number_format($playingCount) ?></b> 人游玩</span>
+                        <span class="steam-price-pill"><?php echo htmlspecialchars($priceText) ?></span>
+                    </div>
                 </a>
             <?php } ?>
         </section>
@@ -752,5 +786,6 @@ body.page-games-php:not(.inframe) {
         </div>
     </section>
 </div>
+<?php echo game_presence_hall_script(); ?>
 <?php
 stdfoot();
