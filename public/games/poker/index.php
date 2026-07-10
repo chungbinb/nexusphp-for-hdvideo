@@ -434,8 +434,10 @@ function poker_mutate($callback)
     if (!$lock) return [null, '操作繁忙，请稍后重试。'];
     try {
         $game = poker_game_get($uid);
+        $hadGame = (bool)$game;
         $error = $callback($game);
         if ($game) poker_game_put($game);
+        elseif ($hadGame) poker_redis()->del(poker_game_key($uid));
         return [$game, (string)$error];
     } finally {
         poker_unlock($uid, $lock);
@@ -540,6 +542,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $result = poker_apply_action($game, 0, $action);
             if ($result === '') poker_drive_bots($game);
             return $result;
+        }
+        if ($action === 'reset') {
+            if (($game['status'] ?? '') !== 'finished') return '牌局尚未结算，不能更换底注。';
+            $game = null;
+            return '';
         }
         return '未知操作。';
     });
@@ -677,7 +684,7 @@ body.page-games-poker-index-php:not(.inframe), body.game-page:not(.inframe) { ba
 .pk-result-row b { color: #fff; }.pk-result-row small { display: block; margin-top: 3px; color: var(--pk-muted); }
 .pk-result-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 17px; }
 .pk-result-actions button { min-height: 46px; border: 1px solid var(--pk-line); border-radius: 11px; background: #172c3d; color: #fff; font-weight: 800; cursor: pointer; }
-.pk-result-actions .again { border-color: rgba(241,197,102,.4); background: #d7ad55; color: #1d170b; }
+.pk-result-actions .again { grid-column: 1 / -1; border-color: rgba(241,197,102,.4); background: #d7ad55; color: #1d170b; }
 .pk-toast { position: fixed; z-index: 1000; left: 50%; bottom: 28px; transform: translate(-50%,20px); padding: 10px 15px; border: 1px solid rgba(255,255,255,.16); border-radius: 10px; background: #172637; color: #fff; opacity: 0; pointer-events: none; transition: opacity .2s,transform .2s; }
 .pk-toast.show { opacity: 1; transform: translate(-50%,0); }
 .pk-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
@@ -774,7 +781,7 @@ body.page-games-poker-index-php:not(.inframe), body.game-page:not(.inframe) { ba
 </main>
 
 <div class="pk-result" id="pkResult" role="dialog" aria-modal="true" aria-labelledby="pkResultTitle">
-    <div class="pk-result-card"><h2 class="pk-result-title" id="pkResultTitle">本局结果</h2><div class="pk-result-reason" id="pkResultReason"></div><div id="pkResultRows"></div><div class="pk-result-actions"><button type="button" id="pkResultExit">返回大厅</button><button type="button" class="again" id="pkAgain">再来一局</button></div></div>
+    <div class="pk-result-card"><h2 class="pk-result-title" id="pkResultTitle">本局结果</h2><div class="pk-result-reason" id="pkResultReason"></div><div id="pkResultRows"></div><div class="pk-result-actions"><button type="button" id="pkResultExit">返回大厅</button><button type="button" id="pkChangeStake">更换底注</button><button type="button" class="again" id="pkAgain">同底注再来一局</button></div></div>
 </div>
 <div class="pk-toast" id="pkToast" role="status"></div><div class="pk-sr" id="pkLive" aria-live="polite"></div>
 
@@ -861,6 +868,7 @@ body.page-games-poker-index-php:not(.inframe), body.game-page:not(.inframe) { ba
     $('pkStakes').addEventListener('change',function(e){if(e.target&&e.target.name==='poker_base')updateStakeChoice();});
     $('pkStartBtn').addEventListener('click',function(){updateStakeChoice();post('start','&base='+selectedBase);});
     $('pkResultExit').addEventListener('click',function(){location.href='/games/';});
+    $('pkChangeStake').addEventListener('click',function(){$('pkResult').classList.remove('show');post('reset');});
     $('pkAgain').addEventListener('click',function(){$('pkResult').classList.remove('show');post('start','&base='+(state?state.base:selectedBase));});
     document.addEventListener('keydown',function(e){if(!state||state.status!=='playing'||state.turn!==0||e.ctrlKey||e.metaKey||e.altKey)return;var k=e.key.toLowerCase();if(k==='f')post('fold');else if(k==='c')post(state.toCall>0?'call':'check');else if(k==='r'&&state.canRaise)post('raise');});
     poll();setInterval(poll,1200);setInterval(renderClock,250);
