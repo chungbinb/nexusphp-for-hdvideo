@@ -105,9 +105,10 @@ class TorrentRepository extends BaseRepository
         }
         $categoryIdList = $searchBox->categories()->pluck('id')->toArray();
         //query this info default
+        $prioritySql = \App\Services\TorrentPromotionService::priorityOrderSql('torrents');
         $query = Torrent::query()->with(self::$defaultLoadRelationships)
             ->whereIn('category', $categoryIdList)
-            ->orderBy("pos_state", "DESC");
+            ->orderByRaw($prioritySql . ' ASC');
         $apiQueryBuilder = ApiQueryBuilder::for(TorrentResource::NAME, $query, $request)
             ->allowIncludes(self::$allowIncludes)
             ->allowIncludeCounts(self::$allowIncludeCounts)
@@ -155,8 +156,10 @@ class TorrentRepository extends BaseRepository
             })
         ;
         $query = $apiQueryBuilder->build();
-        if (!$apiQueryBuilder->hasSort() || !$apiQueryBuilder->hasSort('id')) {
-            $query->orderBy("id", "DESC");
+        if (!$apiQueryBuilder->hasSort()) {
+            $query->orderBy('added', 'DESC')->orderBy('id', 'DESC');
+        } elseif (!$apiQueryBuilder->hasSort('id')) {
+            $query->orderBy('id', 'DESC');
         }
         do_log("before query torrent list");
         $torrents = $query->paginate($this->getPerPageFromRequest($request));
@@ -248,7 +251,7 @@ class TorrentRepository extends BaseRepository
     {
         if (empty($params['sort_field']) && empty($params['sort_type'])) {
             //the default torrent list sort
-            return $query->orderBy('pos_state', 'desc')->orderBy('id', 'desc');
+            return $query->orderByRaw(\App\Services\TorrentPromotionService::priorityOrderSql('torrents') . ' ASC')->orderBy('added', 'desc')->orderBy('id', 'desc');
         }
         list($sortField, $sortType) = $this->getSortFieldAndType($params);
         return $query->orderBy($sortField, $sortType);

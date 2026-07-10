@@ -29,6 +29,7 @@ return [
 
         \App\Models\BonusLogs::BUSINESS_TYPE_BANK => '高清银行',
         \App\Models\BonusLogs::BUSINESS_TYPE_FORUM_PENALTY => '论坛违规扣分',
+        \App\Models\BonusLogs::BUSINESS_TYPE_TORRENT_FREE_PROMOTION => '种子 Free 促销',
         \App\Models\BonusLogs::BUSINESS_TYPE_GAME_BIG_SMALL => '压大小',
         \App\Models\BonusLogs::BUSINESS_TYPE_GAME_SPORTS => '菠菜系统',
         \App\Models\BonusLogs::BUSINESS_TYPE_GAME_DDZ => '斗地主',

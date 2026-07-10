@@ -128,6 +128,7 @@ class UploadRepository extends BaseRepository
             'created_at' => $nowStr,
             'pt_gen' => $request->pt_gen ?? '',
         ];
+        \App\Services\TorrentPromotionService::ensureSchema();
         $newTorrent = DB::transaction(function () use ($torrentInsert, $extraInsert, $fileListInfo, $subCategoriesAngTags, $dict, $torrentSavePath) {
             $newTorrent = Torrent::query()->create($torrentInsert);
             $id = $newTorrent->id;
@@ -151,6 +152,7 @@ class UploadRepository extends BaseRepository
             if (!empty($subCategoriesAngTags['tags'])) {
                 insert_torrent_tags($id, $subCategoriesAngTags['tags']);
             }
+            \App\Services\TorrentPromotionService::applyNewTorrentDefaults((int)$id);
             $this->sendReward($id);
             return $newTorrent;
         });

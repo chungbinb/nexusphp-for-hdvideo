@@ -182,12 +182,12 @@ get_where("processings", "processing", "pro");
 get_where("teams", "team", "tea");
 get_where("audiocodecs", "audiocodec", "aud");
 
-$hasStickyFirst = $hasStickySecond = $hasStickyNormal = $noNormalResults = false;
+$hasStickyFirst = $hasStickySecond = $hasStickyThird = $hasStickyNormal = $noNormalResults = false;
 $prependIdArr = $prependRows = $normalRows = [];
 $stickyWhere = $normalWhere = '';
 if (isset($_GET['sticky']) && $inclbookmarked == 0) {
     $stickyArr = explode(',', $_GET['sticky']);
-    //Only handle sticky first + second
+    // Handle all three sticky levels.
     $posStates = [];
     if (in_array('0', $stickyArr, true)) {
         $hasStickyNormal = true;
@@ -200,6 +200,10 @@ if (isset($_GET['sticky']) && $inclbookmarked == 0) {
         $hasStickySecond = true;
         $posStates[] = \App\Models\Torrent::POS_STATE_STICKY_SECOND;
     }
+    if (in_array('3', $stickyArr, true)) {
+        $hasStickyThird = true;
+        $posStates[] = \App\Models\Torrent::POS_STATE_STICKY_THIRD;
+    }
     if (!empty($posStates)) {
         $prependIdArr = \App\Models\Torrent::query()->whereIn('pos_state', $posStates)->pluck('id')->toArray();
     }
@@ -207,7 +211,7 @@ if (isset($_GET['sticky']) && $inclbookmarked == 0) {
 $prependIdArr = apply_filter("sticky_promotion_torrent_ids", $prependIdArr);
 if ($hasStickyNormal) {
     $stickyWhere = sprintf("torrents.pos_state = '%s'", \App\Models\Torrent::POS_STATE_STICKY_NONE);
-} elseif ($hasStickyFirst || $hasStickySecond) {
+} elseif ($hasStickyFirst || $hasStickySecond || $hasStickyThird) {
     $noNormalResults = true;
 }
 
@@ -219,7 +223,7 @@ if ($where) {
 }
 $sort = $requireSeedMode
     ? "CASE WHEN torrents.seeders = 0 AND torrents.leechers > 0 THEN 0 WHEN torrents.seeders = 0 THEN 1 ELSE 2 END, torrents.leechers DESC, torrents.id DESC"
-    : "id desc";
+    : \App\Services\TorrentPromotionService::priorityOrderSql('torrents') . " ASC, torrents.added DESC, torrents.id DESC";
 $fieldStr = "torrents.id, torrents.category, torrents.name, torrents.small_descr, torrent_extras.descr, torrents.info_hash, torrents.size, torrents.added, torrents.anonymous, torrents.owner, categories.name AS category_name";
 if (!$noNormalResults) {
     $query = "SELECT $fieldStr FROM torrents $tagFilter LEFT JOIN categories ON torrents.category = categories.id left join torrent_extras on torrent_extras.torrent_id = torrents.id $normalWhere ORDER BY $sort LIMIT $limit";

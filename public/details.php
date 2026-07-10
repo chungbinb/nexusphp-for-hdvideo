@@ -710,6 +710,8 @@ echo "</script>";
         $otherLine = '<div>'.$current_user_magic.$show_list.$other_user_span.$show_list_description.'</div>';
         tr($lang_details['magic_value_award'],$firstLine.$otherLine,1);
         //End 魔力值奖励功能
+		$promotionLink = '<a class="btn" href="/torrent_promotion.php?id=' . (int)$id . '">使用魔力置顶 / Free</a>';
+		tr('种子推广', $promotionLink . '&nbsp;&nbsp;<span style="color:var(--bili-text-secondary,#61666d)">置顶和 Free 可单独购买，也可同时生效。</span>', 1);
 
 		// ------------- start thanked-by block--------------//
 

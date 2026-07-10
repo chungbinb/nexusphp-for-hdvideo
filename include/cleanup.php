@@ -535,6 +535,7 @@ function docleanup($forceAll = 0, $printProgress = false) {
     $toBeExpirePosStates = [
         \App\Models\Torrent::POS_STATE_STICKY_FIRST,
         \App\Models\Torrent::POS_STATE_STICKY_SECOND,
+        \App\Models\Torrent::POS_STATE_STICKY_THIRD,
     ];
 	$update = [
 	    'pos_state' => \App\Models\Torrent::POS_STATE_STICKY_NONE,

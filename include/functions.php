@@ -6743,7 +6743,7 @@ function get_torrent_bg_color($promotion = 1, $posState = "", array $torrent = [
         $torrentSettings = get_setting('torrent');
 	    if ($posState == \App\Models\Torrent::POS_STATE_STICKY_FIRST && !empty($torrentSettings['sticky_first_level_background_color'])) {
 	        $sphighlight = sprintf(' style="background-color: %s"', $torrentSettings['sticky_first_level_background_color']);
-        } elseif ($posState == \App\Models\Torrent::POS_STATE_STICKY_SECOND && !empty($torrentSettings['sticky_second_level_background_color'])) {
+        } elseif (in_array($posState, [\App\Models\Torrent::POS_STATE_STICKY_SECOND, \App\Models\Torrent::POS_STATE_STICKY_THIRD], true) && !empty($torrentSettings['sticky_second_level_background_color'])) {
             $sphighlight = sprintf(' style="background-color: %s"', $torrentSettings['sticky_second_level_background_color']);
         }
     }

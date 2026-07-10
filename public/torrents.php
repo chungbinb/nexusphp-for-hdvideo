@@ -186,8 +186,8 @@ $meilisearchEnabled = get_setting('meilisearch.enabled') == 'yes';
 $shouldUseMeili = $meilisearchEnabled && !empty($searchstr);
 do_log("[SHOULD_USE_MEILI]: $shouldUseMeili");
 // sorting by MarkoStamcar
-// 排序列先确定(默认按最新 id DESC)，再叠加“分层置顶”。
-$column = '';
+// 排序列先确定(默认按发布时间 DESC)，再叠加三级置顶优先级。
+$column = 'added';
 $ascdesc = '';
 $sortDir = 'DESC';   // 置顶层内 & 非置顶区通用排序方向
 $pagerlink = '';
@@ -216,48 +216,12 @@ if (isset($_GET['sort']) && $_GET['sort'] && isset($_GET['type']) && $_GET['type
 	$pagerlink = "sort=" . intval($_GET['sort']) . "&type=" . $linkascdesc . "&";
 }
 
-// 非置顶区(以及置顶层内)的排序表达式：owner 需按上传者用户名。
+// 每个置顶层内以及普通区沿用同一个排序条件；默认后发布的种子在上面。
 $sortExpr = ($column === 'owner')
 	? "torrents.anonymous, users.username " . $sortDir
-	: "torrents." . ($column !== '' ? $column : 'id') . " " . $sortDir;
-// 置顶层内排序用的单列(owner 用 torrents.owner 上传者id 近似，因置顶子查询不 join users)。
-$stickySortCol = ($column === 'owner') ? 'owner' : ($column !== '' ? $column : 'id');
-
-// 分层置顶：置顶促销(官组优惠期间的官组标签种子) > 一级置顶(sticky) > 二级置顶(r_sticky)。
-// 每层最多显示 sticky_count 个(后台「种子列表设置」，默认5)；层内与非置顶区都按当前排序列排序；
-// 超出数量的置顶及其余种子一并落到非置顶区按排序列排。死种/急需求种改到「保种区」单独展示。
-$stickyLimit = 5;
-try {
-	$cfgRes = sql_query("SELECT `sticky_count` FROM `hdvideo_torrent_settings` WHERE `id` = 1 LIMIT 1");
-	if ($cfgRes && ($cfgRow = mysql_fetch_assoc($cfgRes))) { $stickyLimit = max(0, (int)$cfgRow['sticky_count']); }
-} catch (\Throwable $e) { $stickyLimit = 5; }
-
-$stickyIds = [];
-if ($stickyLimit > 0) {
-	$tierWheres = [];
-	$officialTag = intval(get_setting('bonus.official_tag', 0));
-	$officialPromoActive = get_official_sp_state() != \App\Models\Torrent::PROMOTION_NORMAL;
-	if ($officialTag > 0 && $officialPromoActive) {
-		$tierWheres[] = "EXISTS (SELECT 1 FROM torrent_tags tt WHERE tt.torrent_id = torrents.id AND tt.tag_id = " . $officialTag . ")";
-	}
-	$tierWheres[] = "pos_state = 'sticky'";     // 一级置顶
-	$tierWheres[] = "pos_state = 'r_sticky'";   // 二级置顶
-	foreach ($tierWheres as $tw) {
-		$excl = $stickyIds ? (" AND `id` NOT IN (" . implode(',', $stickyIds) . ")") : "";
-		$tres = sql_query("SELECT `id` FROM `torrents` WHERE (" . $tw . ")" . $excl . " ORDER BY `" . $stickySortCol . "` " . $sortDir . ", `id` DESC LIMIT " . (int)$stickyLimit);
-		while ($tres && ($tr = mysql_fetch_assoc($tres))) { $stickyIds[] = (int)$tr['id']; }
-	}
-}
-
-if ($stickyIds) {
-	$idList = implode(',', $stickyIds);
-	// 置顶块整体在前，块内保持“层级+排序”的既定顺序(FIELD)；非置顶区按当前排序列。
-	$orderby = "ORDER BY CASE WHEN torrents.id IN (" . $idList . ") THEN 0 ELSE 1 END, "
-		. "CASE WHEN torrents.id IN (" . $idList . ") THEN FIELD(torrents.id, " . $idList . ") ELSE 0 END, "
-		. $sortExpr;
-} else {
-	$orderby = "ORDER BY " . $sortExpr;
-}
+	: "torrents." . $column . " " . $sortDir;
+$priorityExpr = \App\Services\TorrentPromotionService::priorityOrderSql('torrents');
+$orderby = "ORDER BY " . $priorityExpr . " ASC, " . $sortExpr . ", torrents.id DESC";
 
 $allCategoryId = \App\Models\SearchBox::listCategoryId($sectiontype);
 $addparam = "";
@@ -362,7 +326,7 @@ elseif ($include_dead == 2)		//dead
     $whereothera[] = "visible = 'no'";
 }
 
-// 官组优惠置顶(置顶促销)已并入上方“分层置顶”逻辑：置顶促销 > 一级置顶 > 二级置顶，各层限 sticky_count 个。
+// 三级置顶优先级已在上方统一排序表达式中处理。
 // ----------------- end include dead ---------------------//
 
 if (!isset($CURUSER) || !user_can('seebanned')) {
