@@ -11,11 +11,24 @@ game_guard('stock');
 
 const HDV_STOCK_HOLDING_TABLE = 'hdvideo_stock_holdings';
 const HDV_STOCK_TRADE_TABLE = 'hdvideo_stock_trades';
+const HDV_STOCK_WATCHLIST_TABLE = 'hdvideo_stock_watchlist';
 const HDV_STOCK_BUSINESS_TYPE = 115;
 
 function hdv_stock_money($value): float
 {
     return round((float)$value, 1);
+}
+
+function hdv_stock_csrf_token(int $uid): string
+{
+    $redis = \Nexus\Database\NexusDB::redis();
+    $key = 'game:stock:csrf:' . $uid;
+    $token = (string)$redis->get($key);
+    if ($token === '') {
+        $token = bin2hex(random_bytes(24));
+        $redis->setex($key, 3600, $token);
+    }
+    return $token;
 }
 
 function hdv_stock_ensure_schema(): void
@@ -55,6 +68,16 @@ function hdv_stock_ensure_schema(): void
         KEY `idx_uid_created` (`uid`,`created_at`),
         KEY `idx_symbol_created` (`symbol`,`created_at`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4") or sqlerr(__FILE__, __LINE__);
+    sql_query("CREATE TABLE IF NOT EXISTS `" . HDV_STOCK_WATCHLIST_TABLE . "` (
+        `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+        `uid` int unsigned NOT NULL,
+        `symbol` varchar(12) NOT NULL,
+        `stock_name` varchar(80) NOT NULL DEFAULT '',
+        `created_at` datetime NOT NULL,
+        PRIMARY KEY (`id`),
+        UNIQUE KEY `uk_uid_symbol` (`uid`,`symbol`),
+        KEY `idx_uid_created` (`uid`,`created_at`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4") or sqlerr(__FILE__, __LINE__);
     $done = true;
 }
 
@@ -86,6 +109,31 @@ function hdv_stock_holdings(int $uid): array
         $rows[$row['symbol']] = $row;
     }
     return $rows;
+}
+
+function hdv_stock_watchlist(int $uid): array
+{
+    $rows = [];
+    $res = sql_query("SELECT `symbol`,`stock_name`,`created_at` FROM `" . HDV_STOCK_WATCHLIST_TABLE . "` WHERE `uid`={$uid} ORDER BY `id` ASC") or sqlerr(__FILE__, __LINE__);
+    while ($row = mysql_fetch_assoc($res)) $rows[$row['symbol']] = $row;
+    return $rows;
+}
+
+function hdv_stock_toggle_watchlist(int $uid, string $symbol, bool $watching): array
+{
+    if ($watching) {
+        $countRes = sql_query("SELECT COUNT(*) AS `total` FROM `" . HDV_STOCK_WATCHLIST_TABLE . "` WHERE `uid`={$uid}") or throw new RuntimeException('自选列表读取失败。');
+        $count = (int)(mysql_fetch_assoc($countRes)['total'] ?? 0);
+        if ($count >= 100) throw new RuntimeException('每位用户最多添加 100 只自选股。');
+        $quotes = hdv_stock_fetch_quotes([$symbol]);
+        $quote = $quotes[$symbol] ?? [];
+        if (empty($quote['available'])) throw new RuntimeException('未找到该股票或行情暂不可用。');
+        $now = date('Y-m-d H:i:s');
+        sql_query("INSERT INTO `" . HDV_STOCK_WATCHLIST_TABLE . "` (`uid`,`symbol`,`stock_name`,`created_at`) VALUES ({$uid}," . sqlesc($symbol) . ',' . sqlesc((string)$quote['name']) . ',' . sqlesc($now) . ") ON DUPLICATE KEY UPDATE `stock_name`=VALUES(`stock_name`)") or throw new RuntimeException('添加自选失败。');
+    } else {
+        sql_query("DELETE FROM `" . HDV_STOCK_WATCHLIST_TABLE . "` WHERE `uid`={$uid} AND `symbol`=" . sqlesc($symbol)) or throw new RuntimeException('移除自选失败。');
+    }
+    return array_keys(hdv_stock_watchlist($uid));
 }
 
 function hdv_stock_trades(int $uid, int $limit = 20): array
@@ -227,13 +275,15 @@ hdv_stock_ensure_schema();
 $uid = (int)$CURUSER['id'];
 $config = hdv_stock_config();
 $holdingSymbols = array_keys(hdv_stock_holdings($uid));
-$allSymbols = array_values(array_unique(array_merge($config['symbols'], $holdingSymbols)));
+$watchlistSymbols = array_keys(hdv_stock_watchlist($uid));
+$allSymbols = array_values(array_unique(array_merge($config['symbols'], $holdingSymbols, $watchlistSymbols)));
+$csrfToken = hdv_stock_csrf_token($uid);
 
 if (isset($_GET['ajax'])) {
     $action = (string)$_GET['ajax'];
     if ($action === 'quotes') {
         $quotes = hdv_stock_mark_tradeable(hdv_stock_fetch_quotes($allSymbols));
-        hdv_stock_json(['ok' => true, 'quotes' => array_values($quotes), 'portfolio' => hdv_stock_portfolio($uid, $quotes, $config['ticket_rate']), 'trades' => hdv_stock_trades($uid), 'market' => hdv_stock_market_state(), 'wallet' => (float)$CURUSER['seedbonus']]);
+        hdv_stock_json(['ok' => true, 'quotes' => array_values($quotes), 'portfolio' => hdv_stock_portfolio($uid, $quotes, $config['ticket_rate']), 'trades' => hdv_stock_trades($uid), 'market' => hdv_stock_market_state(), 'wallet' => (float)$CURUSER['seedbonus'], 'watchlist' => $watchlistSymbols]);
     }
     if ($action === 'quote') {
         $symbol = hdv_stock_normalize_symbol((string)($_GET['symbol'] ?? ''));
@@ -244,18 +294,30 @@ if (isset($_GET['ajax'])) {
         $quote['trade_allowed'] = true;
         hdv_stock_json(['ok' => true, 'quote' => $quote]);
     }
+    if ($action === 'kline') {
+        $symbol = hdv_stock_normalize_symbol((string)($_GET['symbol'] ?? ''));
+        $period = hdv_stock_kline_period((string)($_GET['period'] ?? 'day'));
+        if ($symbol === null || $period === null) hdv_stock_json(['ok' => false, 'message' => '股票代码或 K 线周期无效。'], 422);
+        $kline = hdv_stock_fetch_kline($symbol, $period, 120, !empty($_GET['refresh']));
+        if (empty($kline['items'])) hdv_stock_json(['ok' => false, 'message' => '该股票的 K 线数据暂不可用。'], 503);
+        hdv_stock_json(['ok' => true, 'kline' => $kline]);
+    }
     hdv_stock_json(['ok' => false, 'message' => '未知请求。'], 404);
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $token = (string)($_POST['token'] ?? '');
-    if (empty($_SESSION['hdv_stock_token']) || !hash_equals((string)$_SESSION['hdv_stock_token'], $token)) hdv_stock_json(['ok' => false, 'message' => '页面校验已过期，请刷新后重试。'], 419);
+    if (!hash_equals($csrfToken, $token)) hdv_stock_json(['ok' => false, 'message' => '页面校验已过期，请刷新后重试。'], 419);
     $lastTrade = (float)($_SESSION['hdv_stock_last_trade'] ?? 0);
     if (microtime(true) - $lastTrade < 1) hdv_stock_json(['ok' => false, 'message' => '操作过快，请稍后再试。'], 429);
     $_SESSION['hdv_stock_last_trade'] = microtime(true);
     try {
         $symbol = hdv_stock_normalize_symbol((string)($_POST['symbol'] ?? ''));
         if ($symbol === null) throw new RuntimeException('股票代码无效。');
+        if ((string)($_POST['action'] ?? '') === 'watchlist') {
+            $watchlist = hdv_stock_toggle_watchlist($uid, $symbol, (string)($_POST['watching'] ?? '') === '1');
+            hdv_stock_json(['ok' => true, 'watchlist' => $watchlist, 'message' => in_array($symbol, $watchlist, true) ? '已加入自选。' : '已从自选移除。']);
+        }
         $result = hdv_stock_trade($uid, $config, $symbol, (string)($_POST['side'] ?? ''), (int)($_POST['shares'] ?? 0), (string)($_POST['order_key'] ?? ''));
         hdv_stock_json(['ok' => true] + $result);
     } catch (Throwable $e) {
@@ -263,7 +325,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-if (empty($_SESSION['hdv_stock_token'])) $_SESSION['hdv_stock_token'] = bin2hex(random_bytes(24));
 $quotes = hdv_stock_mark_tradeable(hdv_stock_fetch_quotes($allSymbols));
 $portfolio = hdv_stock_portfolio($uid, $quotes, $config['ticket_rate']);
 $trades = hdv_stock_trades($uid);
@@ -271,7 +332,8 @@ $market = hdv_stock_market_state();
 $initial = [
     'quotes' => array_values($quotes), 'portfolio' => $portfolio, 'trades' => $trades, 'market' => $market,
     'wallet' => (float)$CURUSER['seedbonus'], 'symbols' => $config['symbols'], 'ticketRate' => $config['ticket_rate'],
-    'feeRate' => $config['fee_rate'], 'tradeEnabled' => $config['trade_enabled'], 'token' => $_SESSION['hdv_stock_token'],
+    'feeRate' => $config['fee_rate'], 'tradeEnabled' => $config['trade_enabled'], 'token' => $csrfToken,
+    'watchlist' => $watchlistSymbols,
 ];
 
 $GLOBALS['nexus_base_href'] = get_protocol_prefix() . $BASEURL . '/';
@@ -283,25 +345,28 @@ body.game-page{background:color-mix(in srgb,var(--bili-bg,#f1f5f9) 88%,#07111f)!
 .stk *{box-sizing:border-box}.stk a{color:var(--p)}.stk-top{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:14px}.stk-title{display:flex;align-items:center;gap:12px}.stk-mark{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;color:#fff;background:linear-gradient(145deg,var(--p),var(--a));box-shadow:0 10px 25px color-mix(in srgb,var(--p) 25%,transparent)}.stk-mark svg{width:27px;height:27px;fill:none;stroke:currentColor;stroke-width:2}.stk h1{margin:0!important;font-size:28px!important}.stk-sub{margin-top:4px;color:#63738a}.stk-wallet{padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);white-space:nowrap}.stk-wallet b{color:var(--p);font-size:18px}
 .stk-status{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 14px;margin-bottom:14px;border:1px solid var(--line);border-radius:12px;background:var(--soft)}.stk-status-left{display:flex;align-items:center;gap:8px}.stk-dot{width:9px;height:9px;border-radius:50%;background:#94a3b8}.stk-status.open .stk-dot{background:#e23b4d;box-shadow:0 0 0 5px rgba(226,59,77,.12)}.stk-status strong{color:var(--p)}.stk-muted{color:#68788f;font-size:12px}
 .stk-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}.stk-metric,.stk-card{border:1px solid var(--line);border-radius:14px;background:var(--surface);box-shadow:0 8px 24px rgba(15,35,65,.06)}.stk-metric{padding:15px}.stk-metric span{display:block;color:#68788f;font-size:12px}.stk-metric b{display:block;margin-top:7px;font-size:20px}.up{color:#df3045!important}.down{color:#139b63!important}.flat{color:#65758b!important}
-.stk-layout{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(310px,.8fr);gap:14px}.stk-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}.stk-card-head h2{margin:0!important;font-size:17px!important}.stk-search{display:flex;gap:7px}.stk-search input{width:160px;min-height:38px;border:1px solid var(--line);border-radius:9px;padding:0 10px;background:var(--surface);color:var(--text)}.stk-btn{min-height:40px;border:1px solid var(--line);border-radius:9px;padding:0 14px;background:var(--soft);color:var(--p);font-weight:800;cursor:pointer;transition:background .2s,border-color .2s}.stk-btn:hover{border-color:var(--p)}.stk-btn:focus-visible,.stk-quote:focus-visible,.stk-tab:focus-visible{outline:3px solid color-mix(in srgb,var(--p) 36%,transparent);outline-offset:2px}.stk-btn:disabled{opacity:.45;cursor:not-allowed}
-.stk-quotes{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:13px}.stk-quote{position:relative;text-align:left;border:2px solid transparent;border-radius:12px;padding:12px;background:var(--soft);color:var(--text);cursor:pointer;transition:border-color .2s,background .2s}.stk-quote:hover{border-color:var(--line)}.stk-quote.selected{border-color:var(--p);background:color-mix(in srgb,var(--p) 13%,var(--surface));box-shadow:0 0 0 3px color-mix(in srgb,var(--p) 12%,transparent)}.stk-qtop,.stk-qprice{display:flex;align-items:center;justify-content:space-between;gap:8px}.stk-qtop strong{font-size:14px}.stk-code{color:#718197;font:12px ui-monospace,SFMono-Regular,Consolas,monospace}.stk-qprice{margin-top:9px}.stk-qprice b{font-size:21px}.stk-range{height:4px;margin-top:10px;border-radius:4px;background:rgba(110,130,155,.2);overflow:hidden}.stk-range i{display:block;height:100%;background:var(--p);border-radius:inherit}.stk-qtime{margin-top:7px;color:#7a899c;font-size:11px}
+.stk-layout{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(310px,.8fr);gap:14px}.stk-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}.stk-card-head h2{margin:0!important;font-size:17px!important}.stk-list-heading{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.stk-list-tabs{display:flex;gap:5px;padding:3px;border-radius:10px;background:var(--soft)}.stk-list-tab{min-height:34px;border:0;border-radius:8px;padding:0 11px;background:transparent;color:#607188;font-weight:800;cursor:pointer;transition:background .2s,color .2s}.stk-list-tab.active{background:var(--surface);color:var(--p);box-shadow:0 2px 8px rgba(15,35,65,.08)}.stk-list-tab span{margin-left:3px;font-size:11px}.stk-search{display:flex;gap:7px}.stk-search input{width:160px;min-height:38px;border:1px solid var(--line);border-radius:9px;padding:0 10px;background:var(--surface);color:var(--text)}.stk-btn{min-height:40px;border:1px solid var(--line);border-radius:9px;padding:0 14px;background:var(--soft);color:var(--p);font-weight:800;cursor:pointer;transition:background .2s,border-color .2s}.stk-btn:hover{border-color:var(--p)}.stk-btn:focus-visible,.stk-quote-main:focus-visible,.stk-watch-toggle:focus-visible,.stk-list-tab:focus-visible,.stk-tab:focus-visible{outline:3px solid color-mix(in srgb,var(--p) 36%,transparent);outline-offset:2px}.stk-btn:disabled{opacity:.45;cursor:not-allowed}
+.stk-quotes{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:13px}.stk-quote{position:relative;border:2px solid transparent;border-radius:12px;background:var(--soft);color:var(--text);overflow:hidden;transition:border-color .2s,background .2s}.stk-quote:hover{border-color:var(--line)}.stk-quote.selected{border-color:var(--p);background:color-mix(in srgb,var(--p) 13%,var(--surface));box-shadow:0 0 0 3px color-mix(in srgb,var(--p) 12%,transparent)}.stk-quote-main{display:block;width:100%;border:0;padding:12px;text-align:left;background:transparent;color:inherit;cursor:pointer}.stk-watch-toggle{position:absolute;top:7px;right:7px;z-index:2;width:40px;height:40px;border:1px solid transparent;border-radius:10px;display:grid;place-items:center;background:color-mix(in srgb,var(--surface) 86%,transparent);color:#8492a6;cursor:pointer;transition:color .2s,background .2s,border-color .2s}.stk-watch-toggle:hover{border-color:var(--line);color:var(--p)}.stk-watch-toggle.active{color:#f3a51f;background:color-mix(in srgb,#f3a51f 12%,var(--surface));border-color:color-mix(in srgb,#f3a51f 30%,transparent)}.stk-watch-toggle:disabled{opacity:.5;cursor:wait}.stk-watch-toggle svg{width:20px;height:20px;fill:transparent;stroke:currentColor;stroke-width:2;stroke-linejoin:round}.stk-watch-toggle.active svg{fill:currentColor}.stk-qtop,.stk-qprice{display:flex;align-items:center;justify-content:space-between;gap:8px}.stk-qtop{padding-right:38px}.stk-qtop strong{font-size:14px}.stk-code{color:#718197;font:12px ui-monospace,SFMono-Regular,Consolas,monospace}.stk-qprice{margin-top:9px}.stk-qprice b{font-size:21px}.stk-range{height:4px;margin-top:10px;border-radius:4px;background:rgba(110,130,155,.2);overflow:hidden}.stk-range i{display:block;height:100%;background:var(--p);border-radius:inherit}.stk-qtime{margin-top:7px;color:#7a899c;font-size:11px}.stk-list-empty{grid-column:1/-1;padding:42px 16px;text-align:center;color:#718096}.stk-list-empty b{display:block;margin-bottom:7px;color:var(--text);font-size:15px}.stk-list-message{min-height:0;padding:0 16px;color:#08794b;font-size:12px}.stk-list-message:not(:empty){padding-top:9px;padding-bottom:9px;border-top:1px solid var(--line)}
 .stk-trade{padding:15px}.stk-selected{padding:13px;border-radius:12px;background:var(--soft);border:1px solid var(--line)}.stk-selected h3{margin:0 0 6px!important;font-size:18px!important}.stk-selected-price{display:flex;align-items:end;justify-content:space-between;gap:10px}.stk-selected-price b{font-size:28px}.stk-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0}.stk-tab{min-height:43px;border:2px solid transparent;border-radius:10px;background:var(--soft);font-weight:900;cursor:pointer}.stk-tab.buy.active{border-color:#df3045;color:#df3045;background:rgba(223,48,69,.08)}.stk-tab.sell.active{border-color:#139b63;color:#139b63;background:rgba(19,155,99,.08)}.stk-field{margin-top:12px}.stk-field label{display:flex;justify-content:space-between;margin-bottom:6px;color:#607188;font-size:12px;font-weight:700}.stk-field input{width:100%;height:45px;border:1px solid var(--line);border-radius:10px;padding:0 12px;background:var(--surface);color:var(--text);font-size:16px}.stk-chips{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}.stk-chip{min-height:34px;border:1px solid var(--line);border-radius:8px;background:var(--soft);color:var(--text);cursor:pointer}.stk-estimate{margin:13px 0;padding:11px;border-radius:10px;background:var(--soft);font-size:12px;line-height:1.8}.stk-submit{width:100%;height:46px;border:0;border-radius:10px;color:#fff;font-size:15px;font-weight:900;cursor:pointer}.stk-submit.buy{background:#df3045}.stk-submit.sell{background:#139b63}.stk-notice{margin-top:10px;color:#6e7d91;font-size:11px;line-height:1.55}.stk-message{display:none;margin:0 15px 15px;padding:10px 12px;border-radius:9px;font-size:13px}.stk-message.ok{display:block;background:rgba(19,155,99,.11);color:#08794b;border:1px solid rgba(19,155,99,.25)}.stk-message.err{display:block;background:rgba(223,48,69,.1);color:#bf2035;border:1px solid rgba(223,48,69,.25)}
 .stk-bottom{display:grid;grid-template-columns:1.35fr 1fr;gap:14px;margin-top:14px}.stk-table-wrap{overflow:auto}.stk table{width:100%;border-collapse:collapse}.stk th,.stk td{padding:11px 13px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}.stk th{color:#6a7990;font-size:12px;background:var(--soft)}.stk td{font-size:13px}.stk td:last-child,.stk th:last-child{text-align:right}.stk-empty{padding:28px!important;text-align:center!important;color:#78879a}.stk-rules{margin-top:14px;padding:15px 17px;line-height:1.8}.stk-rules h2{margin:0 0 8px!important;font-size:16px!important}.stk-rules ul{margin:0;padding-left:20px}.stk-source{font-weight:700;color:var(--p)}
+.stk-detail{margin-top:14px;scroll-margin-top:16px}.stk-detail-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 17px;border-bottom:1px solid var(--line)}.stk-detail-title{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}.stk-detail-title h2{margin:0!important;font-size:20px!important}.stk-detail-price{font-size:25px;font-weight:900}.stk-kline-tabs{display:flex;gap:7px}.stk-kline-tab{min-width:62px;height:36px;border:1px solid var(--line);border-radius:8px;background:var(--soft);color:var(--text);font-weight:800;cursor:pointer}.stk-kline-tab.active{border-color:var(--p);background:var(--p);color:#fff}.stk-detail-metrics{display:grid;grid-template-columns:repeat(6,1fr);gap:1px;background:var(--line);border-bottom:1px solid var(--line)}.stk-detail-metric{padding:11px 13px;background:var(--surface)}.stk-detail-metric span{display:block;color:#6b7b91;font-size:11px}.stk-detail-metric b{display:block;margin-top:5px;font-size:14px}.stk-chart-wrap{position:relative;padding:12px 14px 4px;min-height:410px}.stk-chart-legend{display:flex;align-items:center;gap:16px;min-height:28px;color:#66768b;font-size:12px;flex-wrap:wrap}.stk-chart-legend i{display:inline-block;width:12px;height:3px;margin-right:5px;vertical-align:middle;border-radius:2px}.stk-chart-legend .ma5{background:#e59b20}.stk-chart-legend .ma10{background:#3b82f6}.stk-chart-legend .ma20{background:#a855f7}.stk-canvas{display:block;width:100%;height:350px;touch-action:none}.stk-chart-loading{position:absolute;inset:52px 14px 8px;display:grid;place-items:center;background:color-mix(in srgb,var(--surface) 88%,transparent);color:#718096;font-weight:700;border-radius:10px}.stk-chart-loading[hidden]{display:none}.stk-chart-readout{min-height:24px;padding:0 16px 12px;color:#5f7087;font:12px ui-monospace,SFMono-Regular,Consolas,monospace}.stk-detail-hint{padding:0 17px 13px;color:#718096;font-size:11px}.stk-view-detail{display:block;margin-top:7px;color:var(--p);font-size:11px;font-weight:800}.stk-quote:hover .stk-view-detail{text-decoration:underline}.stk-kline-table{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 @media(max-width:900px){.stk-metrics{grid-template-columns:repeat(2,1fr)}.stk-layout,.stk-bottom{grid-template-columns:1fr}.stk-quotes{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:560px){.stk{padding:10px}.stk-top{align-items:flex-start;flex-direction:column}.stk-wallet{width:100%}.stk-status{align-items:flex-start;flex-direction:column}.stk-metrics{gap:8px}.stk-metric{padding:12px}.stk-metric b{font-size:17px}.stk-card-head{align-items:flex-start;flex-direction:column}.stk-search{width:100%}.stk-search input{flex:1;width:auto}.stk-quotes{grid-template-columns:1fr}.stk h1{font-size:23px!important}.stk th,.stk td{padding:9px 10px}}
+@media(max-width:900px){.stk-detail-metrics{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:560px){.stk{padding:10px}.stk-top{align-items:flex-start;flex-direction:column}.stk-wallet{width:100%}.stk-status{align-items:flex-start;flex-direction:column}.stk-metrics{gap:8px}.stk-metric{padding:12px}.stk-metric b{font-size:17px}.stk-card-head{align-items:flex-start;flex-direction:column}.stk-list-heading{width:100%;justify-content:space-between}.stk-list-tabs{margin-left:auto}.stk-list-tab{min-height:40px}.stk-search{width:100%}.stk-search input{flex:1;width:auto}.stk-quotes{grid-template-columns:1fr}.stk h1{font-size:23px!important}.stk th,.stk td{padding:9px 10px}.stk-detail-head{align-items:flex-start;flex-direction:column}.stk-kline-tabs{width:100%}.stk-kline-tab{flex:1}.stk-detail-metrics{grid-template-columns:repeat(2,1fr)}.stk-chart-wrap{padding:8px 5px 2px;min-height:340px}.stk-canvas{height:290px}.stk-chart-legend{gap:9px;padding:0 7px}.stk-chart-readout{padding-left:10px;padding-right:10px;overflow-x:auto;white-space:nowrap}}
 @media(prefers-reduced-motion:reduce){.stk *{scroll-behavior:auto!important;transition:none!important}}
 </style>
 <div class="stk">
  <div class="stk-top">
-  <div class="stk-title"><span class="stk-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9m6 10V5m6 14v-7m4 7H2"/><path d="m3 7 5-4 5 5 7-6"/></svg></span><div><a href="/games/">返回游戏列表</a><h1>股票模拟交易 <small>内测中 v0.1</small></h1><div class="stk-sub">真实 A 股行情定价，使用站内电影票进行虚拟买卖</div></div></div>
+  <div class="stk-title"><span class="stk-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9m6 10V5m6 14v-7m4 7H2"/><path d="m3 7 5-4 5 5 7-6"/></svg></span><div><a href="/games/">返回游戏列表</a><h1>股票模拟交易 <small>内测中 v0.2</small></h1><div class="stk-sub">真实 A 股行情定价，使用站内电影票进行虚拟买卖</div></div></div>
   <div class="stk-wallet">电影票余额 <b id="wallet"></b></div>
  </div>
  <div class="stk-status <?php echo $market['open'] ? 'open' : '' ?>"><div class="stk-status-left"><span class="stk-dot"></span><strong id="marketLabel"></strong><span class="stk-muted" id="marketTime"></span></div><div class="stk-muted">行情源：<span class="stk-source">腾讯证券行情</span> · 约每 15 秒刷新 · 行情仅用于站内娱乐</div></div>
  <div class="stk-metrics" id="metrics"></div>
  <div class="stk-layout">
   <section class="stk-card">
-   <div class="stk-card-head"><h2>实时行情</h2><form class="stk-search" id="searchForm"><label class="sr-only" for="stockSearch">股票代码</label><input id="stockSearch" inputmode="numeric" maxlength="8" placeholder="输入六位股票代码"><button class="stk-btn" type="submit">查询</button></form></div>
+   <div class="stk-card-head"><div class="stk-list-heading"><h2>股票列表</h2><div class="stk-list-tabs" role="group" aria-label="股票列表筛选"><button type="button" class="stk-list-tab active" data-list-filter="all" aria-pressed="true">全部 <span id="allCount">0</span></button><button type="button" class="stk-list-tab" data-list-filter="watch" aria-pressed="false">自选 <span id="watchCount">0</span></button></div></div><form class="stk-search" id="searchForm"><label class="sr-only" for="stockSearch">股票代码</label><input id="stockSearch" inputmode="numeric" maxlength="8" placeholder="输入六位股票代码"><button class="stk-btn" type="submit">查询</button></form></div>
    <div class="stk-quotes" id="quotes"></div>
+   <div class="stk-list-message" id="listMessage" role="status" aria-live="polite"></div>
   </section>
   <aside class="stk-card">
    <div class="stk-card-head"><h2>虚拟买卖</h2><span class="stk-muted">100 股 / 手</span></div>
@@ -319,6 +384,14 @@ body.game-page{background:color-mix(in srgb,var(--bili-bg,#f1f5f9) 88%,#07111f)!
    <div class="stk-message" id="message" role="status" aria-live="polite"></div>
   </aside>
  </div>
+ <section class="stk-card stk-detail" id="stockDetail" aria-labelledby="detailTitle">
+  <div class="stk-detail-head"><div class="stk-detail-title"><h2 id="detailTitle">股票详情</h2><span class="stk-code" id="detailCode"></span><b class="stk-detail-price" id="detailPrice">--</b><span id="detailChange"></span></div><div class="stk-kline-tabs" role="tablist" aria-label="K线周期"><button type="button" class="stk-kline-tab active" data-period="day" role="tab" aria-selected="true">日 K</button><button type="button" class="stk-kline-tab" data-period="week" role="tab" aria-selected="false">周 K</button><button type="button" class="stk-kline-tab" data-period="month" role="tab" aria-selected="false">月 K</button></div></div>
+  <div class="stk-detail-metrics" id="detailMetrics"></div>
+  <div class="stk-chart-wrap"><div class="stk-chart-legend"><span><i class="ma5"></i>MA5</span><span><i class="ma10"></i>MA10</span><span><i class="ma20"></i>MA20</span><span>红涨绿跌</span><span id="klineStatus"></span></div><canvas class="stk-canvas" id="klineCanvas" aria-label="股票 K 线图"></canvas><div class="stk-chart-loading" id="chartLoading">正在加载真实 K 线数据…</div></div>
+  <div class="stk-chart-readout" id="klineHover" aria-live="polite">移动鼠标或触摸 K 线查看开高低收与成交量</div>
+  <div class="stk-detail-hint">K 线为前复权行情；图表下方柱形为成交量。行情仅用于站内电影票模拟交易，不构成投资建议。</div>
+  <table class="stk-kline-table" aria-label="最近 K 线数据"><thead><tr><th>日期</th><th>开盘</th><th>最高</th><th>最低</th><th>收盘</th><th>成交量</th></tr></thead><tbody id="klineA11y"></tbody></table>
+ </section>
  <div class="stk-bottom">
   <section class="stk-card"><div class="stk-card-head"><h2>我的持仓</h2><span class="stk-muted">市值按最新可用行情估算</span></div><div class="stk-table-wrap"><table><thead><tr><th>股票</th><th>持仓</th><th>成本/股</th><th>现价</th><th>市值</th><th>浮动盈亏</th></tr></thead><tbody id="holdings"></tbody></table></div></section>
   <section class="stk-card"><div class="stk-card-head"><h2>最近成交</h2><span class="stk-muted">电影票流水同步记录</span></div><div class="stk-table-wrap"><table><thead><tr><th>时间</th><th>方向</th><th>股票</th><th>股数</th><th>结算</th></tr></thead><tbody id="trades"></tbody></table></div></section>
@@ -328,33 +401,62 @@ body.game-page{background:color-mix(in srgb,var(--bili-bg,#f1f5f9) 88%,#07111f)!
 <script>
 const stockState=<?php echo json_encode($initial, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 const stockEndpoint=window.location.origin+'/games/market.php';
-let selectedSymbol=stockState.symbols[0]||'',side='buy',busy=false,extraQuotes={};
+let selectedSymbol=stockState.symbols[0]||stockState.watchlist[0]||'',side='buy',busy=false,extraQuotes={},klinePeriod='day',klineData=[],klineLoading=false,klineLoadedAt=0,listFilter='all',watchBusy={};
 const el=id=>document.getElementById(id),money=v=>Number(v||0).toLocaleString('zh-CN',{minimumFractionDigits:1,maximumFractionDigits:1}),price=v=>Number(v||0).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2}),esc=s=>String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 function quoteMap(){const map={};[...stockState.quotes,...Object.values(extraQuotes)].forEach(q=>map[q.symbol]=q);return map}
 function cls(v){return Number(v)>0?'up':Number(v)<0?'down':'flat'}
 function holding(symbol){return stockState.portfolio.holdings.find(h=>h.symbol===symbol)||null}
+function isWatched(symbol){return stockState.watchlist.includes(symbol)}
 function render(){
  const quotes=quoteMap(),p=stockState.portfolio,w=Number(stockState.wallet||0),total=w+Number(p.market_value||0);
  el('wallet').textContent=money(w);el('marketLabel').textContent=stockState.market.label;el('marketTime').textContent='北京时间 '+stockState.market.time;document.querySelector('.stk-status').classList.toggle('open',!!stockState.market.open);
  el('metrics').innerHTML=`<div class="stk-metric"><span>电影票余额</span><b>${money(w)}</b></div><div class="stk-metric"><span>股票市值</span><b>${money(p.market_value)}</b></div><div class="stk-metric"><span>总资产</span><b>${money(total)}</b></div><div class="stk-metric"><span>持仓浮动盈亏</span><b class="${cls(p.profit)}">${Number(p.profit)>=0?'+':''}${money(p.profit)}</b></div>`;
- const ordered=[...stockState.symbols,...Object.keys(extraQuotes).filter(s=>!stockState.symbols.includes(s))];
- el('quotes').innerHTML=ordered.map(s=>{const q=quotes[s]||{symbol:s,code:s.slice(2),available:false},range=q.high>q.low?Math.max(0,Math.min(100,(q.price-q.low)/(q.high-q.low)*100)):50;return `<button type="button" class="stk-quote ${s===selectedSymbol?'selected':''}" data-symbol="${esc(s)}" aria-pressed="${s===selectedSymbol}"><div class="stk-qtop"><strong>${esc(q.name||'行情加载中')}</strong><span class="stk-code">${esc(q.code||s.slice(2))}</span></div><div class="stk-qprice"><b class="${cls(q.change)}">${q.available?price(q.price):'--'}</b><span class="${cls(q.change)}">${q.available?(Number(q.change)>=0?'+':'')+price(q.change)+' ('+(Number(q.percent)>=0?'+':'')+Number(q.percent).toFixed(2)+'%)':'暂不可用'}</span></div><div class="stk-range"><i style="width:${range}%"></i></div><div class="stk-qtime">${q.stale?'行情源暂不可用 · 显示缓存':'更新 '+esc(q.quote_time||'--')}</div></button>`}).join('');
+ const allOrdered=[...stockState.symbols,...stockState.watchlist.filter(s=>!stockState.symbols.includes(s)),...Object.keys(extraQuotes).filter(s=>!stockState.symbols.includes(s)&&!stockState.watchlist.includes(s))],ordered=listFilter==='watch'?allOrdered.filter(isWatched):allOrdered;
+ el('allCount').textContent=allOrdered.length;el('watchCount').textContent=stockState.watchlist.length;document.querySelectorAll('.stk-list-tab').forEach(b=>{const on=b.dataset.listFilter===listFilter;b.classList.toggle('active',on);b.setAttribute('aria-pressed',on?'true':'false')});
+ el('quotes').innerHTML=ordered.length?ordered.map(s=>{const q=quotes[s]||{symbol:s,code:s.slice(2),available:false},range=q.high>q.low?Math.max(0,Math.min(100,(q.price-q.low)/(q.high-q.low)*100)):50,watched=isWatched(s),watchLabel=(watched?'从自选移除 ':'加入自选 ')+(q.name||q.code||s);return `<article class="stk-quote ${s===selectedSymbol?'selected':''}"><button type="button" class="stk-quote-main" data-symbol="${esc(s)}" aria-pressed="${s===selectedSymbol}"><div class="stk-qtop"><strong>${esc(q.name||'行情加载中')}</strong><span class="stk-code">${esc(q.code||s.slice(2))}</span></div><div class="stk-qprice"><b class="${cls(q.change)}">${q.available?price(q.price):'--'}</b><span class="${cls(q.change)}">${q.available?(Number(q.change)>=0?'+':'')+price(q.change)+' ('+(Number(q.percent)>=0?'+':'')+Number(q.percent).toFixed(2)+'%)':'暂不可用'}</span></div><div class="stk-range"><i style="width:${range}%"></i></div><div class="stk-qtime">${q.stale?'行情源暂不可用 · 显示缓存':'更新 '+esc(q.quote_time||'--')}</div><span class="stk-view-detail">查看详情与 K 线</span></button><button type="button" class="stk-watch-toggle ${watched?'active':''}" data-watch-symbol="${esc(s)}" aria-pressed="${watched}" aria-label="${esc(watchLabel)}" title="${esc(watchLabel)}" ${watchBusy[s]?'disabled':''}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/></svg></button></article>`}).join(''):'<div class="stk-list-empty"><b>还没有自选股</b>在“全部”列表或查询股票后，点击星标即可加入自选。</div>';
  const q=quotes[selectedSymbol]||{},h=holding(selectedSymbol),allowed=!!q.available;
  el('selected').innerHTML=`<h3>${esc(q.name||'请选择股票')} <span class="stk-code">${esc(q.code||'')}</span></h3><div class="stk-selected-price"><b class="${cls(q.change)}">${q.available?price(q.price):'--'}</b><span class="${cls(q.change)}">${q.available?(Number(q.percent)>=0?'+':'')+Number(q.percent).toFixed(2)+'%':''}</span></div>`;
  document.querySelectorAll('.stk-tab').forEach(b=>b.classList.toggle('active',b.dataset.side===side));el('availableShares').textContent=side==='sell'?`可卖 ${Number(h?.shares||0).toLocaleString()} 股`:'100 股起买';
  const shares=Math.max(0,Number(el('shares').value||0)),gross=Number(q.price||0)*shares*Number(stockState.ticketRate),fee=Math.max(1,gross*Number(stockState.feeRate)),settle=side==='sell'?gross-fee:gross+fee;
  el('estimate').innerHTML=`实时价 <b>${q.available?price(q.price):'--'}</b><br>成交金额约 <b>${money(gross)}</b> 电影票 · 手续费约 <b>${money(fee)}</b><br>${side==='buy'?'预计扣除':'预计获得'} <b>${money(settle)}</b> 电影票`;
  const submit=el('submitTrade');submit.className='stk-submit '+side;submit.textContent=busy?'处理中…':'确认'+(side==='buy'?'买入':'卖出');submit.disabled=busy||!q.available||!q.tradeable||!stockState.tradeEnabled||!allowed;
+ renderDetailQuote(q,h);
  el('holdings').innerHTML=p.holdings.length?p.holdings.map(x=>`<tr><td><b>${esc(x.stock_name)}</b><br><span class="stk-code">${esc(x.symbol)}</span></td><td>${Number(x.shares).toLocaleString()}</td><td>${price(x.avg_cost)}</td><td>${x.price?price(x.price):'--'}</td><td>${money(x.market_value)}</td><td class="${cls(x.profit)}">${Number(x.profit)>=0?'+':''}${money(x.profit)}<br><small>${Number(x.profit_percent).toFixed(2)}%</small></td></tr>`).join(''):'<tr><td class="stk-empty" colspan="6">暂无持仓，选择股票后可使用电影票买入</td></tr>';
  el('trades').innerHTML=stockState.trades.length?stockState.trades.map(t=>`<tr><td>${esc(t.created_at.slice(5,16))}</td><td class="${t.side==='buy'?'up':'down'}">${t.side==='buy'?'买入':'卖出'}</td><td>${esc(t.stock_name)}<br><span class="stk-code">${esc(t.symbol)}</span></td><td>${Number(t.shares).toLocaleString()}</td><td>${money(t.ticket_value)}</td></tr>`).join(''):'<tr><td class="stk-empty" colspan="5">暂无成交记录</td></tr>';
 }
-async function refresh(){try{const r=await fetch(stockEndpoint+'?ajax=quotes',{credentials:'same-origin'}),d=await r.json();if(d.ok){stockState.quotes=d.quotes;stockState.portfolio=d.portfolio;stockState.trades=d.trades;stockState.market=d.market;stockState.wallet=d.wallet;render()}}catch(e){}}
-document.addEventListener('click',e=>{const q=e.target.closest('.stk-quote');if(q){selectedSymbol=q.dataset.symbol;render()}const tab=e.target.closest('.stk-tab');if(tab){side=tab.dataset.side;render()}const chip=e.target.closest('.stk-chip');if(chip){el('shares').value=chip.dataset.shares;render()}});
+function renderDetailQuote(q,h){
+ const amplitude=Number(q.previous_close)>0?(Number(q.high)-Number(q.low))/Number(q.previous_close)*100:0;
+ el('detailTitle').textContent=q.name||'股票详情';el('detailCode').textContent=q.symbol||'';el('detailPrice').textContent=q.available?price(q.price):'--';el('detailPrice').className='stk-detail-price '+cls(q.change);el('detailChange').className=cls(q.change);el('detailChange').textContent=q.available?`${Number(q.change)>=0?'+':''}${price(q.change)} (${Number(q.percent)>=0?'+':''}${Number(q.percent).toFixed(2)}%)`:'';
+ el('detailMetrics').innerHTML=`<div class="stk-detail-metric"><span>今开</span><b>${q.open?price(q.open):'--'}</b></div><div class="stk-detail-metric"><span>最高</span><b class="up">${q.high?price(q.high):'--'}</b></div><div class="stk-detail-metric"><span>最低</span><b class="down">${q.low?price(q.low):'--'}</b></div><div class="stk-detail-metric"><span>昨收</span><b>${q.previous_close?price(q.previous_close):'--'}</b></div><div class="stk-detail-metric"><span>成交量（手）</span><b>${Number(q.volume||0).toLocaleString()}</b></div><div class="stk-detail-metric"><span>振幅</span><b>${amplitude.toFixed(2)}%</b></div>`;
+}
+async function refresh(){try{const r=await fetch(stockEndpoint+'?ajax=quotes',{credentials:'same-origin'}),d=await r.json();if(d.ok){stockState.quotes=d.quotes;stockState.portfolio=d.portfolio;stockState.trades=d.trades;stockState.market=d.market;stockState.wallet=d.wallet;stockState.watchlist=d.watchlist||[];render()}}catch(e){}}
+async function selectStock(symbol,scroll){selectedSymbol=symbol;render();await loadKline();if(scroll)el('stockDetail').scrollIntoView({behavior:'smooth',block:'start'})}
+async function toggleWatch(symbol){if(watchBusy[symbol])return;watchBusy[symbol]=true;render();const watching=!isWatched(symbol),body=new URLSearchParams({token:stockState.token,action:'watchlist',symbol,watching:watching?'1':'0'});try{const r=await fetch(stockEndpoint,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/x-www-form-urlencoded'},body}),d=await r.json();if(!d.ok)throw new Error(d.message);stockState.watchlist=d.watchlist||[];el('listMessage').textContent=d.message||'';}catch(err){el('listMessage').textContent=err.message||'自选操作失败。'}finally{delete watchBusy[symbol];render()}}
+document.addEventListener('click',e=>{const watch=e.target.closest('.stk-watch-toggle');if(watch){toggleWatch(watch.dataset.watchSymbol);return}const filter=e.target.closest('.stk-list-tab');if(filter){listFilter=filter.dataset.listFilter;render();return}const q=e.target.closest('.stk-quote-main');if(q){selectStock(q.dataset.symbol,true);return}const tab=e.target.closest('.stk-tab');if(tab){side=tab.dataset.side;render();return}const period=e.target.closest('.stk-kline-tab');if(period){klinePeriod=period.dataset.period;document.querySelectorAll('.stk-kline-tab').forEach(b=>{const on=b.dataset.period===klinePeriod;b.classList.toggle('active',on);b.setAttribute('aria-selected',on?'true':'false')});loadKline(true);return}const chip=e.target.closest('.stk-chip');if(chip){el('shares').value=chip.dataset.shares;render()}});
 el('shares').addEventListener('input',render);
-el('searchForm').addEventListener('submit',async e=>{e.preventDefault();const value=el('stockSearch').value.trim();if(!/^\d{6}$/.test(value)){show('请输入六位股票代码。',false);return}try{const r=await fetch(stockEndpoint+'?ajax=quote&symbol='+encodeURIComponent(value),{credentials:'same-origin'}),d=await r.json();if(!d.ok)throw new Error(d.message);extraQuotes[d.quote.symbol]=d.quote;selectedSymbol=d.quote.symbol;render()}catch(err){show(err.message||'查询失败。',false)}});
+el('searchForm').addEventListener('submit',async e=>{e.preventDefault();const value=el('stockSearch').value.trim();if(!/^\d{6}$/.test(value)){show('请输入六位股票代码。',false);return}try{const r=await fetch(stockEndpoint+'?ajax=quote&symbol='+encodeURIComponent(value),{credentials:'same-origin'}),d=await r.json();if(!d.ok)throw new Error(d.message);extraQuotes[d.quote.symbol]=d.quote;await selectStock(d.quote.symbol,true)}catch(err){show(err.message||'查询失败。',false)}});
 function orderKey(){return (crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random().toString(36).slice(2)+'-'+Math.random().toString(36).slice(2))}
 function show(message,ok){const m=el('message');m.className='stk-message '+(ok?'ok':'err');m.textContent=message}
 el('tradeForm').addEventListener('submit',async e=>{e.preventDefault();if(busy)return;busy=true;render();const body=new URLSearchParams({token:stockState.token,symbol:selectedSymbol,side,shares:el('shares').value,order_key:orderKey()});try{const r=await fetch(stockEndpoint,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/x-www-form-urlencoded'},body}),d=await r.json();if(!d.ok)throw new Error(d.message);show(d.message,true);await refresh()}catch(err){show(err.message||'交易失败。',false)}finally{busy=false;render()}});
-render();setInterval(refresh,15000);
+async function loadKline(force=false){
+ const requestSymbol=selectedSymbol,requestPeriod=klinePeriod;if(!requestSymbol)return;klineLoading=true;el('chartLoading').hidden=false;el('chartLoading').textContent='正在加载真实 K 线数据…';el('klineStatus').textContent='';
+ try{const r=await fetch(stockEndpoint+'?ajax=kline&symbol='+encodeURIComponent(requestSymbol)+'&period='+encodeURIComponent(requestPeriod)+(force?'&refresh=1':''),{credentials:'same-origin'}),d=await r.json();if(!d.ok)throw new Error(d.message);if(requestSymbol!==selectedSymbol||requestPeriod!==klinePeriod)return;klineData=d.kline.items||[];klineLoadedAt=Date.now();el('klineStatus').textContent=d.kline.stale?'行情源异常，显示缓存数据':`${klineData.length} 根 · 前复权`;renderKlineTable();drawKline();}
+ catch(err){if(requestSymbol===selectedSymbol&&requestPeriod===klinePeriod){klineData=[];drawKline();el('chartLoading').hidden=false;el('chartLoading').textContent=err.message||'K 线加载失败';}}
+ finally{if(requestSymbol===selectedSymbol&&requestPeriod===klinePeriod&&klineData.length)el('chartLoading').hidden=true;klineLoading=false}
+}
+function renderKlineTable(){el('klineA11y').innerHTML=klineData.slice(-20).reverse().map(x=>`<tr><td>${esc(x.date)}</td><td>${price(x.open)}</td><td>${price(x.high)}</td><td>${price(x.low)}</td><td>${price(x.close)}</td><td>${Number(x.volume).toLocaleString()}</td></tr>`).join('')}
+function drawKline(hoverIndex=null){
+ const canvas=el('klineCanvas'),rect=canvas.getBoundingClientRect(),w=Math.max(300,Math.round(rect.width)),h=Math.max(260,Math.round(rect.height)),dpr=Math.max(1,window.devicePixelRatio||1);canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);const c=canvas.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,w,h);if(!klineData.length){c.fillStyle='#718096';c.font='13px sans-serif';c.textAlign='center';c.fillText('暂无 K 线数据',w/2,h/2);return}
+ const left=52,right=12,top=12,priceBottom=Math.round(h*.72),volTop=priceBottom+24,bottom=h-24,plotW=w-left-right,plotH=priceBottom-top,items=klineData,maxPrice=Math.max(...items.map(x=>Math.max(x.high,x.ma5||0,x.ma10||0,x.ma20||0))),minPrice=Math.min(...items.map(x=>Math.min(x.low,x.ma5||Infinity,x.ma10||Infinity,x.ma20||Infinity))),range=Math.max(.01,maxPrice-minPrice),maxVol=Math.max(1,...items.map(x=>x.volume)),step=plotW/items.length,bodyW=Math.max(2,Math.min(9,step*.62)),xAt=i=>left+step*(i+.5),yAt=v=>top+(maxPrice-v)/range*plotH;
+ c.strokeStyle='rgba(100,120,145,.18)';c.fillStyle='#708096';c.font='11px ui-monospace,monospace';c.textAlign='right';c.lineWidth=1;for(let i=0;i<=4;i++){const y=top+plotH*i/4;c.beginPath();c.moveTo(left,y);c.lineTo(w-right,y);c.stroke();c.fillText(price(maxPrice-range*i/4),left-6,y+4)}
+ items.forEach((x,i)=>{const px=xAt(i),up=x.close>=x.open,color=up?'#df3045':'#139b63',yo=yAt(x.open),yc=yAt(x.close),yh=yAt(x.high),yl=yAt(x.low);c.strokeStyle=color;c.fillStyle=color;c.beginPath();c.moveTo(px,yh);c.lineTo(px,yl);c.stroke();c.fillRect(px-bodyW/2,Math.min(yo,yc),bodyW,Math.max(1,Math.abs(yc-yo)));const vh=(x.volume/maxVol)*(bottom-volTop);c.globalAlpha=.45;c.fillRect(px-bodyW/2,bottom-vh,bodyW,vh);c.globalAlpha=1});
+ const line=(field,color)=>{c.strokeStyle=color;c.lineWidth=1.35;c.beginPath();let started=false;items.forEach((x,i)=>{if(x[field]==null)return;const px=xAt(i),py=yAt(x[field]);if(!started){c.moveTo(px,py);started=true}else c.lineTo(px,py)});if(started)c.stroke()};line('ma5','#e59b20');line('ma10','#3b82f6');line('ma20','#a855f7');
+ c.fillStyle='#708096';c.textAlign='center';c.font='10px ui-monospace,monospace';const marks=[0,Math.floor((items.length-1)/3),Math.floor((items.length-1)*2/3),items.length-1];[...new Set(marks)].forEach(i=>c.fillText(items[i].date.slice(5),xAt(i),h-7));
+ if(hoverIndex!=null&&hoverIndex>=0&&hoverIndex<items.length){const i=hoverIndex,x=items[i],px=xAt(i),py=yAt(x.close);c.strokeStyle='rgba(75,90,115,.55)';c.setLineDash([4,4]);c.beginPath();c.moveTo(px,top);c.lineTo(px,bottom);c.moveTo(left,py);c.lineTo(w-right,py);c.stroke();c.setLineDash([]);el('klineHover').textContent=`${x.date}  开 ${price(x.open)}  高 ${price(x.high)}  低 ${price(x.low)}  收 ${price(x.close)}  量 ${Number(x.volume).toLocaleString()}`}
+}
+function chartIndexFromEvent(clientX){const canvas=el('klineCanvas'),r=canvas.getBoundingClientRect(),left=52,plot=Math.max(1,r.width-left-12),i=Math.floor((clientX-r.left-left)/(plot/klineData.length));return Math.max(0,Math.min(klineData.length-1,i))}
+el('klineCanvas').addEventListener('mousemove',e=>{if(klineData.length)drawKline(chartIndexFromEvent(e.clientX))});el('klineCanvas').addEventListener('mouseleave',()=>{el('klineHover').textContent='移动鼠标或触摸 K 线查看开高低收与成交量';drawKline()});el('klineCanvas').addEventListener('touchmove',e=>{if(klineData.length&&e.touches[0]){e.preventDefault();drawKline(chartIndexFromEvent(e.touches[0].clientX))}},{passive:false});
+if(window.ResizeObserver)new ResizeObserver(()=>{if(klineData.length)drawKline()}).observe(el('klineCanvas'));
+render();loadKline();setInterval(()=>{refresh();if(stockState.market.open&&Date.now()-klineLoadedAt>60000&&!klineLoading)loadKline(true)},15000);
 </script>
 <?php stdfoot();
