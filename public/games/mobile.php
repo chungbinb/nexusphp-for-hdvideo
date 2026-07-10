@@ -42,11 +42,16 @@ body.page-games { background: #0c1622 !important; color: #e7eef7 !important; }
 
 .gm-tabs { display: flex; gap: 22px; overflow-x: auto; margin: 2px 0 16px; padding-bottom: 6px; color: #9eb4ca; font-size: 16px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
 .gm-tabs::-webkit-scrollbar { display: none; }
-.gm-tab2 { white-space: nowrap; padding-bottom: 7px; position: relative; }
-.gm-tab2.on { color: #fff; font-weight: 700; }
+.gm-tab2 { white-space: nowrap; padding-bottom: 7px; position: relative; color: inherit !important; text-decoration: none !important; }
+.gm-tab2.on { color: #fff !important; font-weight: 700; }
 .gm-tab2.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: #35b8f1; border-radius: 2px; }
 
 .gm-sec { font-size: 15px; font-weight: 800; color: #d4e3f4; margin: 20px 2px 12px; }
+
+.gm-sort { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; padding: 11px 12px; border: 1px solid rgba(91,129,166,.24); border-radius: 10px; background: #16222f; }
+.gm-sort label { color: #b8c9db; font-weight: 700; white-space: nowrap; }
+.gm-sort select { min-width: 0; flex: 1; min-height: 42px; padding: 0 34px 0 11px; border: 1px solid rgba(91,129,166,.38); border-radius: 8px; background: #0d1b28; color: #fff; }
+.gm-sort button { min-height: 42px; padding: 0 14px; border: 0; border-radius: 8px; background: #1f6fb0; color: #fff; font-weight: 800; }
 
 .gm-list { display: flex; flex-direction: column; gap: 16px; }
 .gm-sc { display: block; background: #16222f; border: 1px solid rgba(91,129,166,.2); border-radius: 12px; overflow: hidden; transition: transform .12s ease; }
@@ -68,6 +73,12 @@ body.page-games { background: #0c1622 !important; color: #e7eef7 !important; }
 .theme-hilo{--game-a:#8e44ad;--game-b:#1a0b26;} .theme-moviequiz{--game-a:#9b59b6;--game-b:#161226;}
 
 .gm-board { margin-top: 4px; }
+.gm-info { scroll-margin-top: 12px; margin-top: 20px; padding: 14px; border: 1px solid rgba(91,129,166,.24); border-radius: 12px; background: #16222f; }
+.gm-info h2 { margin: 0 0 11px !important; color: #fff !important; font-size: 17px; }
+.gm-rule-list, .gm-coming-list { display: grid; gap: 9px; }
+.gm-rule-item, .gm-coming-item { padding: 11px 12px; border: 1px solid rgba(91,129,166,.2); border-radius: 9px; background: #101d29; }
+.gm-rule-item strong, .gm-coming-item strong { display: block; color: #fff; }
+.gm-rule-item span, .gm-coming-item span { display: block; margin-top: 4px; color: #9fb6cf; line-height: 1.55; }
 </style>
 
 <div class="gm">
@@ -77,14 +88,22 @@ body.page-games { background: #0c1622 !important; color: #e7eef7 !important; }
     </div>
 
     <div class="gm-tabs">
-        <span class="gm-tab2 on">热门新品</span>
-        <span class="gm-tab2">热销游戏</span>
-        <span class="gm-tab2">即将推出</span>
-        <span class="gm-tab2">优惠</span>
-        <span class="gm-tab2">免费畅玩</span>
+        <a class="gm-tab2 on" href="#game-list">游戏列表</a>
+        <a class="gm-tab2" href="#game-rules">游戏规则</a>
+        <a class="gm-tab2" href="#coming-soon">即将推出</a>
     </div>
 
-    <div class="gm-list">
+    <form class="gm-sort" method="get" action="">
+        <label for="gmGameSort">排序</label>
+        <select id="gmGameSort" name="sort" onchange="this.form.submit()">
+            <?php foreach ($gameSortOptions as $sortKey => $sortLabel) { ?>
+                <option value="<?php echo htmlspecialchars($sortKey) ?>" <?php echo $gameSort === $sortKey ? 'selected' : '' ?>><?php echo htmlspecialchars($sortLabel) ?></option>
+            <?php } ?>
+        </select>
+        <button type="submit">应用</button>
+    </form>
+
+    <div class="gm-list" id="game-list">
         <?php foreach ($games as $game) {
             $ctrlKey = preg_match('#^/games/([^/]+)/#', $game['href'], $m) ? $m[1] : null;
             $gClosed = $ctrlKey ? !game_is_open($ctrlKey) : false;
@@ -115,6 +134,26 @@ body.page-games { background: #0c1622 !important; color: #e7eef7 !important; }
             </a>
         <?php } ?>
     </div>
+
+    <section class="gm-info" id="game-rules" aria-labelledby="gmRulesTitle">
+        <h2 id="gmRulesTitle">游戏规则</h2>
+        <div class="gm-rule-list">
+            <div class="gm-rule-item"><strong>统一结算</strong><span>大厅游戏统一使用电影票参与和结算，详细投入、赔率及奖励以各游戏页面为准。</span></div>
+            <div class="gm-rule-item"><strong>公平记录</strong><span>开奖结果由服务端生成并记录，排行榜与个人战绩按照实际结算数据更新。</span></div>
+            <div class="gm-rule-item"><strong>内测说明</strong><span>内测或公测游戏仍可能调整规则；未开放游戏仅供有权限的管理员预览。</span></div>
+        </div>
+    </section>
+
+    <section class="gm-info" id="coming-soon" aria-labelledby="gmComingTitle">
+        <h2 id="gmComingTitle">即将推出</h2>
+        <div class="gm-coming-list">
+            <?php if (!$comingGames) { ?>
+                <div class="gm-coming-item"><span>暂无即将推出的游戏</span></div>
+            <?php } else { foreach ($comingGames as $game) { ?>
+                <div class="gm-coming-item"><strong><?php echo htmlspecialchars($game['title']) ?></strong><span><?php echo htmlspecialchars($game['badge'] ?? $game['status']) ?> · <?php echo htmlspecialchars($game['subtitle']) ?></span></div>
+            <?php } } ?>
+        </div>
+    </section>
 
     <div class="gm-sec">🏆 游戏大厅总榜</div>
     <div class="gm-board">
