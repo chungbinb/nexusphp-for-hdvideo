@@ -7345,28 +7345,24 @@ body.page-settings table.main td.rowfollow .medium {
 
 /* Forum moderator balance penalty action. */
 .forum-penalty-link {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	min-height: 28px;
-	margin: 0 4px;
-	padding: 0 9px;
-	border: 1px solid rgba(200,63,77,.38);
-	border-radius: 7px;
-	background: rgba(200,63,77,.09);
-	color: #b52f3d !important;
-	font-size: 12px;
-	font-weight: 800;
-	line-height: 1;
+	display: inline-block;
+	width: 62px;
+	height: 25px;
+	line-height: 0;
+	vertical-align: bottom;
 	text-decoration: none !important;
-	transition: background .2s ease, border-color .2s ease;
 }
-.forum-penalty-link:hover {
-	border-color: #c83f4d;
-	background: rgba(200,63,77,.16);
+.forum-penalty-link .f_penalty {
+	display: block;
+	width: 62px;
+	height: 25px;
+	max-width: none;
+	transition: filter .15s ease;
 }
-:root[data-site-theme="night"] .forum-penalty-link {
-	border-color: rgba(255,125,137,.48);
-	background: rgba(255,125,137,.12);
-	color: #ff9da6 !important;
+.forum-penalty-link:hover .f_penalty {
+	filter: brightness(1.14);
+}
+.forum-penalty-link:focus-visible {
+	outline: 2px solid #f2a93b;
+	outline-offset: 2px;
 }

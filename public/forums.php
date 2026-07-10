@@ -310,6 +310,12 @@ function forum_inline_reply_link($postId, $title): string
 	return "<a href=\"" . htmlspecialchars("?action=quotepost&postid=" . $postId) . "\" onclick=\"return forumToggleInlineReply(" . $postId . ");\"><img class=\"f_quote\" src=\"pic/trans.gif\" alt=\"Quote\" title=\"" . $title . "\" /></a>";
 }
 
+function forum_penalty_link($postId): string
+{
+	$postId = (int)$postId;
+	return '<a class="forum-penalty-link" href="' . htmlspecialchars('?action=penalizepost&postid=' . $postId) . '" title="扣除魔力或做种积分"><img class="f_penalty" src="pic/forum_pic/chs/penalty.svg" alt="扣分" /></a>';
+}
+
 //-------- Inserts a compose frame
 function insert_compose_frame($id, $type = 'new')
 {
@@ -1150,7 +1156,7 @@ if ($action == "viewtopic")
 			$body = format_comment($p['body'], 0);
 			$penaltyTool = '';
 			if ((user_can('postmanage') || $is_forummod) && $puid !== (int)$CURUSER['id'] && $u && (int)$u->class < (int)$CURUSER['class']) {
-				$penaltyTool = '<div class="ft-post-tools"><a class="forum-penalty-link" href="' . htmlspecialchars('?action=penalizepost&postid=' . (int)$p['id']) . '">扣分</a></div>';
+				$penaltyTool = '<div class="ft-post-tools">' . forum_penalty_link((int)$p['id']) . '</div>';
 			}
 			echo '<div class="ft-post' . ($isNested ? ' ft-nested' : '') . '"><div class="ft-post-head"><span class="f-ava">' . $pav . '</span>'
 				. '<span class="ft-pmeta"><span class="ft-pname">' . $pnameHtml . '</span><span class="ft-pdate">' . $pdate . '</span></span>'
@@ -1323,7 +1329,7 @@ function forumCancelInlineReply(postId) {
 				$replyTools .= forum_inline_reply_link($replyPostId, $lang_forums['title_reply_with_quote']);
 			}
 			if ((user_can('postmanage') || $is_forummod) && $replyPosterId !== (int)$CURUSER['id'] && (int)$replyUser['class'] < (int)$CURUSER['class']) {
-				$replyTools .= '<a class="forum-penalty-link" href="' . htmlspecialchars('?action=penalizepost&postid=' . $replyPostId) . '" title="扣除魔力或做种积分">扣分</a>';
+				$replyTools .= forum_penalty_link($replyPostId);
 			}
 			if (user_can('postmanage') || $is_forummod) {
 				$replyTools .= "<a href=\"" . htmlspecialchars("?action=deletepost&postid=" . $replyPostId) . "\"><img class=\"f_delete\" src=\"pic/trans.gif\" alt=\"Delete\" title=\"" . $lang_forums['title_delete_post'] . "\" /></a>";
@@ -1483,7 +1489,7 @@ function forumCancelInlineReply(postId) {
 		print(forum_inline_reply_link($postid, $lang_forums['title_reply_with_quote']));
 
 		if ((user_can('postmanage') || $is_forummod) && $posterid !== (int)$CURUSER['id'] && (int)$arr2['class'] < (int)$CURUSER['class'])
-		print('<a class="forum-penalty-link" href="' . htmlspecialchars('?action=penalizepost&postid=' . $postid) . '" title="扣除魔力或做种积分">扣分</a>');
+		print(forum_penalty_link($postid));
 
 		if (user_can('postmanage') || $is_forummod)
 		print("<a href=\"".htmlspecialchars("?action=deletepost&postid=".$postid)."\"><img class=\"f_delete\" src=\"pic/trans.gif\" alt=\"Delete\" title=\"".$lang_forums['title_delete_post']."\" /></a>");

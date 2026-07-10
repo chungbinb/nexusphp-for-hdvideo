@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="62" height="25" viewBox="0 0 62 25" role="img" aria-labelledby="title">
+  <title id="title">扣分</title>
+  <defs>
+    <linearGradient id="button" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1769a3"/>
+      <stop offset="1" stop-color="#06457d"/>
+    </linearGradient>
+    <linearGradient id="icon" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffbc45"/>
+      <stop offset="1" stop-color="#dc6718"/>
+    </linearGradient>
+  </defs>
+  <rect x="0.5" y="0.5" width="61" height="24" rx="2" fill="url(#button)" stroke="#003968"/>
+  <path d="M2 2.5h58" stroke="#4a8bb8" stroke-linecap="round" opacity=".75"/>
+  <rect x="6.5" y="6.5" width="12" height="12" rx="1" fill="url(#icon)" stroke="#f4d29b"/>
+  <path d="M9 12.5h7" stroke="#76310d" stroke-width="1.5" stroke-linecap="round"/>
+  <text x="40" y="17.1" fill="#fff" font-family="Microsoft YaHei, SimSun, sans-serif" font-size="12" font-weight="700" text-anchor="middle">扣分</text>
+</svg>
