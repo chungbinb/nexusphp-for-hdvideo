@@ -3,7 +3,7 @@ require dirname(__DIR__, 3) . '/include/bittorrent.php';
 dbconn();
 loggedinorreturn();
 parked();
-require_once '../../../include/game_control.php';
+require_once dirname(__DIR__, 3) . '/include/game_control.php';
 require_once __DIR__ . '/engine.php';
 require_once __DIR__ . '/quote.php';
 
