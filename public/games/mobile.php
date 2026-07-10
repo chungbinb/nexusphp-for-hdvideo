@@ -71,6 +71,7 @@ body.page-games { background: #0c1622 !important; color: #e7eef7 !important; }
 .theme-dice{--game-a:#1e88e5;--game-b:#07182d;} .theme-sports{--game-a:#2ecc71;--game-b:#0b3d1f;}
 .theme-ddz{--game-a:#e74c3c;--game-b:#2c1a0c;} .theme-scratch{--game-a:#f1c232;--game-b:#6b3f00;}
 .theme-poker{--game-a:#16865c;--game-b:#071b2c;}
+.theme-zjh{--game-a:#d39a35;--game-b:#2b110d;} .theme-stock{--game-a:#df3045;--game-b:#07192a;}
 .theme-wheel{--game-a:#b84cff;--game-b:#18224f;} .theme-quiz{--game-a:#13b58a;--game-b:#092c38;}
 .theme-chest{--game-a:#ff7f50;--game-b:#371323;} .theme-blackjack{--game-a:#1f9a52;--game-b:#07210f;}
 .theme-slots{--game-a:#d4a017;--game-b:#3a2a10;} .theme-plinko{--game-a:#2980b9;--game-b:#0a1a2a;}

@@ -68,6 +68,7 @@ class BonusLogs extends NexusModel
     const BUSINESS_TYPE_GAME_MOVIEQUIZ = 111;
     const BUSINESS_TYPE_GAME_ZJH = 113;
     const BUSINESS_TYPE_GAME_ZJH_ESCROW = 114;
+    const BUSINESS_TYPE_GAME_STOCK = 115;
 
     //获得类，普通获得，1000 起步
     const BUSINESS_TYPE_ROLE_WORK_SALARY = 1000;
@@ -130,6 +131,7 @@ class BonusLogs extends NexusModel
         self::BUSINESS_TYPE_GAME_MOVIEQUIZ => ['text' => 'Game: Movie quiz'],
         self::BUSINESS_TYPE_GAME_ZJH => ['text' => 'Game: Zha Jin Hua'],
         self::BUSINESS_TYPE_GAME_ZJH_ESCROW => ['text' => 'Game: Zha Jin Hua escrow'],
+        self::BUSINESS_TYPE_GAME_STOCK => ['text' => 'Game: Virtual stock'],
 
         self::BUSINESS_TYPE_ROLE_WORK_SALARY => ['text' => 'Role work salary'],
         self::BUSINESS_TYPE_TORRENT_BE_DOWNLOADED => ['text' => 'Torrent be downloaded'],

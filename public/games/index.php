@@ -10,6 +10,20 @@ require_once "../../include/game_leaderboard.php";
 
 $games = [
     [
+        'title' => '股票模拟交易',
+        'released_at' => '2026-07-10',
+        'released_order' => 1783700000,
+        'badge' => '内测中 v0.1',
+        'subtitle' => '对接沪深 A 股真实行情，使用站内电影票买卖虚拟股票，支持实时持仓、市值和盈亏统计。',
+        'date' => '已开放',
+        'price' => '进入交易',
+        'href' => '/games/stock/',
+        'status' => '可玩',
+        'tags' => ['真实行情', 'A股', '电影票', '模拟交易'],
+        'theme' => 'stock',
+        'shots' => ['stock-a', 'stock-b', 'stock-c'],
+    ],
+    [
         'title' => '炸金花',
         'released_at' => '2026-07-10',
         'released_order' => 1783659000,
@@ -207,7 +221,7 @@ $games = [
 ];
 
 $gameKeyByTheme = [
-    'dice' => 'big-small', 'sports' => 'sports', 'ddz' => 'ddz', 'poker' => 'poker', 'zjh' => 'zjh',
+    'dice' => 'big-small', 'sports' => 'sports', 'ddz' => 'ddz', 'poker' => 'poker', 'zjh' => 'zjh', 'stock' => 'stock',
     'scratch' => 'scratch', 'wheel' => 'lucky-draw', 'quiz' => 'quiz', 'chest' => 'chest',
     'blackjack' => 'blackjack', 'slots' => 'slots', 'plinko' => 'plinko', 'hilo' => 'hilo',
     'moviequiz' => 'moviequiz',
@@ -411,6 +425,7 @@ body.page-games-php:not(.inframe) {
 .theme-ddz { --game-a: #e74c3c; --game-b: #2c1a0c; }
 .theme-poker { --game-a: #16865c; --game-b: #071b2c; }
 .theme-zjh { --game-a: #d39a35; --game-b: #2b110d; }
+.theme-stock { --game-a: #df3045; --game-b: #07192a; }
 
 .steam-capsule.has-icon {
     background-color: #0b1728;

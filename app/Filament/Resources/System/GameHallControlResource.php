@@ -6,6 +6,7 @@ use Filament\Schemas\Schema;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Actions\EditAction;
 use App\Filament\Resources\System\GameHallControlResource\Pages\ManageGameHallControls;
@@ -72,6 +73,25 @@ class GameHallControlResource extends Resource
                     ->required()
                     ->native(false)
                     ->visible(fn (?GameHallControl $record): bool => $record?->game_key === 'zjh'),
+                Toggle::make('stock_trade_enabled')
+                    ->label('允许股票买卖')
+                    ->helperText('关闭后仍可查看真实行情和持仓，但不能提交买卖。')
+                    ->visible(fn (?GameHallControl $record): bool => $record?->game_key === 'stock'),
+                Textarea::make('stock_symbols')
+                    ->label('股票池')
+                    ->helperText('填写沪深代码，用逗号分隔，例如 SH600519,SZ000001。用户也可按六位代码查询，但只能交易这里配置的股票。')
+                    ->rows(4)
+                    ->visible(fn (?GameHallControl $record): bool => $record?->game_key === 'stock'),
+                TextInput::make('stock_ticket_rate')
+                    ->label('电影票换算倍率')
+                    ->helperText('成交金额 = 股票价格 × 股数 × 此倍率。')
+                    ->numeric()->minValue(0.0001)->step(0.1)->required()
+                    ->visible(fn (?GameHallControl $record): bool => $record?->game_key === 'stock'),
+                TextInput::make('stock_fee_rate')
+                    ->label('单边手续费率')
+                    ->helperText('例如 0.001 表示 0.1%，每笔最低收取 1 张电影票。')
+                    ->numeric()->minValue(0)->maxValue(0.1)->step(0.0001)->required()
+                    ->visible(fn (?GameHallControl $record): bool => $record?->game_key === 'stock'),
             ])->columns(1);
     }
 

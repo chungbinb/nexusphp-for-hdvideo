@@ -9,7 +9,7 @@
 // 历史记录都记在 13（幸运大转盘），新记录每个游戏用各自的业务类型（101-111）。
 // 总榜与按 comment 过滤的单游戏榜都需要同时统计旧的 13 和新的各游戏类型。
 const GAME_LB_BUSINESS_TYPE = 13;
-const GAME_LB_BUSINESS_TYPE_SET = '13,101,102,103,104,105,106,107,108,109,110,111';
+const GAME_LB_BUSINESS_TYPE_SET = '13,101,102,103,104,105,106,107,108,109,110,111,113,115';
 
 function game_lb_run($sql)
 {

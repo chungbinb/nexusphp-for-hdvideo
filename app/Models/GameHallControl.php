@@ -11,13 +11,16 @@ class GameHallControl extends NexusModel
 
     protected $table = 'game_hall_controls';
 
-    protected $fillable = ['game_key', 'name', 'is_open', 'min_class', 'sort', 'bot_difficulty'];
+    protected $fillable = ['game_key', 'name', 'is_open', 'min_class', 'sort', 'bot_difficulty', 'stock_symbols', 'stock_ticket_rate', 'stock_fee_rate', 'stock_trade_enabled'];
 
     protected $casts = [
         'is_open' => 'boolean',
         'min_class' => 'integer',
         'sort' => 'integer',
         'bot_difficulty' => 'string',
+        'stock_ticket_rate' => 'float',
+        'stock_fee_rate' => 'float',
+        'stock_trade_enabled' => 'boolean',
     ];
 
     /**
@@ -39,6 +42,9 @@ class GameHallControl extends NexusModel
             ['game_key' => 'moviequiz', 'name' => '猜电影', 'is_open' => 0, 'min_class' => 15, 'sort' => 11],
             ['game_key' => 'poker', 'name' => '德州扑克', 'is_open' => 1, 'min_class' => 15, 'sort' => 12],
             ['game_key' => 'zjh', 'name' => '炸金花', 'is_open' => 1, 'min_class' => 15, 'sort' => 13, 'bot_difficulty' => 'simple'],
+            ['game_key' => 'stock', 'name' => '股票模拟交易', 'is_open' => 1, 'min_class' => 15, 'sort' => 14,
+                'stock_symbols' => 'SH600519,SZ000001,SH601318,SZ300750,SH600036,SH601899,SZ000858,SH600900',
+                'stock_ticket_rate' => 1, 'stock_fee_rate' => 0.001, 'stock_trade_enabled' => 1],
         ];
     }
 
@@ -58,6 +64,10 @@ class GameHallControl extends NexusModel
                 $table->integer('min_class')->default(15);
                 $table->integer('sort')->default(0);
                 $table->string('bot_difficulty', 16)->default('simple');
+                $table->text('stock_symbols')->nullable();
+                $table->decimal('stock_ticket_rate', 12, 4)->default(1);
+                $table->decimal('stock_fee_rate', 8, 6)->default(0.001);
+                $table->boolean('stock_trade_enabled')->default(true);
                 $table->dateTime('created_at')->nullable();
                 $table->dateTime('updated_at')->nullable();
             });
@@ -67,6 +77,26 @@ class GameHallControl extends NexusModel
                 $table->string('bot_difficulty', 16)->default('simple')->after('sort');
             });
         }
+        if (! $schema->hasColumn('game_hall_controls', 'stock_symbols')) {
+            $schema->table('game_hall_controls', function (Blueprint $table) {
+                $table->text('stock_symbols')->nullable()->after('bot_difficulty');
+            });
+        }
+        if (! $schema->hasColumn('game_hall_controls', 'stock_ticket_rate')) {
+            $schema->table('game_hall_controls', function (Blueprint $table) {
+                $table->decimal('stock_ticket_rate', 12, 4)->default(1)->after('stock_symbols');
+            });
+        }
+        if (! $schema->hasColumn('game_hall_controls', 'stock_fee_rate')) {
+            $schema->table('game_hall_controls', function (Blueprint $table) {
+                $table->decimal('stock_fee_rate', 8, 6)->default(0.001)->after('stock_ticket_rate');
+            });
+        }
+        if (! $schema->hasColumn('game_hall_controls', 'stock_trade_enabled')) {
+            $schema->table('game_hall_controls', function (Blueprint $table) {
+                $table->boolean('stock_trade_enabled')->default(true)->after('stock_fee_rate');
+            });
+        }
         $now = now()->format('Y-m-d H:i:s');
         foreach (static::seedDefaults() as $d) {
             static::query()->firstOrCreate(
@@ -74,5 +104,9 @@ class GameHallControl extends NexusModel
                 $d + ['created_at' => $now, 'updated_at' => $now]
             );
         }
+        $stockDefaults = collect(static::seedDefaults())->firstWhere('game_key', 'stock');
+        static::query()->where('game_key', 'stock')->where(function ($query) {
+            $query->whereNull('stock_symbols')->orWhere('stock_symbols', '');
+        })->update(['stock_symbols' => $stockDefaults['stock_symbols']]);
     }
 }

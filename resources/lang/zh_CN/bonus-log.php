@@ -43,6 +43,7 @@ return [
         \App\Models\BonusLogs::BUSINESS_TYPE_GAME_MOVIEQUIZ => '猜电影',
         \App\Models\BonusLogs::BUSINESS_TYPE_GAME_ZJH => '炸金花',
         \App\Models\BonusLogs::BUSINESS_TYPE_GAME_ZJH_ESCROW => '炸金花筹码托管',
+        \App\Models\BonusLogs::BUSINESS_TYPE_GAME_STOCK => '股票模拟交易',
 
         \App\Models\BonusLogs::BUSINESS_TYPE_ROLE_WORK_SALARY => '工作组工资',
         \App\Models\BonusLogs::BUSINESS_TYPE_TORRENT_BE_DOWNLOADED => '种子被下载',
