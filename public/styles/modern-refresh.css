@@ -994,6 +994,26 @@ a:focus-visible {
     color: var(--bili-text-secondary) !important;
 }
 
+.site-footer-logo {
+    display: flex;
+    justify-content: center;
+    margin: 0 auto 14px;
+}
+
+.site-footer-logo a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.site-footer-logo img {
+    display: block;
+    width: auto;
+    max-width: min(100%, 320px);
+    max-height: 72px;
+    object-fit: contain;
+}
+
 img.cheaterbox,
 img.reportbox,
 img.staffbox,
@@ -6842,8 +6862,8 @@ body.theme-night .qd-side-submenu {
 }
 
 
-/* qd-torrent-scrollnav : torrent page quick top/bottom buttons on desktop */
-body.page-torrents:not(.m-shell) .t-scrollnav {
+/* qd-global-scrollnav : site-wide quick top/bottom buttons on desktop */
+body:not(.m-shell) .t-scrollnav {
 	position: fixed;
 	right: 18px;
 	bottom: 22px;
@@ -6852,10 +6872,10 @@ body.page-torrents:not(.m-shell) .t-scrollnav {
 	flex-direction: column;
 	gap: 8px;
 }
-body.page-torrents:not(.m-shell) .t-scrollnav button,
-body.page-torrents:not(.m-shell) .t-scrollnav button:hover,
-body.page-torrents:not(.m-shell) .t-scrollnav button:active,
-body.page-torrents:not(.m-shell) .t-scrollnav button:focus {
+body:not(.m-shell) .t-scrollnav button,
+body:not(.m-shell) .t-scrollnav button:hover,
+body:not(.m-shell) .t-scrollnav button:active,
+body:not(.m-shell) .t-scrollnav button:focus {
 	width: 42px !important;
 	height: 42px !important;
 	min-height: 0 !important;
@@ -6872,11 +6892,11 @@ body.page-torrents:not(.m-shell) .t-scrollnav button:focus {
 	cursor: pointer;
 	transition: background-color .16s ease, color .16s ease, border-color .16s ease, transform .16s ease;
 }
-body.page-torrents:not(.m-shell) .t-scrollnav button:hover {
+body:not(.m-shell) .t-scrollnav button:hover:not(:disabled) {
 	border-color: var(--bili-primary, #00aeec) !important;
 	transform: translateY(-1px);
 }
-body.page-torrents:not(.m-shell) .t-scrollnav button svg {
+body:not(.m-shell) .t-scrollnav button svg {
 	width: 24px;
 	height: 24px;
 	fill: none;
@@ -6885,16 +6905,27 @@ body.page-torrents:not(.m-shell) .t-scrollnav button svg {
 	stroke-linecap: round;
 	stroke-linejoin: round;
 }
-:root[data-site-theme="night"] body.page-torrents:not(.m-shell) .t-scrollnav button,
-body.theme-night.page-torrents:not(.m-shell) .t-scrollnav button {
+:root[data-site-theme="night"] body:not(.m-shell) .t-scrollnav button,
+body.theme-night:not(.m-shell) .t-scrollnav button {
 	background: #0e1728 !important;
 	border-color: rgba(116, 145, 196, .28) !important;
 	box-shadow: 0 10px 28px rgba(0, 0, 0, .35) !important;
 }
-:root[data-site-theme="night"] body.page-torrents:not(.m-shell) .t-scrollnav button:hover,
-body.theme-night.page-torrents:not(.m-shell) .t-scrollnav button:hover {
+:root[data-site-theme="night"] body:not(.m-shell) .t-scrollnav button:hover:not(:disabled),
+body.theme-night:not(.m-shell) .t-scrollnav button:hover:not(:disabled) {
 	background: #17243d !important;
 	border-color: var(--bili-primary, #00aeec) !important;
+}
+body:not(.m-shell) .t-scrollnav button:focus-visible {
+	outline: 3px solid color-mix(in srgb, var(--bili-primary, #00aeec) 42%, transparent) !important;
+	outline-offset: 2px !important;
+}
+body:not(.m-shell) .t-scrollnav button:disabled {
+	opacity: .38;
+	cursor: default;
+}
+@media (prefers-reduced-motion: reduce) {
+	body:not(.m-shell) .t-scrollnav button { transition: none; }
 }
 
 

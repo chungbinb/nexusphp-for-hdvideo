@@ -146,11 +146,41 @@ body.m-page { margin: 0; background: var(--mh-bg); color: var(--mh-text); -webki
     min-height: 100vh; min-height: 100dvh;
     padding-top: calc(54px + env(safe-area-inset-top)); padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
 body.m-page * { box-sizing: border-box; }
+/* 全站快速到顶部/底部：避开底部导航并跟随个性化主题色 */
+body.m-shell .t-scrollnav {
+    position: fixed; right: 12px; bottom: calc(72px + env(safe-area-inset-bottom));
+    z-index: 500; display: flex; flex-direction: column; gap: 4px;
+}
+body.m-shell .t-scrollnav button,
+body.m-shell .t-scrollnav button:hover,
+body.m-shell .t-scrollnav button:active,
+body.m-shell .t-scrollnav button:focus {
+    width: 46px !important; height: 40px !important; min-height: 0 !important; padding: 0 !important;
+    border: none !important; border-radius: 0 !important; outline: none !important;
+    background: none !important; background-image: none !important; background-color: transparent !important;
+    box-shadow: none !important; transform: none !important; color: var(--mh-primary) !important;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+body.m-shell .t-scrollnav button svg {
+    width: 30px; height: 30px; fill: none; stroke: currentColor; stroke-width: 2.4;
+    stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 1px 3px rgba(0,0,0,.4));
+}
+body.m-shell .t-scrollnav button:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--mh-primary) 42%, transparent) !important;
+    outline-offset: 1px !important;
+}
+body.m-shell .t-scrollnav button:disabled { opacity: .38; cursor: default; }
+@media (prefers-reduced-motion: reduce) {
+    body.m-shell .t-scrollnav button { scroll-behavior: auto; }
+}
 /* 弹层/抽屉/弹窗打开时锁住背景滚动 */
 body.m-locked { overflow: hidden !important; touch-action: none; }
 body.m-page a { color: inherit; text-decoration: none; }
 body.m-page img { max-width: 100%; height: auto; }
 .m-main { padding: 8px 0; }
+.m-main .site-footer-logo { display: flex; justify-content: center; margin: 24px 12px 8px; }
+.m-main .site-footer-logo a { display: inline-flex; align-items: center; justify-content: center; }
+.m-main .site-footer-logo img { display: block; width: auto; max-width: min(78vw, 260px); max-height: 62px; object-fit: contain; }
 .m-card { background: var(--mh-surface); border: 1px solid rgba(20,40,90,.06); border-radius: 16px; margin: 0 12px 12px; padding: 4px 14px 8px; box-shadow: 0 2px 10px rgba(20,40,90,.06); }
 .m-card h3 { font-size: 15px; margin: 12px 0 6px; display: flex; align-items: center; color: var(--mh-text); }
 .m-card h3::before { content: ""; width: 4px; height: 15px; border-radius: 2px; background: var(--mh-primary); margin-right: 8px; }

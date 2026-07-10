@@ -408,6 +408,7 @@ $tagIdArr = array_filter($_POST['tags'][$catmod] ?? []);
 if (!empty($tagIdArr)) {
     insert_torrent_tags($id, $tagIdArr);
 }
+\App\Services\TorrentPromotionService::applyNewTorrentDefaults((int)$id);
 
 @sql_query("DELETE FROM files WHERE torrent = $id");
 foreach ($filelist as $file) {

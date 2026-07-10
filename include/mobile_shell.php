@@ -638,7 +638,7 @@ function mobile_shell_page_head(string $title = '', string $active = '', string 
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="mobile-web-app-capable" content="yes" />
 <title><?php echo htmlspecialchars($t) ?></title>
-<link rel="stylesheet" href="/styles/mobile-shell.css?v=20260703a" type="text/css" />
+<link rel="stylesheet" href="/styles/mobile-shell.css?v=20260710c" type="text/css" />
 <link rel="stylesheet" href="/styles/sprites.css?v=20260704a" type="text/css" />
 <style>:root{--bili-primary:<?php echo $col['primary'] ?>;--bili-accent:<?php echo $col['accent'] ?>;--bili-bg:<?php echo $col['bg'] ?>;--bili-surface:<?php echo $col['surface'] ?>;--bili-text:<?php echo $col['text'] ?>;}</style>
 </head>
@@ -650,8 +650,14 @@ function mobile_shell_page_head(string $title = '', string $active = '', string 
 /** 独立手机页尾：关闭内容容器，输出外壳(顶栏/抽屉/底部Tab/弹层)与脚本 */
 function mobile_shell_page_foot(string $active = ''): void
 {
+    if (function_exists('nexus_render_site_footer_logo')) {
+        nexus_render_site_footer_logo();
+    }
     echo "</main>\n";
     mobile_shell_render($active);
+    if (function_exists('nexus_render_scroll_nav')) {
+        nexus_render_scroll_nav();
+    }
     echo "\n</body>\n</html>";
 }
 

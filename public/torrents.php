@@ -14,7 +14,7 @@ function t_mhead($title = '') {
         mobile_shell_page_head(trim(strip_tags((string)$title)) ?: '种子', 'torrents', 'page-torrents');
         $mrv = @filemtime(ROOT_PATH . 'public/styles/modern-refresh.css') ?: 1;
         echo '<link rel="stylesheet" type="text/css" href="styles/modern-refresh.css?v=' . intval($mrv) . '">';
-        echo '<link rel="stylesheet" type="text/css" href="styles/torrents-mobile.css?v=20260702a">';
+        echo '<link rel="stylesheet" type="text/css" href="styles/torrents-mobile.css?v=20260710b">';
         // modern-refresh.css 的 :root 覆盖了 page_head 注入的个性化 --bili-*；而 --mh-* 在 mobile-shell.css 里是 :root 上 var(--bili-*) 映射，
         // 只按 :root(html) 上的 --bili-* 计算。必须在 modern-refresh 之后、同样用 :root 重新声明个性化 --bili-*，--mh-* 才会重新算成个性化色。
         if (function_exists('mobile_shell_colors')) {
@@ -186,8 +186,8 @@ $meilisearchEnabled = get_setting('meilisearch.enabled') == 'yes';
 $shouldUseMeili = $meilisearchEnabled && !empty($searchstr);
 do_log("[SHOULD_USE_MEILI]: $shouldUseMeili");
 // sorting by MarkoStamcar
-// 排序列先确定(默认按最新 id DESC)，再叠加“分层置顶”。
-$column = '';
+// 排序列先确定(默认按发布时间 DESC)，再叠加三级置顶优先级。
+$column = 'added';
 $ascdesc = '';
 $sortDir = 'DESC';   // 置顶层内 & 非置顶区通用排序方向
 $pagerlink = '';
@@ -216,48 +216,12 @@ if (isset($_GET['sort']) && $_GET['sort'] && isset($_GET['type']) && $_GET['type
 	$pagerlink = "sort=" . intval($_GET['sort']) . "&type=" . $linkascdesc . "&";
 }
 
-// 非置顶区(以及置顶层内)的排序表达式：owner 需按上传者用户名。
+// 每个置顶层内以及普通区沿用同一个排序条件；默认后发布的种子在上面。
 $sortExpr = ($column === 'owner')
 	? "torrents.anonymous, users.username " . $sortDir
-	: "torrents." . ($column !== '' ? $column : 'id') . " " . $sortDir;
-// 置顶层内排序用的单列(owner 用 torrents.owner 上传者id 近似，因置顶子查询不 join users)。
-$stickySortCol = ($column === 'owner') ? 'owner' : ($column !== '' ? $column : 'id');
-
-// 分层置顶：置顶促销(官组优惠期间的官组标签种子) > 一级置顶(sticky) > 二级置顶(r_sticky)。
-// 每层最多显示 sticky_count 个(后台「种子列表设置」，默认5)；层内与非置顶区都按当前排序列排序；
-// 超出数量的置顶及其余种子一并落到非置顶区按排序列排。死种/急需求种改到「保种区」单独展示。
-$stickyLimit = 5;
-try {
-	$cfgRes = sql_query("SELECT `sticky_count` FROM `hdvideo_torrent_settings` WHERE `id` = 1 LIMIT 1");
-	if ($cfgRes && ($cfgRow = mysql_fetch_assoc($cfgRes))) { $stickyLimit = max(0, (int)$cfgRow['sticky_count']); }
-} catch (\Throwable $e) { $stickyLimit = 5; }
-
-$stickyIds = [];
-if ($stickyLimit > 0) {
-	$tierWheres = [];
-	$officialTag = intval(get_setting('bonus.official_tag', 0));
-	$officialPromoActive = get_official_sp_state() != \App\Models\Torrent::PROMOTION_NORMAL;
-	if ($officialTag > 0 && $officialPromoActive) {
-		$tierWheres[] = "EXISTS (SELECT 1 FROM torrent_tags tt WHERE tt.torrent_id = torrents.id AND tt.tag_id = " . $officialTag . ")";
-	}
-	$tierWheres[] = "pos_state = 'sticky'";     // 一级置顶
-	$tierWheres[] = "pos_state = 'r_sticky'";   // 二级置顶
-	foreach ($tierWheres as $tw) {
-		$excl = $stickyIds ? (" AND `id` NOT IN (" . implode(',', $stickyIds) . ")") : "";
-		$tres = sql_query("SELECT `id` FROM `torrents` WHERE (" . $tw . ")" . $excl . " ORDER BY `" . $stickySortCol . "` " . $sortDir . ", `id` DESC LIMIT " . (int)$stickyLimit);
-		while ($tres && ($tr = mysql_fetch_assoc($tres))) { $stickyIds[] = (int)$tr['id']; }
-	}
-}
-
-if ($stickyIds) {
-	$idList = implode(',', $stickyIds);
-	// 置顶块整体在前，块内保持“层级+排序”的既定顺序(FIELD)；非置顶区按当前排序列。
-	$orderby = "ORDER BY CASE WHEN torrents.id IN (" . $idList . ") THEN 0 ELSE 1 END, "
-		. "CASE WHEN torrents.id IN (" . $idList . ") THEN FIELD(torrents.id, " . $idList . ") ELSE 0 END, "
-		. $sortExpr;
-} else {
-	$orderby = "ORDER BY " . $sortExpr;
-}
+	: "torrents." . $column . " " . $sortDir;
+$priorityExpr = \App\Services\TorrentPromotionService::priorityOrderSql('torrents');
+$orderby = "ORDER BY " . $priorityExpr . " ASC, " . $sortExpr . ", torrents.id DESC";
 
 $allCategoryId = \App\Models\SearchBox::listCategoryId($sectiontype);
 $addparam = "";
@@ -362,7 +326,7 @@ elseif ($include_dead == 2)		//dead
     $whereothera[] = "visible = 'no'";
 }
 
-// 官组优惠置顶(置顶促销)已并入上方“分层置顶”逻辑：置顶促销 > 一级置顶 > 二级置顶，各层限 sticky_count 个。
+// 三级置顶优先级已在上方统一排序表达式中处理。
 // ----------------- end include dead ---------------------//
 
 if (!isset($CURUSER) || !user_can('seebanned')) {
@@ -2359,34 +2323,6 @@ if ($CURUSER){
 		uploaderTd.appendChild(box);
 		if (ratingTd) ratingTd.style.display = 'none';
 	}
-})();
-</script>
-<div class="t-scrollnav" id="tScrollNav">
-	<button type="button" id="tScrollTop" aria-label="回到顶部" title="回到顶部"><svg viewBox="0 0 24 24"><path d="M12 19V6M6 11l6-5 6 5"/></svg></button>
-	<button type="button" id="tScrollBottom" aria-label="到底部" title="到底部"><svg viewBox="0 0 24 24"><path d="M12 5v13M6 13l6 5 6-5"/></svg></button>
-</div>
-<script>
-(function () {
-	var nav = document.getElementById('tScrollNav');
-	var topBtn = document.getElementById('tScrollTop'), botBtn = document.getElementById('tScrollBottom');
-	if (!nav || !topBtn || !botBtn) return;
-	topBtn.addEventListener('click', function () { window.scrollTo({ top: 0, behavior: 'smooth' }); });
-	botBtn.addEventListener('click', function () { window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' }); });
-	// 滚到底部时抬高按钮，避免遮挡底部分页控件
-	var list = document.querySelectorAll('.nexus-pagination');
-	var pager = list.length ? list[list.length - 1] : null;
-	var ticking = false;
-	function reposition() {
-		ticking = false;
-		if (!pager) return;
-		var r = pager.getBoundingClientRect();
-		var need = window.innerHeight - r.top + 12; // 让按钮底边落在分页控件上沿之上
-		nav.style.bottom = (r.top < window.innerHeight && need > 72) ? (need + 'px') : '';
-	}
-	function onScroll() { if (!ticking) { ticking = true; requestAnimationFrame(reposition); } }
-	window.addEventListener('scroll', onScroll, { passive: true });
-	window.addEventListener('resize', onScroll);
-	reposition();
 })();
 </script>
 <?php

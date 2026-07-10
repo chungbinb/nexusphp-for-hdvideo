@@ -45,7 +45,8 @@ $allowed_showrows=array('10','50');
 $stickyTypes = [
     0 => nexus_trans('torrent.pos_state_normal'),
     1 => nexus_trans('torrent.pos_state_sticky'),
-    2 => nexus_trans('torrent.pos_state_r_sticky')
+    2 => nexus_trans('torrent.pos_state_r_sticky'),
+    3 => nexus_trans('torrent.pos_state_q_sticky')
 ];
 $tagRep = new \App\Repositories\TagRepository();
 $allTags = $tagRep->listAll($brsectiontype);

@@ -54,16 +54,15 @@ class Torrent extends NexusModel
 
     const POS_STATE_STICKY_NONE = 'normal';
     const POS_STATE_STICKY_FIRST = 'sticky';
-    /**
-     * alphabet 'r' is  after 'n' and before 's', so it will fit: order by pos_state desc,
-     * first sticky, then r_sticky, then normal
-     */
+    // Keep legacy first/second values; list ordering is defined explicitly by TorrentPromotionService.
     const POS_STATE_STICKY_SECOND = 'r_sticky';
+    const POS_STATE_STICKY_THIRD = 'q_sticky';
 
     public static $posStates = [
         self::POS_STATE_STICKY_NONE => ['text' => 'Normal', 'icon_counts' => 0],
-        self::POS_STATE_STICKY_SECOND => ['text' => 'Sticky second', 'icon_counts' => 1],
-        self::POS_STATE_STICKY_FIRST => ['text' => 'Sticky first', 'icon_counts' => 2],
+        self::POS_STATE_STICKY_THIRD => ['text' => 'Sticky third', 'icon_counts' => 1],
+        self::POS_STATE_STICKY_SECOND => ['text' => 'Sticky second', 'icon_counts' => 2],
+        self::POS_STATE_STICKY_FIRST => ['text' => 'Sticky first', 'icon_counts' => 3],
     ];
 
     const HR_YES = 1;

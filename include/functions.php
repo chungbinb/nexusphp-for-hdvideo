@@ -4907,6 +4907,70 @@ if ($msgalert)
 }
 
 
+function nexus_render_scroll_nav() {
+	static $rendered = false;
+	if ($rendered) {
+		return;
+	}
+	$rendered = true;
+	?>
+<div class="t-scrollnav" id="tScrollNav" aria-label="页面快速滚动">
+	<button type="button" id="tScrollTop" aria-label="回到顶部" title="回到顶部"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 19V6M6 11l6-5 6 5"/></svg></button>
+	<button type="button" id="tScrollBottom" aria-label="到达底部" title="到达底部"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v13M6 13l6 5 6-5"/></svg></button>
+</div>
+<script>
+(function () {
+	var nav = document.getElementById('tScrollNav');
+	var topBtn = document.getElementById('tScrollTop');
+	var bottomBtn = document.getElementById('tScrollBottom');
+	if (!nav || !topBtn || !bottomBtn) return;
+	var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+	function scrollToPosition(top) {
+		window.scrollTo({ top: top, behavior: reduceMotion ? 'auto' : 'smooth' });
+	}
+	topBtn.addEventListener('click', function () { scrollToPosition(0); });
+	bottomBtn.addEventListener('click', function () { scrollToPosition(document.documentElement.scrollHeight); });
+	var pagers = document.querySelectorAll('.nexus-pagination');
+	var pager = pagers.length ? pagers[pagers.length - 1] : null;
+	var ticking = false;
+	function update() {
+		ticking = false;
+		var doc = document.documentElement;
+		var currentTop = window.pageYOffset || doc.scrollTop || 0;
+		var maxTop = Math.max(0, doc.scrollHeight - window.innerHeight);
+		topBtn.disabled = currentTop <= 2;
+		bottomBtn.disabled = currentTop >= maxTop - 2;
+		if (!pager) return;
+		var rect = pager.getBoundingClientRect();
+		var need = window.innerHeight - rect.top + 12;
+		nav.style.bottom = (rect.top < window.innerHeight && need > 72) ? (need + 'px') : '';
+	}
+	function requestUpdate() {
+		if (!ticking) {
+			ticking = true;
+			window.requestAnimationFrame(update);
+		}
+	}
+	window.addEventListener('scroll', requestUpdate, { passive: true });
+	window.addEventListener('resize', requestUpdate);
+	update();
+})();
+</script>
+	<?php
+}
+
+function nexus_render_site_footer_logo(): void
+{
+	global $SITENAME;
+	$logoPath = ROOT_PATH . 'public/pic/logo.png';
+	if (!is_file($logoPath)) {
+		return;
+	}
+	$title = htmlspecialchars((string)$SITENAME, ENT_QUOTES, 'UTF-8');
+	$version = (int)@filemtime($logoPath);
+	print('<div class="site-footer-logo"><a href="/index.php" title="'.$title.'"><img src="/pic/logo.png?v='.$version.'" alt="'.$title.'" loading="lazy" decoding="async" /></a></div>');
+}
+
 function stdfoot() {
 	global $SITENAME,$BASEURL,$Cache,$datefounded,$tstart,$icplicense_main,$add_key_shortcut,$query_name, $USERUPDATESET, $CURUSER, $enablesqldebug_tweak, $sqldebug_tweak, $Advertisement, $analyticscode_tweak;
 	global $hook;
@@ -4921,6 +4985,7 @@ function stdfoot() {
 			echo "<div align=\"center\" style=\"margin-top: 10px\" id=\"\">".$footerad[0]."</div>";
 	}
 	print("<div style=\"margin-top: 10px; margin-bottom: 30px;\" align=\"center\">");
+	nexus_render_site_footer_logo();
 	if ($CURUSER) {
         if (count($USERUPDATESET)) {
             sql_query("UPDATE users SET " . join(",", $USERUPDATESET) . " WHERE id = ".$CURUSER['id']);
@@ -4973,19 +5038,15 @@ function stdfoot() {
     do_action('nexus_footer');
 	foreach (\Nexus\Nexus::getAppendFooters() as $value) {
 	    print($value);
-    }
+	}
+	nexus_render_scroll_nav();
 $nexusJsUrl = htmlspecialchars(nexus_static_asset_url('js/nexus.js'));
 $mediumZoomJsUrl = htmlspecialchars(nexus_static_asset_url('js/medium-zoom.min.js'));
-$goupJsUrl = htmlspecialchars(nexus_static_asset_url('vendor/jquery-goup-1.1.3/jquery.goup.min.js'));
 	$js = <<<JS
 <script type="application/javascript" src="{$nexusJsUrl}"></script>
 <script type="application/javascript" src="{$mediumZoomJsUrl}"></script>
-<script type="application/javascript" src="{$goupJsUrl}"></script>
 <script>
 jQuery(document).ready(function(){
-    if (jQuery.goup && !(document.body && document.body.classList.contains('page-torrents'))) {
-        jQuery.goup()
-    }
     if (typeof mediumZoom === 'function') {
         mediumZoom('[data-zoomable]')
     }
@@ -6695,7 +6756,7 @@ function get_torrent_bg_color($promotion = 1, $posState = "", array $torrent = [
         $torrentSettings = get_setting('torrent');
 	    if ($posState == \App\Models\Torrent::POS_STATE_STICKY_FIRST && !empty($torrentSettings['sticky_first_level_background_color'])) {
 	        $sphighlight = sprintf(' style="background-color: %s"', $torrentSettings['sticky_first_level_background_color']);
-        } elseif ($posState == \App\Models\Torrent::POS_STATE_STICKY_SECOND && !empty($torrentSettings['sticky_second_level_background_color'])) {
+        } elseif (in_array($posState, [\App\Models\Torrent::POS_STATE_STICKY_SECOND, \App\Models\Torrent::POS_STATE_STICKY_THIRD], true) && !empty($torrentSettings['sticky_second_level_background_color'])) {
             $sphighlight = sprintf(' style="background-color: %s"', $torrentSettings['sticky_second_level_background_color']);
         }
     }

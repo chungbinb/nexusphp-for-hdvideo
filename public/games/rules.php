@@ -100,7 +100,7 @@ if ($isMobile) {
 <main class="ghr">
     <nav class="ghr-tabs" aria-label="游戏大厅导航">
         <a class="ghr-tab" href="<?php echo htmlspecialchars($hallUrl) ?>#game-list">游戏列表</a>
-        <a class="ghr-tab is-active" href="#rules-top" aria-current="page">游戏规则</a>
+        <a class="ghr-tab is-active" href="/games/rules.php#rules-top" aria-current="page">游戏规则</a>
         <a class="ghr-tab" href="<?php echo htmlspecialchars($hallUrl) ?>#coming-soon">即将推出</a>
     </nav>
 
@@ -111,11 +111,11 @@ if ($isMobile) {
     </header>
 
     <nav class="ghr-toc" aria-label="规则章节目录">
-        <a href="#chapter-1">第一章 总则</a><a href="#chapter-2">第二章 参与规则</a>
-        <a href="#chapter-3">第三章 游戏限制</a><a href="#chapter-4">第四章 禁止行为</a>
-        <a href="#chapter-5">第五章 风险控制</a><a href="#chapter-6">第六章 违规处罚</a>
-        <a href="#chapter-7">第七章 游戏说明</a><a href="#chapter-8">第八章 特殊说明</a>
-        <a href="#anti-abuse">统一防刷限制</a><a href="#cooldown">冷却保护建议</a>
+        <a href="/games/rules.php#chapter-1">第一章 总则</a><a href="/games/rules.php#chapter-2">第二章 参与规则</a>
+        <a href="/games/rules.php#chapter-3">第三章 游戏限制</a><a href="/games/rules.php#chapter-4">第四章 禁止行为</a>
+        <a href="/games/rules.php#chapter-5">第五章 风险控制</a><a href="/games/rules.php#chapter-6">第六章 违规处罚</a>
+        <a href="/games/rules.php#chapter-7">第七章 游戏说明</a><a href="/games/rules.php#chapter-8">第八章 特殊说明</a>
+        <a href="/games/rules.php#anti-abuse">统一防刷限制</a><a href="/games/rules.php#cooldown">冷却保护建议</a>
     </nav>
 
     <section class="ghr-chapter" id="chapter-1">

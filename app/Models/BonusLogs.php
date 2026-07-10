@@ -54,6 +54,7 @@ class BonusLogs extends NexusModel
     const BUSINESS_TYPE_SHOP = 52;
     const BUSINESS_TYPE_FREELEECH_POOL = 53;
     const BUSINESS_TYPE_FORUM_PENALTY = 54;
+    const BUSINESS_TYPE_TORRENT_FREE_PROMOTION = 55;
     const BUSINESS_TYPE_GAME_BIG_SMALL = 101;
     const BUSINESS_TYPE_GAME_SPORTS = 102;
     const BUSINESS_TYPE_GAME_DDZ = 103;
@@ -113,6 +114,7 @@ class BonusLogs extends NexusModel
         self::BUSINESS_TYPE_SHOP => ['text' => 'HDV Shop'],
         self::BUSINESS_TYPE_FREELEECH_POOL => ['text' => 'Freeleech pool contribution'],
         self::BUSINESS_TYPE_FORUM_PENALTY => ['text' => 'Forum penalty'],
+        self::BUSINESS_TYPE_TORRENT_FREE_PROMOTION => ['text' => 'Buy torrent Free promotion'],
         self::BUSINESS_TYPE_GAME_BIG_SMALL => ['text' => 'Game: Big-Small'],
         self::BUSINESS_TYPE_GAME_SPORTS => ['text' => 'Game: Sports'],
         self::BUSINESS_TYPE_GAME_DDZ => ['text' => 'Game: Dou Dizhu'],
