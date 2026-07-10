@@ -78,8 +78,8 @@ class GameHallControlResource extends Resource
                     ->helperText('关闭后仍可查看真实行情和持仓，但不能提交买卖。')
                     ->visible(fn (?GameHallControl $record): bool => $record?->game_key === 'stock'),
                 Textarea::make('stock_symbols')
-                    ->label('股票池')
-                    ->helperText('填写沪深代码，用逗号分隔，例如 SH600519,SZ000001。用户也可按六位代码查询，但只能交易这里配置的股票。')
+                    ->label('首页股票池')
+                    ->helperText('填写首页默认展示的沪深代码，用逗号分隔，例如 SH600519,SZ000001。用户也可查询并交易其他有效沪深 A 股。')
                     ->rows(4)
                     ->visible(fn (?GameHallControl $record): bool => $record?->game_key === 'stock'),
                 TextInput::make('stock_ticket_rate')

@@ -145,7 +145,6 @@ function hdv_stock_bonus_log(int $uid, float $old, float $delta, float $new, str
 function hdv_stock_trade(int $uid, array $config, string $symbol, string $side, int $shares, string $orderKey): array
 {
     if (!$config['trade_enabled']) throw new RuntimeException('管理员当前已暂停股票买卖。');
-    if (!in_array($symbol, $config['symbols'], true)) throw new RuntimeException('该股票不在当前可交易股票池。');
     if (!in_array($side, ['buy', 'sell'], true)) throw new RuntimeException('买卖方向无效。');
     if ($shares < 100 || $shares > 100000 || $shares % 100 !== 0) throw new RuntimeException('交易数量必须为 100 股的整数倍，单笔最多 100,000 股。');
     if (!preg_match('/^[A-Za-z0-9-]{16,64}$/', $orderKey)) throw new RuntimeException('订单编号无效，请刷新页面重试。');
@@ -242,7 +241,7 @@ if (isset($_GET['ajax'])) {
         $quotes = hdv_stock_mark_tradeable(hdv_stock_fetch_quotes([$symbol]));
         $quote = $quotes[$symbol] ?? [];
         if (empty($quote['available'])) hdv_stock_json(['ok' => false, 'message' => '未找到该股票或行情暂不可用。'], 404);
-        $quote['trade_allowed'] = in_array($symbol, $config['symbols'], true);
+        $quote['trade_allowed'] = true;
         hdv_stock_json(['ok' => true, 'quote' => $quote]);
     }
     hdv_stock_json(['ok' => false, 'message' => '未知请求。'], 404);
@@ -340,8 +339,8 @@ function render(){
  el('metrics').innerHTML=`<div class="stk-metric"><span>电影票余额</span><b>${money(w)}</b></div><div class="stk-metric"><span>股票市值</span><b>${money(p.market_value)}</b></div><div class="stk-metric"><span>总资产</span><b>${money(total)}</b></div><div class="stk-metric"><span>持仓浮动盈亏</span><b class="${cls(p.profit)}">${Number(p.profit)>=0?'+':''}${money(p.profit)}</b></div>`;
  const ordered=[...stockState.symbols,...Object.keys(extraQuotes).filter(s=>!stockState.symbols.includes(s))];
  el('quotes').innerHTML=ordered.map(s=>{const q=quotes[s]||{symbol:s,code:s.slice(2),available:false},range=q.high>q.low?Math.max(0,Math.min(100,(q.price-q.low)/(q.high-q.low)*100)):50;return `<button type="button" class="stk-quote ${s===selectedSymbol?'selected':''}" data-symbol="${esc(s)}" aria-pressed="${s===selectedSymbol}"><div class="stk-qtop"><strong>${esc(q.name||'行情加载中')}</strong><span class="stk-code">${esc(q.code||s.slice(2))}</span></div><div class="stk-qprice"><b class="${cls(q.change)}">${q.available?price(q.price):'--'}</b><span class="${cls(q.change)}">${q.available?(Number(q.change)>=0?'+':'')+price(q.change)+' ('+(Number(q.percent)>=0?'+':'')+Number(q.percent).toFixed(2)+'%)':'暂不可用'}</span></div><div class="stk-range"><i style="width:${range}%"></i></div><div class="stk-qtime">${q.stale?'行情源暂不可用 · 显示缓存':'更新 '+esc(q.quote_time||'--')}</div></button>`}).join('');
- const q=quotes[selectedSymbol]||{},h=holding(selectedSymbol),allowed=stockState.symbols.includes(selectedSymbol);
- el('selected').innerHTML=`<h3>${esc(q.name||'请选择股票')} <span class="stk-code">${esc(q.code||'')}</span></h3><div class="stk-selected-price"><b class="${cls(q.change)}">${q.available?price(q.price):'--'}</b><span class="${cls(q.change)}">${q.available?(Number(q.percent)>=0?'+':'')+Number(q.percent).toFixed(2)+'%':''}</span></div>${allowed?'':'<div class="stk-muted" style="margin-top:7px">该股票仅供查询，未加入后台交易股票池</div>'}`;
+ const q=quotes[selectedSymbol]||{},h=holding(selectedSymbol),allowed=!!q.available;
+ el('selected').innerHTML=`<h3>${esc(q.name||'请选择股票')} <span class="stk-code">${esc(q.code||'')}</span></h3><div class="stk-selected-price"><b class="${cls(q.change)}">${q.available?price(q.price):'--'}</b><span class="${cls(q.change)}">${q.available?(Number(q.percent)>=0?'+':'')+Number(q.percent).toFixed(2)+'%':''}</span></div>`;
  document.querySelectorAll('.stk-tab').forEach(b=>b.classList.toggle('active',b.dataset.side===side));el('availableShares').textContent=side==='sell'?`可卖 ${Number(h?.shares||0).toLocaleString()} 股`:'100 股起买';
  const shares=Math.max(0,Number(el('shares').value||0)),gross=Number(q.price||0)*shares*Number(stockState.ticketRate),fee=Math.max(1,gross*Number(stockState.feeRate)),settle=side==='sell'?gross-fee:gross+fee;
  el('estimate').innerHTML=`实时价 <b>${q.available?price(q.price):'--'}</b><br>成交金额约 <b>${money(gross)}</b> 电影票 · 手续费约 <b>${money(fee)}</b><br>${side==='buy'?'预计扣除':'预计获得'} <b>${money(settle)}</b> 电影票`;
