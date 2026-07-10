@@ -68,12 +68,14 @@ class ZjhEngineTest extends TestCase
         $this->assertSame(0, zjh_compare_all_outcome($pairKings, [$pairKings]));
     }
 
-    public function test_seen_players_pay_double_and_force_showdown_when_stack_is_short()
+    public function test_seen_players_pay_double_plus_the_ante()
     {
-        $this->assertSame(5000, zjh_action_cost(5000, false));
-        $this->assertSame(10000, zjh_action_cost(5000, true));
-        $this->assertFalse(zjh_requires_showdown(10000, 5000, true));
-        $this->assertTrue(zjh_requires_showdown(9999, 5000, true));
+        $this->assertSame(100, zjh_action_cost(100, false, 100));
+        $this->assertSame(300, zjh_action_cost(100, true, 100));
+        $this->assertSame(200, zjh_action_cost(200, false, 100));
+        $this->assertSame(500, zjh_action_cost(200, true, 100));
+        $this->assertFalse(zjh_requires_showdown(500, 200, true, 100));
+        $this->assertTrue(zjh_requires_showdown(499, 200, true, 100));
     }
 
     public function test_only_active_unrevealed_players_wait_for_showdown()
@@ -85,5 +87,15 @@ class ZjhEngineTest extends TestCase
             ['status' => 'active'],
         ];
         $this->assertSame([1, 3], zjh_unrevealed_active_seats($players));
+    }
+
+    public function test_cards_are_private_until_self_peek_reveal_or_finish()
+    {
+        $this->assertFalse(zjh_may_view_cards(false, false, false, false));
+        $this->assertFalse(zjh_may_view_cards(false, false, true, false));
+        $this->assertFalse(zjh_may_view_cards(false, true, false, false));
+        $this->assertTrue(zjh_may_view_cards(false, true, true, false));
+        $this->assertTrue(zjh_may_view_cards(false, false, false, true));
+        $this->assertTrue(zjh_may_view_cards(true, false, false, false));
     }
 }
