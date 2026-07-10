@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 
 class TorrentListSetting extends NexusModel
 {
@@ -31,9 +30,9 @@ class TorrentListSetting extends NexusModel
 
     public static function ensureSchema(): void
     {
-        $conn = (new static)->getConnectionName();
-        // Legacy PHP entry points bootstrap the database manager but not the Schema facade.
-        $schema = DB::connection($conn)->getSchemaBuilder();
+        $connection = (new static)->getConnection();
+        // Legacy PHP entry points do not initialize Laravel facades; use the model connection directly.
+        $schema = $connection->getSchemaBuilder();
         if (! $schema->hasTable('hdvideo_torrent_settings')) {
             $schema->create('hdvideo_torrent_settings', function (Blueprint $table) {
                 $table->integer('id')->unsigned()->primary();
@@ -67,8 +66,8 @@ class TorrentListSetting extends NexusModel
                 }
             }
         }
-        if (! DB::connection($conn)->table('hdvideo_torrent_settings')->where('id', 1)->exists()) {
-            DB::connection($conn)->table('hdvideo_torrent_settings')->insert([
+        if (! $connection->table('hdvideo_torrent_settings')->where('id', 1)->exists()) {
+            $connection->table('hdvideo_torrent_settings')->insert([
                 'id' => 1, 'sticky_count' => 5, 'source_tag_id' => 8, 'auto_sticky_days' => 5,
                 'official_free_hours' => 24, 'normal_free_hours' => 12,
                 'bonus_sticky_cost' => 10000, 'bonus_sticky_days' => 5,
