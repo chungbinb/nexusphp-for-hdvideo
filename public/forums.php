@@ -603,7 +603,7 @@ if ($action == "penalizepost")
                 $target = \App\Models\User::query()
                     ->where('id', (int)$penaltyPost['userid'])
                     ->lockForUpdate()
-                    ->firstOrFail(['id', 'username', 'class', 'passkey', 'locale', 'seedbonus', 'seed_points']);
+                    ->firstOrFail(['id', 'username', 'class', 'passkey', 'seedbonus', 'seed_points']);
                 if ((int)$target->class >= (int)$CURUSER['class']) {
                     throw new RuntimeException('用户等级已发生变化，不能继续扣分。');
                 }
