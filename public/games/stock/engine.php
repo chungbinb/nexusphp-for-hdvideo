@@ -83,4 +83,3 @@ function hdv_stock_quote_is_tradeable(array $quote, ?DateTimeImmutable $now = nu
         return false;
     }
 }
-
