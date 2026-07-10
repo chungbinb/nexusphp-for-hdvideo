@@ -15,6 +15,7 @@ const POKER_STACK_FACTOR = 20;
 const POKER_ROOM_TTL = 604800; // 未完牌局保留 7 天，避免刷新或临时离开丢失托管筹码
 const POKER_TURN_SECONDS = 30;
 const POKER_BOT_THINK_SECONDS = 3;
+const POKER_MATCH_WAIT = 10;
 const POKER_RAISE_CAP = 3;
 const POKER_BUSINESS_TYPE = 104;
 const POKER_ESCROW_BUSINESS_TYPE = 112; // 托管资金流水不进入游戏总榜，最终净结果单独记 104
@@ -25,34 +26,84 @@ function poker_redis()
     return \Nexus\Database\NexusDB::redis();
 }
 
-function poker_game_key($uid) { return 'poker:game:' . (int)$uid; }
-function poker_lock_key($uid) { return 'poker:lock:' . (int)$uid; }
+function poker_room_key($id) { return 'poker:room:' . (int)$id; }
+function poker_lobby_key() { return 'poker:lobby'; }
+function poker_user_room_key($uid) { return 'poker:user-room:' . (int)$uid; }
+function poker_legacy_game_key($uid) { return 'poker:game:' . (int)$uid; }
+function poker_lock_key($id) { return 'poker:lock:' . (int)$id; }
 
-function poker_game_get($uid)
+function poker_room_get($id)
 {
-    $json = poker_redis()->get(poker_game_key($uid));
+    $json = poker_redis()->get(poker_room_key($id));
     return $json ? json_decode($json, true) : null;
 }
 
-function poker_game_put($game)
+function poker_seat_of($room, $uid)
 {
-    poker_redis()->setex(poker_game_key($game['uid']), POKER_ROOM_TTL, json_encode($game, JSON_UNESCAPED_UNICODE));
+    foreach (($room['players'] ?? []) as $seat => $player) {
+        if ($player && empty($player['bot']) && (int)($player['uid'] ?? 0) === (int)$uid) return (int)$seat;
+    }
+    return -1;
 }
 
-function poker_lock($uid, $ttl = 8)
+function poker_player_count($room)
+{
+    return count(array_filter($room['players'] ?? [], fn($player) => (bool)$player));
+}
+
+function poker_room_put($room)
+{
+    $redis = poker_redis();
+    $redis->setex(poker_room_key($room['id']), POKER_ROOM_TTL, json_encode($room, JSON_UNESCAPED_UNICODE));
+    $departed = array_map('intval', $room['departed'] ?? []);
+    foreach (($room['players'] ?? []) as $player) {
+        if ($player && empty($player['bot']) && (int)($player['uid'] ?? 0) > 0 && !in_array((int)$player['uid'], $departed, true)) {
+            $redis->setex(poker_user_room_key($player['uid']), POKER_ROOM_TTL, (int)$room['id']);
+        }
+    }
+}
+
+function poker_current_room_id($uid)
+{
+    $redis = poker_redis();
+    $id = (int)$redis->get(poker_user_room_key($uid));
+    if ($id > 0) {
+        $room = poker_room_get($id);
+        if ($room && poker_seat_of($room, $uid) >= 0) return $id;
+        $redis->del(poker_user_room_key($uid));
+    }
+    // Migrate an in-progress single-player room from the first public version.
+    $legacyJson = $redis->get(poker_legacy_game_key($uid));
+    if ($legacyJson) {
+        $legacy = json_decode($legacyJson, true);
+        if ($legacy && !empty($legacy['players'])) {
+            $id = (int)$redis->incr('poker:next-id');
+            $legacy['id'] = $id;
+            $legacy['owner'] = (int)$uid;
+            $legacy['mode'] = 'legacy';
+            $legacy['invite'] = bin2hex(random_bytes(6));
+            poker_room_put($legacy);
+            $redis->del(poker_legacy_game_key($uid));
+            return $id;
+        }
+    }
+    return 0;
+}
+
+function poker_lock($id, $ttl = 8)
 {
     $token = bin2hex(random_bytes(8));
     for ($i = 0; $i < 25; $i++) {
-        if (poker_redis()->set(poker_lock_key($uid), $token, ['nx', 'ex' => $ttl])) return $token;
+        if (poker_redis()->set(poker_lock_key($id), $token, ['nx', 'ex' => $ttl])) return $token;
         usleep(60000);
     }
     return false;
 }
 
-function poker_unlock($uid, $token)
+function poker_unlock($id, $token)
 {
     $redis = poker_redis();
-    if ($redis->get(poker_lock_key($uid)) === $token) $redis->del(poker_lock_key($uid));
+    if ($redis->get(poker_lock_key($id)) === $token) $redis->del(poker_lock_key($id));
 }
 
 function poker_ensure_tables()
@@ -86,31 +137,51 @@ function poker_wallet_balance($uid)
     return $row ? (float)$row['seedbonus'] : 0.0;
 }
 
-function poker_reserve_buyin($uid, $amount, $handId)
+function poker_real_player($player)
 {
-    $uid = (int)$uid;
-    $amount = (float)$amount;
+    return $player && empty($player['bot']) && (int)($player['uid'] ?? 0) > 0;
+}
+
+/** 开局时一次性锁定所有真人余额，确保不会出现部分玩家已扣款、牌局却未开始。 */
+function poker_reserve_room_buyins(&$room, $handId)
+{
+    $amount = (float)((int)$room['base'] * POKER_STACK_FACTOR);
+    $realSeats = [];
+    foreach ($room['players'] as $seat => $player) {
+        if (poker_real_player($player)) $realSeats[(int)$player['uid']] = (int)$seat;
+    }
+    ksort($realSeats, SORT_NUMERIC);
     $now = date('Y-m-d H:i:s');
     sql_query('START TRANSACTION') or sqlerr(__FILE__, __LINE__);
     try {
-        $res = sql_query('SELECT `seedbonus` FROM `users` WHERE `id` = ' . $uid . ' FOR UPDATE') or sqlerr(__FILE__, __LINE__);
-        $row = mysql_fetch_assoc($res);
-        $old = $row ? (float)$row['seedbonus'] : 0;
-        if ($old < $amount) {
-            sql_query('ROLLBACK');
-            return null;
+        $balances = [];
+        foreach ($realSeats as $uid => $seat) {
+            $res = sql_query('SELECT `seedbonus` FROM `users` WHERE `id` = ' . (int)$uid . ' FOR UPDATE') or sqlerr(__FILE__, __LINE__);
+            $row = mysql_fetch_assoc($res);
+            $old = $row ? (float)$row['seedbonus'] : 0;
+            if ($old < $amount) {
+                sql_query('ROLLBACK');
+                return ($room['players'][$seat]['username'] ?? '有玩家') . '的电影票余额不足，暂时无法开局。';
+            }
+            $balances[$uid] = $old;
         }
-        $new = $old - $amount;
-        sql_query('UPDATE `users` SET `seedbonus` = `seedbonus` - ' . sqlesc(number_format($amount, 1, '.', '')) . ' WHERE `id` = ' . $uid) or sqlerr(__FILE__, __LINE__);
-        sql_query(sprintf(
-            "INSERT INTO `bonus_logs` (`business_type`,`uid`,`old_total_value`,`value`,`new_total_value`,`comment`,`created_at`,`updated_at`) VALUES (%d,%d,%s,%s,%s,%s,%s,%s)",
-            POKER_ESCROW_BUSINESS_TYPE, $uid, sqlesc(number_format($old, 1, '.', '')),
-            sqlesc(number_format(-$amount, 1, '.', '')), sqlesc(number_format($new, 1, '.', '')),
-            sqlesc('[德州扑克托管] 手牌 ' . $handId . ' 带入筹码'), sqlesc($now), sqlesc($now)
-        )) or sqlerr(__FILE__, __LINE__);
+        foreach ($realSeats as $uid => $seat) {
+            $old = $balances[$uid];
+            $new = $old - $amount;
+            sql_query('UPDATE `users` SET `seedbonus` = `seedbonus` - ' . sqlesc(number_format($amount, 1, '.', '')) . ' WHERE `id` = ' . (int)$uid) or sqlerr(__FILE__, __LINE__);
+            sql_query(sprintf(
+                "INSERT INTO `bonus_logs` (`business_type`,`uid`,`old_total_value`,`value`,`new_total_value`,`comment`,`created_at`,`updated_at`) VALUES (%d,%d,%s,%s,%s,%s,%s,%s)",
+                POKER_ESCROW_BUSINESS_TYPE, (int)$uid, sqlesc(number_format($old, 1, '.', '')),
+                sqlesc(number_format(-$amount, 1, '.', '')), sqlesc(number_format($new, 1, '.', '')),
+                sqlesc('[德州扑克托管] 手牌 ' . $handId . ' 带入筹码'), sqlesc($now), sqlesc($now)
+            )) or sqlerr(__FILE__, __LINE__);
+            $room['players'][$seat]['escrow'] = $amount;
+            $room['players'][$seat]['balance_before'] = $old;
+            $room['players'][$seat]['wallet_after_reserve'] = $new;
+        }
         sql_query('COMMIT') or sqlerr(__FILE__, __LINE__);
-        clear_user_cache($uid);
-        return $old;
+        foreach (array_keys($realSeats) as $uid) clear_user_cache((int)$uid);
+        return '';
     } catch (Throwable $e) {
         sql_query('ROLLBACK');
         throw $e;
@@ -165,26 +236,59 @@ function poker_commit(&$game, $seat, $amount)
     return $amount;
 }
 
-function poker_deal_new_game($base)
+function poker_validate_base($base)
 {
     global $CURUSER;
     $base = (int)$base;
-    if (!in_array($base, POKER_BASE_OPTIONS, true)) return [null, '请选择有效的底注。'];
-    $stack = $base * POKER_STACK_FACTOR;
-    if ((float)$CURUSER['seedbonus'] < $stack) return [null, "余额不足，该牌桌需至少 {$stack} 张电影票。"];
+    if (!in_array($base, POKER_BASE_OPTIONS, true)) return '请选择有效的底注。';
+    $need = $base * POKER_STACK_FACTOR;
+    if ((float)$CURUSER['seedbonus'] < $need) return "余额不足，该牌桌需至少 {$need} 张电影票。";
+    return '';
+}
 
-    $bots = POKER_BOT_NAMES;
-    shuffle($bots);
-    $players = [[
-        'uid' => (int)$CURUSER['id'], 'username' => (string)$CURUSER['username'],
-        'avatar' => (string)($CURUSER['avatar'] ?? ''), 'bot' => false,
-    ]];
-    for ($i = 0; $i < POKER_SEATS - 1; $i++) {
-        $players[] = ['uid' => 0, 'username' => $bots[$i], 'avatar' => '', 'bot' => true];
+function poker_user_entry()
+{
+    global $CURUSER;
+    return ['uid' => (int)$CURUSER['id'], 'username' => (string)$CURUSER['username'], 'avatar' => (string)($CURUSER['avatar'] ?? ''), 'bot' => false];
+}
+
+function poker_new_waiting_room($base, $mode)
+{
+    global $CURUSER;
+    $id = (int)poker_redis()->incr('poker:next-id');
+    return [
+        'id' => $id, 'base' => (int)$base, 'status' => 'waiting', 'stage' => 'waiting',
+        'owner' => (int)$CURUSER['id'], 'mode' => $mode, 'invite' => bin2hex(random_bytes(6)),
+        'players' => [poker_user_entry(), null, null, null], 'logs' => [],
+        'created_at' => TIMENOW, 'updated_at' => TIMENOW,
+        'mm_deadline' => $mode === 'match' ? TIMENOW + POKER_MATCH_WAIT : 0,
+    ];
+}
+
+function poker_fill_room_bots(&$room)
+{
+    $names = POKER_BOT_NAMES;
+    shuffle($names);
+    $bi = 0;
+    foreach ($room['players'] as $seat => $player) {
+        if (!$player) {
+            $room['players'][$seat] = ['uid' => -((int)$seat + 1), 'username' => '机器人·' . $names[$bi++], 'avatar' => '', 'bot' => true];
+        }
     }
+}
+
+function poker_start_room(&$room)
+{
+    if (($room['status'] ?? '') !== 'waiting') return '牌局已经开始。';
+    if (poker_player_count($room) !== POKER_SEATS) return '人数不足，暂时不能开局。';
+    $stack = (int)$room['base'] * POKER_STACK_FACTOR;
+    $handId = bin2hex(random_bytes(8));
+    $reserveError = poker_reserve_room_buyins($room, $handId);
+    if ($reserveError !== '') return $reserveError;
+
     $deck = range(0, 51);
     shuffle($deck);
-    foreach ($players as $seat => &$player) {
+    foreach ($room['players'] as &$player) {
         $player['cards'] = [array_pop($deck), array_pop($deck)];
         $player['stack'] = $stack;
         $player['contrib'] = 0;
@@ -193,27 +297,157 @@ function poker_deal_new_game($base)
         $player['acted'] = false;
     }
     unset($player);
-
     $dealer = random_int(0, POKER_SEATS - 1);
-    $smallBlind = ($dealer + 1) % POKER_SEATS;
-    $bigBlind = ($dealer + 2) % POKER_SEATS;
-    $handId = bin2hex(random_bytes(8));
-    $balanceBefore = poker_reserve_buyin((int)$CURUSER['id'], $stack, $handId);
-    if ($balanceBefore === null) return [null, '余额已发生变化，当前不足以带入该牌桌。'];
-    $game = [
-        'uid' => (int)$CURUSER['id'], 'hand_id' => $handId, 'token' => bin2hex(random_bytes(16)),
-        'escrow' => $stack, 'balance_before' => $balanceBefore,
-        'base' => $base, 'status' => 'playing', 'stage' => 'preflop', 'dealer' => $dealer,
-        'small_blind' => $smallBlind, 'big_blind' => $bigBlind, 'players' => $players,
-        'deck' => $deck, 'community' => [], 'pot' => 0, 'current_bet' => $base,
-        'raise_count' => 0, 'turn' => -1, 'deadline' => 0, 'logs' => [], 'created_at' => TIMENOW,
-    ];
-    poker_commit($game, $smallBlind, intdiv($base, 2));
-    poker_commit($game, $bigBlind, $base);
-    poker_add_log($game, $game['players'][$smallBlind]['username'] . ' 下小盲注 ' . intdiv($base, 2));
-    poker_add_log($game, $game['players'][$bigBlind]['username'] . ' 下大盲注 ' . $base);
-    poker_set_turn($game, ($bigBlind + 1) % POKER_SEATS);
-    return [$game, ''];
+    $room['hand_id'] = $handId;
+    $room['token'] = bin2hex(random_bytes(16));
+    $room['status'] = 'playing';
+    $room['stage'] = 'preflop';
+    $room['dealer'] = $dealer;
+    $room['small_blind'] = ($dealer + 1) % POKER_SEATS;
+    $room['big_blind'] = ($dealer + 2) % POKER_SEATS;
+    $room['deck'] = $deck;
+    $room['community'] = [];
+    $room['pot'] = 0;
+    $room['current_bet'] = (int)$room['base'];
+    $room['raise_count'] = 0;
+    $room['turn'] = -1;
+    $room['deadline'] = 0;
+    $room['logs'] = [];
+    $room['started_at'] = TIMENOW;
+    unset($room['start_error']);
+    poker_commit($room, $room['small_blind'], intdiv((int)$room['base'], 2));
+    poker_commit($room, $room['big_blind'], (int)$room['base']);
+    poker_add_log($room, $room['players'][$room['small_blind']]['username'] . ' 下小盲注 ' . intdiv((int)$room['base'], 2));
+    poker_add_log($room, $room['players'][$room['big_blind']]['username'] . ' 下大盲注 ' . (int)$room['base']);
+    poker_set_turn($room, ($room['big_blind'] + 1) % POKER_SEATS);
+    poker_redis()->sRem(poker_lobby_key(), $room['id']);
+    return '';
+}
+
+function poker_create_friend_room($base)
+{
+    global $CURUSER;
+    $error = poker_validate_base($base);
+    if ($error !== '') return [0, $error];
+    $current = poker_current_room_id((int)$CURUSER['id']);
+    if ($current) return [$current, ''];
+    $room = poker_new_waiting_room((int)$base, 'friend');
+    poker_room_put($room);
+    poker_redis()->sAdd(poker_lobby_key(), $room['id']);
+    return [(int)$room['id'], ''];
+}
+
+function poker_join_room($id, $invite = '', $matchJoin = false)
+{
+    global $CURUSER;
+    $id = (int)$id;
+    $current = poker_current_room_id((int)$CURUSER['id']);
+    if ($current) return [$current, $current === $id ? '' : '你已经在另一张牌桌中。'];
+    $lock = poker_lock($id);
+    if (!$lock) return [0, '操作繁忙，请稍后重试。'];
+    try {
+        $room = poker_room_get($id);
+        if (!$room) return [0, '牌桌不存在或已解散。'];
+        if (($room['status'] ?? '') !== 'waiting') return [0, '该牌桌已经开局。'];
+        if (!$matchJoin && ($room['mode'] ?? '') === 'friend' && !hash_equals((string)($room['invite'] ?? ''), (string)$invite)) return [0, '好友桌邀请链接已失效。'];
+        if (poker_player_count($room) >= POKER_SEATS) return [0, '该牌桌已满。'];
+        $need = (int)$room['base'] * POKER_STACK_FACTOR;
+        if ((float)$CURUSER['seedbonus'] < $need) return [0, "余额不足，该牌桌需至少 {$need} 张电影票。"];
+        foreach ($room['players'] as $seat => $player) {
+            if (!$player) { $room['players'][$seat] = poker_user_entry(); break; }
+        }
+        $room['updated_at'] = TIMENOW;
+        if (poker_player_count($room) === POKER_SEATS) {
+            $startError = poker_start_room($room);
+            if ($startError !== '') { $room['start_error'] = $startError; poker_room_put($room); return [$id, '']; }
+        }
+        poker_room_put($room);
+        return [$id, ''];
+    } finally {
+        poker_unlock($id, $lock);
+    }
+}
+
+function poker_matchmake($base)
+{
+    global $CURUSER;
+    $error = poker_validate_base($base);
+    if ($error !== '') return [0, $error];
+    $current = poker_current_room_id((int)$CURUSER['id']);
+    if ($current) return [$current, ''];
+    $candidates = [];
+    foreach ((poker_redis()->sMembers(poker_lobby_key()) ?: []) as $id) {
+        $room = poker_room_get($id);
+        if (!$room) { poker_redis()->sRem(poker_lobby_key(), $id); continue; }
+        if (($room['mode'] ?? '') === 'match' && ($room['status'] ?? '') === 'waiting' && (int)$room['base'] === (int)$base && poker_player_count($room) < POKER_SEATS) $candidates[] = $room;
+    }
+    usort($candidates, fn($a, $b) => (int)$a['created_at'] <=> (int)$b['created_at']);
+    foreach ($candidates as $room) {
+        [$id, $joinError] = poker_join_room($room['id'], '', true);
+        if ($id && $joinError === '') return [$id, ''];
+    }
+    $room = poker_new_waiting_room((int)$base, 'match');
+    poker_room_put($room);
+    poker_redis()->sAdd(poker_lobby_key(), $room['id']);
+    return [(int)$room['id'], ''];
+}
+
+function poker_fill_and_start($id, $uid, $ownerOnly = true)
+{
+    $lock = poker_lock($id);
+    if (!$lock) return '操作繁忙，请稍后重试。';
+    try {
+        $room = poker_room_get($id);
+        if (!$room || ($room['status'] ?? '') !== 'waiting') return '牌桌已不存在或已经开局。';
+        if ($ownerOnly && (int)$room['owner'] !== (int)$uid) return '只有房主可以提前补机器人。';
+        poker_fill_room_bots($room);
+        $error = poker_start_room($room);
+        if ($error !== '') { $room['start_error'] = $error; poker_room_put($room); return $error; }
+        poker_room_put($room);
+        return '';
+    } finally {
+        poker_unlock($id, $lock);
+    }
+}
+
+function poker_leave_current_room($uid)
+{
+    $id = poker_current_room_id($uid);
+    if (!$id) return '';
+    $lock = poker_lock($id);
+    if (!$lock) return '操作繁忙，请稍后重试。';
+    try {
+        $room = poker_room_get($id);
+        if (!$room) { poker_redis()->del(poker_user_room_key($uid)); return ''; }
+        if (($room['status'] ?? '') === 'playing') return '牌局进行中，不能离开。';
+        $seat = poker_seat_of($room, $uid);
+        poker_redis()->del(poker_user_room_key($uid));
+        if (($room['status'] ?? '') === 'finished') {
+            $room['departed'][] = (int)$uid;
+            $room['departed'] = array_values(array_unique(array_map('intval', $room['departed'])));
+            $hasViewer = false;
+            foreach ($room['players'] as $player) {
+                if (poker_real_player($player) && (int)poker_redis()->get(poker_user_room_key($player['uid'])) === $id) { $hasViewer = true; break; }
+            }
+            if (!$hasViewer) poker_redis()->del(poker_room_key($id));
+            else poker_room_put($room);
+            return '';
+        }
+        if ($seat >= 0) $room['players'][$seat] = null;
+        if (poker_player_count($room) === 0) {
+            poker_redis()->del(poker_room_key($id));
+            poker_redis()->sRem(poker_lobby_key(), $id);
+            return '';
+        }
+        if ((int)$room['owner'] === (int)$uid) {
+            foreach ($room['players'] as $player) if (poker_real_player($player)) { $room['owner'] = (int)$player['uid']; break; }
+        }
+        $room['updated_at'] = TIMENOW;
+        poker_room_put($room);
+        return '';
+    } finally {
+        poker_unlock($id, $lock);
+    }
 }
 
 function poker_betting_complete($game)
@@ -261,43 +495,58 @@ function poker_settle(&$game)
         $game['players'][$seat]['score'] = $scores[$seat] ?? null;
         $game['players'][$seat]['hand_name'] = isset($scores[$seat]) ? poker_score_name($scores[$seat]) : '';
     }
-    $escrow = (float)($game['escrow'] ?? ((int)$game['base'] * POKER_STACK_FACTOR));
-    $userCredit = (float)$game['players'][0]['stack'] + (in_array(0, $winners, true) ? $share : 0);
-    $userDelta = round($userCredit - $escrow, 1);
-    $deltas[0] = $userDelta;
+    $realSeats = [];
+    foreach ($game['players'] as $seat => $player) {
+        if (!poker_real_player($player)) continue;
+        $escrow = (float)($player['escrow'] ?? ($game['escrow'] ?? ((int)$game['base'] * POKER_STACK_FACTOR)));
+        $credit = (float)$player['stack'] + (in_array((int)$seat, $winners, true) ? $share : 0);
+        $delta = round($credit - $escrow, 1);
+        $deltas[$seat] = $delta;
+        $realSeats[(int)$player['uid']] = ['seat' => (int)$seat, 'credit' => $credit, 'delta' => $delta, 'escrow' => $escrow];
+    }
+    ksort($realSeats, SORT_NUMERIC);
     poker_ensure_tables();
     $now = date('Y-m-d H:i:s');
     sql_query('START TRANSACTION') or sqlerr(__FILE__, __LINE__);
     try {
-        $res = sql_query('SELECT `seedbonus` FROM `users` WHERE `id` = ' . (int)$game['uid'] . ' FOR UPDATE') or sqlerr(__FILE__, __LINE__);
-        $row = mysql_fetch_assoc($res);
-        $old = $row ? (float)$row['seedbonus'] : 0;
-        $new = $old + $userCredit;
-        $result = $userDelta > 0 ? 'win' : ($userDelta < 0 ? 'lose' : 'push');
-        $handName = $game['players'][0]['hand_name'] ?: (($game['players'][0]['status'] ?? '') === 'folded' ? '弃牌' : '未摊牌');
-        sql_query(sprintf(
-            "INSERT INTO `hdvideo_poker_results` (`hand_id`,`uid`,`base`,`result`,`hand_name`,`delta`,`pot`,`created_at`) VALUES (%s,%d,%d,%s,%s,%s,%s,%s)",
-            sqlesc($game['hand_id']), (int)$game['uid'], (int)$game['base'], sqlesc($result), sqlesc($handName),
-            sqlesc(number_format($userDelta, 1, '.', '')), sqlesc(number_format((float)$game['pot'], 1, '.', '')), sqlesc($now)
-        )) or sqlerr(__FILE__, __LINE__);
-        sql_query('UPDATE `users` SET `seedbonus` = `seedbonus` + ' . sqlesc(number_format($userCredit, 1, '.', '')) . ' WHERE `id` = ' . (int)$game['uid']) or sqlerr(__FILE__, __LINE__);
-        sql_query(sprintf(
-            "INSERT INTO `bonus_logs` (`business_type`,`uid`,`old_total_value`,`value`,`new_total_value`,`comment`,`created_at`,`updated_at`) VALUES (%d,%d,%s,%s,%s,%s,%s,%s)",
-            POKER_ESCROW_BUSINESS_TYPE, (int)$game['uid'], sqlesc(number_format($old, 1, '.', '')),
-            sqlesc(number_format($userCredit, 1, '.', '')), sqlesc(number_format($new, 1, '.', '')),
-            sqlesc('[德州扑克托管] 手牌 ' . $game['hand_id'] . ' 退回筹码与底池'), sqlesc($now), sqlesc($now)
-        )) or sqlerr(__FILE__, __LINE__);
-        // 游戏总榜只统计一条“整手净结果”，托管进出不影响活跃/中奖次数。
-        $summaryOld = (float)($game['balance_before'] ?? $old + $escrow);
-        $comment = '[德州扑克] ' . $handName . ' ' . ($userDelta > 0 ? '赢' : ($userDelta < 0 ? '输' : '平')) . ' ' . abs($userDelta) . '，底池 ' . $game['pot'];
-        sql_query(sprintf(
-            "INSERT INTO `bonus_logs` (`business_type`,`uid`,`old_total_value`,`value`,`new_total_value`,`comment`,`created_at`,`updated_at`) VALUES (%d,%d,%s,%s,%s,%s,%s,%s)",
-            POKER_BUSINESS_TYPE, (int)$game['uid'], sqlesc(number_format($summaryOld, 1, '.', '')),
-            sqlesc(number_format($userDelta, 1, '.', '')), sqlesc(number_format($summaryOld + $userDelta, 1, '.', '')),
-            sqlesc($comment), sqlesc($now), sqlesc($now)
-        )) or sqlerr(__FILE__, __LINE__);
+        $wallets = [];
+        foreach ($realSeats as $uid => $info) {
+            $res = sql_query('SELECT `seedbonus` FROM `users` WHERE `id` = ' . (int)$uid . ' FOR UPDATE') or sqlerr(__FILE__, __LINE__);
+            $row = mysql_fetch_assoc($res);
+            $wallets[$uid] = $row ? (float)$row['seedbonus'] : 0;
+        }
+        foreach ($realSeats as $uid => $info) {
+            $seat = $info['seat'];
+            $old = $wallets[$uid];
+            $new = $old + $info['credit'];
+            $delta = $info['delta'];
+            $result = $delta > 0 ? 'win' : ($delta < 0 ? 'lose' : 'push');
+            $handName = $game['players'][$seat]['hand_name'] ?: (($game['players'][$seat]['status'] ?? '') === 'folded' ? '弃牌' : '未摊牌');
+            sql_query(sprintf(
+                "INSERT INTO `hdvideo_poker_results` (`hand_id`,`uid`,`base`,`result`,`hand_name`,`delta`,`pot`,`created_at`) VALUES (%s,%d,%d,%s,%s,%s,%s,%s)",
+                sqlesc($game['hand_id']), (int)$uid, (int)$game['base'], sqlesc($result), sqlesc($handName),
+                sqlesc(number_format($delta, 1, '.', '')), sqlesc(number_format((float)$game['pot'], 1, '.', '')), sqlesc($now)
+            )) or sqlerr(__FILE__, __LINE__);
+            sql_query('UPDATE `users` SET `seedbonus` = `seedbonus` + ' . sqlesc(number_format($info['credit'], 1, '.', '')) . ' WHERE `id` = ' . (int)$uid) or sqlerr(__FILE__, __LINE__);
+            sql_query(sprintf(
+                "INSERT INTO `bonus_logs` (`business_type`,`uid`,`old_total_value`,`value`,`new_total_value`,`comment`,`created_at`,`updated_at`) VALUES (%d,%d,%s,%s,%s,%s,%s,%s)",
+                POKER_ESCROW_BUSINESS_TYPE, (int)$uid, sqlesc(number_format($old, 1, '.', '')),
+                sqlesc(number_format($info['credit'], 1, '.', '')), sqlesc(number_format($new, 1, '.', '')),
+                sqlesc('[德州扑克托管] 手牌 ' . $game['hand_id'] . ' 退回筹码与底池'), sqlesc($now), sqlesc($now)
+            )) or sqlerr(__FILE__, __LINE__);
+            // 游戏总榜只统计一条“整手净结果”，托管进出不影响活跃/中奖次数。
+            $summaryOld = (float)($game['players'][$seat]['balance_before'] ?? ($game['balance_before'] ?? $old + $info['escrow']));
+            $comment = '[德州扑克] ' . $handName . ' ' . ($delta > 0 ? '赢' : ($delta < 0 ? '输' : '平')) . ' ' . abs($delta) . '，底池 ' . $game['pot'];
+            sql_query(sprintf(
+                "INSERT INTO `bonus_logs` (`business_type`,`uid`,`old_total_value`,`value`,`new_total_value`,`comment`,`created_at`,`updated_at`) VALUES (%d,%d,%s,%s,%s,%s,%s,%s)",
+                POKER_BUSINESS_TYPE, (int)$uid, sqlesc(number_format($summaryOld, 1, '.', '')),
+                sqlesc(number_format($delta, 1, '.', '')), sqlesc(number_format($summaryOld + $delta, 1, '.', '')),
+                sqlesc($comment), sqlesc($now), sqlesc($now)
+            )) or sqlerr(__FILE__, __LINE__);
+            $game['players'][$seat]['wallet_after_settle'] = $new;
+        }
         sql_query('COMMIT') or sqlerr(__FILE__, __LINE__);
-        clear_user_cache((int)$game['uid']);
+        foreach (array_keys($realSeats) as $uid) clear_user_cache((int)$uid);
     } catch (Throwable $e) {
         sql_query('ROLLBACK');
         throw $e;
@@ -305,7 +554,6 @@ function poker_settle(&$game)
     $game['deltas'] = $deltas;
     $game['winners'] = $winners;
     $game['share'] = $share;
-    $game['wallet_credit'] = $userCredit;
     $game['status'] = 'finished';
     $game['stage'] = 'showdown';
     $game['turn'] = -1;
@@ -426,65 +674,91 @@ function poker_drive_bots(&$game)
     }
 }
 
-function poker_mutate($callback)
+function poker_mutate_current($callback)
 {
     global $CURUSER;
     $uid = (int)$CURUSER['id'];
-    $lock = poker_lock($uid);
+    $id = poker_current_room_id($uid);
+    if (!$id) return [null, '牌桌不存在，请重新加入。'];
+    $lock = poker_lock($id);
     if (!$lock) return [null, '操作繁忙，请稍后重试。'];
     try {
-        $game = poker_game_get($uid);
-        $hadGame = (bool)$game;
-        $error = $callback($game);
-        if ($game) poker_game_put($game);
-        elseif ($hadGame) poker_redis()->del(poker_game_key($uid));
-        return [$game, (string)$error];
+        $room = poker_room_get($id);
+        if (!$room) return [null, '牌桌不存在，请重新加入。'];
+        $seat = poker_seat_of($room, $uid);
+        if ($seat < 0) return [null, '你已不在这张牌桌。'];
+        $error = $callback($room, $seat);
+        poker_room_put($room);
+        return [$room, (string)$error];
     } finally {
-        poker_unlock($uid, $lock);
+        poker_unlock($id, $lock);
     }
 }
 
-function poker_public_state($game)
+function poker_public_state($room, $viewerUid)
 {
-    if (!$game) return ['ok' => true, 'game' => null];
-    $finished = ($game['status'] ?? '') === 'finished';
+    global $BASEURL;
+    if (!$room) return ['ok' => true, 'game' => null];
+    $viewerSeat = poker_seat_of($room, $viewerUid);
+    if ($viewerSeat < 0) return ['ok' => true, 'game' => null];
+    $waiting = ($room['status'] ?? '') === 'waiting';
+    $finished = ($room['status'] ?? '') === 'finished';
+    $toView = fn($actual) => $actual < 0 ? -1 : (((int)$actual - $viewerSeat + POKER_SEATS) % POKER_SEATS);
     $players = [];
-    foreach ($game['players'] as $seat => $player) {
-        $showCards = $seat === 0 || ($finished && ($player['status'] ?? '') === 'active');
+    $deltas = [];
+    for ($viewSeat = 0; $viewSeat < POKER_SEATS; $viewSeat++) {
+        $actualSeat = ($viewerSeat + $viewSeat) % POKER_SEATS;
+        $player = $room['players'][$actualSeat] ?? null;
+        if (!$player) {
+            $players[] = ['username' => '等待加入', 'avatar' => '', 'bot' => false, 'stack' => 0, 'contrib' => 0, 'roundBet' => 0, 'status' => 'empty', 'cards' => [], 'handName' => ''];
+            $deltas[] = 0;
+            continue;
+        }
+        $showCards = !$waiting && ($actualSeat === $viewerSeat || ($finished && ($player['status'] ?? '') === 'active'));
         $cards = [];
-        if ($showCards) foreach ($player['cards'] as $card) $cards[] = ['id' => $card, 'label' => poker_card_label($card), 'red' => poker_card_is_red($card)];
+        if ($showCards) foreach (($player['cards'] ?? []) as $card) $cards[] = ['id' => $card, 'label' => poker_card_label($card), 'red' => poker_card_is_red($card)];
         $players[] = [
-            'username' => $player['username'], 'avatar' => $player['avatar'], 'bot' => (bool)$player['bot'],
-            'stack' => (int)$player['stack'], 'contrib' => (int)$player['contrib'], 'roundBet' => (int)$player['round_bet'],
-            'status' => $player['status'], 'cards' => $cards, 'handName' => $player['hand_name'] ?? '',
+            'username' => $player['username'], 'avatar' => $player['avatar'] ?? '', 'bot' => (bool)($player['bot'] ?? false),
+            'stack' => (int)($player['stack'] ?? 0), 'contrib' => (int)($player['contrib'] ?? 0), 'roundBet' => (int)($player['round_bet'] ?? 0),
+            'status' => $player['status'] ?? ($waiting ? 'waiting' : 'active'), 'cards' => $cards, 'handName' => $player['hand_name'] ?? '',
         ];
+        $deltas[] = (float)($room['deltas'][$actualSeat] ?? 0);
     }
     $community = [];
-    foreach ($game['community'] as $card) $community[] = ['id' => $card, 'label' => poker_card_label($card), 'red' => poker_card_is_red($card)];
+    foreach (($room['community'] ?? []) as $card) $community[] = ['id' => $card, 'label' => poker_card_label($card), 'red' => poker_card_is_red($card)];
     $toCall = 0;
     $canRaise = false;
     $raiseTo = 0;
-    if (!$finished && ($game['players'][0]['status'] ?? '') === 'active') {
-        $toCall = max(0, (int)$game['current_bet'] - (int)$game['players'][0]['round_bet']);
-        $inc = in_array($game['stage'], ['turn', 'river'], true) ? (int)$game['base'] * 2 : (int)$game['base'];
-        $raiseTo = (int)$game['current_bet'] + $inc;
-        $canRaise = (int)$game['turn'] === 0 && (int)$game['raise_count'] < POKER_RAISE_CAP
-            && (int)$game['players'][0]['stack'] >= $raiseTo - (int)$game['players'][0]['round_bet'];
+    $viewer = $room['players'][$viewerSeat];
+    if (!$waiting && !$finished && ($viewer['status'] ?? '') === 'active') {
+        $toCall = max(0, (int)$room['current_bet'] - (int)$viewer['round_bet']);
+        $inc = in_array($room['stage'], ['turn', 'river'], true) ? (int)$room['base'] * 2 : (int)$room['base'];
+        $raiseTo = (int)$room['current_bet'] + $inc;
+        $canRaise = (int)$room['turn'] === $viewerSeat && (int)$room['raise_count'] < POKER_RAISE_CAP
+            && (int)$viewer['stack'] >= $raiseTo - (int)$viewer['round_bet'];
     }
-    return [
-        'ok' => true, 'game' => [
-            'handId' => $game['hand_id'],
-            'status' => $game['status'], 'stage' => $game['stage'], 'stageLabel' => poker_stage_label($game['stage']),
-            'base' => (int)$game['base'], 'escrow' => (int)($game['escrow'] ?? 0), 'pot' => (int)$game['pot'], 'dealer' => (int)$game['dealer'],
-            'smallBlind' => (int)$game['small_blind'], 'bigBlind' => (int)$game['big_blind'],
-            'turn' => (int)$game['turn'], 'timeLeft' => !$finished ? max(0, (int)$game['deadline'] - TIMENOW) : 0,
-            'players' => $players, 'community' => $community, 'toCall' => $toCall, 'canRaise' => $canRaise,
-            'raiseTo' => $raiseTo, 'raiseCount' => (int)$game['raise_count'], 'raiseCap' => POKER_RAISE_CAP,
-            'logs' => array_values($game['logs']), 'token' => $game['token'],
-            'winners' => $game['winners'] ?? [], 'deltas' => $game['deltas'] ?? [],
-            'finishReason' => $game['finish_reason'] ?? '', 'share' => $game['share'] ?? 0,
-        ]
+    $winners = [];
+    foreach (($room['winners'] ?? []) as $actualSeat) $winners[] = $toView((int)$actualSeat);
+    $inviteUrl = get_protocol_prefix() . $BASEURL . '/games/poker/?table=' . (int)$room['id'] . '&invite=' . rawurlencode((string)($room['invite'] ?? ''));
+    $game = [
+        'roomId' => (int)$room['id'], 'handId' => $room['hand_id'] ?? ('waiting-' . $room['id']),
+        'status' => $room['status'], 'stage' => $room['stage'] ?? 'waiting', 'stageLabel' => $waiting ? '等待入座' : poker_stage_label($room['stage']),
+        'mode' => $room['mode'] ?? 'legacy', 'base' => (int)$room['base'], 'pot' => (int)($room['pot'] ?? 0),
+        'dealer' => $waiting ? -1 : $toView((int)$room['dealer']), 'smallBlind' => $waiting ? -1 : $toView((int)$room['small_blind']), 'bigBlind' => $waiting ? -1 : $toView((int)$room['big_blind']),
+        'turn' => $waiting ? -1 : $toView((int)($room['turn'] ?? -1)), 'timeLeft' => (!$waiting && !$finished) ? max(0, (int)$room['deadline'] - TIMENOW) : 0,
+        'players' => $players, 'playerCount' => poker_player_count($room), 'community' => $community,
+        'toCall' => $toCall, 'canRaise' => $canRaise, 'raiseTo' => $raiseTo,
+        'raiseCount' => (int)($room['raise_count'] ?? 0), 'raiseCap' => POKER_RAISE_CAP,
+        'logs' => array_values($room['logs'] ?? []), 'token' => $room['token'] ?? '',
+        'winners' => $winners, 'deltas' => $deltas, 'finishReason' => $room['finish_reason'] ?? '', 'share' => $room['share'] ?? 0,
+        'isOwner' => (int)$room['owner'] === (int)$viewerUid, 'inviteUrl' => $inviteUrl,
+        'queueLeft' => $waiting && ($room['mode'] ?? '') === 'match' ? max(0, (int)($room['mm_deadline'] ?? TIMENOW) - TIMENOW) : 0,
+        'startError' => $room['start_error'] ?? '',
     ];
+    $response = ['ok' => true, 'game' => $game];
+    if (isset($viewer['wallet_after_settle'])) $response['wallet'] = (float)$viewer['wallet_after_settle'];
+    elseif (isset($viewer['wallet_after_reserve'])) $response['wallet'] = (float)$viewer['wallet_after_reserve'];
+    return $response;
 }
 
 function poker_stats($uid)
@@ -503,22 +777,34 @@ function poker_rankings()
     return $rows;
 }
 
-// JSON poll drives bot turns and applies a safe timeout action for the human player.
+// JSON poll drives matchmaking, bot turns and safe timeout actions for every real player.
 if (($_GET['ajax'] ?? '') === 'poll') {
     header('Content-Type: application/json');
-    [$game, $error] = poker_mutate(function (&$game) {
-        if (!$game || ($game['status'] ?? '') !== 'playing') return '';
-        if ((int)$game['turn'] === 0 && TIMENOW >= (int)$game['deadline']) {
-            $toCall = max(0, (int)$game['current_bet'] - (int)$game['players'][0]['round_bet']);
-            poker_apply_action($game, 0, $toCall === 0 ? 'check' : 'fold');
-            poker_add_log($game, '你已超时，系统自动行动');
+    $id = poker_current_room_id((int)$CURUSER['id']);
+    if (!$id) { echo json_encode(['ok' => true, 'game' => null], JSON_UNESCAPED_UNICODE); exit; }
+    [$game, $error] = poker_mutate_current(function (&$game) {
+        if (($game['status'] ?? '') === 'waiting' && ($game['mode'] ?? '') === 'match' && TIMENOW >= (int)($game['mm_deadline'] ?? 0)) {
+            poker_fill_room_bots($game);
+            $startError = poker_start_room($game);
+            if ($startError !== '') {
+                foreach ($game['players'] as $seat => $player) if ($player && !empty($player['bot'])) $game['players'][$seat] = null;
+                $game['start_error'] = $startError;
+                $game['mm_deadline'] = TIMENOW + POKER_MATCH_WAIT;
+            }
+        }
+        if (($game['status'] ?? '') !== 'playing') return '';
+        $turn = (int)$game['turn'];
+        if ($turn >= 0 && empty($game['players'][$turn]['bot']) && TIMENOW >= (int)$game['deadline']) {
+            $toCall = max(0, (int)$game['current_bet'] - (int)$game['players'][$turn]['round_bet']);
+            $name = $game['players'][$turn]['username'];
+            poker_apply_action($game, $turn, $toCall === 0 ? 'check' : 'fold');
+            poker_add_log($game, $name . ' 已超时，系统自动行动');
         }
         poker_drive_bots($game);
         return '';
     });
     if ($error !== '') { echo json_encode(['ok' => false, 'error' => $error], JSON_UNESCAPED_UNICODE); exit; }
-    $response = poker_public_state($game);
-    if ($game && ($game['status'] ?? '') === 'finished') $response['wallet'] = poker_wallet_balance((int)$CURUSER['id']);
+    $response = poker_public_state($game, (int)$CURUSER['id']);
     echo json_encode($response, JSON_UNESCAPED_UNICODE);
     exit;
 }
@@ -526,33 +812,44 @@ if (($_GET['ajax'] ?? '') === 'poll') {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json');
     $action = (string)($_POST['action'] ?? '');
-    [$game, $error] = poker_mutate(function (&$game) use ($action) {
-        global $CURUSER;
-        if ($action === 'start') {
-            if ($game && ($game['status'] ?? '') === 'playing') return '当前牌局尚未结束。';
-            [$newGame, $startError] = poker_deal_new_game($_POST['base'] ?? 0);
-            if ($startError !== '') return $startError;
-            $game = $newGame;
-            poker_drive_bots($game);
-            return '';
+    $uid = (int)$CURUSER['id'];
+    $game = null;
+    $error = '';
+    if ($action === 'create') {
+        [$id, $error] = poker_create_friend_room($_POST['base'] ?? 0);
+        if ($id) $game = poker_room_get($id);
+    } elseif ($action === 'match') {
+        [$id, $error] = poker_matchmake($_POST['base'] ?? 0);
+        if ($id) $game = poker_room_get($id);
+    } elseif ($action === 'join') {
+        [$id, $error] = poker_join_room($_POST['table'] ?? 0, (string)($_POST['invite'] ?? ''), false);
+        if ($id) $game = poker_room_get($id);
+    } elseif ($action === 'fill_bots') {
+        $id = poker_current_room_id($uid);
+        $error = $id ? poker_fill_and_start($id, $uid, true) : '牌桌不存在。';
+        if ($id) $game = poker_room_get($id);
+    } elseif ($action === 'leave' || $action === 'reset') {
+        $error = poker_leave_current_room($uid);
+    } elseif ($action === 'rematch') {
+        $id = poker_current_room_id($uid);
+        $old = $id ? poker_room_get($id) : null;
+        if (!$old || ($old['status'] ?? '') !== 'finished') $error = '本局尚未结束。';
+        else {
+            $base = (int)$old['base'];
+            $error = poker_leave_current_room($uid);
+            if ($error === '') { [$newId, $error] = poker_matchmake($base); if ($newId) $game = poker_room_get($newId); }
         }
-        if (!$game) return '牌局不存在，请重新开局。';
-        if (!hash_equals((string)$game['token'], (string)($_POST['token'] ?? ''))) return '页面凭证已失效，请刷新重试。';
-        if (in_array($action, ['fold', 'check', 'call', 'raise'], true)) {
-            $result = poker_apply_action($game, 0, $action);
-            if ($result === '') poker_drive_bots($game);
+    } elseif (in_array($action, ['fold', 'check', 'call', 'raise'], true)) {
+        [$game, $error] = poker_mutate_current(function (&$room, $seat) use ($action) {
+            if (!hash_equals((string)($room['token'] ?? ''), (string)($_POST['token'] ?? ''))) return '页面凭证已失效，请刷新重试。';
+            $result = poker_apply_action($room, $seat, $action);
+            if ($result === '') poker_drive_bots($room);
             return $result;
-        }
-        if ($action === 'reset') {
-            if (($game['status'] ?? '') !== 'finished') return '牌局尚未结算，不能更换底注。';
-            $game = null;
-            return '';
-        }
-        return '未知操作。';
-    });
+        });
+    } else $error = '未知操作。';
     if ($error !== '') { echo json_encode(['ok' => false, 'error' => $error], JSON_UNESCAPED_UNICODE); exit; }
-    $response = poker_public_state($game);
-    $response['wallet'] = poker_wallet_balance((int)$CURUSER['id']);
+    $response = poker_public_state($game, $uid);
+    if (!isset($response['wallet'])) $response['wallet'] = poker_wallet_balance($uid);
     echo json_encode($response, JSON_UNESCAPED_UNICODE);
     exit;
 }
@@ -560,6 +857,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $stats = poker_stats((int)$CURUSER['id']);
 $rankings = poker_rankings();
 $balance = (float)$CURUSER['seedbonus'];
+$inviteTableId = max(0, (int)($_GET['table'] ?? 0));
+$inviteCode = (string)($_GET['invite'] ?? '');
 stdhead('德州扑克');
 ?>
 <style>
@@ -636,6 +935,13 @@ body.page-games-poker-index-php:not(.inframe), body.game-page:not(.inframe) { ba
 .pk-start-card { width: min(560px,92%); padding: 27px; border: 1px solid rgba(241,197,102,.28); border-radius: 20px; background: linear-gradient(145deg,rgba(21,38,50,.97),rgba(9,21,31,.98)); box-shadow: 0 24px 70px rgba(0,0,0,.42); }
 .pk-start-card h2 { margin: 0; color: #fff; font-size: 25px; }
 .pk-start-card > p { margin: 9px 0 20px; color: var(--pk-muted); line-height: 1.6; }
+.pk-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 17px; }
+.pk-mode-input { position: absolute; inline-size: 1px; block-size: 1px; opacity: 0; pointer-events: none; }
+.pk-mode { display: block; min-height: 74px; padding: 12px 13px; border: 1px solid var(--pk-line); border-radius: 12px; background: rgba(8,20,29,.78); color: #fff; cursor: pointer; transition: border-color .2s,background .2s,transform .2s; }
+.pk-mode b { display: block; font-size: 14px; }.pk-mode small { display: block; margin-top: 5px; color: var(--pk-muted); line-height: 1.4; }
+.pk-mode-input:checked + .pk-mode { border-color: var(--pk-gold); background: rgba(241,197,102,.11); box-shadow: inset 0 0 0 1px rgba(241,197,102,.14); }
+.pk-mode-input:focus-visible + .pk-mode { outline: 3px solid #83d7ff; outline-offset: 2px; }
+.pk-invite-notice { display: none; margin: 0 0 16px; padding: 11px 13px; border: 1px solid rgba(89,217,157,.3); border-radius: 11px; background: rgba(89,217,157,.08); color: #ccebdd; font-size: 13px; }
 .pk-stakes { position: relative; display: grid; grid-template-columns: repeat(4,1fr); gap: 9px; }
 .pk-stake-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 .pk-stake { position: relative; display: grid; place-content: center; min-height: 70px; padding: 8px; border: 1px solid var(--pk-line); border-radius: 12px; background: #122330; color: var(--pk-text); text-align: center; cursor: pointer; transition: border-color .2s, background .2s, box-shadow .2s; }
@@ -649,6 +955,16 @@ body.page-games-poker-index-php:not(.inframe), body.game-page:not(.inframe) { ba
 .pk-stake-choice { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; padding: 9px 11px; border: 1px solid rgba(241,197,102,.2); border-radius: 10px; background: rgba(241,197,102,.07); color: var(--pk-muted); font-size: 12px; }
 .pk-stake-choice b { color: var(--pk-gold); font-size: 14px; }
 .pk-primary { width: 100%; min-height: 48px; margin-top: 14px; border: 0; border-radius: 12px; background: linear-gradient(135deg,#d5a94e,#f1d07f); color: #1b170d; font-size: 16px; font-weight: 900; cursor: pointer; box-shadow: 0 8px 24px rgba(211,167,73,.23); }
+.pk-waiting { position: absolute; z-index: 14; inset: 0; display: none; place-items: center; padding: 20px; background: rgba(3,11,17,.5); backdrop-filter: blur(4px); }
+.pk-waiting-card { width: min(500px,92%); padding: 25px; border: 1px solid rgba(89,217,157,.28); border-radius: 20px; background: linear-gradient(145deg,rgba(18,43,48,.98),rgba(8,22,31,.98)); box-shadow: 0 24px 70px rgba(0,0,0,.42); text-align: center; }
+.pk-waiting-card h2 { margin: 0; color: #fff; font-size: 25px; }.pk-waiting-card > p { margin: 9px 0 17px; color: var(--pk-muted); line-height: 1.6; }
+.pk-waiting-seats { display: flex; justify-content: center; gap: 10px; margin: 17px 0; }
+.pk-waiting-dot { display: grid; place-items: center; width: 42px; height: 42px; border: 1px dashed rgba(145,168,189,.42); border-radius: 50%; color: var(--pk-muted); font-size: 12px; }
+.pk-waiting-dot.full { border-style: solid; border-color: #59d99d; background: rgba(89,217,157,.14); color: #dffff0; }
+.pk-invite-box { display: none; grid-template-columns: 1fr auto; gap: 8px; margin-top: 14px; }
+.pk-invite-box input { min-width: 0; height: 43px; padding: 0 11px; border: 1px solid var(--pk-line); border-radius: 10px; background: #07131c; color: #c6d7e5; }
+.pk-secondary { min-height: 43px; padding: 0 15px; border: 1px solid var(--pk-line); border-radius: 10px; background: #183044; color: #fff; font-weight: 800; cursor: pointer; }
+.pk-waiting-actions { display: flex; justify-content: center; gap: 9px; margin-top: 15px; }.pk-waiting-actions .pk-primary { width: auto; min-width: 150px; margin: 0; padding: 0 17px; }
 .pk-actions { display: flex; align-items: stretch; justify-content: center; gap: 9px; min-height: 52px; margin-top: 12px; }
 .pk-action { min-width: 116px; min-height: 48px; padding: 9px 16px; border: 1px solid var(--pk-line); border-radius: 12px; background: var(--pk-panel-2); color: #fff; font-size: 15px; font-weight: 850; cursor: pointer; transition: background .2s,border-color .2s; }
 .pk-action:hover { border-color: rgba(255,255,255,.38); background: #20394d; }
@@ -698,14 +1014,14 @@ body.page-games-poker-index-php:not(.inframe), body.game-page:not(.inframe) { ba
     .pk-seat[data-seat="1"] .pk-hole, .pk-seat[data-seat="3"] .pk-hole { left:50%;right:auto;top:-57px;transform:translateX(-50%); }
     .pk-hole .pk-card { width:34px; }.pk-community { top:46%; }.pk-card { width:clamp(42px,12vw,58px); }
     .pk-actions { gap:6px;overflow-x:auto;justify-content:flex-start;padding:0 2px; }.pk-action { min-width:94px;min-height:46px;padding:8px 10px;font-size:13px; }
-    .pk-side { grid-template-columns:1fr; }.pk-panel.log-panel { grid-column:auto; }.pk-stakes { grid-template-columns:repeat(2,1fr); }
+    .pk-side { grid-template-columns:1fr; }.pk-panel.log-panel { grid-column:auto; }.pk-stakes { grid-template-columns:repeat(2,1fr); }.pk-modes { grid-template-columns:1fr; }
 }
 @media (max-width: 430px) {
     .pk-board { min-height:570px; }.pk-hud { top:14px; }.pk-pill { padding:5px 8px; }.pk-table { top:45%;width:91%; }
     .pk-seat { width:116px; }.pk-seat[data-seat="2"] { top:49px; }.pk-seat[data-seat="1"],.pk-seat[data-seat="3"] { top:41%; }
     .pk-hole .pk-card { width:30px; }
     .pk-community { top:44%;gap:3px; }.pk-card { width:40px;border-radius:6px; }.pk-card .rank { left:4px;top:3px;font-size:14px; }.pk-card .suit { left:4px;top:19px;font-size:13px; }.pk-card .big-suit { font-size:23px; }
-    .pk-start-card { padding:20px; }.pk-result-card { padding:20px; }
+    .pk-start-card,.pk-waiting-card { padding:20px; }.pk-result-card { padding:20px; }.pk-invite-box { grid-template-columns:1fr; }.pk-waiting-actions { flex-direction:column; }.pk-waiting-actions .pk-primary { width:100%; }
 }
 @media (prefers-reduced-motion: reduce) { *,*::before,*::after { scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important; } }
 </style>
@@ -741,8 +1057,15 @@ body.page-games-poker-index-php:not(.inframe), body.game-page:not(.inframe) { ba
                 <?php } ?>
                 <div class="pk-start" id="pkStart">
                     <div class="pk-start-card">
-                        <h2>选择牌桌底注</h2>
-                        <p>每人托管带入 20 倍底注的桌面筹码，结算时自动退回剩余筹码与赢得底池。未完牌局保存 7 天，刷新或临时离开后可继续。</p>
+                        <h2 id="pkStartTitle">加入德州牌桌</h2>
+                        <p>先选择好友桌或快速排队，再选择底注。排队超过 <?php echo POKER_MATCH_WAIT ?> 秒未满员会自动补机器人，真正开局时才托管带入筹码。</p>
+                        <div class="pk-invite-notice" id="pkInviteNotice">好友邀请已识别，点击下方按钮即可加入同一张牌桌。</div>
+                        <div class="pk-modes" id="pkModes" role="radiogroup" aria-label="加入方式">
+                            <input class="pk-mode-input" type="radio" name="poker_mode" id="pkModeMatch" value="match" checked>
+                            <label class="pk-mode" for="pkModeMatch"><b>快速排队</b><small>优先匹配真人，<?php echo POKER_MATCH_WAIT ?> 秒未满自动补机器人</small></label>
+                            <input class="pk-mode-input" type="radio" name="poker_mode" id="pkModeFriend" value="friend">
+                            <label class="pk-mode" for="pkModeFriend"><b>好友一起</b><small>创建专属邀请链接，好友入座后由房主开局</small></label>
+                        </div>
                         <div class="pk-stakes" id="pkStakes" role="radiogroup" aria-label="牌桌底注">
                             <?php foreach (POKER_BASE_OPTIONS as $i => $base) { ?>
                             <input class="pk-stake-input" type="radio" name="poker_base" id="pkBase<?php echo $base ?>" value="<?php echo $base ?>" data-buyin="<?php echo $base * POKER_STACK_FACTOR ?>" <?php echo $i === 0 ? 'checked' : '' ?>>
@@ -750,7 +1073,16 @@ body.page-games-poker-index-php:not(.inframe), body.game-page:not(.inframe) { ba
                             <?php } ?>
                         </div>
                         <div class="pk-stake-choice" aria-live="polite"><span>已选择底注 <b id="pkSelectedBase"><?php echo number_format(POKER_BASE_OPTIONS[0]) ?></b></span><span>带入 <b id="pkSelectedBuyin"><?php echo number_format(POKER_BASE_OPTIONS[0] * POKER_STACK_FACTOR) ?></b> 票</span></div>
-                        <button type="button" class="pk-primary" id="pkStartBtn">以 <?php echo number_format(POKER_BASE_OPTIONS[0]) ?> 底注坐下开局</button>
+                        <button type="button" class="pk-primary" id="pkStartBtn">以 <?php echo number_format(POKER_BASE_OPTIONS[0]) ?> 底注开始快速排队</button>
+                    </div>
+                </div>
+                <div class="pk-waiting" id="pkWaiting">
+                    <div class="pk-waiting-card">
+                        <h2 id="pkWaitingTitle">正在寻找牌友</h2>
+                        <p id="pkWaitingText">已加入 1/4，稍候会自动补机器人开局。</p>
+                        <div class="pk-waiting-seats" id="pkWaitingSeats" aria-label="牌桌入座人数"></div>
+                        <div class="pk-invite-box" id="pkInviteBox"><input id="pkInviteUrl" type="text" readonly aria-label="好友桌邀请链接"><button type="button" class="pk-secondary" id="pkCopyInvite">复制邀请</button></div>
+                        <div class="pk-waiting-actions"><button type="button" class="pk-secondary" id="pkLeaveQueue">退出牌桌</button><button type="button" class="pk-primary" id="pkFillBots">补机器人并开局</button></div>
                     </div>
                 </div>
             </div>
@@ -788,8 +1120,9 @@ body.page-games-poker-index-php:not(.inframe), body.game-page:not(.inframe) { ba
 <script>
 (function () {
     'use strict';
-    var state = null, token = '', selectedBase = <?php echo POKER_BASE_OPTIONS[0] ?>, busy = false, stateReceivedAt = Date.now(), lastAnnouncedTurn = '';
-    var balance = <?php echo json_encode($balance) ?>, settledHand = '';
+    var state = null, token = '', selectedBase = <?php echo POKER_BASE_OPTIONS[0] ?>, selectedMode = 'match', busy = false, stateReceivedAt = Date.now(), lastAnnouncedTurn = '';
+    var balance = <?php echo json_encode($balance) ?>, settledHand = '', lastStartError = '';
+    var inviteTableId = <?php echo json_encode($inviteTableId) ?>, inviteCode = <?php echo json_encode($inviteCode) ?>;
     var $ = function (id) { return document.getElementById(id); };
     function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
     function number(v) { return Math.round(Number(v || 0)).toLocaleString(); }
@@ -815,8 +1148,12 @@ body.page-games-poker-index-php:not(.inframe), body.game-page:not(.inframe) { ba
     }
     function renderResponse(data) { if(typeof data.wallet==='number'){balance=Number(data.wallet);$('pkBalance').textContent=number(balance);}state=data.game||null;token=state?state.token:'';stateReceivedAt=Date.now();render(); }
     function liveTimeLeft(){return state&&state.status==='playing'?Math.max(0,Number(state.timeLeft||0)-Math.floor((Date.now()-stateReceivedAt)/1000)):0;}
+    function liveQueueLeft(){return state&&state.status==='waiting'?Math.max(0,Number(state.queueLeft||0)-Math.floor((Date.now()-stateReceivedAt)/1000)):0;}
     function renderClock(){
-        if(!state||state.status!=='playing'){$('pkTurn').textContent=state&&state.status==='finished'?'牌局结束':'等待行动';return;}
+        for(var t=0;t<4;t++){$('pkTimer'+t).textContent='';$('pkTimer'+t).classList.remove('urgent');}
+        if(!state){$('pkTurn').textContent='等待行动';return;}
+        if(state.status==='waiting'){$('pkTurn').textContent=state.mode==='match'?'等待玩家 · '+liveQueueLeft()+' 秒后补机器人':'好友桌等待加入';if(state.mode==='match')$('pkWaitingText').textContent='已加入 '+state.playerCount+'/4，'+liveQueueLeft()+' 秒后自动补机器人开局。';return;}
+        if(state.status!=='playing'){$('pkTurn').textContent='牌局结束';return;}
         var left=liveTimeLeft(), actor=state.players[state.turn], name=actor?actor.username:'等待';
         $('pkTurn').textContent='轮到 '+name+' · '+left+' 秒';
         var turnKey=state.handId+'-'+state.stage+'-'+state.turn;
@@ -828,18 +1165,20 @@ body.page-games-poker-index-php:not(.inframe), body.game-page:not(.inframe) { ba
             var box=$('pkSeat'+i), p=state.players[i];
             box.classList.toggle('is-turn',state.status==='playing'&&state.turn===i);
             box.classList.toggle('is-folded',p.status==='folded');
-            $('pkAvatar'+i).innerHTML=avatar(p);$('pkName'+i).textContent=p.username;$('pkStack'+i).textContent=number(p.stack)+' 筹码';
+            $('pkAvatar'+i).innerHTML=avatar(p);$('pkName'+i).textContent=p.username;$('pkStack'+i).textContent=state.status==='waiting'?(p.status==='empty'?'空座':'已入座'):(number(p.stack)+' 筹码');
             var badges='';if(state.dealer===i)badges+='<span class="pk-marker" title="庄家按钮">D</span>';if(state.smallBlind===i)badges+='<span class="pk-marker" title="小盲注">SB</span>';if(state.bigBlind===i)badges+='<span class="pk-marker" title="大盲注">BB</span>';$('pkBadges'+i).innerHTML=badges;
             $('pkBet'+i).textContent=p.roundBet>0?'本轮 '+number(p.roundBet):(p.status==='folded'?'已弃牌':'');
             $('pkHandName'+i).textContent=p.handName||'';
-            if(p.cards&&p.cards.length){$('pkHole'+i).innerHTML=p.cards.map(function(c){return card(c);}).join('');}
+            if(state.status==='waiting'){$('pkHole'+i).innerHTML='';}
+            else if(p.cards&&p.cards.length){$('pkHole'+i).innerHTML=p.cards.map(function(c){return card(c);}).join('');}
             else {$('pkHole'+i).innerHTML=card(null,true)+card(null,true);}
         }
     }
     function renderCommunity() { var html='';for(var i=0;i<5;i++)html+=state.community[i]?card(state.community[i]):card(null,false,true);$('pkCommunity').innerHTML=html; }
     function renderActions() {
         var el=$('pkActions');
-        if(!state){el.innerHTML='<span class="pk-wait">请选择底注开始牌局</span>';return;}
+        if(!state){el.innerHTML='<span class="pk-wait">选择加入方式和底注，进入排队大厅</span>';return;}
+        if(state.status==='waiting'){el.innerHTML='<span class="pk-wait">已在牌桌等待区 · '+state.playerCount+'/4 人</span>';return;}
         if(state.status==='finished'){el.innerHTML='<span class="pk-wait">牌局已结束 · <b>'+esc(state.finishReason)+'</b></span>';return;}
         var myTurn=state.turn===0&&state.players[0]&&state.players[0].status==='active'&&!busy;
         var disabled=myTurn?'':' disabled aria-disabled="true"';
@@ -857,20 +1196,34 @@ body.page-games-poker-index-php:not(.inframe), body.game-page:not(.inframe) { ba
         var winners=state.winners||[];$('pkResultRows').innerHTML=state.players.map(function(p,i){var d=Number((state.deltas||[])[i]||0);return '<div class="pk-result-row"><span><b>'+esc(p.username)+(winners.indexOf(i)>=0?' · 获胜':'')+'</b><small>'+esc(p.handName||(p.status==='folded'?'弃牌':'未摊牌'))+'</small></span><strong class="'+(d>=0?'pk-pos':'pk-neg')+'">'+(d>0?'+':'')+number(d)+'</strong></div>';}).join('');
         $('pkResult').classList.add('show');$('pkLive').textContent=$('pkResultTitle').textContent+'，'+state.finishReason;
     }
+    function renderWaiting(){
+        var waiting=state&&state.status==='waiting';$('pkWaiting').style.display=waiting?'grid':'none';if(!waiting)return;
+        var isFriend=state.mode==='friend';$('pkWaitingTitle').textContent=isFriend?'好友桌已创建':'正在寻找牌友';
+        $('pkWaitingText').textContent=isFriend?('已加入 '+state.playerCount+'/4，把邀请链接发给好友；房主也可以随时补机器人开局。'):('已加入 '+state.playerCount+'/4，'+liveQueueLeft()+' 秒后自动补机器人开局。');
+        var dots='';for(var i=0;i<4;i++)dots+='<span class="pk-waiting-dot '+(i<state.playerCount?'full':'')+'">'+(i<state.playerCount?'已入座':'空位')+'</span>';$('pkWaitingSeats').innerHTML=dots;
+        $('pkInviteBox').style.display=isFriend?'grid':'none';$('pkInviteUrl').value=state.inviteUrl||'';
+        $('pkFillBots').style.display=isFriend&&state.isOwner?'inline-block':'none';
+        if(state.startError&&state.startError!==lastStartError){lastStartError=state.startError;toast(state.startError);}
+    }
     function render(){
-        $('pkStart').style.display=state?'none':'grid';
+        $('pkStart').style.display=state?'none':'grid';renderWaiting();
         if(!state){$('pkStage').textContent='等待开局';$('pkTurn').textContent='等待行动';$('pkPot').textContent='0';renderActions();return;}
-        $('pkStage').textContent=state.stageLabel+' · 加注 '+state.raiseCount+'/'+state.raiseCap;$('pkPot').textContent=number(state.pot);
+        $('pkStage').textContent=state.status==='waiting'?(state.mode==='friend'?'好友桌 · 底注 '+number(state.base):'快速排队 · 底注 '+number(state.base)):(state.stageLabel+' · 加注 '+state.raiseCount+'/'+state.raiseCap);$('pkPot').textContent=number(state.pot);
         renderSeats();renderCommunity();renderActions();renderLog();renderResult();renderClock();
     }
     function poll(){fetch('/games/poker/?ajax=poll',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(data){if(data.ok)renderResponse(data);}).catch(function(){});}
-    function updateStakeChoice(){var checked=document.querySelector('input[name="poker_base"]:checked');if(!checked)return;selectedBase=Number(checked.value);$('pkSelectedBase').textContent=number(selectedBase);$('pkSelectedBuyin').textContent=number(checked.getAttribute('data-buyin'));$('pkStartBtn').textContent='以 '+number(selectedBase)+' 底注坐下开局';}
-    $('pkStakes').addEventListener('change',function(e){if(e.target&&e.target.name==='poker_base')updateStakeChoice();});
-    $('pkStartBtn').addEventListener('click',function(){updateStakeChoice();post('start','&base='+selectedBase);});
+    function updateChoice(){var checked=document.querySelector('input[name="poker_base"]:checked'),mode=document.querySelector('input[name="poker_mode"]:checked');if(checked){selectedBase=Number(checked.value);$('pkSelectedBase').textContent=number(selectedBase);$('pkSelectedBuyin').textContent=number(checked.getAttribute('data-buyin'));}if(mode)selectedMode=mode.value;if(inviteTableId){$('pkStartBtn').textContent='加入好友牌桌';return;}$('pkStartBtn').textContent='以 '+number(selectedBase)+' 底注'+(selectedMode==='friend'?'创建好友桌':'开始快速排队');}
+    $('pkModes').addEventListener('change',updateChoice);$('pkStakes').addEventListener('change',updateChoice);
+    $('pkStartBtn').addEventListener('click',function(){updateChoice();if(inviteTableId)post('join','&table='+inviteTableId+'&invite='+encodeURIComponent(inviteCode));else post(selectedMode==='friend'?'create':'match','&base='+selectedBase);});
+    $('pkLeaveQueue').addEventListener('click',function(){post('leave');});
+    $('pkFillBots').addEventListener('click',function(){post('fill_bots');});
+    $('pkCopyInvite').addEventListener('click',function(){var value=$('pkInviteUrl').value;if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(value).then(function(){toast('邀请链接已复制');});else{$('pkInviteUrl').select();document.execCommand('copy');toast('邀请链接已复制');}});
     $('pkResultExit').addEventListener('click',function(){location.href='/games/';});
     $('pkChangeStake').addEventListener('click',function(){$('pkResult').classList.remove('show');post('reset');});
-    $('pkAgain').addEventListener('click',function(){$('pkResult').classList.remove('show');post('start','&base='+(state?state.base:selectedBase));});
+    $('pkAgain').addEventListener('click',function(){$('pkResult').classList.remove('show');post('rematch');});
     document.addEventListener('keydown',function(e){if(!state||state.status!=='playing'||state.turn!==0||e.ctrlKey||e.metaKey||e.altKey)return;var k=e.key.toLowerCase();if(k==='f')post('fold');else if(k==='c')post(state.toCall>0?'call':'check');else if(k==='r'&&state.canRaise)post('raise');});
+    if(inviteTableId){$('pkInviteNotice').style.display='block';$('pkModes').style.display='none';$('pkStakes').style.display='none';document.querySelector('.pk-stake-choice').style.display='none';$('pkStartTitle').textContent='加入好友牌桌';}
+    updateChoice();
     poll();setInterval(poll,1200);setInterval(renderClock,250);
 })();
 </script>
