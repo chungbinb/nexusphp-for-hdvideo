@@ -67,3 +67,30 @@ function zjh_card_view($card)
     $suit = zjh_card_suit($card);
     return ['rank' => $ranks[zjh_card_rank($card)], 'suit' => $suits[$suit], 'red' => in_array($suit, [1, 3], true)];
 }
+
+/** 可重复测试的机器人决策核心；只接收自身牌力和桌面公开压力。 */
+function zjh_bot_decide($difficulty, $strength, $pressure, $canRaise, $activeCount, $roll, $hasRaiseStack = true)
+{
+    $difficulty = in_array($difficulty, ['simple', 'hard', 'hell'], true) ? $difficulty : 'simple';
+    $strength = max(0, min(1, (float)$strength));
+    $pressure = max(0, min(1, (float)$pressure));
+    $roll = max(1, min(100, (int)$roll));
+    if ($difficulty === 'simple') {
+        if ($roll <= 18) return 'fold';
+        if ($roll <= 68) return 'call';
+        if ($roll <= 84 && $canRaise) return 'raise';
+        return $activeCount > 1 ? 'compare' : 'call';
+    }
+    if ($difficulty === 'hard') {
+        if ($strength < 0.27 + $pressure * 0.65 && $roll <= 72) return 'fold';
+        if ($strength > 0.7 && $canRaise && $roll <= 48) return 'raise';
+        if ($strength > 0.57 && $activeCount > 1 && $roll <= 36) return 'compare';
+        return 'call';
+    }
+    $bluff = $strength < 0.32 && $pressure < 0.2 && $roll <= 16;
+    if (($strength > 0.76 || $bluff) && $canRaise && $hasRaiseStack) return 'raise';
+    if ($strength > 0.6 && $activeCount > 1 && ($activeCount === 2 || $roll <= 42)) return 'compare';
+    if ($strength < 0.25 && $pressure > 0.12 && !$bluff) return 'fold';
+    if ($strength < 0.38 && $pressure > 0.28 && $roll <= 76) return 'fold';
+    return 'call';
+}

@@ -44,4 +44,17 @@ class ZjhEngineTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         zjh_evaluate([0, 0, 1]);
     }
+
+    public function test_simple_bot_is_intentionally_unpredictable()
+    {
+        $this->assertSame('fold', zjh_bot_decide('simple', 0.95, 0.01, true, 3, 10));
+        $this->assertSame('raise', zjh_bot_decide('simple', 0.05, 0.8, true, 3, 75));
+    }
+
+    public function test_hell_bot_uses_strength_and_pressure_without_opponent_cards()
+    {
+        $this->assertSame('raise', zjh_bot_decide('hell', 0.9, 0.2, true, 3, 60, true));
+        $this->assertSame('fold', zjh_bot_decide('hell', 0.15, 0.4, true, 3, 80, true));
+        $this->assertSame('compare', zjh_bot_decide('hell', 0.7, 0.2, true, 2, 90, true));
+    }
 }

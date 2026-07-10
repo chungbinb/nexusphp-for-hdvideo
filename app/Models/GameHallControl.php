@@ -11,12 +11,13 @@ class GameHallControl extends NexusModel
 
     protected $table = 'game_hall_controls';
 
-    protected $fillable = ['game_key', 'name', 'is_open', 'min_class', 'sort'];
+    protected $fillable = ['game_key', 'name', 'is_open', 'min_class', 'sort', 'bot_difficulty'];
 
     protected $casts = [
         'is_open' => 'boolean',
         'min_class' => 'integer',
         'sort' => 'integer',
+        'bot_difficulty' => 'string',
     ];
 
     /**
@@ -37,6 +38,7 @@ class GameHallControl extends NexusModel
             ['game_key' => 'hilo', 'name' => '猜高低', 'is_open' => 1, 'min_class' => 15, 'sort' => 10],
             ['game_key' => 'moviequiz', 'name' => '猜电影', 'is_open' => 0, 'min_class' => 15, 'sort' => 11],
             ['game_key' => 'poker', 'name' => '德州扑克', 'is_open' => 1, 'min_class' => 15, 'sort' => 12],
+            ['game_key' => 'zjh', 'name' => '炸金花', 'is_open' => 1, 'min_class' => 15, 'sort' => 13, 'bot_difficulty' => 'simple'],
         ];
     }
 
@@ -55,8 +57,14 @@ class GameHallControl extends NexusModel
                 $table->boolean('is_open')->default(true);
                 $table->integer('min_class')->default(15);
                 $table->integer('sort')->default(0);
+                $table->string('bot_difficulty', 16)->default('simple');
                 $table->dateTime('created_at')->nullable();
                 $table->dateTime('updated_at')->nullable();
+            });
+        }
+        if (! $schema->hasColumn('game_hall_controls', 'bot_difficulty')) {
+            $schema->table('game_hall_controls', function (Blueprint $table) {
+                $table->string('bot_difficulty', 16)->default('simple')->after('sort');
             });
         }
         $now = now()->format('Y-m-d H:i:s');
