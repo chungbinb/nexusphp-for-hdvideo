@@ -313,7 +313,7 @@ function forum_inline_reply_link($postId, $title): string
 function forum_penalty_link($postId): string
 {
 	$postId = (int)$postId;
-	return '<a class="forum-penalty-link" href="' . htmlspecialchars('?action=penalizepost&postid=' . $postId) . '" title="扣除魔力或做种积分"><img class="f_penalty" src="pic/forum_pic/chs/penalty.svg" alt="扣分" /></a>';
+	return '<a class="forum-penalty-link" data-forum-penalty-post="' . $postId . '" href="' . htmlspecialchars('?action=penalizepost&postid=' . $postId) . '" title="扣除魔力或做种积分"><img class="f_penalty" src="pic/forum_pic/chs/penalty.svg" alt="扣分" /></a>';
 }
 
 //-------- Inserts a compose frame
@@ -442,6 +442,102 @@ function forum_penalty_h($value): string
     return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
 }
 
+function forum_penalty_json_response(array $payload, int $status = 200): void
+{
+    http_response_code($status);
+    header('Content-Type: application/json; charset=UTF-8');
+    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+function forum_penalty_record_from_log($log): ?array
+{
+    $content = (string)$log->content;
+    $pattern = '/^论坛处罚：管理员 (.+?) 对帖子 #(\d+)（主题：.*?）的作者扣除 ([\d,]+(?:\.\d+)?) (魔力|做种积分)，(?:魔力|做种积分) 从 ([\d,]+(?:\.\d+)?) 变为 ([\d,]+(?:\.\d+)?)。原因：(.*)$/us';
+    if (!preg_match($pattern, $content, $matches)) {
+        return null;
+    }
+    return [
+        'id' => (int)$log->id,
+        'post_id' => (int)$matches[2],
+        'user_id' => (int)$log->user_id,
+        'operator' => trim($matches[1]),
+        'amount' => (float)str_replace(',', '', $matches[3]),
+        'field_label' => $matches[4],
+        'old_value' => (float)str_replace(',', '', $matches[5]),
+        'new_value' => (float)str_replace(',', '', $matches[6]),
+        'reason' => trim($matches[7]),
+        'created_at' => $log->created_at ? $log->created_at->format('Y-m-d H:i:s') : '',
+    ];
+}
+
+function forum_penalty_records_for_posts(array $posts): array
+{
+    $postOwners = [];
+    foreach ($posts as $post) {
+        $postId = (int)($post['id'] ?? 0);
+        $userId = (int)($post['userid'] ?? 0);
+        if ($postId > 0 && $userId > 0) {
+            $postOwners[$postId] = $userId;
+        }
+    }
+    if (!$postOwners) {
+        return [];
+    }
+    $postIds = array_keys($postOwners);
+    $logs = \App\Models\UserModifyLog::query()
+        ->whereIn('user_id', array_values(array_unique($postOwners)))
+        ->where('content', 'like', '论坛处罚：管理员 % 对帖子 #%')
+        ->where(function ($query) use ($postIds) {
+            foreach ($postIds as $postId) {
+                $query->orWhere('content', 'like', '%对帖子 #' . $postId . '（主题：%');
+            }
+        })
+        ->orderByDesc('id')
+        ->get(['id', 'user_id', 'content', 'created_at']);
+    $records = [];
+    foreach ($logs as $log) {
+        $record = forum_penalty_record_from_log($log);
+        if (!$record || !isset($postOwners[$record['post_id']]) || $postOwners[$record['post_id']] !== $record['user_id']) {
+            continue;
+        }
+        $records[$record['post_id']][] = $record;
+    }
+    return $records;
+}
+
+function forum_render_penalty_notices(int $postId, array $records): string
+{
+    $html = '<div class="forum-post-penalties" id="forum-penalties-' . $postId . '" aria-live="polite">';
+    foreach ($records[$postId] ?? [] as $record) {
+        $html .= '<article class="forum-post-penalty" data-penalty-id="' . (int)$record['id'] . '">'
+            . '<span class="forum-post-penalty-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 3.8 6.4v5.1c0 5.1 3.5 8.5 8.2 9.5 4.7-1 8.2-4.4 8.2-9.5V6.4L12 3Z"/><path d="M8 12h8"/></svg></span>'
+            . '<span class="forum-post-penalty-content"><strong>该帖已被扣除 ' . number_format((float)$record['amount'], 1) . ' ' . forum_penalty_h($record['field_label']) . '</strong>'
+            . '<span class="forum-post-penalty-reason">原因：' . forum_penalty_h($record['reason']) . '</span>'
+            . '<small>操作人：' . forum_penalty_h($record['operator']) . ($record['created_at'] !== '' ? ' · ' . forum_penalty_h($record['created_at']) : '') . '</small></span></article>';
+    }
+    return $html . '</div>';
+}
+
+function forum_render_penalty_modal(): string
+{
+    $scriptVersion = @filemtime(__DIR__ . '/scripts/forum-penalty-modal.js') ?: TIMENOW;
+    return '<div class="forum-penalty-modal" id="forumPenaltyModal" hidden aria-hidden="true">'
+        . '<div class="forum-penalty-backdrop" data-penalty-close></div>'
+        . '<section class="forum-penalty-dialog" role="dialog" aria-modal="true" aria-labelledby="forumPenaltyTitle" tabindex="-1">'
+        . '<button class="forum-penalty-close" type="button" data-penalty-close aria-label="关闭扣分窗口"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>'
+        . '<h2 id="forumPenaltyTitle">论坛违规扣分</h2><p class="forum-penalty-modal-note">扣分结果和原因会公开显示在对应帖子下方，并通知该用户。</p>'
+        . '<div class="forum-penalty-modal-summary"><div><span>用户</span><b data-penalty-user>—</b></div><div><span>帖子</span><b data-penalty-post>—</b></div><div><span>当前魔力</span><b data-penalty-bonus>—</b></div><div><span>当前做种积分</span><b data-penalty-points>—</b></div></div>'
+        . '<div class="forum-penalty-modal-alert" data-penalty-alert role="status" hidden></div>'
+        . '<form id="forumPenaltyForm" action="forums.php?action=penalizepost&amp;format=json" method="post">'
+        . '<input type="hidden" name="postid"><input type="hidden" name="token">'
+        . '<fieldset class="forum-penalty-modal-field"><legend>扣除类型</legend><div class="forum-penalty-modal-options"><label><input type="radio" name="penalty_field" value="seedbonus" checked required><span>魔力</span></label><label><input type="radio" name="penalty_field" value="seed_points" required><span>做种积分</span></label></div></fieldset>'
+        . '<div class="forum-penalty-modal-field"><label for="forumPenaltyModalAmount">扣除数量</label><input id="forumPenaltyModalAmount" name="amount" type="number" min="0.1" step="0.1" required></div>'
+        . '<div class="forum-penalty-modal-field"><label for="forumPenaltyModalReason">扣分原因</label><textarea id="forumPenaltyModalReason" name="reason" maxlength="500" required></textarea></div>'
+        . '<div class="forum-penalty-modal-actions"><button type="button" class="forum-penalty-modal-cancel" data-penalty-close>取消</button><button type="submit" class="forum-penalty-modal-submit">确认扣除</button></div>'
+        . '</form></section></div><script src="scripts/forum-penalty-modal.js?v=' . (int)$scriptVersion . '"></script>';
+}
+
 function forum_penalty_csrf_token(int $uid): string
 {
     $redis = \Nexus\Database\NexusDB::redis();
@@ -557,8 +653,12 @@ if ($action == "editpost")
 
 if ($action == "penalizepost")
 {
+    $isJsonRequest = (string)($_GET['format'] ?? $_POST['format'] ?? '') === 'json';
     $postid = intval($_POST['postid'] ?? $_GET['postid'] ?? 0);
     if (!is_valid_id($postid)) {
+        if ($isJsonRequest) {
+            forum_penalty_json_response(['ok' => false, 'message' => '无效的帖子 ID。'], 422);
+        }
         stderr('论坛扣分', '无效的帖子 ID。');
     }
 
@@ -568,11 +668,29 @@ if ($action == "penalizepost")
         $penaltyPost = forum_penalty_post($postid);
         forum_require_penalty_permission($penaltyPost);
     } catch (Throwable $e) {
+        if ($isJsonRequest) {
+            forum_penalty_json_response(['ok' => false, 'message' => $e->getMessage()], 403);
+        }
         stderr('论坛扣分', forum_penalty_h($e->getMessage()));
     }
 
     $backUrl = 'forums.php?action=viewtopic&topicid=' . (int)$penaltyPost['topicid'] . '&page=p' . $postid . '#pid' . $postid;
     $csrfToken = forum_penalty_csrf_token((int)$CURUSER['id']);
+
+    if ($isJsonRequest && $_SERVER['REQUEST_METHOD'] !== 'POST') {
+        forum_penalty_json_response([
+            'ok' => true,
+            'data' => [
+                'post_id' => $postid,
+                'username' => (string)$penaltyPost['username'],
+                'user_id' => (int)$penaltyPost['userid'],
+                'subject' => (string)$penaltyPost['subject'],
+                'seedbonus' => (float)$penaltyPost['seedbonus'],
+                'seed_points' => (float)$penaltyPost['seed_points'],
+                'token' => $csrfToken,
+            ],
+        ]);
+    }
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
@@ -626,7 +744,7 @@ if ($action == "penalizepost")
                     $CURUSER['username'], $postid, $topic, number_format($amount, 1), $fieldLabel,
                     $fieldLabel, number_format($old, 1), number_format($new, 1), $reason
                 );
-                \App\Models\UserModifyLog::query()->create(['user_id' => $target->id, 'content' => $audit]);
+                $auditLog = \App\Models\UserModifyLog::query()->create(['user_id' => $target->id, 'content' => $audit]);
                 if ($field === 'seedbonus') {
                     \App\Models\BonusLogs::add(
                         $target->id, $old, -$amount, $new,
@@ -645,7 +763,21 @@ if ($action == "penalizepost")
                     ),
                     'added' => now(),
                 ]);
-                return ['uid' => $target->id, 'passkey' => $target->passkey, 'old' => $old, 'new' => $new];
+                return [
+                    'uid' => $target->id,
+                    'passkey' => $target->passkey,
+                    'old' => $old,
+                    'new' => $new,
+                    'penalty' => [
+                        'id' => (int)$auditLog->id,
+                        'post_id' => $postid,
+                        'operator' => (string)$CURUSER['username'],
+                        'amount' => $amount,
+                        'field_label' => $fieldLabel,
+                        'reason' => $reason,
+                        'created_at' => $auditLog->created_at ? $auditLog->created_at->format('Y-m-d H:i:s') : date('Y-m-d H:i:s'),
+                    ],
+                ];
             });
             \Nexus\Database\NexusDB::redis()->del('forum:penalty:csrf:' . (int)$CURUSER['id']);
             clear_user_cache((int)$result['uid'], (string)$result['passkey']);
@@ -654,6 +786,12 @@ if ($action == "penalizepost")
             $penaltyPost = forum_penalty_post($postid);
         } catch (Throwable $e) {
             $error = $e->getMessage();
+        }
+        if ($isJsonRequest) {
+            if ($error !== '') {
+                forum_penalty_json_response(['ok' => false, 'message' => $error], 422);
+            }
+            forum_penalty_json_response(['ok' => true, 'message' => $success, 'penalty' => $result['penalty']]);
         }
     }
 
@@ -1125,6 +1263,7 @@ if ($action == "viewtopic")
 		}
 		$mUids = array_keys($mUids);
 		$mUserInfo = $mUids ? \App\Models\User::query()->find($mUids, ['id','class','avatar','username','donor','title'])->keyBy('id') : collect();
+		$mPenaltyRecords = forum_penalty_records_for_posts($mPosts);
 		// 楼层号 = 该帖在主题“主楼层”(非楼中楼)中按发帖先后的序号；楼中楼不计楼层、不显示
 		$floorMap = [];
 		$fres = sql_query("SELECT id FROM posts WHERE topicid=" . sqlesc($topicid) . " AND (reply_to_post_id = 0 OR reply_to_post_id IS NULL) ORDER BY id ASC");
@@ -1161,11 +1300,12 @@ if ($action == "viewtopic")
 			echo '<div class="ft-post' . ($isNested ? ' ft-nested' : '') . '"><div class="ft-post-head"><span class="f-ava">' . $pav . '</span>'
 				. '<span class="ft-pmeta"><span class="ft-pname">' . $pnameHtml . '</span><span class="ft-pdate">' . $pdate . '</span></span>'
 				. ($floorLabel !== '' ? '<span class="ft-floor">' . $floorLabel . '</span>' : '') . '</div>'
-				. '<div class="ft-body">' . $body . '</div>' . $penaltyTool . '</div>';
+				. '<div class="ft-body">' . $body . '</div>' . forum_render_penalty_notices((int)$p['id'], $mPenaltyRecords) . $penaltyTool . '</div>';
 		}
 		echo '</div>';
 		if (trim((string)($pagerstr ?? '')) !== '') echo '<div class="ft-pager">' . $pagerstr . '</div>';
 		if ($maypost) echo '<div class="ft-replybar"><a href="' . htmlspecialchars("?action=reply&topicid=" . $topicid) . '">我也要说两句…</a></div>';
+		if (user_can('postmanage') || $is_forummod) echo forum_render_penalty_modal();
 		f_mfoot();
 		die;
 	}
@@ -1236,6 +1376,7 @@ if ($action == "viewtopic")
 	foreach ($allPosts as $visiblePost) {
 		$lastVisiblePostId = max($lastVisiblePostId, (int)$visiblePost['id']);
 	}
+	$forumPenaltyRecords = forum_penalty_records_for_posts($allPosts);
 	$pn = 0;
 	$lpr = get_last_read_post_id($topicid);
 	if ($Advertisement->enable_ad())
@@ -1276,7 +1417,7 @@ function forumCancelInlineReply(postId) {
 }
 </script>\n");
 
-	$renderNestedReplies = function ($parentPostId, $depth = 1) use (&$renderNestedReplies, &$nestedReplyChildren, $userInfoArr, $topicid, $highlight, $allPosts, $lang_forums, $maypost, $locked, $is_forummod, $CURUSER, $userid) {
+	$renderNestedReplies = function ($parentPostId, $depth = 1) use (&$renderNestedReplies, &$nestedReplyChildren, $userInfoArr, $topicid, $highlight, $allPosts, $lang_forums, $maypost, $locked, $is_forummod, $CURUSER, $userid, $forumPenaltyRecords) {
 		$parentPostId = (int)$parentPostId;
 		if (empty($nestedReplyChildren[$parentPostId])) {
 			return;
@@ -1349,7 +1490,7 @@ function forumCancelInlineReply(postId) {
 			print("<div class=\"forum-nested-reply-wrap\">");
 			print("<div class=\"forum-nested-reply-head\"><a id=\"pid" . $replyPostId . "\" href=\"" . htmlspecialchars("forums.php?action=viewtopic&topicid=" . $topicid . "&page=p" . $replyPostId . "#pid" . $replyPostId) . "\">#" . $replyPostId . "</a>&nbsp;&nbsp;<font color=\"gray\">" . $lang_forums['text_by'] . "</font>" . $replyAuthor . "&nbsp;&nbsp;<font color=\"gray\">" . $lang_forums['text_at'] . "</font>" . $replyAdded . "</div>");
 			print("<table class=\"main forum-nested-reply\" width=\"100%\" border=\"1\" cellspacing=\"0\" cellpadding=\"5\">");
-			print("<tr><td class=\"rowfollow forum-nested-user\" width=\"150\" valign=\"top\" align=\"left\">" . ($isAnonymousHidden ? return_avatar_image("pic/default_avatar.png") : $replyUserPanel) . "</td><td class=\"rowfollow\" valign=\"top\"><div id=\"pid" . $replyPostId . "body\" class=\"forum-nested-reply-body\">" . $replyBodyContent . "</div></td></tr>");
+			print("<tr><td class=\"rowfollow forum-nested-user\" width=\"150\" valign=\"top\" align=\"left\">" . ($isAnonymousHidden ? return_avatar_image("pic/default_avatar.png") : $replyUserPanel) . "</td><td class=\"rowfollow\" valign=\"top\"><div id=\"pid" . $replyPostId . "body\" class=\"forum-nested-reply-body\">" . $replyBodyContent . "</div>" . forum_render_penalty_notices($replyPostId, $forumPenaltyRecords) . "</td></tr>");
 			print("<tr><td class=\"rowfollow\" align=\"center\" valign=\"middle\">" . $replyPosterTools . "</td><td class=\"toolbox forum-nested-reply-tools\" align=\"right\">" . $replyTools . "</td></tr>");
 			print("</table>");
 			if ($maypost && $canViewProtected) {
@@ -1464,6 +1605,7 @@ function forumCancelInlineReply(postId) {
 		$body .= $bodyContent . "</div>";
 		if ($signature)
 		$body .= "<p style='vertical-align:bottom'><br />____________________<br />" . format_comment($signature,false,false,false,true,500,true,false, 1,200) . "</p>";
+		$body .= forum_render_penalty_notices((int)$postid, $forumPenaltyRecords);
 
 		if (!$isAnonymousHidden) {
 			$stats = "<br />"."&nbsp;&nbsp;".$lang_forums['text_posts']."$forumposts<br />"."&nbsp;&nbsp;".$lang_forums['text_ul']."$uploaded <br />"."&nbsp;&nbsp;".$lang_forums['text_dl']."$downloaded<br />"."&nbsp;&nbsp;".$lang_forums['text_ratio']."$ratio";
@@ -1597,6 +1739,7 @@ function forumCancelInlineReply(postId) {
 	else print($lang_forums['text_unpermitted_posting_here']);
 
 	print(key_shortcut($page,$pages-1));
+	if (user_can('postmanage') || $is_forummod) print(forum_render_penalty_modal());
 	f_mfoot();
 	die;
 }
