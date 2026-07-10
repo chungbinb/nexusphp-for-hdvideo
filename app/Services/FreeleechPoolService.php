@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\BonusLogs;
 use App\Models\FreeleechPoolSetting;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
 use Nexus\Database\NexusDB;
 use RuntimeException;
 
@@ -28,9 +27,9 @@ class FreeleechPoolService
 
         $until = 0;
         try {
-            $setting = DB::table('hdvideo_freeleech_pool_settings')->where('id', 1)->first();
+            $setting = NexusDB::table('hdvideo_freeleech_pool_settings')->where('id', 1)->first();
             if ($setting && (int)$setting->enabled === 1) {
-                $campaign = DB::table('hdvideo_freeleech_pool_campaigns')
+                $campaign = NexusDB::table('hdvideo_freeleech_pool_campaigns')
                     ->where('status', 'active')
                     ->where('ends_at', '>', now()->format('Y-m-d H:i:s'))
                     ->orderByDesc('id')
@@ -63,8 +62,8 @@ class FreeleechPoolService
     public static function syncCollectingCampaign(FreeleechPoolSetting $setting): void
     {
         try {
-            DB::transaction(function () use ($setting) {
-                $campaign = DB::table('hdvideo_freeleech_pool_campaigns')
+            NexusDB::transaction(function () use ($setting) {
+                $campaign = NexusDB::table('hdvideo_freeleech_pool_campaigns')
                     ->where('status', 'collecting')->orderByDesc('id')->lockForUpdate()->first();
                 if (!$campaign) return;
                 $goal = max(1, round((float)$setting->goal, 1));
@@ -75,7 +74,7 @@ class FreeleechPoolService
                     $values['activated_at'] = now()->format('Y-m-d H:i:s');
                     $values['ends_at'] = now()->addHours($duration)->format('Y-m-d H:i:s');
                 }
-                DB::table('hdvideo_freeleech_pool_campaigns')->where('id', $campaign->id)->update($values);
+                NexusDB::table('hdvideo_freeleech_pool_campaigns')->where('id', $campaign->id)->update($values);
             });
         } catch (\Throwable $e) {
         }
@@ -86,7 +85,7 @@ class FreeleechPoolService
     {
         FreeleechPoolSetting::ensureSchema();
         $campaign = self::ensureCurrentCampaign();
-        $setting = DB::table('hdvideo_freeleech_pool_settings')->where('id', 1)->first();
+        $setting = NexusDB::table('hdvideo_freeleech_pool_settings')->where('id', 1)->first();
         $enabled = $setting && (int)$setting->enabled === 1;
         $goal = (float)($campaign->goal ?? $setting->goal ?? 1000000);
         $collected = (float)($campaign->collected ?? 0);
@@ -96,19 +95,19 @@ class FreeleechPoolService
         $recent = [];
         $myTotal = 0;
         if ($campaign) {
-            $top = DB::table('hdvideo_freeleech_pool_contributions as c')
+            $top = NexusDB::table('hdvideo_freeleech_pool_contributions as c')
                 ->join('users as u', 'u.id', '=', 'c.uid')
                 ->where('c.campaign_id', $campaign->id)
                 ->groupBy('c.uid', 'u.username')
-                ->orderByDesc(DB::raw('SUM(c.amount)'))
+                ->orderByDesc(NexusDB::raw('SUM(c.amount)'))
                 ->limit(10)
-                ->get(['c.uid', 'u.username', DB::raw('SUM(c.amount) as amount')])->map(fn($row) => (array)$row)->all();
-            $recent = DB::table('hdvideo_freeleech_pool_contributions as c')
+                ->get(['c.uid', 'u.username', NexusDB::raw('SUM(c.amount) as amount')])->map(fn($row) => (array)$row)->all();
+            $recent = NexusDB::table('hdvideo_freeleech_pool_contributions as c')
                 ->join('users as u', 'u.id', '=', 'c.uid')
                 ->where('c.campaign_id', $campaign->id)
                 ->orderByDesc('c.id')->limit(12)
                 ->get(['u.username', 'c.amount', 'c.created_at'])->map(fn($row) => (array)$row)->all();
-            if ($uid > 0) $myTotal = (float)DB::table('hdvideo_freeleech_pool_contributions')->where('campaign_id', $campaign->id)->where('uid', $uid)->sum('amount');
+            if ($uid > 0) $myTotal = (float)NexusDB::table('hdvideo_freeleech_pool_contributions')->where('campaign_id', $campaign->id)->where('uid', $uid)->sum('amount');
         }
 
         return [
@@ -134,8 +133,8 @@ class FreeleechPoolService
         $requested = round($requested, 1);
         if (!is_finite($requested) || $requested <= 0) throw new RuntimeException('请输入有效的投放魔力。');
 
-        $result = DB::transaction(function () use ($uid, $requested) {
-            $setting = DB::table('hdvideo_freeleech_pool_settings')->where('id', 1)->lockForUpdate()->first();
+        $result = NexusDB::transaction(function () use ($uid, $requested) {
+            $setting = NexusDB::table('hdvideo_freeleech_pool_settings')->where('id', 1)->lockForUpdate()->first();
             if (!$setting || (int)$setting->enabled !== 1) throw new RuntimeException('站免池当前未开放。');
             $min = max(0.1, (float)$setting->min_contribution);
             if ($requested < $min) throw new RuntimeException('单次至少投放 ' . number_format($min, 1) . ' 魔力。');
@@ -146,14 +145,14 @@ class FreeleechPoolService
             if ($remaining <= 0) throw new RuntimeException('本轮站免池已经达标。');
             $accepted = round(min($requested, $remaining), 1);
 
-            $user = DB::table('users')->where('id', $uid)->lockForUpdate()->first(['seedbonus']);
+            $user = NexusDB::table('users')->where('id', $uid)->lockForUpdate()->first(['seedbonus']);
             if (!$user) throw new RuntimeException('用户不存在。');
             $old = (float)$user->seedbonus;
             if ($old < $accepted) throw new RuntimeException('魔力余额不足。');
             $new = round($old - $accepted, 1);
             $now = now();
-            DB::table('users')->where('id', $uid)->update(['seedbonus' => DB::raw('seedbonus - ' . $accepted)]);
-            DB::table('hdvideo_freeleech_pool_contributions')->insert([
+            NexusDB::table('users')->where('id', $uid)->update(['seedbonus' => NexusDB::raw('seedbonus - ' . $accepted)]);
+            NexusDB::table('hdvideo_freeleech_pool_contributions')->insert([
                 'campaign_id' => $campaign->id, 'uid' => $uid, 'amount' => $accepted, 'created_at' => $now->format('Y-m-d H:i:s'),
             ]);
             $newCollected = round((float)$campaign->collected + $accepted, 1);
@@ -164,8 +163,8 @@ class FreeleechPoolService
                 $campaignValues['activated_at'] = $now->format('Y-m-d H:i:s');
                 $campaignValues['ends_at'] = $now->copy()->addHours((int)$campaign->duration_hours)->format('Y-m-d H:i:s');
             }
-            DB::table('hdvideo_freeleech_pool_campaigns')->where('id', $campaign->id)->update($campaignValues);
-            DB::table('bonus_logs')->insert([
+            NexusDB::table('hdvideo_freeleech_pool_campaigns')->where('id', $campaign->id)->update($campaignValues);
+            NexusDB::table('bonus_logs')->insert([
                 'business_type' => BonusLogs::BUSINESS_TYPE_FREELEECH_POOL,
                 'uid' => $uid, 'old_total_value' => $old, 'value' => -$accepted, 'new_total_value' => $new,
                 'comment' => '[站免池] 投放魔力，轮次 #' . $campaign->id,
@@ -181,29 +180,29 @@ class FreeleechPoolService
 
     private static function ensureCurrentCampaign(): ?object
     {
-        return DB::transaction(function () {
-            $setting = DB::table('hdvideo_freeleech_pool_settings')->where('id', 1)->lockForUpdate()->first();
+        return NexusDB::transaction(function () {
+            $setting = NexusDB::table('hdvideo_freeleech_pool_settings')->where('id', 1)->lockForUpdate()->first();
             return self::ensureCurrentCampaignLocked($setting);
         });
     }
 
     private static function ensureCurrentCampaignLocked(?object $setting): ?object
     {
-        $campaign = DB::table('hdvideo_freeleech_pool_campaigns')
+        $campaign = NexusDB::table('hdvideo_freeleech_pool_campaigns')
             ->whereIn('status', ['collecting', 'active'])->orderByDesc('id')->lockForUpdate()->first();
         if ($campaign && $campaign->status === 'active' && $campaign->ends_at && Carbon::parse($campaign->ends_at)->isPast()) {
-            DB::table('hdvideo_freeleech_pool_campaigns')->where('id', $campaign->id)->update(['status' => 'completed', 'updated_at' => now()->format('Y-m-d H:i:s')]);
+            NexusDB::table('hdvideo_freeleech_pool_campaigns')->where('id', $campaign->id)->update(['status' => 'completed', 'updated_at' => now()->format('Y-m-d H:i:s')]);
             $campaign = null;
             self::refreshActivationCache();
         }
         if (!$campaign && $setting && (int)$setting->enabled === 1) {
-            $id = DB::table('hdvideo_freeleech_pool_campaigns')->insertGetId([
+            $id = NexusDB::table('hdvideo_freeleech_pool_campaigns')->insertGetId([
                 'goal' => max(1, (float)$setting->goal), 'collected' => 0,
                 'duration_hours' => max(1, (int)$setting->duration_hours), 'status' => 'collecting',
                 'activated_at' => null, 'ends_at' => null,
                 'created_at' => now()->format('Y-m-d H:i:s'), 'updated_at' => now()->format('Y-m-d H:i:s'),
             ]);
-            $campaign = DB::table('hdvideo_freeleech_pool_campaigns')->where('id', $id)->first();
+            $campaign = NexusDB::table('hdvideo_freeleech_pool_campaigns')->where('id', $id)->first();
         }
         return $campaign;
     }

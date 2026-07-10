@@ -3,9 +3,7 @@
 namespace App\Models;
 
 use App\Services\FreeleechPoolService;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
+use Nexus\Database\NexusDB;
 
 class FreeleechPoolSetting extends NexusModel
 {
@@ -34,47 +32,36 @@ class FreeleechPoolSetting extends NexusModel
 
     public static function ensureSchema(): void
     {
-        $conn = (new static)->getConnectionName();
-        $schema = Schema::connection($conn);
-
-        if (!$schema->hasTable('hdvideo_freeleech_pool_settings')) {
-            $schema->create('hdvideo_freeleech_pool_settings', function (Blueprint $table) {
-                $table->unsignedInteger('id')->primary();
-                $table->boolean('enabled')->default(true);
-                $table->decimal('goal', 20, 1)->default(1000000);
-                $table->unsignedInteger('duration_hours')->default(24);
-                $table->decimal('min_contribution', 20, 1)->default(100);
-                $table->dateTime('updated_at')->nullable();
-            });
+        static $done = false;
+        if ($done) return;
+        if (!NexusDB::hasTable('hdvideo_freeleech_pool_settings')) {
+            NexusDB::statement("CREATE TABLE `hdvideo_freeleech_pool_settings` (
+                `id` int unsigned NOT NULL, `enabled` tinyint(1) NOT NULL DEFAULT 1,
+                `goal` decimal(20,1) NOT NULL DEFAULT 1000000.0, `duration_hours` int unsigned NOT NULL DEFAULT 24,
+                `min_contribution` decimal(20,1) NOT NULL DEFAULT 100.0, `updated_at` datetime DEFAULT NULL,
+                PRIMARY KEY (`id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        }
+        if (!NexusDB::hasTable('hdvideo_freeleech_pool_campaigns')) {
+            NexusDB::statement("CREATE TABLE `hdvideo_freeleech_pool_campaigns` (
+                `id` bigint unsigned NOT NULL AUTO_INCREMENT, `goal` decimal(20,1) NOT NULL,
+                `collected` decimal(20,1) NOT NULL DEFAULT 0.0, `duration_hours` int unsigned NOT NULL,
+                `status` varchar(16) NOT NULL DEFAULT 'collecting', `activated_at` datetime DEFAULT NULL,
+                `ends_at` datetime DEFAULT NULL, `created_at` datetime NOT NULL, `updated_at` datetime NOT NULL,
+                PRIMARY KEY (`id`), KEY `idx_status` (`status`), KEY `idx_ends_at` (`ends_at`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        }
+        if (!NexusDB::hasTable('hdvideo_freeleech_pool_contributions')) {
+            NexusDB::statement("CREATE TABLE `hdvideo_freeleech_pool_contributions` (
+                `id` bigint unsigned NOT NULL AUTO_INCREMENT, `campaign_id` bigint unsigned NOT NULL,
+                `uid` int unsigned NOT NULL, `amount` decimal(20,1) NOT NULL, `created_at` datetime NOT NULL,
+                PRIMARY KEY (`id`), KEY `idx_campaign` (`campaign_id`), KEY `idx_uid` (`uid`),
+                KEY `idx_created_at` (`created_at`), KEY `idx_campaign_uid` (`campaign_id`,`uid`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
         }
 
-        if (!$schema->hasTable('hdvideo_freeleech_pool_campaigns')) {
-            $schema->create('hdvideo_freeleech_pool_campaigns', function (Blueprint $table) {
-                $table->bigIncrements('id');
-                $table->decimal('goal', 20, 1);
-                $table->decimal('collected', 20, 1)->default(0);
-                $table->unsignedInteger('duration_hours');
-                $table->string('status', 16)->default('collecting')->index();
-                $table->dateTime('activated_at')->nullable();
-                $table->dateTime('ends_at')->nullable()->index();
-                $table->dateTime('created_at');
-                $table->dateTime('updated_at');
-            });
-        }
-
-        if (!$schema->hasTable('hdvideo_freeleech_pool_contributions')) {
-            $schema->create('hdvideo_freeleech_pool_contributions', function (Blueprint $table) {
-                $table->bigIncrements('id');
-                $table->unsignedBigInteger('campaign_id')->index();
-                $table->unsignedInteger('uid')->index();
-                $table->decimal('amount', 20, 1);
-                $table->dateTime('created_at')->index();
-                $table->index(['campaign_id', 'uid']);
-            });
-        }
-
-        if (!DB::connection($conn)->table('hdvideo_freeleech_pool_settings')->where('id', 1)->exists()) {
-            DB::connection($conn)->table('hdvideo_freeleech_pool_settings')->insert([
+        if (!NexusDB::table('hdvideo_freeleech_pool_settings')->where('id', 1)->exists()) {
+            NexusDB::table('hdvideo_freeleech_pool_settings')->insert([
                 'id' => 1,
                 'enabled' => 1,
                 'goal' => 1000000,
@@ -83,5 +70,6 @@ class FreeleechPoolSetting extends NexusModel
                 'updated_at' => now()->format('Y-m-d H:i:s'),
             ]);
         }
+        $done = true;
     }
 }
