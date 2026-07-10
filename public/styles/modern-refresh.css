@@ -7412,6 +7412,7 @@ body.page-settings table.main td.rowfollow .medium {
 .forum-post-penalty-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
 .forum-post-penalty-content strong { color: #a92130; font-size: 13px; }
 .forum-post-penalty.is-addition .forum-post-penalty-content strong { color: #0f7049; }
+.forum-post-penalty-content strong .forum-post-penalty-cancelled-label { margin-left: 6px; color: #0f7049; }
 .forum-post-penalty-reason { overflow-wrap: anywhere; font-size: 13px; }
 .forum-post-penalty-content small { color: var(--bili-text-secondary, #61666d); font-size: 12px; }
 .forum-post-penalty-cancel {
@@ -7534,6 +7535,7 @@ body.page-settings table.main td.rowfollow .medium {
 :root[data-site-theme="night"] .forum-penalty-modal-alert.is-error,
 :root[data-site-theme="night"] .forum-penalty-modal-options input:checked + span { color: #ff9da6; }
 :root[data-site-theme="night"] .forum-post-penalty.is-addition .forum-post-penalty-content strong,
+:root[data-site-theme="night"] .forum-post-penalty-content strong .forum-post-penalty-cancelled-label,
 :root[data-site-theme="night"] .forum-penalty-modal[data-adjustment="add"] .forum-penalty-modal-options input:checked + span { color: #70e0ac; }
 :root[data-site-theme="night"] .forum-penalty-modal-alert.is-success { color: #70e0ac; }
 @media (max-width: 600px) {

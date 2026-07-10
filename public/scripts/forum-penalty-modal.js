@@ -226,6 +226,13 @@
         if (cancelButton) {
             cancelButton.remove();
         }
+        var headingText = article.querySelector('.forum-post-penalty-heading strong');
+        if (headingText && !headingText.querySelector('.forum-post-penalty-cancelled-label')) {
+            var cancelledLabel = document.createElement('span');
+            cancelledLabel.className = 'forum-post-penalty-cancelled-label';
+            cancelledLabel.textContent = '(已被取消扣除)';
+            headingText.appendChild(cancelledLabel);
+        }
         if (article.querySelector('.forum-post-penalty-cancellation')) {
             return;
         }

@@ -559,9 +559,10 @@ function forum_render_penalty_notices(int $postId, array $records): string
         $cancellationHtml = $cancellation
             ? '<span class="forum-post-penalty-cancellation"><span>取消原因：' . forum_penalty_h($cancellation['reason']) . '</span><small>取消操作人：' . forum_penalty_h($cancellation['operator']) . ($cancellation['created_at'] !== '' ? ' · ' . forum_penalty_h($cancellation['created_at']) : '') . '</small></span>'
             : '';
+        $cancelledLabel = $cancellation ? '<span class="forum-post-penalty-cancelled-label">(已被取消扣除)</span>' : '';
         $html .= '<article class="forum-post-penalty' . ($isAddition ? ' is-addition' : '') . ($cancellation ? ' is-cancelled' : '') . '" data-penalty-id="' . (int)$record['id'] . '">'
             . '<span class="forum-post-penalty-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 3.8 6.4v5.1c0 5.1 3.5 8.5 8.2 9.5 4.7-1 8.2-4.4 8.2-9.5V6.4L12 3Z"/><path d="M8 12h8"/>' . ($isAddition ? '<path d="M12 8v8"/>' : '') . '</svg></span>'
-            . '<span class="forum-post-penalty-content"><span class="forum-post-penalty-heading"><strong>该帖已被' . ($isAddition ? '增加 ' : '扣除 ') . number_format((float)$record['amount'], 1) . ' ' . forum_penalty_h($record['field_label']) . '</strong>' . $cancelButton . '</span>'
+            . '<span class="forum-post-penalty-content"><span class="forum-post-penalty-heading"><strong>该帖已被' . ($isAddition ? '增加 ' : '扣除 ') . number_format((float)$record['amount'], 1) . ' ' . forum_penalty_h($record['field_label']) . $cancelledLabel . '</strong>' . $cancelButton . '</span>'
             . '<span class="forum-post-penalty-reason">原因：' . forum_penalty_h($record['reason']) . '</span>'
             . '<small>操作人：' . forum_penalty_h($record['operator']) . ($record['created_at'] !== '' ? ' · ' . forum_penalty_h($record['created_at']) : '') . '</small>' . $cancellationHtml . '</span></article>';
     }
