@@ -58,6 +58,15 @@ class ZjhEngineTest extends TestCase
         $this->assertSame('compare', zjh_bot_decide('hell', 0.7, 0.2, true, 2, 90, true));
     }
 
+    public function test_bot_can_only_fold_seen_pair_or_single()
+    {
+        $this->assertFalse(zjh_bot_can_fold(false, [0, 14, 9, 4]));
+        $this->assertTrue(zjh_bot_can_fold(true, [0, 14, 9, 4]));
+        $this->assertTrue(zjh_bot_can_fold(true, [1, 12, 9]));
+        $this->assertFalse(zjh_bot_can_fold(true, [2, 10]));
+        $this->assertFalse(zjh_bot_can_fold(true, [5, 14]));
+    }
+
     public function test_compare_all_selects_the_best_hand_from_every_player()
     {
         $pairKings = [$this->card(13, 0), $this->card(13, 1), $this->card(8, 2)];

@@ -120,6 +120,12 @@ function zjh_bot_decide($difficulty, $strength, $pressure, $canRaise, $activeCou
     return 'call';
 }
 
+/** 机器人只有在已经看牌，且牌型为对子或单张时才允许弃牌。 */
+function zjh_bot_can_fold($seen, array $score)
+{
+    return (bool)$seen && (int)($score[0] ?? 0) <= 1;
+}
+
 /** 返回全比牌局中最大手牌的下标。 */
 function zjh_compare_all_winner(array $hands)
 {

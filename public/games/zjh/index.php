@@ -428,6 +428,9 @@ function zjh_apply(&$room, $seat, $action, $targetSeat = null)
         return zjh_reveal_and_advance($room, $seat, 'All in ' . $amount);
     }
     if ($action === 'fold') {
+        if (!empty($player['bot']) && !zjh_bot_can_fold(!empty($player['seen']), zjh_evaluate($player['cards']))) {
+            return '机器人未看牌或持有顺子以上牌型，不能弃牌。';
+        }
         $player['status'] = 'folded'; zjh_log($room, $player['username'] . ' 弃牌');
     } elseif ($action === 'call') {
         if ((int)$player['stack'] < $unit) return '桌面筹码不足以跟注。';
@@ -487,6 +490,7 @@ function zjh_bot_action(&$room, $seat)
         $player['seen'] = true;
         zjh_log($room, $player['username'] . ' 已看牌');
     }
+    $score = zjh_evaluate($player['cards']);
     $strength = zjh_bot_strength($room, $seat);
     $roll = random_int(1, 100);
     $canRaise = (int)$room['raise_count'] < ZJH_RAISE_CAP;
@@ -497,8 +501,9 @@ function zjh_bot_action(&$room, $seat)
     if ($difficulty === 'hard') {
         $strength = max(0, min(1, $strength + random_int(-14, 14) / 100));
     }
-    return zjh_bot_decide($difficulty, $strength, $pressure, $canRaise, $activeCount, $roll,
+    $action = zjh_bot_decide($difficulty, $strength, $pressure, $canRaise, $activeCount, $roll,
         (int)$player['stack'] >= $cost + (int)$room['base'] * 2);
+    return $action === 'fold' && !zjh_bot_can_fold(!empty($player['seen']), $score) ? 'call' : $action;
 }
 
 function zjh_drive_bot(&$room)
@@ -510,7 +515,8 @@ function zjh_drive_bot(&$room)
     if (zjh_requires_showdown($player['stack'] ?? 0, $room['current_bet'] ?? $room['base'], !empty($player['seen']), $room['base'] ?? 0)) {
         $difficulty = $player['difficulty'] ?? $room['bot_difficulty'] ?? 'simple';
         $threshold = $difficulty === 'hell' ? 0.30 : ($difficulty === 'hard' ? 0.42 : 0.55);
-        $action = zjh_bot_strength($room, $seat) >= $threshold || random_int(1, 100) <= 18 ? 'all_in' : 'fold';
+        $canFold = zjh_bot_can_fold(!empty($player['seen']), zjh_evaluate($player['cards']));
+        $action = !$canFold || zjh_bot_strength($room, $seat) >= $threshold || random_int(1, 100) <= 18 ? 'all_in' : 'fold';
         zjh_apply($room, $seat, $action);
         return;
     }
@@ -521,7 +527,11 @@ function zjh_drive_bot(&$room)
         if ($fallback !== '' && ($room['status'] ?? '') === 'playing') {
             $player = $room['players'][$seat] ?? [];
             $short = zjh_requires_showdown($player['stack'] ?? 0, $room['current_bet'] ?? $room['base'], !empty($player['seen']), $room['base'] ?? 0);
-            zjh_apply($room, $seat, $short && zjh_bot_strength($room, $seat) >= 0.45 ? 'all_in' : 'fold');
+            $canFold = zjh_bot_can_fold(!empty($player['seen']), zjh_evaluate($player['cards']));
+            $lastAction = $short
+                ? (!$canFold || zjh_bot_strength($room, $seat) >= 0.45 ? 'all_in' : 'fold')
+                : ($canFold ? 'fold' : 'call');
+            zjh_apply($room, $seat, $lastAction);
         }
     }
 }
@@ -650,6 +660,12 @@ function zjh_timeout(&$room)
     $seat = (int)$room['turn'];
     $player =& $room['players'][$seat];
     if (($player['status'] ?? '') !== 'active' || !empty($player['revealed'])) return;
+    if (!empty($player['bot']) && !zjh_bot_can_fold(!empty($player['seen']), zjh_evaluate($player['cards']))) {
+        $mustAllIn = zjh_requires_showdown($player['stack'] ?? 0, $room['current_bet'] ?? $room['base'], !empty($player['seen']), $room['base'] ?? 0);
+        unset($player);
+        zjh_apply($room, $seat, $mustAllIn ? 'all_in' : 'call');
+        return;
+    }
     $player['status'] = 'folded';
     zjh_log($room, $player['username'] . ' 读秒结束，系统自动弃牌');
     unset($player);
