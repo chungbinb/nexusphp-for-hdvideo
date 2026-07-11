@@ -34,6 +34,47 @@ class TorrentPromotionService
                 $table->index(['pin_until', 'torrent_id']);
             });
         }
+        if (! $schema->hasTable('hdvideo_torrent_download_rewards')) {
+            $schema->create('hdvideo_torrent_download_rewards', function (Blueprint $table) {
+                $table->bigIncrements('id');
+                $table->integer('torrent_id')->unsigned()->index();
+                $table->integer('sponsor_id')->unsigned()->index();
+                $table->decimal('amount', 20, 1)->default(0);
+                $table->integer('reward_user_count')->unsigned()->default(1);
+                $table->dateTime('starts_at')->index();
+                $table->dateTime('ends_at')->index();
+                $table->string('status', 20)->default('pending')->index();
+                $table->decimal('settled_amount', 20, 1)->default(0);
+                $table->unsignedBigInteger('total_uploaded')->default(0);
+                $table->dateTime('settled_at')->nullable();
+                $table->dateTime('created_at')->nullable();
+                $table->dateTime('updated_at')->nullable();
+                $table->index(['status', 'ends_at']);
+            });
+        }
+        if (! $schema->hasTable('hdvideo_torrent_download_reward_snapshots')) {
+            $schema->create('hdvideo_torrent_download_reward_snapshots', function (Blueprint $table) {
+                $table->bigIncrements('id');
+                $table->unsignedBigInteger('reward_id')->index();
+                $table->integer('user_id')->unsigned()->index();
+                $table->unsignedBigInteger('uploaded_begin')->default(0);
+                $table->dateTime('created_at')->nullable();
+                $table->unique(['reward_id', 'user_id'], 'hdv_reward_snapshot_unique');
+            });
+        }
+        if (! $schema->hasTable('hdvideo_torrent_download_reward_payouts')) {
+            $schema->create('hdvideo_torrent_download_reward_payouts', function (Blueprint $table) {
+                $table->bigIncrements('id');
+                $table->unsignedBigInteger('reward_id')->index();
+                $table->integer('torrent_id')->unsigned()->index();
+                $table->integer('user_id')->unsigned()->index();
+                $table->unsignedBigInteger('uploaded')->default(0);
+                $table->decimal('amount', 20, 1)->default(0);
+                $table->dateTime('created_at')->nullable();
+                $table->dateTime('updated_at')->nullable();
+                $table->unique(['reward_id', 'user_id'], 'hdv_reward_payout_unique');
+            });
+        }
         self::$schemaEnsured = true;
     }
 
@@ -117,20 +158,228 @@ class TorrentPromotionService
             'tags' => self::tagStatus($torrentId),
             'settings' => $settings,
             'bonus' => $bonus ? (array)$bonus : null,
+            'download_rewards' => self::downloadRewards($torrentId),
         ];
     }
 
-    public static function purchase(int $uid, int $torrentId, bool $buyPin, bool $buyFree): array
+    public static function createDownloadReward(int $uid, int $torrentId, float $amount, int $rewardUserCount, int $durationHours): array
+    {
+        self::ensureSchema();
+        $amount = round($amount, 1);
+        $rewardUserCount = max(1, min(100, $rewardUserCount));
+        $durationHours = max(1, min(720, $durationHours));
+        if ($amount < 1) throw new RuntimeException('奖励魔力至少为 1。');
+        if ((int)self::settings()['bonus_promotion_enabled'] !== 1) throw new RuntimeException('魔力推广当前未开放。');
+
+        $result = NexusDB::transaction(function () use ($uid, $torrentId, $amount, $rewardUserCount, $durationHours) {
+            $user = NexusDB::table('users')->where('id', $uid)->lockForUpdate()->first(['id', 'seedbonus']);
+            $torrent = NexusDB::table('torrents')->where('id', $torrentId)->first(['id', 'name']);
+            if (! $user) throw new RuntimeException('用户不存在。');
+            if (! $torrent) throw new RuntimeException('种子不存在。');
+            if ((float)$user->seedbonus < $amount) throw new RuntimeException('魔力余额不足。');
+
+            $now = now();
+            $endsAt = $now->copy()->addHours($durationHours);
+            NexusDB::table('users')->where('id', $uid)->update(['seedbonus' => NexusDB::raw('seedbonus - ' . $amount)]);
+            $rewardId = NexusDB::table('hdvideo_torrent_download_rewards')->insertGetId([
+                'torrent_id' => $torrentId,
+                'sponsor_id' => $uid,
+                'amount' => $amount,
+                'reward_user_count' => $rewardUserCount,
+                'starts_at' => $now->toDateTimeString(),
+                'ends_at' => $endsAt->toDateTimeString(),
+                'status' => 'pending',
+                'created_at' => $now->toDateTimeString(),
+                'updated_at' => $now->toDateTimeString(),
+            ]);
+
+            $snapshotRows = NexusDB::table('snatched')
+                ->where('torrentid', $torrentId)
+                ->where('uploaded', '>', 0)
+                ->get(['userid', 'uploaded'])
+                ->map(fn ($row) => [
+                    'reward_id' => $rewardId,
+                    'user_id' => (int)$row->userid,
+                    'uploaded_begin' => (int)$row->uploaded,
+                    'created_at' => $now->toDateTimeString(),
+                ])
+                ->all();
+            if ($snapshotRows) {
+                foreach (array_chunk($snapshotRows, 1000) as $chunk) {
+                    NexusDB::table('hdvideo_torrent_download_reward_snapshots')->insert($chunk);
+                }
+            }
+
+            NexusDB::table('bonus_logs')->insert(self::bonusLog(
+                $uid,
+                (float)$user->seedbonus,
+                -$amount,
+                (float)$user->seedbonus - $amount,
+                "[种子下载奖励池] #{$torrentId} 总额 {$amount} 魔力，奖励 {$rewardUserCount} 人，{$durationHours} 小时后结算",
+                BonusLogs::BUSINESS_TYPE_REWARD_TORRENT,
+                $now
+            ));
+
+            return ['id' => $rewardId, 'amount' => $amount, 'count' => $rewardUserCount, 'hours' => $durationHours];
+        });
+
+        if (function_exists('clear_user_cache')) clear_user_cache($uid);
+        return $result;
+    }
+
+    public static function settleDueDownloadRewards(int $limit = 20): int
+    {
+        self::ensureSchema();
+        $now = now();
+        $ids = NexusDB::table('hdvideo_torrent_download_rewards')
+            ->where('status', 'pending')
+            ->where('ends_at', '<=', $now->toDateTimeString())
+            ->orderBy('ends_at')
+            ->limit($limit)
+            ->pluck('id')
+            ->all();
+        $settled = 0;
+        foreach ($ids as $id) {
+            try {
+                self::settleDownloadReward((int)$id);
+                $settled++;
+            } catch (\Throwable $e) {
+                do_log("settle download reward failed, id: {$id}, error: " . $e->getMessage(), 'error');
+            }
+        }
+        return $settled;
+    }
+
+    public static function settleDownloadReward(int $rewardId): void
+    {
+        self::ensureSchema();
+        NexusDB::transaction(function () use ($rewardId) {
+            $now = now();
+            $reward = NexusDB::table('hdvideo_torrent_download_rewards')->where('id', $rewardId)->lockForUpdate()->first();
+            if (! $reward || $reward->status !== 'pending') return;
+            $torrent = NexusDB::table('torrents')->where('id', $reward->torrent_id)->first(['id', 'owner']);
+            if (! $torrent) {
+                self::refundDownloadReward($reward, '种子不存在，奖励池退回');
+                return;
+            }
+
+            $rows = NexusDB::table('snatched as s')
+                ->leftJoin('hdvideo_torrent_download_reward_snapshots as rs', function ($join) use ($rewardId) {
+                    $join->on('rs.user_id', '=', 's.userid')->where('rs.reward_id', '=', $rewardId);
+                })
+                ->where('s.torrentid', (int)$reward->torrent_id)
+                ->where('s.userid', '<>', (int)$reward->sponsor_id)
+                ->where('s.userid', '<>', (int)$torrent->owner)
+                ->selectRaw('s.userid, CASE WHEN s.uploaded > COALESCE(rs.uploaded_begin, 0) THEN s.uploaded - COALESCE(rs.uploaded_begin, 0) ELSE 0 END as uploaded_delta')
+                ->orderByDesc('uploaded_delta')
+                ->limit((int)$reward->reward_user_count)
+                ->get()
+                ->filter(fn ($row) => (int)$row->uploaded_delta > 0)
+                ->values();
+
+            $totalUploaded = (int)$rows->sum('uploaded_delta');
+            if ($totalUploaded <= 0 || $rows->isEmpty()) {
+                self::refundDownloadReward($reward, '没有符合条件的上传贡献，奖励池退回');
+                return;
+            }
+
+            $remaining = (float)$reward->amount;
+            $payoutRows = [];
+            $count = $rows->count();
+            foreach ($rows as $index => $row) {
+                $amount = $index === $count - 1
+                    ? round($remaining, 1)
+                    : floor(((float)$reward->amount * (int)$row->uploaded_delta / $totalUploaded) * 10) / 10;
+                if ($amount <= 0) continue;
+                $user = NexusDB::table('users')->where('id', (int)$row->userid)->lockForUpdate()->first(['id', 'seedbonus']);
+                if (! $user) continue;
+                NexusDB::table('users')->where('id', (int)$row->userid)->update(['seedbonus' => NexusDB::raw('seedbonus + ' . $amount)]);
+                NexusDB::table('bonus_logs')->insert(self::bonusLog(
+                    (int)$row->userid,
+                    (float)$user->seedbonus,
+                    $amount,
+                    (float)$user->seedbonus + $amount,
+                    "[种子下载奖励池] #{$reward->torrent_id} 上传 " . (int)$row->uploaded_delta . " 字节，瓜分奖励",
+                    BonusLogs::BUSINESS_TYPE_RECEIVE_REWARD,
+                    $now
+                ));
+                $payoutRows[] = [
+                    'reward_id' => $rewardId,
+                    'torrent_id' => (int)$reward->torrent_id,
+                    'user_id' => (int)$row->userid,
+                    'uploaded' => (int)$row->uploaded_delta,
+                    'amount' => $amount,
+                    'created_at' => $now->toDateTimeString(),
+                    'updated_at' => $now->toDateTimeString(),
+                ];
+                $remaining = round($remaining - $amount, 1);
+            }
+
+            if (!$payoutRows) {
+                self::refundDownloadReward($reward, '没有可发放用户，奖励池退回');
+                return;
+            }
+
+            NexusDB::table('hdvideo_torrent_download_reward_payouts')->insert($payoutRows);
+            NexusDB::table('hdvideo_torrent_download_rewards')->where('id', $rewardId)->update([
+                'status' => 'settled',
+                'settled_amount' => array_sum(array_column($payoutRows, 'amount')),
+                'total_uploaded' => $totalUploaded,
+                'settled_at' => $now->toDateTimeString(),
+                'updated_at' => $now->toDateTimeString(),
+            ]);
+        });
+    }
+
+    private static function refundDownloadReward(object $reward, string $reason): void
+    {
+        $now = now();
+        $user = NexusDB::table('users')->where('id', (int)$reward->sponsor_id)->lockForUpdate()->first(['id', 'seedbonus']);
+        if ($user) {
+            NexusDB::table('users')->where('id', (int)$reward->sponsor_id)->update(['seedbonus' => NexusDB::raw('seedbonus + ' . (float)$reward->amount)]);
+            NexusDB::table('bonus_logs')->insert(self::bonusLog(
+                (int)$reward->sponsor_id,
+                (float)$user->seedbonus,
+                (float)$reward->amount,
+                (float)$user->seedbonus + (float)$reward->amount,
+                "[种子下载奖励池] #{$reward->torrent_id} {$reason}",
+                BonusLogs::BUSINESS_TYPE_RECEIVE_REWARD,
+                $now
+            ));
+        }
+        NexusDB::table('hdvideo_torrent_download_rewards')->where('id', (int)$reward->id)->update([
+            'status' => 'refunded',
+            'settled_at' => $now->toDateTimeString(),
+            'updated_at' => $now->toDateTimeString(),
+        ]);
+    }
+
+    private static function downloadRewards(int $torrentId): array
+    {
+        self::ensureSchema();
+        return NexusDB::table('hdvideo_torrent_download_rewards')
+            ->where('torrent_id', $torrentId)
+            ->orderByDesc('id')
+            ->limit(5)
+            ->get()
+            ->map(fn ($row) => (array)$row)
+            ->all();
+    }
+
+    public static function purchase(int $uid, int $torrentId, bool $buyPin, bool $buyFree, ?int $durationHours = null): array
     {
         if (! $buyPin && ! $buyFree) throw new RuntimeException('请至少选择一项推广功能。');
         $settings = self::settings();
         if ((int)$settings['bonus_promotion_enabled'] !== 1) throw new RuntimeException('魔力推广当前未开放。');
-        $pinCost = $buyPin ? max(0, (float)$settings['bonus_sticky_cost']) : 0;
-        $freeCost = $buyFree ? max(0, (float)$settings['bonus_free_cost']) : 0;
+        $pinBaseHours = max(1, (int)$settings['bonus_sticky_days'] * 24);
+        $freeBaseHours = max(1, (int)$settings['bonus_free_hours']);
+        $hours = $durationHours !== null ? max(1, min(720, $durationHours)) : max(1, $freeBaseHours);
+        $pinCost = $buyPin ? round(max(0, (float)$settings['bonus_sticky_cost']) * $hours / $pinBaseHours, 1) : 0;
+        $freeCost = $buyFree ? round(max(0, (float)$settings['bonus_free_cost']) * $hours / $freeBaseHours, 1) : 0;
         $total = $pinCost + $freeCost;
         if ($total <= 0) throw new RuntimeException('推广价格配置无效，请联系管理员。');
 
-        $result = NexusDB::transaction(function () use ($uid, $torrentId, $buyPin, $buyFree, $settings, $pinCost, $freeCost, $total) {
+        $result = NexusDB::transaction(function () use ($uid, $torrentId, $buyPin, $buyFree, $settings, $hours, $pinCost, $freeCost, $total) {
             $user = NexusDB::table('users')->where('id', $uid)->lockForUpdate()->first(['id', 'seedbonus']);
             $torrent = NexusDB::table('torrents')->where('id', $torrentId)->lockForUpdate()->first(['id', 'name', 'sp_state', 'promotion_time_type', 'promotion_until', 'pos_state', 'pos_state_until']);
             if (! $user) throw new RuntimeException('用户不存在。');
@@ -147,7 +396,7 @@ class TorrentPromotionService
 
             if ($buyPin) {
                 $base = $record && $record->pin_until && Carbon::parse($record->pin_until)->isFuture() ? Carbon::parse($record->pin_until) : $now->copy();
-                $pinUntil = $base->addDays(max(1, (int)$settings['bonus_sticky_days']));
+                $pinUntil = $base->addHours($hours);
                 $desired = $tags['official'] ? Torrent::POS_STATE_STICKY_FIRST : Torrent::POS_STATE_STICKY_THIRD;
                 $currentRank = self::positionRank((string)$torrent->pos_state);
                 $desiredRank = self::positionRank($desired);
@@ -168,7 +417,7 @@ class TorrentPromotionService
                 if ($record && $record->free_until && Carbon::parse($record->free_until)->isFuture()) $candidates[] = Carbon::parse($record->free_until);
                 if ((int)$torrent->sp_state === Torrent::PROMOTION_FREE && $torrent->promotion_until && Carbon::parse($torrent->promotion_until)->isFuture()) $candidates[] = Carbon::parse($torrent->promotion_until);
                 $base = collect($candidates)->sortByDesc(fn (Carbon $date) => $date->timestamp)->first();
-                $freeUntil = $base->copy()->addHours(max(1, (int)$settings['bonus_free_hours']));
+                $freeUntil = $base->copy()->addHours($hours);
                 $torrentValues['sp_state'] = Torrent::PROMOTION_FREE;
                 $torrentValues['promotion_time_type'] = 2;
                 $torrentValues['promotion_until'] = $freeUntil->toDateTimeString();
@@ -183,14 +432,14 @@ class TorrentPromotionService
 
             $running = (float)$user->seedbonus;
             if ($buyPin) {
-                NexusDB::table('bonus_logs')->insert(self::bonusLog($uid, $running, -$pinCost, $running - $pinCost, "[种子推广] #{$torrentId} 魔力置顶", BonusLogs::BUSINESS_TYPE_STICKY_PROMOTION, $now));
+                NexusDB::table('bonus_logs')->insert(self::bonusLog($uid, $running, -$pinCost, $running - $pinCost, "[种子推广] #{$torrentId} 魔力置顶 {$hours}小时", BonusLogs::BUSINESS_TYPE_STICKY_PROMOTION, $now));
                 $running -= $pinCost;
             }
             if ($buyFree) {
-                NexusDB::table('bonus_logs')->insert(self::bonusLog($uid, $running, -$freeCost, $running - $freeCost, "[种子推广] #{$torrentId} Free", BonusLogs::BUSINESS_TYPE_TORRENT_FREE_PROMOTION, $now));
+                NexusDB::table('bonus_logs')->insert(self::bonusLog($uid, $running, -$freeCost, $running - $freeCost, "[种子推广] #{$torrentId} Free {$hours}小时", BonusLogs::BUSINESS_TYPE_TORRENT_FREE_PROMOTION, $now));
                 $running -= $freeCost;
             }
-            return ['spent' => $total, 'wallet' => $running, 'pin' => $buyPin, 'free' => $buyFree];
+            return ['spent' => $total, 'wallet' => $running, 'pin' => $buyPin, 'free' => $buyFree, 'hours' => $hours];
         });
         if (function_exists('clear_user_cache')) clear_user_cache($uid);
         if (function_exists('publish_model_event')) publish_model_event(\App\Enums\ModelEventEnum::TORRENT_UPDATED, $torrentId);

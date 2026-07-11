@@ -352,6 +352,17 @@ function docleanup($forceAll = 0, $printProgress = false) {
 		printProgress($log);
 	}
 
+    try {
+        $settledDownloadRewards = \App\Services\TorrentPromotionService::settleDueDownloadRewards();
+        $log = "settle torrent download rewards, count: $settledDownloadRewards";
+        do_log($log);
+        if ($printProgress) {
+            printProgress($log);
+        }
+    } catch (\Throwable $e) {
+        do_log("settle torrent download rewards failed: " . $e->getMessage(), 'error');
+    }
+
 //Priority Class 2: cleanup every 30 mins
 	$res = sql_query("SELECT value_u FROM avps WHERE arg = 'lastcleantime2'");
 	$row = mysql_fetch_array($res);

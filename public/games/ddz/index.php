@@ -19,6 +19,7 @@ const DDZ_JOIN_BALANCE_FACTOR = 16;
 const DDZ_ROOM_TTL = 7200;
 const DDZ_MULT_CAP = 1024;
 const DDZ_BUSINESS_TYPE = 103; // 斗地主（历史记录为 13）
+const DDZ_ESCROW_BUSINESS_TYPE = 116; // 斗地主开局托管
 const DDZ_TURN_SECONDS = 30; // 回合限时
 const DDZ_MATCH_WAIT = 10;   // 匹配等待：超过则补机器人开局
 const DDZ_BOT_NAMES = ['小赵', '小钱', '小孙', '小李', '小周', '小吴', '小郑', '小王'];
@@ -247,8 +248,61 @@ function ddz_can_beat($play, $last)
     return $play['type'] === $last['type'] && $play['n'] === $last['n'] && $play['main'] > $last['main'];
 }
 
-function ddz_start_game(&$room)
+function ddz_reserve_buyins(&$room, $handNo)
 {
+    $amount = (float)((int)$room['base'] * DDZ_JOIN_BALANCE_FACTOR);
+    $realSeats = [];
+    foreach (($room['seats'] ?? []) as $seat => $player) {
+        if ($player && empty($player['bot']) && (int)($player['uid'] ?? 0) > 0) {
+            $realSeats[(int)$player['uid']] = (int)$seat;
+        }
+    }
+    ksort($realSeats, SORT_NUMERIC);
+    $now = date('Y-m-d H:i:s');
+    sql_query('START TRANSACTION') or sqlerr(__FILE__, __LINE__);
+    try {
+        $balances = [];
+        foreach ($realSeats as $uid => $seat) {
+            $res = sql_query('SELECT `seedbonus` FROM `users` WHERE `id`=' . $uid . ' FOR UPDATE') or sqlerr(__FILE__, __LINE__);
+            $row = mysql_fetch_assoc($res);
+            $balances[$uid] = $row ? (float)$row['seedbonus'] : 0;
+            if ($balances[$uid] < $amount) {
+                sql_query('ROLLBACK');
+                return ($room['seats'][$seat]['username'] ?? '有玩家') . ' 的电影票不足 ' . number_format($amount) . '，无法开局。';
+            }
+        }
+        foreach ($realSeats as $uid => $seat) {
+            $old = $balances[$uid];
+            $new = $old - $amount;
+            sql_query('UPDATE `users` SET `seedbonus`=`seedbonus`-' . sqlesc(number_format($amount, 1, '.', '')) . ' WHERE `id`=' . $uid) or sqlerr(__FILE__, __LINE__);
+            sql_query(sprintf(
+                "INSERT INTO `bonus_logs` (`business_type`,`uid`,`old_total_value`,`value`,`new_total_value`,`comment`,`created_at`,`updated_at`) VALUES (%d,%d,%s,%s,%s,%s,%s,%s)",
+                DDZ_ESCROW_BUSINESS_TYPE, $uid, sqlesc($old), sqlesc(-$amount), sqlesc($new),
+                sqlesc('[斗地主托管] 桌#' . (int)$room['id'] . ' 第' . (int)$handNo . '局带入'), sqlesc($now), sqlesc($now)
+            )) or sqlerr(__FILE__, __LINE__);
+            $room['seats'][$seat]['escrow'] = $amount;
+            $room['seats'][$seat]['balance_before'] = $old;
+            $room['seats'][$seat]['wallet_after_reserve'] = $new;
+        }
+        sql_query('COMMIT') or sqlerr(__FILE__, __LINE__);
+        foreach (array_keys($realSeats) as $uid) clear_user_cache($uid);
+        return '';
+    } catch (Throwable $e) {
+        sql_query('ROLLBACK');
+        throw $e;
+    }
+}
+
+function ddz_start_game(&$room, $reserve = true)
+{
+    if ($reserve) {
+        $handNo = (int)($room['hand_no'] ?? 0) + 1;
+        $error = ddz_reserve_buyins($room, $handNo);
+        if ($error !== '') { $room['start_error'] = $error; return $error; }
+        $room['hand_no'] = $handNo;
+        $room['escrow_version'] = 1;
+    }
+    unset($room['start_error']);
     [$hands, $bottom] = ddz_deal();
     $room['hands'] = $hands;
     $room['bottom'] = $bottom;
@@ -265,6 +319,7 @@ function ddz_start_game(&$room)
     $room['status'] = 'bidding';
     $room['updated_at'] = TIMENOW;
     ddz_set_deadline($room);
+    return '';
 }
 
 function ddz_set_landlord(&$room, $seat)
@@ -294,6 +349,7 @@ function ddz_settle($room, $landlordWon, $mult)
     }
     $now = date('Y-m-d H:i:s');
     $deltas = [0, 0, 0];
+    $escrowMode = !empty($room['escrow_version']);
     ddz_ensure_tables();
     sql_query("START TRANSACTION") or sqlerr(__FILE__, __LINE__);
     try {
@@ -309,20 +365,26 @@ function ddz_settle($room, $landlordWon, $mult)
             $row = mysql_fetch_assoc($res);
             $bal[$seat] = $row ? (float)$row['seedbonus'] : 0;
         }
+        $lossLimit = [];
         for ($i = 0; $i < 3; $i++) {
-            if (!isset($bal[$i])) $bal[$i] = (float)$amt * 4 + 1e9; // 机器人虚拟余额
+            if ($isBot[$i]) {
+                $bal[$i] = (float)$amt * 4 + 1e9;
+                $lossLimit[$i] = $bal[$i];
+            } else {
+                $lossLimit[$i] = $escrowMode ? (float)($room['seats'][$i]['escrow'] ?? 0) : $bal[$i];
+            }
         }
         if ($landlordWon) {
             $collected = 0;
             for ($i = 0; $i < 3; $i++) {
                 if ($i === $landlord) continue;
-                $loss = min($amt, $bal[$i]);
+                $loss = min($amt, $lossLimit[$i]);
                 $deltas[$i] = -$loss;
                 $collected += $loss;
             }
             $deltas[$landlord] = $collected;
         } else {
-            $pay = min(2 * $amt, $bal[$landlord]);
+            $pay = min(2 * $amt, $lossLimit[$landlord]);
             $deltas[$landlord] = -$pay;
             $half = $pay / 2;
             for ($i = 0; $i < 3; $i++) {
@@ -340,16 +402,40 @@ function ddz_settle($room, $landlordWon, $mult)
                 "INSERT INTO `hdvideo_ddz_results` (`room_id`,`uid`,`role`,`is_winner`,`delta`,`base`,`multiplier`,`created_at`) VALUES (%d,%d,%s,%d,%s,%d,%d,%s)",
                 (int)$room['id'], $uid, sqlesc($roleKey), $isWin, sqlesc(number_format($d, 1, '.', '')), $base, $mult, sqlesc($now)
             )) or sqlerr(__FILE__, __LINE__);
-            if ($d == 0) continue;
-            sql_query("UPDATE `users` SET `seedbonus` = `seedbonus` + " . sqlesc(number_format($d, 1, '.', '')) . " WHERE `id` = $uid") or sqlerr(__FILE__, __LINE__);
             $role = ($i === $landlord) ? '地主' : '农民';
             $comment = "[斗地主] 桌#{$room['id']} {$role} " . ($d > 0 ? '赢' : '输') . " " . abs($d) . "（倍数{$mult}）";
+            if ($escrowMode) {
+                $escrow = (float)($room['seats'][$i]['escrow'] ?? 0);
+                $payout = max(0, round($escrow + $d, 1));
+                $newWallet = $bal[$i] + $payout;
+                if ($payout > 0) {
+                    sql_query("UPDATE `users` SET `seedbonus` = `seedbonus` + " . sqlesc(number_format($payout, 1, '.', '')) . " WHERE `id` = $uid") or sqlerr(__FILE__, __LINE__);
+                }
+                sql_query(sprintf(
+                    "INSERT INTO bonus_logs (`business_type`,`uid`,`old_total_value`,`value`,`new_total_value`,`comment`,`created_at`,`updated_at`) VALUES (%d,%d,%s,%s,%s,%s,%s,%s)",
+                    DDZ_ESCROW_BUSINESS_TYPE, $uid,
+                    sqlesc(number_format($bal[$i], 1, '.', '')),
+                    sqlesc(number_format($payout, 1, '.', '')),
+                    sqlesc(number_format($newWallet, 1, '.', '')),
+                    sqlesc('[斗地主托管] 桌#' . (int)$room['id'] . ' 第' . (int)($room['hand_no'] ?? 1) . '局结算退回'),
+                    sqlesc($now), sqlesc($now)
+                )) or sqlerr(__FILE__, __LINE__);
+                $summaryOld = (float)($room['seats'][$i]['balance_before'] ?? ($bal[$i] + $escrow));
+                $logOld = $summaryOld;
+                $logNew = $summaryOld + $d;
+            } else {
+                if ($d != 0) {
+                    sql_query("UPDATE `users` SET `seedbonus` = `seedbonus` + " . sqlesc(number_format($d, 1, '.', '')) . " WHERE `id` = $uid") or sqlerr(__FILE__, __LINE__);
+                }
+                $logOld = $bal[$i];
+                $logNew = $bal[$i] + $d;
+            }
             sql_query(sprintf(
                 "INSERT INTO bonus_logs (`business_type`,`uid`,`old_total_value`,`value`,`new_total_value`,`comment`,`created_at`,`updated_at`) VALUES (%d,%d,%s,%s,%s,%s,%s,%s)",
                 DDZ_BUSINESS_TYPE, $uid,
-                sqlesc(number_format($bal[$i], 1, '.', '')),
+                sqlesc(number_format($logOld, 1, '.', '')),
                 sqlesc(number_format($d, 1, '.', '')),
-                sqlesc(number_format($bal[$i] + $d, 1, '.', '')),
+                sqlesc(number_format($logNew, 1, '.', '')),
                 sqlesc($comment), sqlesc($now), sqlesc($now)
             )) or sqlerr(__FILE__, __LINE__);
             clear_user_cache($uid);
@@ -428,11 +514,11 @@ function ddz_join_table($id)
         }
         $room['updated_at'] = TIMENOW;
         if (ddz_player_count($room) >= DDZ_SEATS) {
-            ddz_redis()->sRem(ddz_lobby_key(), $id);
-            ddz_start_game($room);
+            $startError = ddz_start_game($room);
+            if ($startError === '') ddz_redis()->sRem(ddz_lobby_key(), $id);
         }
         ddz_room_put($room);
-        return [$id, ""];
+        return [$id, $startError ?? ""];
     } finally {
         ddz_unlock($id, $token);
     }
@@ -450,9 +536,7 @@ function ddz_leave_table($id)
         $seat = ddz_seat_of($room, $CURUSER['id']);
         if ($seat < 0) return "";
         if ($room['status'] === 'playing' || $room['status'] === 'bidding') {
-            ddz_redis()->del(ddz_room_key($id));
-            ddz_redis()->sRem(ddz_lobby_key(), $id);
-            return "";
+            return "牌局进行中不能离桌，请等待本局结算。";
         }
         $room['seats'][$seat] = null;
         $room['updated_at'] = TIMENOW;
@@ -484,7 +568,7 @@ function ddz_do_bid(&$room, $seat, $score)
         if ((int)$room['bid']['highSeat'] >= 0) {
             ddz_set_landlord($room, (int)$room['bid']['highSeat']);
         } else {
-            ddz_start_game($room);
+            ddz_start_game($room, false);
         }
     } else {
         $room['bid']['turn'] = ((int)$room['bid']['turn'] + 1) % 3;
@@ -649,9 +733,9 @@ function ddz_replay($id)
         if (ddz_seat_of($room, $CURUSER['id']) < 0) return "你不在这桌。";
         if ($room['status'] !== 'finished') return "本局未结束。";
         if (ddz_player_count($room) < DDZ_SEATS) return "人数不足，无法再来一局。";
-        ddz_start_game($room);
+        $error = ddz_start_game($room);
         ddz_room_put($room);
-        return "";
+        return $error;
     } finally {
         ddz_unlock($id, $token);
     }
@@ -690,7 +774,7 @@ function ddz_matchmake($base)
     usort($cands, fn($a, $b) => $a['created_at'] <=> $b['created_at']);
     foreach ($cands as $c) {
         [$jid, $jerr] = ddz_join_table($c['id']);
-        if ($jid) return [$jid, ""];
+        if ($jid) return [$jid, $jerr];
     }
 
     // 新建匹配桌
@@ -713,7 +797,6 @@ function ddz_fill_bots_and_start($id)
     try {
         $room = ddz_room_get($id);
         if (!$room || $room['status'] !== 'waiting') return;
-        if (ddz_player_count($room) >= DDZ_SEATS) return;
         $names = DDZ_BOT_NAMES;
         shuffle($names);
         $bi = 0;
@@ -723,8 +806,8 @@ function ddz_fill_bots_and_start($id)
                 $bi++;
             }
         }
-        ddz_redis()->sRem(ddz_lobby_key(), $id);
-        ddz_start_game($room);
+        $error = ddz_start_game($room);
+        if ($error === '') ddz_redis()->sRem(ddz_lobby_key(), $id);
         ddz_room_put($room);
     } finally {
         ddz_unlock($id, $token);
@@ -1004,7 +1087,7 @@ if (($_GET['ajax'] ?? '') === 'poll') {
     }
     // 匹配超时：补机器人开局
     if ($room['status'] === 'waiting' && !empty($room['mm']) && isset($room['mm_deadline'])
-        && TIMENOW >= (int)$room['mm_deadline'] && ddz_player_count($room) < DDZ_SEATS) {
+        && TIMENOW >= (int)$room['mm_deadline']) {
         ddz_fill_bots_and_start($id);
         $room = ddz_room_get($id);
         if (!$room) { echo json_encode(['ok' => false, 'gone' => true]); exit; }
@@ -1032,6 +1115,7 @@ if (($_GET['ajax'] ?? '') === 'poll') {
         'mySeat' => $mySeat, 'count' => ddz_player_count($room), 'seats' => [],
         'mm' => !empty($room['mm']),
         'mmLeft' => (!empty($room['mm']) && isset($room['mm_deadline'])) ? max(0, (int)$room['mm_deadline'] - TIMENOW) : null,
+        'startError' => (string)($room['start_error'] ?? ''),
     ];
     foreach ($room['seats'] as $i => $s) {
         $out['seats'][$i] = $s ? ['username' => $s['username'], 'avatar' => (string)($s['avatar'] ?? ''), 'bot' => !empty($s['bot']), 'cards' => isset($room['hands'][$i]) ? count($room['hands'][$i]) : 0] : null;
@@ -1200,7 +1284,7 @@ echo game_back_link();
     <div class="ddz-head">
         <div>
             <div class="ddz-title">斗地主 <span class="ddz-badge">内测中 v0.1</span></div>
-            <div class="ddz-muted">三人对战，满 3 人或匹配超时补机器人开局。用电影票计分（结算时扣）。</div>
+            <div class="ddz-muted">三人对战，满 3 人或匹配超时补机器人开局。开局托管入场电影票，结算后自动退回剩余金额。</div>
         </div>
         <div class="ddz-balance">我的电影票：<?php echo number_format((float)$CURUSER['seedbonus'], 1) ?> 张</div>
     </div>
@@ -1475,7 +1559,7 @@ echo game_back_link();
                     </select>
                 </label>
                 <button type="submit" class="ddz-btn">创建并入座</button>
-                <span class="ddz-muted">入座需余额 ≥ 底分 × <?php echo DDZ_JOIN_BALANCE_FACTOR ?>（防穿仓）。</span>
+                <span class="ddz-muted">开局托管底分 × <?php echo DDZ_JOIN_BALANCE_FACTOR ?> 电影票，结算后退回剩余金额。</span>
             </form>
         </div>
 

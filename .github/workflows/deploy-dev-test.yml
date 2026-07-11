@@ -81,6 +81,31 @@ jobs:
           set -euo pipefail
           sudo -u www bash /www/wwwroot/hdvideo.test/scripts/restart-zjh-worker.sh /www/wwwroot/hdvideo.test
 
+      - name: Normalize nginx HTTPS redirects
+        run: |
+          set -euo pipefail
+          changed=0
+          for dir in /www/server/panel/vhost/nginx /www/server/nginx/conf /www/server/nginx/conf/conf.d; do
+            [ -d "$dir" ] || continue
+            while IFS= read -r -d '' conf; do
+              if sudo grep -qE '(:443|\$server_port|return[[:space:]]+301|rewrite)' "$conf"; then
+                echo "Inspecting nginx redirect config: $conf"
+                sudo grep -nE '(:443|\$server_port|return[[:space:]]+301|rewrite)' "$conf" || true
+              fi
+              if sudo grep -qE 'https://[^/;"[:space:]]+:443|https://[^/;"[:space:]]+:\$server_port|https://\$host:\$server_port|https://\$server_name:\$server_port' "$conf"; then
+                sudo cp "$conf" "$conf.codex-bak-$(date +%Y%m%d%H%M%S)"
+                sudo perl -0pi -e 's#https://([^/;"\s]+):443#https://$1#g; s#https://([^/;"\s]+):\$server_port#https://$1#g; s#https://\$host:\$server_port#https://$host#g; s#https://\$server_name:\$server_port#https://$server_name#g' "$conf"
+                changed=1
+              fi
+            done < <(sudo find "$dir" -type f \( -name '*.conf' -o -name '*.rewrite' \) -print0)
+          done
+          if [ "$changed" -eq 1 ]; then
+            sudo nginx -t
+            sudo systemctl reload nginx || sudo service nginx reload || sudo /etc/init.d/nginx reload
+          else
+            echo "No nginx redirect rule with explicit :443 or server_port target was changed."
+          fi
+
       - name: Health check
         run: |
           set -euo pipefail

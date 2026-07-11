@@ -11,6 +11,89 @@ int_check($id, true);
 if (!isset($id) || !$id)
 die();
 
+function hdvideo_detail_promotion_h($value): string
+{
+    return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
+}
+
+function hdvideo_detail_promotion_time($value): string
+{
+    if (empty($value)) {
+        return '';
+    }
+    $timestamp = strtotime((string)$value);
+    if ($timestamp <= time()) {
+        return '';
+    }
+    return date('Y-m-d H:i', $timestamp);
+}
+
+function hdvideo_detail_reward_status_text(string $status, string $endsAt): string
+{
+    if ($status === 'pending' && strtotime($endsAt) <= time()) {
+        return '待结算';
+    }
+    return match ($status) {
+        'pending' => '进行中',
+        'settled' => '已结算',
+        'refunded' => '已退回',
+        default => $status,
+    };
+}
+
+function hdvideo_detail_render_promotion_status(int $torrentId, array $row): string
+{
+    try {
+        $status = \App\Services\TorrentPromotionService::status($torrentId);
+    } catch (\Throwable $e) {
+        return '<div style="margin-top:8px;color:var(--bili-text-secondary,#61666d)">推广状态暂时无法读取。</div>';
+    }
+
+    $torrent = $status['torrent'] ?? null;
+    $bonus = $status['bonus'] ?? [];
+    $freeUntil = hdvideo_detail_promotion_time($bonus['free_until'] ?? '');
+    if ($freeUntil === '') {
+        $spState = $torrent->sp_state ?? ($row['sp_state'] ?? null);
+        $promotionUntil = $torrent->promotion_until ?? ($row['promotion_until'] ?? '');
+        if ((int)$spState === \App\Models\Torrent::PROMOTION_FREE) {
+            $freeUntil = hdvideo_detail_promotion_time($promotionUntil);
+        }
+    }
+
+    $pinUntil = hdvideo_detail_promotion_time($bonus['pin_until'] ?? '');
+    if ($pinUntil === '' && !empty($torrent->pos_state_until)) {
+        $pinUntil = hdvideo_detail_promotion_time($torrent->pos_state_until);
+    }
+
+    $html = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;line-height:1.7">';
+    $html .= $freeUntil !== ''
+        ? '<span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;background:color-mix(in srgb,var(--bili-primary,#00aeec) 16%,transparent);color:var(--bili-text,#18191c);font-weight:700">Free 至 ' . hdvideo_detail_promotion_h($freeUntil) . '</span>'
+        : '<span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;background:rgba(127,127,127,.12);color:var(--bili-text-secondary,#61666d)">Free 未生效</span>';
+    $html .= $pinUntil !== ''
+        ? '<span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;background:color-mix(in srgb,var(--bili-primary,#00aeec) 16%,transparent);color:var(--bili-text,#18191c);font-weight:700">置顶至 ' . hdvideo_detail_promotion_h($pinUntil) . '</span>'
+        : '<span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;background:rgba(127,127,127,.12);color:var(--bili-text-secondary,#61666d)">置顶未生效</span>';
+    $html .= '</div>';
+
+    $rewards = $status['download_rewards'] ?? [];
+    if (!empty($rewards)) {
+        $html .= '<div style="margin-top:8px;display:grid;gap:6px;max-width:760px">';
+        foreach (array_slice($rewards, 0, 3) as $reward) {
+            $rewardStatus = hdvideo_detail_reward_status_text((string)($reward['status'] ?? ''), (string)($reward['ends_at'] ?? ''));
+            $html .= '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 8px;border:1px solid color-mix(in srgb,var(--bili-primary,#00aeec) 22%,transparent);border-radius:8px;background:color-mix(in srgb,var(--bili-primary,#00aeec) 6%,transparent)">';
+            $html .= '<b>下载人奖励池：</b>';
+            $html .= '<span>' . number_format((float)($reward['amount'] ?? 0), 1) . ' 魔力 / ' . (int)($reward['reward_user_count'] ?? 0) . ' 人</span>';
+            $html .= '<span>截止 ' . hdvideo_detail_promotion_h($reward['ends_at'] ?? '') . '</span>';
+            $html .= '<span style="margin-left:auto;padding:1px 7px;border-radius:999px;background:var(--bili-primary,#00aeec);color:#fff;font-weight:700">' . hdvideo_detail_promotion_h($rewardStatus) . '</span>';
+            $html .= '</div>';
+        }
+        $html .= '</div>';
+    } else {
+        $html .= '<div style="margin-top:8px;color:var(--bili-text-secondary,#61666d)">暂无下载人奖励池。</div>';
+    }
+
+    return $html;
+}
+
 $taxonomyFields = "sources.name AS source_name, media.name AS medium_name, codecs.name AS codec_name, standards.name AS standard_name, processings.name AS processing_name, teams.name AS team_name, audiocodecs.name AS audiocodec_name";
 $detailDescrField = hdvideo_column_exists('torrents', 'descr') ? "COALESCE(NULLIF(torrent_extras.descr, ''), torrents.descr)" : 'torrent_extras.descr';
 $detailNfoField = hdvideo_column_exists('torrents', 'nfo') ? "COALESCE(NULLIF(torrent_extras.nfo, ''), torrents.nfo)" : 'torrent_extras.nfo';
@@ -214,7 +297,8 @@ JS;
         $actions[] = "<a title=\"".$lang_details['title_report_torrent']."\" href=\"report.php?torrent=$id\"><img class=\"dt_report\" src=\"pic/trans.gif\" alt=\"report\" />&nbsp;<b><font class=\"small\">".$lang_details['text_report_torrent']."</font></b></a>";
 		tr($lang_details['row_action'], implode('&nbsp;|&nbsp;', $actions), 1);
 		$promotionLink = '<a class="btn" href="/torrent_promotion.php?id=' . (int)$id . '">使用魔力置顶 / Free</a>';
-		tr('种子推广', $promotionLink . '&nbsp;&nbsp;<span style="color:var(--bili-text-secondary,#61666d)">置顶和 Free 可单独购买，也可同时生效。</span>', 1);
+		$promotionStatus = hdvideo_detail_render_promotion_status((int)$id, $row);
+		tr('种子推广', $promotionLink . '&nbsp;&nbsp;<span style="color:var(--bili-text-secondary,#61666d)">置顶、Free 和下载人奖励池可单独购买，也可同时生效。</span>' . $promotionStatus, 1);
 
         // ------------- start claim block ------------------//
         $claimTorrentTTL = \App\Models\Claim::getConfigTorrentTTL();
