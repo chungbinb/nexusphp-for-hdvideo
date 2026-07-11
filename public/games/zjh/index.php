@@ -447,21 +447,25 @@ function zjh_apply(&$room, $seat, $action, $targetSeat = null)
         $room['players'][$loser]['status'] = 'compared';
         zjh_log($room, $player['username'] . ' 与 ' . $room['players'][$opponent]['username'] . ' 比牌，' . $room['players'][$loser]['username'] . ' 落败');
     } elseif ($action === 'compare_all') {
-        $opponents = array_values(array_filter(zjh_unrevealed_active_seats($room['players']), fn($opponent) => (int)$opponent !== $seat));
+        $opponents = array_values(array_filter(zjh_active($room), fn($opponent) => (int)$opponent !== $seat));
         if (!$opponents) return '没有可以全比的对手。';
         $totalCost = $unit * count($opponents);
         if ((int)$player['stack'] < $totalCost) return '桌面筹码不足以全比，需要 ' . $totalCost . '。';
         zjh_commit($room, $seat, $totalCost);
-        $opponentHands = array_map(fn($opponent) => $room['players'][$opponent]['cards'], $opponents);
-        $lostIndex = zjh_compare_all_outcome($player['cards'], $opponentHands);
-        $lostTo = $lostIndex === -1 ? null : (int)$opponents[$lostIndex];
-        if ($lostTo !== null) {
-            $player['status'] = 'compared';
-            zjh_log($room, $player['username'] . ' 发起全比，不敌 ' . $room['players'][$lostTo]['username'] . '，全比落败');
-        } else {
-            foreach ($opponents as $opponent) $room['players'][$opponent]['status'] = 'compared';
-            zjh_log($room, $player['username'] . ' 发起全比并击败其余 ' . count($opponents) . ' 位玩家');
+        // 发起者排在最后，使同牌时仍遵循“发起比牌者负”的规则。
+        $showdownSeats = array_merge($opponents, [$seat]);
+        $showdownHands = array_map(fn($showdownSeat) => $room['players'][$showdownSeat]['cards'], $showdownSeats);
+        $winner = (int)$showdownSeats[zjh_compare_all_winner($showdownHands)];
+        foreach ($showdownSeats as $showdownSeat) {
+            $room['players'][$showdownSeat]['seen'] = true;
+            $room['players'][$showdownSeat]['revealed'] = true;
+            if ((int)$showdownSeat !== $winner) $room['players'][$showdownSeat]['status'] = 'compared';
         }
+        zjh_log($room, $player['username'] . ' 发起全比，全部 ' . count($showdownSeats) . ' 位在局玩家立即亮牌');
+        unset($player);
+        $room['action_count']++;
+        zjh_settle($room, $winner, '全比亮牌，牌型最大');
+        return '';
     } else return '未知操作。';
     unset($player); $room['action_count']++;
     zjh_advance($room, $seat);
@@ -621,6 +625,7 @@ function zjh_public($room, $uid)
             'bot'=>(bool)($room['players'][$actualSeat]['bot'] ?? false),
         ];
     }
+    $compareAllCount = count(array_filter(zjh_active($room), fn($actualSeat) => (int)$actualSeat !== $viewer));
     $inviteUrl = get_protocol_prefix() . $BASEURL . '/games/zjh/?table=' . (int)$room['id'] . '&invite=' . rawurlencode($room['invite']);
     return ['ok'=>true, 'wallet'=>(float)($me['wallet_after_settle'] ?? $me['wallet_after_reserve'] ?? zjh_wallet($uid)), 'game'=>[
         'roomId'=>(int)$room['id'], 'invite'=>$room['invite'], 'inviteUrl'=>$inviteUrl, 'mode'=>$room['mode'], 'base'=>(int)$room['base'],
@@ -632,7 +637,7 @@ function zjh_public($room, $uid)
         'canPeek'=>$room['status']==='playing' && ($me['status'] ?? '')==='active' && empty($me['revealed']) && empty($me['seen']) && !$mustAllIn, 'token'=>$room['token'],
         'mustAllIn'=>$mustAllIn,
         'allInAmount'=>max(0, (int)($me['stack'] ?? 0)),
-        'compareTargets'=>$compareTargets, 'compareAllCost'=>$unit * count($compareTargets),
+        'compareTargets'=>$compareTargets, 'compareAllCount'=>$compareAllCount, 'compareAllCost'=>$unit * $compareAllCount,
         'logs'=>array_values($room['logs'] ?? []), 'winner'=>$finished ? (((int)$room['winner']-$viewer+$seatCount)%$seatCount) : -1,
         'finishReason'=>$room['finish_reason'] ?? '', 'startError'=>$room['start_error'] ?? '',
         'isOwner'=>(int)$room['owner']===(int)$uid, 'botDifficulty'=>zjh_difficulty_label($room['bot_difficulty'] ?? 'simple')
@@ -828,7 +833,7 @@ function compareHtml(g){
  if(!compareOpen||!g.canAct||!g.compareTargets?.length)return '';
  return `<div class="z-overlay"><div class="z-dialog"><h2>选择比牌方式</h2><p>指定比牌支付 ${money(g.callCost)}；全比按对手人数逐份支付。</p>
  <div class="z-compare-grid">${g.compareTargets.map(t=>`<button class="z-btn z-compare-target" onclick="send('compare',{target:${t.seat}})"><span>${esc(t.username)}${t.bot?'（机器人）':''}</span><b>${money(g.callCost)}</b></button>`).join('')}</div>
- <button class="z-btn primary z-compare-all" onclick="send('compare_all')">全比 ${g.compareTargets.length} 人 · ${money(g.compareAllCost)}</button><br><button class="z-btn" onclick="compareOpen=false;render()">取消</button></div></div>`;
+ <button class="z-btn primary z-compare-all" onclick="send('compare_all')">全比 ${g.compareAllCount} 人 · ${money(g.compareAllCost)}</button><br><button class="z-btn" onclick="compareOpen=false;render()">取消</button></div></div>`;
 }
 function render(){
  const g=state.game;

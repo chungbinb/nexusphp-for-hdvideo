@@ -58,14 +58,14 @@ class ZjhEngineTest extends TestCase
         $this->assertSame('compare', zjh_bot_decide('hell', 0.7, 0.2, true, 2, 90, true));
     }
 
-    public function test_compare_all_requires_challenger_to_beat_every_opponent()
+    public function test_compare_all_selects_the_best_hand_from_every_player()
     {
         $pairKings = [$this->card(13, 0), $this->card(13, 1), $this->card(8, 2)];
         $pairQueens = [$this->card(12, 0), $this->card(12, 1), $this->card(14, 2)];
         $pairAces = [$this->card(14, 0), $this->card(14, 1), $this->card(2, 2)];
-        $this->assertSame(-1, zjh_compare_all_outcome($pairKings, [$pairQueens]));
-        $this->assertSame(1, zjh_compare_all_outcome($pairKings, [$pairQueens, $pairAces]));
-        $this->assertSame(0, zjh_compare_all_outcome($pairKings, [$pairKings]));
+        $this->assertSame(0, zjh_compare_all_winner([$pairKings, $pairQueens]));
+        $this->assertSame(2, zjh_compare_all_winner([$pairKings, $pairQueens, $pairAces]));
+        $this->assertSame(0, zjh_compare_all_winner([$pairKings, $pairKings]));
     }
 
     public function test_seen_players_pay_double_plus_the_ante()
