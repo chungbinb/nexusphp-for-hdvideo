@@ -81,6 +81,26 @@ jobs:
           set -euo pipefail
           sudo -u www bash /www/wwwroot/hdvideo.test/scripts/restart-zjh-worker.sh /www/wwwroot/hdvideo.test
 
+      - name: Normalize nginx HTTPS redirects
+        run: |
+          set -euo pipefail
+          CONF_DIR=/www/server/panel/vhost/nginx
+          if [ -d "$CONF_DIR" ]; then
+            changed=0
+            for conf in "$CONF_DIR"/*.conf; do
+              [ -f "$conf" ] || continue
+              if sudo grep -qE 'https://[^/;"[:space:]]+:443' "$conf"; then
+                sudo cp "$conf" "$conf.codex-bak-$(date +%Y%m%d%H%M%S)"
+                sudo perl -0pi -e 's#https://([^/;"\s]+):443#https://$1#g' "$conf"
+                changed=1
+              fi
+            done
+            if [ "$changed" -eq 1 ]; then
+              sudo nginx -t
+              sudo systemctl reload nginx || sudo service nginx reload || sudo /etc/init.d/nginx reload
+            fi
+          fi
+
       - name: Health check
         run: |
           set -euo pipefail
