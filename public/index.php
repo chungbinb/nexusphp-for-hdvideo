@@ -182,15 +182,19 @@ JS;
 	print("</form></td></tr></table>");
 }
 // ------------- end: shoutbox ------------------//
-// 趣味盒/群聊区 iframe(fun.php/shoutbox.php,body.inframe 自带深色 theme.css) 接入个性化：读取 :root 的 --bili-* 注入浅色样式,iframe 刷新后重注入
+// 趣味盒/群聊区 iframe(fun.php/shoutbox.php) 接入个性化，并跟随夜间模式重注入。
 print(<<<'FRAMETHEME'
 <script>
 (function(){
 	function cssv(n,fb){try{var v=getComputedStyle(document.documentElement).getPropertyValue(n).trim();return v||fb;}catch(e){return fb;}}
-	var BG=cssv('--bili-surface','#ffffff'), TX=cssv('--bili-text','#18191c'), PR=cssv('--bili-primary','#00aeec');
+	function isNight(){return document.documentElement.getAttribute('data-site-theme')==='night'||(document.body&&document.body.classList.contains('theme-night'));}
+	function frameColors(){return isNight()?{bg:'#0e1728',panel:'#111c31',soft:'#16223a',text:'#d9e2f4',muted:'#9fb0c8',border:'rgba(116,145,196,.32)',link:cssv('--bili-primary','#79c3ff')}:{bg:cssv('--bili-surface','#ffffff'),panel:cssv('--bili-surface','#ffffff'),soft:cssv('--bili-surface-soft','#f9fafc'),text:cssv('--bili-text','#18191c'),muted:'#6a7589',border:'rgba(20,40,90,.08)',link:cssv('--bili-primary','#00aeec')};}
 	var NC='.StaffLeader_Name{color:#8b0000!important}.SysOp_Name{color:#a0522d!important}.Administrator_Name{color:#4b0082!important}.Moderator_Name{color:#3a6fb0!important}.Retiree_Name{color:#1c8a99!important}.Uploader_Name{color:#c81436!important}.VIP_Name{color:#009f00!important}.NexusMaster_Name{color:#2a7fb8!important}.UltimateUser_Name{color:#006400!important}.ExtremeUser_Name{color:#d97400!important}.VeteranUser_Name{color:#483d8b!important}.InsaneUser_Name{color:#8b008b!important}.CrazyUser_Name{color:#1a9fc0!important}.EliteUser_Name{color:#008b8b!important}.PowerUser_Name{color:#b8860b!important}.User_Name{color:#2d3748!important}.Peasant_Name{color:#5a6472!important}[class*="_Name"] b,[class*="_Name"] font,[class*="_Name"] *{color:inherit!important}';
-	function themeFrame(f){try{var d=f.contentDocument||(f.contentWindow&&f.contentWindow.document);if(!d||!d.head)return;var s=d.getElementById('mhFrameTheme')||d.createElement('style');s.id='mhFrameTheme';s.textContent='html,body{background:'+BG+' !important;} body,td,.shoutrow,.text,.embedded{color:'+TX+' !important;} table,tr,tbody,td,.shoutrow,.text,.embedded{background:transparent !important;border-color:rgba(20,40,90,.08) !important;} .date{color:#6a7589 !important;} a{color:'+PR+' !important;} '+NC;if(!s.parentNode)d.head.appendChild(s);}catch(e){}}
-	document.querySelectorAll("iframe[name='funbox'], iframe#iframe-shout-box, iframe[src*='fun.php'], iframe[src*='shoutbox.php']").forEach(function(f){f.addEventListener('load',function(){themeFrame(f);});try{if(f.contentDocument&&f.contentDocument.readyState==='complete')themeFrame(f);}catch(e){}});
+	function frames(){return document.querySelectorAll("iframe[name='funbox'], iframe#iframe-shout-box, iframe[src*='fun.php'], iframe[src*='shoutbox.php']");}
+	function themeFrame(f){try{var d=f.contentDocument||(f.contentWindow&&f.contentWindow.document);if(!d||!d.head)return;var c=frameColors();var s=d.getElementById('mhFrameTheme')||d.createElement('style');s.id='mhFrameTheme';s.textContent='html,body{background:'+c.bg+' !important;} body,td,.shoutrow,.text,.embedded{color:'+c.text+' !important;} table,tr,tbody,td,.shoutrow,.text,.embedded{background:transparent !important;border-color:'+c.border+' !important;} td.shoutrow,.shoutrow{background:'+c.panel+' !important;} input,textarea,select{background:'+c.soft+' !important;color:'+c.text+' !important;border-color:'+c.border+' !important;} .date,.small{color:'+c.muted+' !important;} a{color:'+c.link+' !important;} '+NC;if(!s.parentNode)d.head.appendChild(s);}catch(e){}}
+	function applyFrames(){frames().forEach(function(f){themeFrame(f);});}
+	frames().forEach(function(f){f.addEventListener('load',function(){themeFrame(f);});try{if(f.contentDocument&&f.contentDocument.readyState==='complete')themeFrame(f);}catch(e){}});
+	try{new MutationObserver(applyFrames).observe(document.documentElement,{attributes:true,attributeFilter:['data-site-theme','style','class']});if(document.body)new MutationObserver(applyFrames).observe(document.body,{attributes:true,attributeFilter:['class']});}catch(e){}
 })();
 </script>
 FRAMETHEME
