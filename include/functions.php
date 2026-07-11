@@ -4317,7 +4317,7 @@ print '<br/>';
 					'cover' => $nexusTorrentCover,
 					'kind' => 'torrent',
 				];
-				if (count($nexusTopBannerItems) >= 6) {
+				if (count($nexusTopBannerItems) >= 11) {
 					break 2;
 				}
 			}
@@ -4380,19 +4380,48 @@ print '<br/>';
 			return offset;
 		}
 
-		function cardMetrics(offset) {
+		function wantedVisibleCount() {
+			var width = Math.max(
+				banner.getBoundingClientRect().width || 0,
+				track.getBoundingClientRect().width || 0,
+				window.innerWidth || 0
+			);
+			if (width >= 1800) {
+				return 11;
+			}
+			if (width >= 1480) {
+				return 9;
+			}
+			if (width >= 1160) {
+				return 7;
+			}
+			return 5;
+		}
+
+		function visibleCount(len) {
+			var count = Math.min(wantedVisibleCount(), len);
+			if (count > 1 && count % 2 === 0) {
+				count -= 1;
+			}
+			return Math.max(1, count);
+		}
+
+		function cardMetrics(offset, visibleHalf) {
 			var distance = Math.abs(offset);
 			var direction = offset < 0 ? -1 : 1;
+			var stageWidth = Math.max(320, track.getBoundingClientRect().width || banner.getBoundingClientRect().width || window.innerWidth || 320);
+			var spacing = visibleHalf > 0 ? Math.min(150, Math.max(86, (stageWidth - 120) / (visibleHalf * 2 + 0.6))) : 0;
+			var edgeRatio = visibleHalf > 0 ? Math.min(1, distance / visibleHalf) : 0;
 			if (distance === 0) {
 				return { scale: 1.08, x: 0, y: 0, opacity: 1, z: 12 };
 			}
-			if (distance === 1) {
-				return { scale: 0.9, x: direction * 142, y: 12, opacity: 0.92, z: 10 };
-			}
-			if (distance === 2) {
-				return { scale: 0.72, x: direction * 280, y: 28, opacity: 0.62, z: 8 };
-			}
-			return { scale: 0.58, x: direction * 410, y: 40, opacity: 0.28, z: 6 };
+			return {
+				scale: Math.max(0.56, 0.94 - edgeRatio * 0.28),
+				x: direction * spacing * distance,
+				y: Math.min(44, 10 + edgeRatio * 28),
+				opacity: Math.max(0.24, 0.94 - edgeRatio * 0.5),
+				z: 12 - distance
+			};
 		}
 
 		function render() {
@@ -4407,10 +4436,13 @@ print '<br/>';
 			track.innerHTML = '';
 			dotsWrap.innerHTML = '';
 
+			var showCount = visibleCount(len);
+			var visibleHalf = Math.floor(showCount / 2);
+
 			for (var i = 0; i < len; i++) {
 				var item = items[i];
 				var offset = normalizeOffset(i - current, len);
-				var metric = cardMetrics(offset);
+				var metric = cardMetrics(offset, visibleHalf);
 
 				var card = document.createElement('a');
 				card.className = 'global-top-banner-card' + (offset === 0 ? ' is-active' : '');
@@ -4422,7 +4454,7 @@ print '<br/>';
 				card.style.transform = 'translate(-50%, -50%) translateX(' + metric.x + 'px) translateY(' + metric.y + 'px) scale(' + metric.scale + ')';
 				card.style.opacity = String(metric.opacity);
 				card.style.zIndex = String(metric.z);
-				if (Math.abs(offset) > 2) {
+				if (Math.abs(offset) > visibleHalf) {
 					card.style.visibility = 'hidden';
 				}
 
@@ -4539,6 +4571,17 @@ print '<br/>';
 			render();
 			restartTimer();
 		}
+
+		var resizeTimer = null;
+		window.addEventListener('resize', function () {
+			if (!items.length) {
+				return;
+			}
+			if (resizeTimer) {
+				window.clearTimeout(resizeTimer);
+			}
+			resizeTimer = window.setTimeout(render, 120);
+		});
 
 		function useFallbackItems() {
 			banner.style.display = 'none';
