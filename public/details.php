@@ -213,6 +213,8 @@ JS;
         $actions = apply_filter('torrent_detail_actions', $actions, $row);
         $actions[] = "<a title=\"".$lang_details['title_report_torrent']."\" href=\"report.php?torrent=$id\"><img class=\"dt_report\" src=\"pic/trans.gif\" alt=\"report\" />&nbsp;<b><font class=\"small\">".$lang_details['text_report_torrent']."</font></b></a>";
 		tr($lang_details['row_action'], implode('&nbsp;|&nbsp;', $actions), 1);
+		$promotionLink = '<a class="btn" href="/torrent_promotion.php?id=' . (int)$id . '">使用魔力置顶 / Free</a>';
+		tr('种子推广', $promotionLink . '&nbsp;&nbsp;<span style="color:var(--bili-text-secondary,#61666d)">置顶和 Free 可单独购买，也可同时生效。</span>', 1);
 
         // ------------- start claim block ------------------//
         $claimTorrentTTL = \App\Models\Claim::getConfigTorrentTTL();
@@ -710,8 +712,6 @@ echo "</script>";
         $otherLine = '<div>'.$current_user_magic.$show_list.$other_user_span.$show_list_description.'</div>';
         tr($lang_details['magic_value_award'],$firstLine.$otherLine,1);
         //End 魔力值奖励功能
-		$promotionLink = '<a class="btn" href="/torrent_promotion.php?id=' . (int)$id . '">使用魔力置顶 / Free</a>';
-		tr('种子推广', $promotionLink . '&nbsp;&nbsp;<span style="color:var(--bili-text-secondary,#61666d)">置顶和 Free 可单独购买，也可同时生效。</span>', 1);
 
 		// ------------- start thanked-by block--------------//
 
