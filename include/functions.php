@@ -4406,6 +4406,20 @@ print '<br/>';
 			return Math.max(1, count);
 		}
 
+		function syncBannerArrowEdges() {
+			var outer = document.querySelector('#outer.outer') || document.getElementById('outer') || banner.parentElement;
+			if (!outer) {
+				return;
+			}
+			var bannerRect = banner.getBoundingClientRect();
+			var outerRect = outer.getBoundingClientRect();
+			var inset = window.matchMedia && window.matchMedia('(max-width: 920px)').matches ? 8 : 24;
+			var left = Math.max(inset, outerRect.left - bannerRect.left + inset);
+			var right = Math.max(inset, bannerRect.right - outerRect.right + inset);
+			banner.style.setProperty('--global-top-banner-arrow-left', Math.round(left) + 'px');
+			banner.style.setProperty('--global-top-banner-arrow-right', Math.round(right) + 'px');
+		}
+
 		function cardMetrics(offset, visibleHalf) {
 			var distance = Math.abs(offset);
 			var direction = offset < 0 ? -1 : 1;
@@ -4429,6 +4443,7 @@ print '<br/>';
 			if (!len) {
 				return;
 			}
+			syncBannerArrowEdges();
 			if (current >= len) {
 				current = 0;
 			}

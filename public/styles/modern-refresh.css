@@ -2961,19 +2961,19 @@ body:not(.inframe) .global-top-banner.qd-style .global-top-banner-nav {
 }
 
 body:not(.inframe) .global-top-banner.qd-style .global-top-banner-nav.prev {
-    left: 24px;
+    left: var(--global-top-banner-arrow-left, 24px);
 }
 
 body:not(.inframe) .global-top-banner.qd-style .global-top-banner-nav.next {
-    right: 24px;
+    right: var(--global-top-banner-arrow-right, 24px);
 }
 
 body.layout-narrow:not(.inframe) .global-top-banner.qd-style .global-top-banner-nav.prev {
-    left: 24px;
+    left: var(--global-top-banner-arrow-left, 24px);
 }
 
 body.layout-narrow:not(.inframe) .global-top-banner.qd-style .global-top-banner-nav.next {
-    right: 24px;
+    right: var(--global-top-banner-arrow-right, 24px);
 }
 
 @media (min-width: 921px) {
@@ -3842,11 +3842,11 @@ body:not(.inframe).nav-scrolled #top-nav-search form {
     }
 
     body:not(.inframe) .global-top-banner.qd-style .global-top-banner-nav.prev {
-        left: 8px;
+        left: var(--global-top-banner-arrow-left, 8px);
     }
 
     body:not(.inframe) .global-top-banner.qd-style .global-top-banner-nav.next {
-        right: 8px;
+        right: var(--global-top-banner-arrow-right, 8px);
     }
 
     body:not(.inframe) .global-top-banner.qd-style .global-top-banner-card-caption {
