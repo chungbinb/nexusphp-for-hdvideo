@@ -120,12 +120,18 @@ function zjh_bot_decide($difficulty, $strength, $pressure, $canRaise, $activeCou
     return 'call';
 }
 
-/** 返回首个未被发起者击败的对手下标；全部击败返回 -1。平牌仍判发起者失败。 */
-function zjh_compare_all_outcome(array $challengerCards, array $opponentHands)
+/** 返回全比牌局中最大手牌的下标。 */
+function zjh_compare_all_winner(array $hands)
 {
-    $challenger = zjh_evaluate($challengerCards);
-    foreach ($opponentHands as $index => $cards) {
-        if (zjh_compare_scores($challenger, zjh_evaluate($cards)) <= 0) return $index;
+    if (!$hands) throw new InvalidArgumentException('全比至少需要一副手牌');
+    $winner = 0;
+    $best = zjh_evaluate($hands[0]);
+    foreach (array_slice($hands, 1, null, true) as $index => $cards) {
+        $score = zjh_evaluate($cards);
+        if (zjh_compare_scores($score, $best) > 0) {
+            $winner = (int)$index;
+            $best = $score;
+        }
     }
-    return -1;
+    return $winner;
 }
