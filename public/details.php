@@ -65,25 +65,25 @@ function hdvideo_detail_render_promotion_status(int $torrentId, array $row): str
         $pinUntil = hdvideo_detail_promotion_time($torrent->pos_state_until);
     }
 
-    $html = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;line-height:1.7">';
+    $html = '<div class="torrent-promotion-status-row">';
     $html .= $freeUntil !== ''
-        ? '<span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;background:color-mix(in srgb,var(--bili-primary,#00aeec) 16%,transparent);color:var(--bili-text,#18191c);font-weight:700">Free 至 ' . hdvideo_detail_promotion_h($freeUntil) . '</span>'
-        : '<span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;background:rgba(127,127,127,.12);color:var(--bili-text-secondary,#61666d)">Free 未生效</span>';
+        ? '<span class="torrent-promotion-pill is-active">Free 至 ' . hdvideo_detail_promotion_h($freeUntil) . '</span>'
+        : '<span class="torrent-promotion-pill is-inactive">Free 未生效</span>';
     $html .= $pinUntil !== ''
-        ? '<span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;background:color-mix(in srgb,var(--bili-primary,#00aeec) 16%,transparent);color:var(--bili-text,#18191c);font-weight:700">置顶至 ' . hdvideo_detail_promotion_h($pinUntil) . '</span>'
-        : '<span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;background:rgba(127,127,127,.12);color:var(--bili-text-secondary,#61666d)">置顶未生效</span>';
+        ? '<span class="torrent-promotion-pill is-active">置顶至 ' . hdvideo_detail_promotion_h($pinUntil) . '</span>'
+        : '<span class="torrent-promotion-pill is-inactive">置顶未生效</span>';
     $html .= '</div>';
 
     $rewards = $status['download_rewards'] ?? [];
     if (!empty($rewards)) {
-        $html .= '<div style="margin-top:8px;display:grid;gap:6px;max-width:760px">';
+        $html .= '<div class="torrent-promotion-reward-list">';
         foreach (array_slice($rewards, 0, 3) as $reward) {
             $rewardStatus = hdvideo_detail_reward_status_text((string)($reward['status'] ?? ''), (string)($reward['ends_at'] ?? ''));
-            $html .= '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 8px;border:1px solid color-mix(in srgb,var(--bili-primary,#00aeec) 22%,transparent);border-radius:8px;background:color-mix(in srgb,var(--bili-primary,#00aeec) 6%,transparent)">';
+            $html .= '<div class="torrent-promotion-reward">';
             $html .= '<b>下载人奖励池：</b>';
             $html .= '<span>' . number_format((float)($reward['amount'] ?? 0), 1) . ' 魔力 / ' . (int)($reward['reward_user_count'] ?? 0) . ' 人</span>';
             $html .= '<span>截止 ' . hdvideo_detail_promotion_h($reward['ends_at'] ?? '') . '</span>';
-            $html .= '<span style="margin-left:auto;padding:1px 7px;border-radius:999px;background:var(--bili-primary,#00aeec);color:#fff;font-weight:700">' . hdvideo_detail_promotion_h($rewardStatus) . '</span>';
+            $html .= '<span class="torrent-promotion-reward-badge">' . hdvideo_detail_promotion_h($rewardStatus) . '</span>';
             $html .= '</div>';
         }
         $html .= '</div>';
@@ -93,6 +93,20 @@ function hdvideo_detail_render_promotion_status(int $torrentId, array $row): str
 
     return $html;
 }
+
+\Nexus\Nexus::css('
+.torrent-promotion-status-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;line-height:1.7;--torrent-promo-active:#16a34a;--torrent-promo-active-soft:rgba(22,163,74,.16);--torrent-promo-active-border:rgba(22,163,74,.38);}
+.torrent-promotion-pill{display:inline-flex;align-items:center;padding:2px 9px;border-radius:999px;font-weight:700;}
+.torrent-promotion-pill.is-active{border:1px solid var(--torrent-promo-active-border);background:var(--torrent-promo-active-soft);color:var(--torrent-promo-active);}
+.torrent-promotion-pill.is-inactive{background:rgba(127,127,127,.12);color:var(--bili-text-secondary,#61666d);font-weight:500;}
+.torrent-promotion-reward-list{margin-top:8px;display:grid;gap:6px;max-width:760px;--torrent-promo-active:#16a34a;--torrent-promo-active-soft:rgba(22,163,74,.12);--torrent-promo-active-border:rgba(22,163,74,.42);}
+.torrent-promotion-reward{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--torrent-promo-active-border);border-radius:8px;background:var(--torrent-promo-active-soft);color:var(--bili-text,#18191c);}
+.torrent-promotion-reward b{color:var(--torrent-promo-active);}
+.torrent-promotion-reward-badge{margin-left:auto;padding:1px 8px;border-radius:999px;background:var(--torrent-promo-active);color:#fff;font-weight:700;}
+html.torrent-promotion-green-accent .torrent-promotion-status-row,html.torrent-promotion-green-accent .torrent-promotion-reward-list{--torrent-promo-active:#6d5dfc;--torrent-promo-active-soft:rgba(109,93,252,.15);--torrent-promo-active-border:rgba(109,93,252,.42);}
+', 'header', false);
+
+\Nexus\Nexus::js('(function(){function parseColor(value){value=String(value||"").trim();var m;if((m=value.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i))){var hex=m[1];if(hex.length===3)hex=hex.replace(/./g,function(ch){return ch+ch;});return [parseInt(hex.slice(0,2),16),parseInt(hex.slice(2,4),16),parseInt(hex.slice(4,6),16)];}if((m=value.match(/rgba?\\((\\d+)[,\\s]+(\\d+)[,\\s]+(\\d+)/i)))return [Number(m[1]),Number(m[2]),Number(m[3])];return null;}function hue(rgb){var r=rgb[0]/255,g=rgb[1]/255,b=rgb[2]/255,max=Math.max(r,g,b),min=Math.min(r,g,b),d=max-min,h=0,s=max===0?0:d/max;if(d){if(max===r)h=(g-b)/d+(g<b?6:0);else if(max===g)h=(b-r)/d+2;else h=(r-g)/d+4;h*=60;}return {h:h,s:s};}function hasGreenStylesheet(){for(var i=0;i<document.styleSheets.length;i++){var href=document.styleSheets[i].href||"";if(/BambooGreen|Green/i.test(href))return true;}return false;}function apply(){var primary=getComputedStyle(document.documentElement).getPropertyValue("--bili-primary");var rgb=parseColor(primary),green=false;if(rgb){var hs=hue(rgb);green=hs.h>=75&&hs.h<=170&&hs.s>.18;}document.documentElement.classList.toggle("torrent-promotion-green-accent",green||hasGreenStylesheet());}if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",apply);else apply();try{new MutationObserver(apply).observe(document.documentElement,{attributes:true,attributeFilter:["style","class","data-site-theme"]});if(document.body)new MutationObserver(apply).observe(document.body,{attributes:true,attributeFilter:["class"]});}catch(e){}})();', 'footer', false, 'torrent-promotion-accent');
 
 $taxonomyFields = "sources.name AS source_name, media.name AS medium_name, codecs.name AS codec_name, standards.name AS standard_name, processings.name AS processing_name, teams.name AS team_name, audiocodecs.name AS audiocodec_name";
 $detailDescrField = hdvideo_column_exists('torrents', 'descr') ? "COALESCE(NULLIF(torrent_extras.descr, ''), torrents.descr)" : 'torrent_extras.descr';
@@ -296,7 +310,7 @@ JS;
         $actions = apply_filter('torrent_detail_actions', $actions, $row);
         $actions[] = "<a title=\"".$lang_details['title_report_torrent']."\" href=\"report.php?torrent=$id\"><img class=\"dt_report\" src=\"pic/trans.gif\" alt=\"report\" />&nbsp;<b><font class=\"small\">".$lang_details['text_report_torrent']."</font></b></a>";
 		tr($lang_details['row_action'], implode('&nbsp;|&nbsp;', $actions), 1);
-		$promotionLink = '<a class="btn" href="/torrent_promotion.php?id=' . (int)$id . '">使用魔力置顶 / Free</a>';
+		$promotionLink = '<a class="btn torrent-promotion-btn" style="color:#fff!important;text-decoration:none!important;" href="/torrent_promotion.php?id=' . (int)$id . '">使用魔力置顶 / Free</a>';
 		$promotionStatus = hdvideo_detail_render_promotion_status((int)$id, $row);
 		tr('种子推广', $promotionLink . '&nbsp;&nbsp;<span style="color:var(--bili-text-secondary,#61666d)">置顶、Free 和下载人奖励池可单独购买，也可同时生效。</span>' . $promotionStatus, 1);
 
