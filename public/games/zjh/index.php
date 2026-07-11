@@ -363,18 +363,6 @@ function zjh_settle(&$room, $winner, $reason)
     zjh_log($room, $room['players'][$winner]['username'] . ' 获胜：' . $reason);
 }
 
-function zjh_force_capped_showdown(&$room, $seat = null)
-{
-    if (($room['status'] ?? '') !== 'playing') return false;
-    $active = zjh_active($room);
-    if (count($active) < 2) return false;
-    $seat = $seat === null ? (int)($room['turn'] ?? -1) : (int)$seat;
-    $player = $room['players'][$seat] ?? [];
-    if (($player['status'] ?? '') !== 'active' || !empty($player['revealed']) || !zjh_requires_showdown($player['stack'] ?? 0, $room['current_bet'] ?? $room['base'], !empty($player['seen']), $room['base'] ?? 0)) return false;
-    zjh_reveal_and_advance($room, $seat, '筹码不足自动亮牌');
-    return true;
-}
-
 function zjh_reveal_and_advance(&$room, $seat, $reason)
 {
     if (($room['status'] ?? '') !== 'playing') return '牌局已经结束。';
@@ -413,7 +401,7 @@ function zjh_advance(&$room, $seat)
         return;
     }
     $next = zjh_next_active($room, $seat);
-    if ($next < 0 || zjh_force_capped_showdown($room, $next)) return;
+    if ($next < 0) return;
     zjh_set_turn($room, $next);
 }
 
@@ -421,13 +409,24 @@ function zjh_apply(&$room, $seat, $action, $targetSeat = null)
 {
     if (($room['status'] ?? '') !== 'playing') return '牌局尚未开始或已经结束。';
     $seat = (int)$seat; $player =& $room['players'][$seat];
+    $unit = zjh_action_cost($room['current_bet'], !empty($player['seen']), $room['base']);
+    $mustAllIn = (int)$room['turn'] === $seat && zjh_requires_showdown($player['stack'] ?? 0, $room['current_bet'], !empty($player['seen']), $room['base']);
     if ($action === 'peek') {
         if (($player['status'] ?? '') !== 'active' || !empty($player['revealed'])) return '你已不能看牌。';
+        if ($mustAllIn) return '电影票不足以跟注，请选择 All in 亮牌或弃牌。';
         if (!$player['seen']) { $player['seen'] = true; zjh_log($room, $player['username'] . ' 已看牌'); }
         return '';
     }
     if ((int)$room['turn'] !== $seat || ($player['status'] ?? '') !== 'active' || !empty($player['revealed'])) return '还没轮到你行动。';
-    $unit = zjh_action_cost($room['current_bet'], !empty($player['seen']), $room['base']);
+    if ($mustAllIn && !in_array($action, ['all_in', 'fold'], true)) return '电影票不足以跟注，请选择 All in 亮牌或弃牌。';
+    if ($action === 'all_in') {
+        if (!$mustAllIn) return '当前电影票足够跟注，无需 All in。';
+        $amount = max(0, (int)$player['stack']);
+        if ($amount > 0) zjh_commit($room, $seat, $amount);
+        unset($player);
+        $room['action_count']++;
+        return zjh_reveal_and_advance($room, $seat, 'All in ' . $amount);
+    }
     if ($action === 'fold') {
         $player['status'] = 'folded'; zjh_log($room, $player['username'] . ' 弃牌');
     } elseif ($action === 'call') {
@@ -503,12 +502,22 @@ function zjh_drive_bot(&$room)
     if (($room['status'] ?? '') !== 'playing') return;
     $seat = (int)$room['turn'];
     if ($seat < 0 || empty($room['players'][$seat]['bot']) || zjh_now() < (int)($room['bot_ready_at'] ?? 0)) return;
+    $player = $room['players'][$seat];
+    if (zjh_requires_showdown($player['stack'] ?? 0, $room['current_bet'] ?? $room['base'], !empty($player['seen']), $room['base'] ?? 0)) {
+        $difficulty = $player['difficulty'] ?? $room['bot_difficulty'] ?? 'simple';
+        $threshold = $difficulty === 'hell' ? 0.30 : ($difficulty === 'hard' ? 0.42 : 0.55);
+        $action = zjh_bot_strength($room, $seat) >= $threshold || random_int(1, 100) <= 18 ? 'all_in' : 'fold';
+        zjh_apply($room, $seat, $action);
+        return;
+    }
     $action = zjh_bot_action($room, $seat);
     $error = zjh_apply($room, $seat, $action);
     if ($error !== '' && ($room['status'] ?? '') === 'playing') {
         $fallback = zjh_apply($room, $seat, 'call');
         if ($fallback !== '' && ($room['status'] ?? '') === 'playing') {
-            zjh_reveal_and_advance($room, $seat, '无法继续投入自动亮牌');
+            $player = $room['players'][$seat] ?? [];
+            $short = zjh_requires_showdown($player['stack'] ?? 0, $room['current_bet'] ?? $room['base'], !empty($player['seen']), $room['base'] ?? 0);
+            zjh_apply($room, $seat, $short && zjh_bot_strength($room, $seat) >= 0.45 ? 'all_in' : 'fold');
         }
     }
 }
@@ -601,6 +610,8 @@ function zjh_public($room, $uid)
     }
     $turn = (int)($room['turn'] ?? -1); $turnView = $turn < 0 ? -1 : (($turn - $viewer + $seatCount) % $seatCount);
     $me = $room['players'][$viewer]; $unit = zjh_action_cost($room['current_bet'] ?? $room['base'], !empty($me['seen']), $room['base'] ?? 0);
+    $canAct = $room['status']==='playing' && $turn===$viewer && ($me['status'] ?? '')==='active' && empty($me['revealed']);
+    $mustAllIn = $canAct && (int)$me['stack'] < $unit;
     $compareTargets = [];
     foreach (zjh_unrevealed_active_seats($room['players']) as $actualSeat) {
         if ($actualSeat === $viewer) continue;
@@ -617,8 +628,10 @@ function zjh_public($room, $uid)
         'tableCap'=>(int)$room['base'] * ZJH_STACK_FACTOR * $seatCount,
         'turn'=>$turnView, 'timeLeft'=>$room['status']==='playing' ? max(0, (int)$room['deadline']-zjh_now()) : 0,
         'currentBet'=>(int)($room['current_bet'] ?? $room['base']), 'callCost'=>$unit, 'raiseCount'=>(int)($room['raise_count'] ?? 0),
-        'canAct'=>$room['status']==='playing' && $turn===$viewer && ($me['status'] ?? '')==='active' && empty($me['revealed']),
-        'canPeek'=>$room['status']==='playing' && ($me['status'] ?? '')==='active' && empty($me['revealed']) && empty($me['seen']), 'token'=>$room['token'],
+        'canAct'=>$canAct,
+        'canPeek'=>$room['status']==='playing' && ($me['status'] ?? '')==='active' && empty($me['revealed']) && empty($me['seen']) && !$mustAllIn, 'token'=>$room['token'],
+        'mustAllIn'=>$mustAllIn,
+        'allInAmount'=>max(0, (int)($me['stack'] ?? 0)),
         'compareTargets'=>$compareTargets, 'compareAllCost'=>$unit * count($compareTargets),
         'logs'=>array_values($room['logs'] ?? []), 'winner'=>$finished ? (((int)$room['winner']-$viewer+$seatCount)%$seatCount) : -1,
         'finishReason'=>$room['finish_reason'] ?? '', 'startError'=>$room['start_error'] ?? '',
@@ -630,6 +643,14 @@ function zjh_timeout(&$room)
 {
     if (($room['status'] ?? '') !== 'playing' || zjh_now() < (int)$room['deadline']) return;
     $seat = (int)$room['turn'];
+    $player = $room['players'][$seat] ?? [];
+    if (zjh_requires_showdown($player['stack'] ?? 0, $room['current_bet'] ?? $room['base'], !empty($player['seen']), $room['base'] ?? 0)) {
+        $amount = max(0, (int)($player['stack'] ?? 0));
+        if ($amount > 0) zjh_commit($room, $seat, $amount);
+        $room['action_count']++;
+        zjh_reveal_and_advance($room, $seat, '读秒结束自动 All in ' . $amount);
+        return;
+    }
     zjh_reveal_and_advance($room, $seat, '读秒结束自动亮牌');
 }
 
@@ -661,7 +682,6 @@ function zjh_process_due_rooms($limit = 100)
         try {
             $room = zjh_room_get($id);
             if (!$room) { $redis->zRem(ZJH_DEADLINE_KEY, (string)$id); continue; }
-            zjh_force_capped_showdown($room);
             zjh_drive_bot($room);
             zjh_timeout($room);
             zjh_room_put($room);
@@ -696,7 +716,6 @@ if (($_GET['ajax'] ?? '') === 'poll') {
     header('Content-Type: application/json');
     [$room,$error] = zjh_mutate(function (&$room) {
         if (($room['status'] ?? '') === 'waiting' && count(array_filter($room['players'])) === zjh_seat_count($room)) zjh_start($room);
-        zjh_force_capped_showdown($room);
         zjh_drive_bot($room);
         zjh_timeout($room);
         return '';
@@ -730,7 +749,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             return '';
         });
-    } elseif (in_array($action, ['peek','call','raise','fold','compare','compare_all'], true)) {
+    } elseif (in_array($action, ['peek','call','raise','fold','compare','compare_all','all_in'], true)) {
         [$room,$error]=zjh_mutate(function (&$room,$seat) use ($action) {
             if (!hash_equals((string)($room['token'] ?? ''), (string)($_POST['token'] ?? ''))) return '页面凭证已失效，请刷新。';
             $targetSeat = null;
@@ -767,7 +786,7 @@ stdhead('炸金花');
   <div id="seats"></div><div class="z-log" id="logs"></div><div class="z-actions" id="actions"></div><div id="overlay"></div><div id="comparePicker"></div>
  </main>
  <section class="z-info">
-  <div class="z-panel"><h3>我的战绩</h3><div class="z-stats"><div class="z-stat"><b><?php echo (int)$stats['games'] ?></b>总局数</div><div class="z-stat"><b><?php echo (int)$stats['wins'] ?></b>胜局</div><div class="z-stat"><b><?php echo number_format((float)$stats['net'],1) ?></b>净盈亏</div><div class="z-stat"><b><?php echo number_format((float)$stats['best'],1) ?></b>单局最佳</div></div><p class="z-rule">每桌可设置 3–10 席，真人优先，也可由创建者补机器人。每席带入底注的 20 倍，单人最高 100,000、全桌最高 1,000,000 电影票。谁操作超时谁自动亮牌并停止行动，其他玩家继续看牌、跟注、加注、弃牌或比牌，直到所有仍在局玩家亮牌后才统一结算。暗牌下注 100 时看牌玩家跟注 300，暗牌下注 200 时看牌玩家跟注 500，以此类推。未看牌时牌面和牌型不会下发到浏览器，看牌后也仅本人可见。指定比牌支付一次比牌费；全比按对手人数支付费用，必须击败全部在局玩家才算成功。牌型从大到小：豹子、同花顺、金花、顺子、对子、单张。A23 为最小顺子，平牌时发起者落败。</p></div>
+  <div class="z-panel"><h3>我的战绩</h3><div class="z-stats"><div class="z-stat"><b><?php echo (int)$stats['games'] ?></b>总局数</div><div class="z-stat"><b><?php echo (int)$stats['wins'] ?></b>胜局</div><div class="z-stat"><b><?php echo number_format((float)$stats['net'],1) ?></b>净盈亏</div><div class="z-stat"><b><?php echo number_format((float)$stats['best'],1) ?></b>单局最佳</div></div><p class="z-rule">每桌可设置 3–10 席，真人优先，也可由创建者补机器人。每席带入底注的 20 倍，单人最高 100,000、全桌最高 1,000,000 电影票。电影票不足以跟注时，玩家可选择 All in 投入桌上全部剩余电影票并亮牌等待，或者直接弃牌。谁操作超时谁自动亮牌并停止行动，其他玩家继续看牌、跟注、加注、弃牌或比牌，直到所有仍在局玩家亮牌后才统一结算。暗牌下注 100 时看牌玩家跟注 300，暗牌下注 200 时看牌玩家跟注 500，以此类推。未看牌时牌面和牌型不会下发到浏览器，看牌后也仅本人可见。指定比牌支付一次比牌费；全比按对手人数支付费用，必须击败全部在局玩家才算成功。牌型从大到小：豹子、同花顺、金花、顺子、对子、单张。A23 为最小顺子，平牌时发起者落败。</p></div>
   <div class="z-panel"><h3>真人排行榜</h3><table class="z-rank"><tr><th>玩家</th><th>胜局</th><th>净盈亏</th></tr><?php foreach($rankings as $row){ ?><tr><td><?php echo htmlspecialchars($row['username']) ?></td><td><?php echo (int)$row['wins'] ?></td><td><?php echo number_format((float)$row['net'],1) ?></td></tr><?php } ?></table></div>
  </section>
 </div><div class="z-toast" id="toast"></div>
@@ -822,7 +841,7 @@ function render(){
  const count=g.seatCount||g.players.length;
  document.getElementById('seats').innerHTML=g.players.map((p,i)=>{const pos=seatPosition(i,count),density=count>=8?'dense':(count>=5?'compact':'');return `<article class="z-seat dynamic ${density} ${g.turn===i?'is-turn':''}" style="left:${pos.x.toFixed(2)}%;top:${pos.y.toFixed(2)}%"><div class="z-seat-head"><span class="z-name">${esc(p.username)}${p.bot?` <small>机器人·${esc(p.difficulty)}</small>`:''}</span><span class="z-stack">${money(p.stack)}</span></div><div class="z-status">${p.status==='empty'?'等待入座':p.status==='folded'?'已弃牌':p.status==='compared'?'比牌落败':p.revealed?'已亮牌 · '+esc(p.handName||''):p.handName||(p.seen?'已看牌':'暗牌')}${g.status==='finished'&&!p.bot?` · ${p.delta>=0?'+':''}${money(p.delta)}`:''}</div><div class="z-cards">${cards(p)}</div>${g.turn===i&&g.status==='playing'?`<span class="z-clock">${g.timeLeft}</span>`:''}</article>`}).join('');
  document.getElementById('logs').innerHTML=(g.logs||[]).slice().reverse().map(x=>`<div>${esc(x.time)} ${esc(x.text)}</div>`).join('');
- if(g.status==='playing')document.getElementById('actions').innerHTML=`<button class="z-btn" onclick="send('peek')" ${!g.canPeek||busy?'disabled':''}>看牌</button><button class="z-btn primary" onclick="send('call')" ${!g.canAct||busy?'disabled':''}>跟注 ${money(g.callCost)}</button><button class="z-btn" onclick="send('raise')" ${!g.canAct||g.raiseCount>=5||busy?'disabled':''}>加注</button><button class="z-btn" onclick="compareOpen=true;render()" ${!g.canAct||!g.compareTargets?.length||busy?'disabled':''}>选择比牌</button><button class="z-btn danger" onclick="send('fold')" ${!g.canAct||busy?'disabled':''}>弃牌</button>`;else document.getElementById('actions').innerHTML='';
+ if(g.status==='playing')document.getElementById('actions').innerHTML=g.mustAllIn?`<button class="z-btn primary" onclick="send('all_in')" ${busy?'disabled':''}>All in ${money(g.allInAmount)} 并亮牌</button><button class="z-btn danger" onclick="send('fold')" ${busy?'disabled':''}>弃牌</button>`:`<button class="z-btn" onclick="send('peek')" ${!g.canPeek||busy?'disabled':''}>看牌</button><button class="z-btn primary" onclick="send('call')" ${!g.canAct||busy?'disabled':''}>跟注 ${money(g.callCost)}</button><button class="z-btn" onclick="send('raise')" ${!g.canAct||g.raiseCount>=5||busy?'disabled':''}>加注</button><button class="z-btn" onclick="compareOpen=true;render()" ${!g.canAct||!g.compareTargets?.length||busy?'disabled':''}>选择比牌</button><button class="z-btn danger" onclick="send('fold')" ${!g.canAct||busy?'disabled':''}>弃牌</button>`;else document.getElementById('actions').innerHTML='';
  if(g.status==='waiting'){
   compareOpen=false;document.getElementById('overlay').innerHTML=`<div class="z-overlay"><div class="z-dialog"><h2>等待玩家入座 ${g.playerCount}/${g.seatCount}</h2><p>牌桌 ${g.roomId} · ${g.seatCount} 人桌 · 底注 ${money(g.base)} · 机器人难度 ${esc(g.botDifficulty)}</p>${g.mode==='friend'?`<div class="z-wait-code">${esc(g.invite)}</div><button class="z-btn primary" onclick="navigator.clipboard.writeText('${esc(g.inviteUrl)}').then(()=>toast('邀请链接已复制'))">复制好友邀请链接</button>`:'<p>系统正在匹配相同底注与人数的玩家，可继续等待真人。</p>'}${g.startError?`<p class="z-result">${esc(g.startError)}</p>`:''}<br>${g.isOwner&&g.playerCount<g.seatCount?'<button class="z-btn primary" onclick="send(\'fill_bots\')">补机器人立即开局</button> ':''}<button class="z-btn" onclick="send('leave')">离开牌桌</button></div></div>`;
  }else if(g.status==='finished'){
