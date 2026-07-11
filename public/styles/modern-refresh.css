@@ -5137,7 +5137,7 @@ html[data-site-theme] body.page-torrents .top-account-dropdown .top-theme-switch
 
 html[data-site-theme] body:not(.inframe) .top-account-dropdown .top-theme-switch .top-theme-btn::before,
 html[data-site-theme] body.page-torrents .top-account-dropdown .top-theme-switch .top-theme-btn::before {
-    content: "☾";
+    content: "夜";
     position: absolute;
     top: 50%;
     left: 5px;
@@ -5159,7 +5159,7 @@ html[data-site-theme] body.page-torrents .top-account-dropdown .top-theme-switch
 :root[data-site-theme="night"] body.page-torrents .top-account-dropdown .top-theme-switch .top-theme-btn::before,
 body.theme-night:not(.inframe) .top-account-dropdown .top-theme-switch .top-theme-btn::before,
 body.page-torrents.theme-night .top-account-dropdown .top-theme-switch .top-theme-btn::before {
-    content: "☀";
+    content: "日";
     left: 29px;
     background: #2f79ff;
     color: #ffffff;
