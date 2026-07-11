@@ -643,15 +643,13 @@ function zjh_timeout(&$room)
 {
     if (($room['status'] ?? '') !== 'playing' || zjh_now() < (int)$room['deadline']) return;
     $seat = (int)$room['turn'];
-    $player = $room['players'][$seat] ?? [];
-    if (zjh_requires_showdown($player['stack'] ?? 0, $room['current_bet'] ?? $room['base'], !empty($player['seen']), $room['base'] ?? 0)) {
-        $amount = max(0, (int)($player['stack'] ?? 0));
-        if ($amount > 0) zjh_commit($room, $seat, $amount);
-        $room['action_count']++;
-        zjh_reveal_and_advance($room, $seat, '读秒结束自动 All in ' . $amount);
-        return;
-    }
-    zjh_reveal_and_advance($room, $seat, '读秒结束自动亮牌');
+    $player =& $room['players'][$seat];
+    if (($player['status'] ?? '') !== 'active' || !empty($player['revealed'])) return;
+    $player['status'] = 'folded';
+    zjh_log($room, $player['username'] . ' 读秒结束，系统自动弃牌');
+    unset($player);
+    $room['action_count']++;
+    zjh_advance($room, $seat);
 }
 
 function zjh_rebuild_deadlines()
@@ -786,7 +784,7 @@ stdhead('炸金花');
   <div id="seats"></div><div class="z-log" id="logs"></div><div class="z-actions" id="actions"></div><div id="overlay"></div><div id="comparePicker"></div>
  </main>
  <section class="z-info">
-  <div class="z-panel"><h3>我的战绩</h3><div class="z-stats"><div class="z-stat"><b><?php echo (int)$stats['games'] ?></b>总局数</div><div class="z-stat"><b><?php echo (int)$stats['wins'] ?></b>胜局</div><div class="z-stat"><b><?php echo number_format((float)$stats['net'],1) ?></b>净盈亏</div><div class="z-stat"><b><?php echo number_format((float)$stats['best'],1) ?></b>单局最佳</div></div><p class="z-rule">每桌可设置 3–10 席，真人优先，也可由创建者补机器人。每席带入底注的 20 倍，单人最高 100,000、全桌最高 1,000,000 电影票。电影票不足以跟注时，玩家可选择 All in 投入桌上全部剩余电影票并亮牌等待，或者直接弃牌。谁操作超时谁自动亮牌并停止行动，其他玩家继续看牌、跟注、加注、弃牌或比牌，直到所有仍在局玩家亮牌后才统一结算。暗牌下注 100 时看牌玩家跟注 300，暗牌下注 200 时看牌玩家跟注 500，以此类推。未看牌时牌面和牌型不会下发到浏览器，看牌后也仅本人可见。指定比牌支付一次比牌费；全比按对手人数支付费用，必须击败全部在局玩家才算成功。牌型从大到小：豹子、同花顺、金花、顺子、对子、单张。A23 为最小顺子，平牌时发起者落败。</p></div>
+  <div class="z-panel"><h3>我的战绩</h3><div class="z-stats"><div class="z-stat"><b><?php echo (int)$stats['games'] ?></b>总局数</div><div class="z-stat"><b><?php echo (int)$stats['wins'] ?></b>胜局</div><div class="z-stat"><b><?php echo number_format((float)$stats['net'],1) ?></b>净盈亏</div><div class="z-stat"><b><?php echo number_format((float)$stats['best'],1) ?></b>单局最佳</div></div><p class="z-rule">每桌可设置 3–10 席，真人优先，也可由创建者补机器人。每席带入底注的 20 倍，单人最高 100,000、全桌最高 1,000,000 电影票。电影票不足以跟注时，玩家可选择 All in 投入桌上全部剩余电影票并亮牌等待，或者直接弃牌。任何玩家操作超时都会由系统自动弃牌；其他仍在局玩家继续看牌、跟注、加注、弃牌或比牌。暗牌下注 100 时看牌玩家跟注 300，暗牌下注 200 时看牌玩家跟注 500，以此类推。未看牌时牌面和牌型不会下发到浏览器，看牌后也仅本人可见。指定比牌支付一次比牌费；全比按对手人数支付费用，必须击败全部在局玩家才算成功。牌型从大到小：豹子、同花顺、金花、顺子、对子、单张。A23 为最小顺子，平牌时发起者落败。</p></div>
   <div class="z-panel"><h3>真人排行榜</h3><table class="z-rank"><tr><th>玩家</th><th>胜局</th><th>净盈亏</th></tr><?php foreach($rankings as $row){ ?><tr><td><?php echo htmlspecialchars($row['username']) ?></td><td><?php echo (int)$row['wins'] ?></td><td><?php echo number_format((float)$row['net'],1) ?></td></tr><?php } ?></table></div>
  </section>
 </div><div class="z-toast" id="toast"></div>
