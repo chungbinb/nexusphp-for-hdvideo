@@ -2961,19 +2961,19 @@ body:not(.inframe) .global-top-banner.qd-style .global-top-banner-nav {
 }
 
 body:not(.inframe) .global-top-banner.qd-style .global-top-banner-nav.prev {
-    left: clamp(24px, calc((100vw - 1420px) / 2 + 24px), 260px);
+    left: 24px;
 }
 
 body:not(.inframe) .global-top-banner.qd-style .global-top-banner-nav.next {
-    right: clamp(24px, calc((100vw - 1420px) / 2 + 24px), 260px);
+    right: 24px;
 }
 
 body.layout-narrow:not(.inframe) .global-top-banner.qd-style .global-top-banner-nav.prev {
-    left: clamp(24px, calc((100vw - 1200px) / 2 + 24px), 220px);
+    left: 24px;
 }
 
 body.layout-narrow:not(.inframe) .global-top-banner.qd-style .global-top-banner-nav.next {
-    right: clamp(24px, calc((100vw - 1200px) / 2 + 24px), 220px);
+    right: 24px;
 }
 
 @media (min-width: 921px) {
