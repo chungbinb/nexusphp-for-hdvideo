@@ -3386,7 +3386,7 @@ else {
 			<div class="top-account-header">
 				<a class="top-account-name top-account-name--<?php echo htmlspecialchars($topUserTone) ?> <?php echo htmlspecialchars($topUserClassColor) ?>" href="userdetails.php?id=<?php echo (int)$CURUSER['id'] ?>" style="text-decoration:none" title="<?php echo htmlspecialchars($lang_functions['text_user_cp']) ?>"><?php echo htmlspecialchars($CURUSER['username']) ?></a>
 				<div class="top-theme-switch" role="group" aria-label="Theme switch">
-					<button type="button" class="top-theme-btn" data-theme-toggle data-theme="night" aria-label="Switch theme" title="Switch theme">&#9790;</button>
+					<button type="button" class="top-theme-btn" data-theme-toggle data-theme="night" aria-label="Switch theme" title="Switch theme">夜</button>
 				</div>
 			</div>
 			<div class="top-account-stats">
@@ -3943,7 +3943,7 @@ html[data-site-theme="night"] #qd-bank-modal .qd-btn-reset{background:#16223a;co
 				btn.setAttribute('data-theme', next);
 				btn.setAttribute('aria-label', next === 'night' ? 'Switch to night mode' : 'Switch to day mode');
 				btn.setAttribute('title', next === 'night' ? 'Switch to night mode' : 'Switch to day mode');
-				btn.innerHTML = next === 'night' ? '&#9790;' : '&#9728;';
+				btn.textContent = next === 'night' ? '夜' : '日';
 				btn.classList.toggle('is-active', true);
 				btn.setAttribute('aria-pressed', theme === 'night' ? 'true' : 'false');
 				continue;
