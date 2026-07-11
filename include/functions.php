@@ -4380,12 +4380,29 @@ print '<br/>';
 			return offset;
 		}
 
-		function wantedVisibleCount() {
-			var width = Math.max(
-				banner.getBoundingClientRect().width || 0,
+		function carouselOuter() {
+			return document.querySelector('#outer.outer') || document.getElementById('outer') || banner.parentElement;
+		}
+
+		function isNarrowCarouselLayout() {
+			return document.body.classList.contains('layout-narrow') || (window.matchMedia && window.matchMedia('(max-width: 920px)').matches);
+		}
+
+		function carouselMeasureWidth() {
+			var outer = carouselOuter();
+			return Math.max(
+				320,
+				outer && outer.getBoundingClientRect().width || 0,
 				track.getBoundingClientRect().width || 0,
-				window.innerWidth || 0
+				banner.getBoundingClientRect().width || 0
 			);
+		}
+
+		function wantedVisibleCount() {
+			if (isNarrowCarouselLayout()) {
+				return 5;
+			}
+			var width = carouselMeasureWidth();
 			if (width >= 1800) {
 				return 11;
 			}
@@ -4407,13 +4424,13 @@ print '<br/>';
 		}
 
 		function syncBannerArrowEdges() {
-			var outer = document.querySelector('#outer.outer') || document.getElementById('outer') || banner.parentElement;
+			var outer = carouselOuter();
 			if (!outer) {
 				return;
 			}
 			var bannerRect = banner.getBoundingClientRect();
 			var outerRect = outer.getBoundingClientRect();
-			var inset = window.matchMedia && window.matchMedia('(max-width: 920px)').matches ? 8 : 24;
+			var inset = isNarrowCarouselLayout() ? 8 : 24;
 			var left = Math.max(inset, outerRect.left - bannerRect.left + inset);
 			var right = Math.max(inset, bannerRect.right - outerRect.right + inset);
 			banner.style.setProperty('--global-top-banner-arrow-left', Math.round(left) + 'px');
@@ -4423,7 +4440,7 @@ print '<br/>';
 		function cardMetrics(offset, visibleHalf) {
 			var distance = Math.abs(offset);
 			var direction = offset < 0 ? -1 : 1;
-			var stageWidth = Math.max(320, track.getBoundingClientRect().width || banner.getBoundingClientRect().width || window.innerWidth || 320);
+			var stageWidth = carouselMeasureWidth();
 			var spacing = visibleHalf > 0 ? Math.min(150, Math.max(86, (stageWidth - 120) / (visibleHalf * 2 + 0.6))) : 0;
 			var edgeRatio = visibleHalf > 0 ? Math.min(1, distance / visibleHalf) : 0;
 			if (distance === 0) {
@@ -4597,6 +4614,13 @@ print '<br/>';
 			}
 			resizeTimer = window.setTimeout(render, 120);
 		});
+		if (window.MutationObserver) {
+			new MutationObserver(function () {
+				if (items.length) {
+					render();
+				}
+			}).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+		}
 
 		function useFallbackItems() {
 			banner.style.display = 'none';
