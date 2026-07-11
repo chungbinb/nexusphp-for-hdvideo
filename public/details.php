@@ -296,7 +296,7 @@ JS;
         $actions = apply_filter('torrent_detail_actions', $actions, $row);
         $actions[] = "<a title=\"".$lang_details['title_report_torrent']."\" href=\"report.php?torrent=$id\"><img class=\"dt_report\" src=\"pic/trans.gif\" alt=\"report\" />&nbsp;<b><font class=\"small\">".$lang_details['text_report_torrent']."</font></b></a>";
 		tr($lang_details['row_action'], implode('&nbsp;|&nbsp;', $actions), 1);
-		$promotionLink = '<a class="btn" href="/torrent_promotion.php?id=' . (int)$id . '">使用魔力置顶 / Free</a>';
+		$promotionLink = '<a class="btn torrent-promotion-btn" style="color:#fff!important;text-decoration:none!important;" href="/torrent_promotion.php?id=' . (int)$id . '">使用魔力置顶 / Free</a>';
 		$promotionStatus = hdvideo_detail_render_promotion_status((int)$id, $row);
 		tr('种子推广', $promotionLink . '&nbsp;&nbsp;<span style="color:var(--bili-text-secondary,#61666d)">置顶、Free 和下载人奖励池可单独购买，也可同时生效。</span>' . $promotionStatus, 1);
 
