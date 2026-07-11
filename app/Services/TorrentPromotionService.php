@@ -120,17 +120,20 @@ class TorrentPromotionService
         ];
     }
 
-    public static function purchase(int $uid, int $torrentId, bool $buyPin, bool $buyFree): array
+    public static function purchase(int $uid, int $torrentId, bool $buyPin, bool $buyFree, ?int $durationHours = null): array
     {
         if (! $buyPin && ! $buyFree) throw new RuntimeException('请至少选择一项推广功能。');
         $settings = self::settings();
         if ((int)$settings['bonus_promotion_enabled'] !== 1) throw new RuntimeException('魔力推广当前未开放。');
-        $pinCost = $buyPin ? max(0, (float)$settings['bonus_sticky_cost']) : 0;
-        $freeCost = $buyFree ? max(0, (float)$settings['bonus_free_cost']) : 0;
+        $pinBaseHours = max(1, (int)$settings['bonus_sticky_days'] * 24);
+        $freeBaseHours = max(1, (int)$settings['bonus_free_hours']);
+        $hours = $durationHours !== null ? max(1, min(720, $durationHours)) : max(1, $freeBaseHours);
+        $pinCost = $buyPin ? round(max(0, (float)$settings['bonus_sticky_cost']) * $hours / $pinBaseHours, 1) : 0;
+        $freeCost = $buyFree ? round(max(0, (float)$settings['bonus_free_cost']) * $hours / $freeBaseHours, 1) : 0;
         $total = $pinCost + $freeCost;
         if ($total <= 0) throw new RuntimeException('推广价格配置无效，请联系管理员。');
 
-        $result = NexusDB::transaction(function () use ($uid, $torrentId, $buyPin, $buyFree, $settings, $pinCost, $freeCost, $total) {
+        $result = NexusDB::transaction(function () use ($uid, $torrentId, $buyPin, $buyFree, $settings, $hours, $pinCost, $freeCost, $total) {
             $user = NexusDB::table('users')->where('id', $uid)->lockForUpdate()->first(['id', 'seedbonus']);
             $torrent = NexusDB::table('torrents')->where('id', $torrentId)->lockForUpdate()->first(['id', 'name', 'sp_state', 'promotion_time_type', 'promotion_until', 'pos_state', 'pos_state_until']);
             if (! $user) throw new RuntimeException('用户不存在。');
@@ -147,7 +150,7 @@ class TorrentPromotionService
 
             if ($buyPin) {
                 $base = $record && $record->pin_until && Carbon::parse($record->pin_until)->isFuture() ? Carbon::parse($record->pin_until) : $now->copy();
-                $pinUntil = $base->addDays(max(1, (int)$settings['bonus_sticky_days']));
+                $pinUntil = $base->addHours($hours);
                 $desired = $tags['official'] ? Torrent::POS_STATE_STICKY_FIRST : Torrent::POS_STATE_STICKY_THIRD;
                 $currentRank = self::positionRank((string)$torrent->pos_state);
                 $desiredRank = self::positionRank($desired);
@@ -168,7 +171,7 @@ class TorrentPromotionService
                 if ($record && $record->free_until && Carbon::parse($record->free_until)->isFuture()) $candidates[] = Carbon::parse($record->free_until);
                 if ((int)$torrent->sp_state === Torrent::PROMOTION_FREE && $torrent->promotion_until && Carbon::parse($torrent->promotion_until)->isFuture()) $candidates[] = Carbon::parse($torrent->promotion_until);
                 $base = collect($candidates)->sortByDesc(fn (Carbon $date) => $date->timestamp)->first();
-                $freeUntil = $base->copy()->addHours(max(1, (int)$settings['bonus_free_hours']));
+                $freeUntil = $base->copy()->addHours($hours);
                 $torrentValues['sp_state'] = Torrent::PROMOTION_FREE;
                 $torrentValues['promotion_time_type'] = 2;
                 $torrentValues['promotion_until'] = $freeUntil->toDateTimeString();
@@ -183,14 +186,14 @@ class TorrentPromotionService
 
             $running = (float)$user->seedbonus;
             if ($buyPin) {
-                NexusDB::table('bonus_logs')->insert(self::bonusLog($uid, $running, -$pinCost, $running - $pinCost, "[种子推广] #{$torrentId} 魔力置顶", BonusLogs::BUSINESS_TYPE_STICKY_PROMOTION, $now));
+                NexusDB::table('bonus_logs')->insert(self::bonusLog($uid, $running, -$pinCost, $running - $pinCost, "[种子推广] #{$torrentId} 魔力置顶 {$hours}小时", BonusLogs::BUSINESS_TYPE_STICKY_PROMOTION, $now));
                 $running -= $pinCost;
             }
             if ($buyFree) {
-                NexusDB::table('bonus_logs')->insert(self::bonusLog($uid, $running, -$freeCost, $running - $freeCost, "[种子推广] #{$torrentId} Free", BonusLogs::BUSINESS_TYPE_TORRENT_FREE_PROMOTION, $now));
+                NexusDB::table('bonus_logs')->insert(self::bonusLog($uid, $running, -$freeCost, $running - $freeCost, "[种子推广] #{$torrentId} Free {$hours}小时", BonusLogs::BUSINESS_TYPE_TORRENT_FREE_PROMOTION, $now));
                 $running -= $freeCost;
             }
-            return ['spent' => $total, 'wallet' => $running, 'pin' => $buyPin, 'free' => $buyFree];
+            return ['spent' => $total, 'wallet' => $running, 'pin' => $buyPin, 'free' => $buyFree, 'hours' => $hours];
         });
         if (function_exists('clear_user_cache')) clear_user_cache($uid);
         if (function_exists('publish_model_event')) publish_model_event(\App\Enums\ModelEventEnum::TORRENT_UPDATED, $torrentId);
