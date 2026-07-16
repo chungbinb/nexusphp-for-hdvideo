@@ -221,9 +221,11 @@ if ($where) {
         $normalWhere .= " and $stickyWhere";
     }
 }
+// RSS must stay time-ordered: sticky-first sorting lets ~70 all-time sticky torrents
+// fill the 50-item window so new uploads never appear. Sticky opt-in uses ?sticky=1,2,3 prepend.
 $sort = $requireSeedMode
     ? "CASE WHEN torrents.seeders = 0 AND torrents.leechers > 0 THEN 0 WHEN torrents.seeders = 0 THEN 1 ELSE 2 END, torrents.leechers DESC, torrents.id DESC"
-    : \App\Services\TorrentPromotionService::priorityOrderSql('torrents') . " ASC, torrents.added DESC, torrents.id DESC";
+    : "torrents.id DESC";
 $fieldStr = "torrents.id, torrents.category, torrents.name, torrents.small_descr, torrent_extras.descr, torrents.info_hash, torrents.size, torrents.added, torrents.anonymous, torrents.owner, categories.name AS category_name";
 if (!$noNormalResults) {
     $query = "SELECT $fieldStr FROM torrents $tagFilter LEFT JOIN categories ON torrents.category = categories.id left join torrent_extras on torrent_extras.torrent_id = torrents.id $normalWhere ORDER BY $sort LIMIT $limit";
