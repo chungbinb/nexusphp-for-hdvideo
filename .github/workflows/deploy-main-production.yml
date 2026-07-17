@@ -81,6 +81,12 @@ jobs:
           sudo chown -R www:www /www/wwwroot/hdvideo.top || true
           sudo chmod -R ug+rwX storage bootstrap/cache
 
+      - name: Restart Horizon queue workers (supervisor daemon respawns them with the new code)
+        run: |
+          set -euo pipefail
+          cd /www/wwwroot/hdvideo.top
+          sudo -u www php artisan horizon:terminate || true
+
       - name: Restart Zha Jin Hua room worker
         run: |
           set -euo pipefail
